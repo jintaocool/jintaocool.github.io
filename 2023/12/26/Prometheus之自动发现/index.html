@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus之自动发现 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus之自动发现"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus之自动发现
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/26/Prometheus%E4%B9%8B%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0/" class="article-date">
+  <time datetime="2023-12-26T09:34:58.000Z" itemprop="datePublished">2023-12-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">11.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">46 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一、官方配置（可直接忽略）"><a href="#一、官方配置（可直接忽略）" class="headerlink" title="一、官方配置（可直接忽略）"></a>一、官方配置（可直接忽略）</h2><h3 id="1-1-配置文件总览"><a href="#1-1-配置文件总览" class="headerlink" title="1.1 配置文件总览"></a>1.1 配置文件总览</h3><p>Configuration file：</p>
+<p>       Prometheus通过命令行标志和配置文件进行配置。尽管命令行标志配置了不可变的系统参数（例如存储位置，要保留在磁盘和内存中的数据量等),但配置文件定义了与抓取作业及其实例相关的所有内容，以及哪些规则文件装载。要查看所有可用的命令行标志，请运行.&#x2F;prometheus -h。Prometheus可以在运行时重新加载其配置。 如果新配置格式不正确，则更改将不会应用。 通过向Prometheus进程发送SIGHUP或向&#x2F;-&#x2F; reload端点发送HTTP POST请求（启用–web.enable-lifecycle标志时）来触发配置重载。 这还将重新加载所有已配置的规则文件。</p>
+<p>      要指定要加载的配置文件，请使用–config.file标志。该文件以YAML格式写入，由以下描述的方案定义。 方括号表示参数是可选的。 对于非列表参数，该值设置为指定的默认值。通用占位符定义如下：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;boolean&gt;: 布尔值，可以采用<span class="literal">true</span>或<span class="literal">false</span>值</span><br><span class="line">&lt;duration&gt;: 与正则表达式[0-9]+(ms|[smhdwy])匹配的持续时间</span><br><span class="line">&lt;labelname&gt;: 与正则表达式[a-zA-Z_][a-zA-Z0-9_]*匹配的字符串</span><br><span class="line">&lt;labelvalue&gt;: 一串unicode字符</span><br><span class="line">&lt;filename&gt;: 当前工作目录中的有效路径</span><br><span class="line">&lt;host&gt;: 由主机名或IP后跟可选端口号组成的有效字符串</span><br><span class="line">&lt;path&gt;: 有效的URL路径</span><br><span class="line">&lt;scheme&gt;: 一个字符串，可以使用值http或https</span><br><span class="line">&lt;string&gt;: 常规字符串</span><br><span class="line">&lt;secret&gt;: 包含密码的常规字符串，例如密码</span><br><span class="line">&lt;tmpl_string&gt;: 使用前已模板扩展的字符串</span><br></pre></td></tr></table></figure>
+
+<p>       其他占位符分别指定。在这里可以找到有效的示例文件:<a target="_blank" rel="noopener" href="https://github.com/prometheus/prometheus/blob/release-2.13/config/testdata/conf.good.yml">https://github.com/prometheus/prometheus/blob/release-2.13/config/testdata/conf.good.yml</a></p>
+<p>       全局配置指定在所有其他配置上下文中有效的参数。 它们还用作其他配置部分的默认设置。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">global:</span><br><span class="line">  <span class="comment">#默认情况下收集目标的频率。</span></span><br><span class="line">  [ scrape_interval: &lt;duration&gt; | default = 1m ]</span><br><span class="line"></span><br><span class="line">  <span class="comment">#收集数据请求超时之前的时间。</span></span><br><span class="line">  [ scrape_timeout: &lt;duration&gt; | default = 10s ]</span><br><span class="line"></span><br><span class="line">  <span class="comment">#评估规则的频率。</span></span><br><span class="line">  [ evaluation_interval: &lt;duration&gt; | default = 1m ]</span><br><span class="line"></span><br><span class="line">  <span class="comment">#与外部系统（federation, remote storage, Alertmanage）通信时添加到任何时间序列或警报的标签。</span></span><br><span class="line">  external_labels:</span><br><span class="line">    [ &lt;labelname&gt;: &lt;labelvalue&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#规则文件指定了清单列表。 从所有匹配的文件中读取规则和警报</span></span><br><span class="line">rule_files:</span><br><span class="line">  [ - &lt;filepath_glob&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#scrape配置列表。</span></span><br><span class="line">scrape_configs:</span><br><span class="line">  [ - &lt;scrape_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#警报指定与Alertmanager相关的设置。</span></span><br><span class="line">alerting:</span><br><span class="line">  alert_relabel_configs:</span><br><span class="line">    [ - &lt;relabel_config&gt; ... ]</span><br><span class="line">  alertmanagers:</span><br><span class="line">    [ - &lt;alertmanager_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#与远程写入功能相关的设置。</span></span><br><span class="line">remote_write:</span><br><span class="line">  [ - &lt;remote_write&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#与远程读取功能相关的设置。</span></span><br><span class="line">remote_read:</span><br><span class="line">  [ - &lt;remote_read&gt; ... ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;scrape_config&gt;</p>
+<p>       scrape_config部分指定了一组目标和参数，这些目标和参数描述了如何scrape它们。 在一般情况下，一个scrape配置指定一个作业。 在高级配置中，这可能会改变。可以通过static_configs参数静态配置目标，也可以使用受支持的服务发现机制之一动态发现目标。此外，relabel_configs允许在抓取之前对任何目标及其标签进行高级修改。其中，&lt;job_name&gt;在所有scrape配置中必须唯一。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#默认情况下，作业名称分配给抓取的指标。</span></span><br><span class="line">job_name: &lt;job_name&gt;</span><br><span class="line"><span class="comment">#从这项工作中scrape目标的频率。</span></span><br><span class="line">[ scrape_interval: &lt;duration&gt; | default = &lt;global_config.scrape_interval&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#抓取此作业时的每次抓取超时。</span></span><br><span class="line">[ scrape_timeout: &lt;duration&gt; | default = &lt;global_config.scrape_timeout&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#从目标获取指标的HTTP资源路径。</span></span><br><span class="line">[ metrics_path: &lt;path&gt; | default = /metrics ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#honor_labels控制Prometheus如何处理已存在于抓取数据中的标签与Prometheus将在服务器端附加的标签（“作业”和“实例”标签，手动配置的目标标签以及由服务发现实现生成的标签）之间的冲突。</span></span><br><span class="line"><span class="comment">#如果将honor_labels设置为“true”，则通过保留已抓取数据中的标签值并忽略冲突的服务器端标签来解决标签冲突。</span></span><br><span class="line"><span class="comment">#如果将honor_labels设置为“false”，则通过将已抓取数据中的冲突标签重命名为“exported_ &lt;original-label&gt;”（例如“exported_instance”，“exported_job”），然后附加服务器端标签来解决标签冲突。</span></span><br><span class="line"><span class="comment">#将honor_labels设置为“true”对于诸如联合和刮除Pushgateway的用例很有用，在这种情况下应保留目标中指定的所有标签。</span></span><br><span class="line"><span class="comment">#请注意，此设置不会影响任何全局配置的“external_labels”。在与外部系统通信时，仅在时间序列尚无给定标签时才始终应用它们，否则将忽略它们。</span></span><br><span class="line">[ honor_labels: &lt;boolean&gt; | default = <span class="literal">false</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Honor_timestamps控制Prometheus是否尊重抓取数据中的时间戳。</span></span><br><span class="line"><span class="comment">#如果将honor_timestamps设置为“true”，则将使用目标公开的指标的时间戳。</span></span><br><span class="line"><span class="comment">#如果将honor_timestamps设置为“ false”，则目标忽略的度量标准的时间戳将被忽略。</span></span><br><span class="line">[ honor_timestamps: &lt;boolean&gt; | default = <span class="literal">true</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#配置用于请求的网络协议方案。</span></span><br><span class="line">[ scheme: &lt;scheme&gt; | default = http ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#可选的HTTP URL参数。</span></span><br><span class="line">params:</span><br><span class="line">  [ &lt;string&gt;: [&lt;string&gt;, ...] ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用配置的用户名和密码，在每个抓取请求上设置“ Authorization”标头。password和password_file是互斥的。</span></span><br><span class="line">basic_auth:</span><br><span class="line">  [ username: &lt;string&gt; ]</span><br><span class="line">  [ password: &lt;secret&gt; ]</span><br><span class="line">  [ password_file: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用配置的载体令牌在每个抓取请求上设置“Authorization”标头。 它与`bearer_token_file`互斥。</span></span><br><span class="line">[ bearer_token: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用从配置文件中读取的承载令牌，在每个抓取请求上设置“Authorization”标头。 它与`bearer_token`互斥。</span></span><br><span class="line">[ bearer_token_file: /path/to/bearer/token/file ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#配置抓取请求的TLS设置。</span></span><br><span class="line">tls_config:</span><br><span class="line">  [ &lt;tls_config&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#可选的代理URL。</span></span><br><span class="line">[ proxy_url: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Azure服务发现配置列表。</span></span><br><span class="line">azure_sd_configs:</span><br><span class="line">  [ - &lt;azure_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Consul服务发现配置列表。</span></span><br><span class="line">consul_sd_configs:</span><br><span class="line">  [ - &lt;consul_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#DNS服务发现配置列表。</span></span><br><span class="line">dns_sd_configs:</span><br><span class="line">  [ - &lt;dns_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#EC2服务发现配置列表。</span></span><br><span class="line">ec2_sd_configs:</span><br><span class="line">  [ - &lt;ec2_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#OpenStack服务发现配置列表。</span></span><br><span class="line">openstack_sd_configs:</span><br><span class="line">  [ - &lt;openstack_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#文件服务发现配置列表。</span></span><br><span class="line">file_sd_configs:</span><br><span class="line">  [ - &lt;file_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#GCE服务发现配置列表。</span></span><br><span class="line">gce_sd_configs:</span><br><span class="line">  [ - &lt;gce_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Kubernetes服务发现配置列表。</span></span><br><span class="line">kubernetes_sd_configs:</span><br><span class="line">  [ - &lt;kubernetes_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Marathon服务发现配置列表。</span></span><br><span class="line">marathon_sd_configs:</span><br><span class="line">  [ - &lt;marathon_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#AirBnB的Nerve服务发现配置列表。</span></span><br><span class="line">nerve_sd_configs:</span><br><span class="line">  [ - &lt;nerve_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Zookeeper Serverset服务发现配置列表。</span></span><br><span class="line">serverset_sd_configs:</span><br><span class="line">  [ - &lt;serverset_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Triton服务发现配置列表。</span></span><br><span class="line">triton_sd_configs:</span><br><span class="line">  [ - &lt;triton_sd_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#此作业的带标签的静态配置目标列表。</span></span><br><span class="line">static_configs:</span><br><span class="line">  [ - &lt;static_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#目标重新标记配置的列表。</span></span><br><span class="line">relabel_configs:</span><br><span class="line">  [ - &lt;relabel_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#metric重新标记配置列表。</span></span><br><span class="line">metric_relabel_configs:</span><br><span class="line">  [ - &lt;relabel_config&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#每次scrape将接受的scraped样本数限制。</span></span><br><span class="line"><span class="comment">#如果在公制重新标记后存在的样本数量超过此数量，则整个刮擦将被视为不合格。 0表示没有限制。</span></span><br><span class="line">[ sample_limit: &lt;int&gt; | default = 0 ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;tls_config&gt;</p>
+<p>       tls_config允许配置TLS连接。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#用于验证API服务器证书的CA证书。</span></span><br><span class="line">[ ca_file: &lt;filename&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#用于服务器的客户端证书身份验证的证书和密钥文件。</span></span><br><span class="line">[ cert_file: &lt;filename&gt; ]</span><br><span class="line">[ key_file: &lt;filename&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#ServerName扩展名，指示服务器的名称。 https://tools.ietf.org/html/rfc4366#section-3.1</span></span><br><span class="line">[ server_name: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#禁用服务器证书的验证。</span></span><br><span class="line">[ insecure_skip_verify: &lt;boolean&gt; ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-自动发现规则细分"><a href="#1-2-自动发现规则细分" class="headerlink" title="1.2 自动发现规则细分"></a>1.2 自动发现规则细分</h3><p>&lt;azure_sd_config&gt;</p>
+<p>      Azure SD配置允许从Azure VM检索抓取目标。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">__meta_azure_machine_id: 机器ID</span><br><span class="line">__meta_azure_machine_location: 机器运行的位置</span><br><span class="line">__meta_azure_machine_name: 机器名称</span><br><span class="line">__meta_azure_machine_os_type: 机器操作系统</span><br><span class="line">__meta_azure_machine_private_ip: 机器的专用IP</span><br><span class="line">__meta_azure_machine_public_ip: 机器的公共IP（如果存在）</span><br><span class="line">__meta_azure_machine_resource_group: 机器的资源组</span><br><span class="line">__meta_azure_machine_tag_&lt;tagname&gt;: 机器的每个标签值</span><br><span class="line">__meta_azure_machine_scale_set: vm所属的比例尺集的名称（仅当使用比例尺集时才设置此值）</span><br><span class="line">__meta_azure_subscription_id: 订阅ID</span><br><span class="line">__meta_azure_tenant_id: 租户ID</span><br></pre></td></tr></table></figure>
+
+<p>请参阅以下有关Azure发现的配置选项：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#访问Azure API的信息。Azure环境。</span></span><br><span class="line">[ environment: &lt;string&gt; | default = AzurePublicCloud ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#身份验证方法，即OAuth或ManagedIdentity。See https://docs.microsoft.com/en-us/azure/active-directory/managed-identities-azure-resources/overview</span></span><br><span class="line">[ authentication_method: &lt;string&gt; | default = OAuth]</span><br><span class="line"><span class="comment"># 订阅ID。 始终需要。</span></span><br><span class="line">subscription_id: &lt;string&gt;</span><br><span class="line"><span class="comment">#可选的租户ID。 仅在authentication_method OAuth中需要。</span></span><br><span class="line">[ tenant_id: &lt;string&gt; ]</span><br><span class="line"><span class="comment">#可选的客户端ID。 仅在authentication_method OAuth中需要。</span></span><br><span class="line">[ client_id: &lt;string&gt; ]</span><br><span class="line"><span class="comment">#可选的客户secret。 仅在authentication_method OAuth中需要。</span></span><br><span class="line">[ client_secret: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新间隔以重新读取实例列表。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 300s ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#从中收集指标的端口。 如果使用公共IP地址，则必须在重新标记规则中指定该地址。</span></span><br><span class="line">[ port: &lt;int&gt; | default = 80 ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;consul_sd_config&gt;</p>
+<p>Consul SD配置允许从Consul的Catalog API检索抓取目标。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">__meta_consul_address: 目标地址</span><br><span class="line">__meta_consul_dc: 目标的数据中心名称</span><br><span class="line">__meta_consul_tagged_address_&lt;key&gt;: 每个节点标记了目标的地址键值</span><br><span class="line">__meta_consul_metadata_&lt;key&gt;: 目标的每个节点元数据键值</span><br><span class="line">__meta_consul_node: 为目标定义的节点名称</span><br><span class="line">__meta_consul_service_address: 目标的服务地址</span><br><span class="line">__meta_consul_service_id: 目标的服务ID</span><br><span class="line">__meta_consul_service_metadata_&lt;key&gt;: 目标的每个服务元数据键值</span><br><span class="line">__meta_consul_service_port: 目标的服务端口</span><br><span class="line">__meta_consul_service: 目标所属服务的名称</span><br><span class="line">__meta_consul_tags: 由标签分隔符连接的目标的标签列表</span><br></pre></td></tr></table></figure>
+
+<p>下面是示例：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#访问Consul API的信息。 将根据Consul文档要求进行定义。</span></span><br><span class="line">[ server: &lt;host&gt; | default = <span class="string">&quot;localhost:8500&quot;</span> ]</span><br><span class="line">[ token: &lt;secret&gt; ]</span><br><span class="line">[ datacenter: &lt;string&gt; ]</span><br><span class="line">[ scheme: &lt;string&gt; | default = <span class="string">&quot;http&quot;</span> ]</span><br><span class="line">[ username: &lt;string&gt; ]</span><br><span class="line">[ password: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line">tls_config:</span><br><span class="line">  [ &lt;tls_config&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#为其检索目标的服务列表。 如果省略，则将scraped所有服务。</span></span><br><span class="line">services:</span><br><span class="line">  [ - &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#See https://www.consul.io/api/catalog.html#list-nodes-for-service 去知道有关可以使用的可能过滤器的更多信息。</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#标签的可选列表，用于过滤给定服务的节点。 服务必须包含列表中的所有标签。</span></span><br><span class="line">tags:</span><br><span class="line">  [ - &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#节点元数据，用于过滤给定服务的节点。</span></span><br><span class="line">[ node_meta:</span><br><span class="line">  [ &lt;name&gt;: &lt;value&gt; ... ] ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Consul标签通过其连接到标签标签中的字符串。</span></span><br><span class="line">[ tag_separator: &lt;string&gt; | default = , ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#允许过期Consul results (see https://www.consul.io/api/features/consistency.html). 将减少Consul的负担。</span></span><br><span class="line">[ allow_stale: &lt;bool&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新提供的名称之后的时间。在大型设置中，增加此值可能是个好主意，因为目录将一直更改。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 30s ]</span><br></pre></td></tr></table></figure>
+
+<p>       请注意，用于抓取目标的IP地址和端口被组装为&lt;__ meta_consul_address&gt;：&lt;__ meta_consul_service_port&gt;。 但是，在某些Consul设置中，相关地址在__meta_consul_service_address中。 在这种情况下，你可以使用重新标记功能来替换特殊的__address__标签。</p>
+<p>      重新标记阶段是基于任意标签为服务筛选服务或节点的首选且功能更强大的方法。 对于拥有数千项服务的用户，直接使用Consul API可能会更高效，该API具有基本的过滤节点支持（当前通过节点元数据和单个标签）。</p>
+<p>&lt;dns_sd_config&gt;</p>
+<p>      基于DNS的服务发现配置允许指定一组DNS域名，这些域名会定期查询以发现目标列表。 从&#x2F;etc&#x2F;resolv.conf中读取要联系的DNS服务器。此服务发现方法仅支持基本DNS A，AAAA和SRV记录查询，但不支持RFC6763中指定的高级DNS-SD方法。在重新标记阶段，元标记__meta_dns_name在每个目标上均可用，并设置为产生发现的目标的记录名称。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#要查询的DNS域名列表。</span></span><br><span class="line">names:</span><br><span class="line">  [ - &lt;domain_name&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#要执行的DNS查询的类型。</span></span><br><span class="line">[ <span class="built_in">type</span>: &lt;query_type&gt; | default = <span class="string">&#x27;SRV&#x27;</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果查询类型不是SRV，则使用的端口号。</span></span><br><span class="line">[ port: &lt;number&gt;]</span><br><span class="line"></span><br><span class="line"><span class="comment">#提供的名称之后的刷新时间。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 30s ]</span><br></pre></td></tr></table></figure>
+
+<p>       其中&lt;domain_name&gt;是有效的DNS域名。 其中&lt;query_type&gt;是SRV，A或AAAA。</p>
+<p>&lt;ec2_sd_config&gt;</p>
+<p>       EC2 SD配置允许从AWS EC2实例检索抓取目标。 默认情况下使用私有IP地址，但可以通过重新标记将其更改为公共IP地址。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">__meta_ec2_availability_zone: 实例在其中运行的可用区</span><br><span class="line">__meta_ec2_instance_id: EC2实例ID</span><br><span class="line">__meta_ec2_instance_state: EC2实例的状态</span><br><span class="line">__meta_ec2_instance_type: EC2实例的类型</span><br><span class="line">__meta_ec2_owner_id: 拥有EC2实例的AWS账户的ID</span><br><span class="line">__meta_ec2_platform: 操作系统平台，在Windows服务器上设置为“ windows”，否则不存在</span><br><span class="line">__meta_ec2_primary_subnet_id: 主网络接口的子网ID（如果有）</span><br><span class="line">__meta_ec2_private_dns_name: 实例的私有DNS名称（如果有）</span><br><span class="line">__meta_ec2_private_ip: 实例的私有IP地址（如果存在）</span><br><span class="line">__meta_ec2_public_dns_name: 实例的公共DNS名称（如果有）</span><br><span class="line">__meta_ec2_public_ip: 实例的公共IP地址（如果有）</span><br><span class="line">__meta_ec2_subnet_id: 实例在其中运行的子网ID的逗号分隔列表（如果有）</span><br><span class="line">__meta_ec2_tag_&lt;tagkey&gt;: 实例的每个标签值</span><br><span class="line">__meta_ec2_vpc_id: 运行实例的VPC的ID（如果有）</span><br></pre></td></tr></table></figure>
+
+<p>请参阅以下有关EC2发现的配置选项：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#访问EC2 API的信息。</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#AWS区域。如果为空，则使用实例元数据中的区域。</span></span><br><span class="line">[ region: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Custom endpoint to be used.</span></span><br><span class="line">[ endpoint: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#AWS API密钥。 如果为空，则使用环境变量“ AWS_ACCESS_KEY_ID”和“ AWS_SECRET_ACCESS_KEY”。</span></span><br><span class="line">[ access_key: &lt;string&gt; ]</span><br><span class="line">[ secret_key: &lt;secret&gt; ]</span><br><span class="line"><span class="comment">#用于连接到API的命名AWS配置文件。</span></span><br><span class="line">[ profile: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#AWS Role ARN，是使用AWS API密钥的替代方法。 AWS Role ARN，是使用AWS API密钥的替代方法。</span></span><br><span class="line">[ role_arn: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新间隔以重新读取实例列表。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 60s ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#从中scrape指标的端口。 如果使用公共IP地址，则必须在重新标记规则中指定该地址。</span></span><br><span class="line">[ port: &lt;int&gt; | default = 80 ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#筛选器可用于根据其他条件筛选实例列表。 可在此处找到可用的过滤条件：https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_DescribeInstances.html</span></span><br><span class="line"><span class="comment">#筛选器API文档: https://docs.aws.amazon.com/AWSEC2/latest/APIReference/API_Filter.html</span></span><br><span class="line">filters:</span><br><span class="line">  [ - name: &lt;string&gt;</span><br><span class="line">      values: &lt;string&gt;, [...] ]</span><br></pre></td></tr></table></figure>
+
+<p>重新标记阶段是基于任意标签过滤目标的首选且功能更强大的方法。 对于具有数千个实例的用户，直接使用支持过滤实例的EC2 API可能会更有效。</p>
+<p>&lt;openstack_sd_config&gt;</p>
+<p>      OpenStack SD配置允许从OpenStack Nova实例检索抓取目标。可以配置以下&lt;openstack_role&gt;类型之一来发现目标：</p>
+<p>      hypervisor：系统管理程序角色为每个Nova系统管理程序节点发现一个目标。 目标地址默认为虚拟机管理程序的host_ip属性。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">__meta_openstack_hypervisor_host_ip: 系统管理程序节点的IP地址。</span><br><span class="line">__meta_openstack_hypervisor_name: 系统管理程序节点的名称。</span><br><span class="line">__meta_openstack_hypervisor_state: 系统管理程序节点的状态。</span><br><span class="line">__meta_openstack_hypervisor_status: 系统管理程序节点的状态。</span><br><span class="line">__meta_openstack_hypervisor_type: 系统管理程序节点的类型。</span><br></pre></td></tr></table></figure>
+
+<p>      instance：实例角色为Nova实例的每个网络接口发现一个目标。 目标地址默认为网络接口的专用IP地址。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">__meta_openstack_address_pool: 专用IP的池。</span><br><span class="line">__meta_openstack_instance_flavor: OpenStack实例的风格。</span><br><span class="line">__meta_openstack_instance_id: OpenStack实例ID。</span><br><span class="line">__meta_openstack_instance_name: OpenStack实例ID。</span><br><span class="line">__meta_openstack_instance_status: OpenStack实例的状态。</span><br><span class="line">__meta_openstack_private_ip: OpenStack实例的私有IP。</span><br><span class="line">__meta_openstack_project_id: 拥有此实例的项目（租户）。</span><br><span class="line">__meta_openstack_public_ip: OpenStack实例的公共IP。</span><br><span class="line">__meta_openstack_tag_&lt;tagkey&gt;: 实例的每个标记值。</span><br><span class="line">__meta_openstack_user_id: 拥有租户的用户帐户。</span><br></pre></td></tr></table></figure>
+
+<p>请参阅以下有关OpenStack发现的配置选项：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#访问OpenStack API的信息。</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#应该发现的实体的OpenStack角色。</span></span><br><span class="line">role: &lt;openstack_role&gt;  </span><br><span class="line"><span class="comment">#The OpenStack Region.</span></span><br><span class="line">region: &lt;string&gt;</span><br><span class="line"><span class="comment">#identity_endpoint指定使用适当版本的Identity API所需的HTTP端点。 尽管所有身份服务最终都需要它，但通常会由提供程序级别的功能来填充它。</span></span><br><span class="line">[ identity_endpoint: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果使用Identity V2 API，则需要用户名.请咨询提供商的控制面板，以发现你帐户的用户名。 在Identity V3中，需要userid或username和domain_id或domain_name的组合。</span></span><br><span class="line">[ username: &lt;string&gt; ]</span><br><span class="line">[ userid: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#Identity V2和V3 API的密码。 请咨询提供商的控制面板，以发现您帐户的首选身份验证方法。</span></span><br><span class="line">[ password: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果在Identity V3中使用用户名，则最多只能提供domain_id和domain_name之一。 否则，两者都是可选的。</span></span><br><span class="line">[ domain_name: &lt;string&gt; ]</span><br><span class="line">[ domain_id: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#对于Identity V2 API，project_id和project_name字段是可选的。某些提供程序允许您指定project_name而不是project_id。有些同时需要。 供应商的身份验证策略将确定这些字段如何影响身份验证。</span></span><br><span class="line">[ project_name: &lt;string&gt; ]</span><br><span class="line">[ project_id: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果使用应用程序凭据进行身份验证，则必须提供application_credential_id或application_credential_name字段。某些提供程序允许你创建用于身份验证的应用程序凭据，而不是密码。</span></span><br><span class="line">[ application_credential_name: &lt;string&gt; ]</span><br><span class="line">[ application_credential_id: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果使用应用程序凭据进行身份验证，则application_credential_secret字段为必填字段。</span></span><br><span class="line">[ application_credential_secret: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#服务发现是否应列出所有项目的所有实例。 它仅与“instance”角色相关，通常需要管理员权限。</span></span><br><span class="line">[ all_tenants: &lt;boolean&gt; | default: <span class="literal">false</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新间隔以重新读取实例列表。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 60s ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#从中scrape指标的端口。 如果使用公共IP地址，则必须在重新标记规则中指定该地址。</span></span><br><span class="line">[ port: &lt;int&gt; | default = 80 ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#TLS配置。</span></span><br><span class="line">tls_config:</span><br><span class="line">  [ &lt;tls_config&gt; ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;file_sd_config&gt;</p>
+<p>      基于文件的服务发现提供了一种配置静态目标的更通用的方法，并用作插入自定义服务发现机制的接口。它读取一组包含零个或多个&lt;static_config&gt;的列表的文件。 对所有已定义文件的更改将通过磁盘监视来检测并立即应用。 文件可以以YAML或JSON格式提供。 仅应用导致形成良好目标组的更改。JSON文件必须包含使用以下格式的静态配置列表：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;targets&quot;</span>: [ <span class="string">&quot;&lt;host&gt;&quot;</span>, ... ],</span><br><span class="line">    <span class="string">&quot;labels&quot;</span>: &#123;</span><br><span class="line">      <span class="string">&quot;&lt;labelname&gt;&quot;</span>: <span class="string">&quot;&lt;labelvalue&gt;&quot;</span>, ...</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>     作为备用，文件内容也将以指定的刷新间隔定期重新读取。在重新标记阶段，每个目标都有一个元标记__meta_filepath。 它的值设置为从中提取目标的文件路径。有与此发现机制集成的列表。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#从中提取目标组的文件的模式。</span></span><br><span class="line">files:</span><br><span class="line">  [ - &lt;filename_pattern&gt; ... ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新间隔以重新读取文件。</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 5m ]</span><br></pre></td></tr></table></figure>
+
+<p>其中&lt;filename_pattern&gt;可能是以.json，.yml或.yaml结尾的路径。 最后的路径段可能包含与任何字符序列匹配的单个*，例如 my&#x2F;path&#x2F;tg_*.json。</p>
+<p>&lt;gce_sd_config&gt;</p>
+<p>      GCE SD配置允许从GCP GCE实例中检索抓取目标。 默认情况下使用私有IP地址，但可以通过重新标记将其更改为公共IP地址。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">__meta_gce_instance_id: 实例的数字ID</span><br><span class="line">__meta_gce_instance_name: 实例的名称</span><br><span class="line">__meta_gce_label_&lt;name&gt;: 实例的每个GCE标签</span><br><span class="line">__meta_gce_machine_type: 实例机器类型的完整或部分URL</span><br><span class="line">__meta_gce_metadata_&lt;name&gt;: 实例的每个元数据项</span><br><span class="line">__meta_gce_network: 实例的网络URL</span><br><span class="line">__meta_gce_private_ip: 实例的私有IP地址</span><br><span class="line">__meta_gce_project: 实例在其中运行的GCP项目</span><br><span class="line">__meta_gce_public_ip: 实例的公共IP地址（如果存在）</span><br><span class="line">__meta_gce_subnetwork: 实例的子网URL</span><br><span class="line">__meta_gce_tags: 以逗号分隔的实例标签列表</span><br><span class="line">__meta_gce_zone: 实例在其中运行的GCE区域URL</span><br></pre></td></tr></table></figure>
+
+<p>请参阅以下有关GCE发现的配置选项：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#访问GCE API的信息。</span></span><br><span class="line"></span><br><span class="line"><span class="comment">#The GCP Project</span></span><br><span class="line">project: &lt;string&gt;</span><br><span class="line"><span class="comment">#scrape目标区域。 如果需要多个区域，请使用多个gce_sd_configs。</span></span><br><span class="line">zone: &lt;string&gt;</span><br><span class="line"><span class="comment">#可以选择使用Filter通过其他条件来过滤实例列表，此过滤字符串的语法在过滤查询参数部分中进行了描述：https://cloud.google.com/compute/docs/reference/latest/instances/list</span></span><br><span class="line">[ filter: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#刷新间隔以重新读取实例列表</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 60s ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#从中scrape指标的端口。如果使用公共IP地址，则必须在重新标记规则中指定该地址。</span></span><br><span class="line">[ port: &lt;int&gt; | default = 80 ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#标签分隔符用于在串联时分隔标签</span></span><br><span class="line">[ tag_separator: &lt;string&gt; | default = , ]</span><br></pre></td></tr></table></figure>
+
+<p>Google Cloud SDK默认客户端通过在以下位置查找（首选找到的第一个位置）来发现凭据：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">GOOGLE_APPLICATION_CREDENTIALS环境变量指定的JSON文件</span><br><span class="line">众所周知的路径<span class="variable">$HOME</span>/.config/gcloud/application_default_credentials.json中的JSON文件</span><br><span class="line">从GCE元数据服务器获取</span><br></pre></td></tr></table></figure>
+
+<p>如果Prometheus在GCE中运行，则与其运行实例相关联的服务帐户应至少具有对计算资源的只读权限。 如果在GCE之外运行，请确保创建适当的服务帐户，并将凭据文件放在预期的位置之一。</p>
+<p>&lt;marathon_sd_config&gt;</p>
+<p>       Marathon SD配置允许使用Marathon REST API检索刮擦目标。 Prometheus将定期检查REST端点是否有当前正在运行的任务，并为每个至少具有一个正常任务的应用程序创建目标组。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">__meta_marathon_app: 应用程序的名称（斜杠由破折号代替）</span><br><span class="line">__meta_marathon_image: 使用的Docker映像的名称（如果可用）</span><br><span class="line">__meta_marathon_task: Mesos任务的ID</span><br><span class="line">__meta_marathon_app_label_&lt;labelname&gt;: 附加到应用程序的所有Marathon标签</span><br><span class="line">__meta_marathon_port_definition_label_&lt;labelname&gt;: 端口定义标签</span><br><span class="line">__meta_marathon_port_mapping_label_&lt;labelname&gt;: 端口映射标签</span><br><span class="line">__meta_marathon_port_index: 端口索引号（例如PORT1为1）</span><br></pre></td></tr></table></figure>
+
+<p>请参阅以下有关Marathon发现的配置选项：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#用于联系Marathon服务器的URL列表。需要至少提供一个服务器URL。</span></span><br><span class="line">servers:</span><br><span class="line">  - &lt;string&gt;<span class="comment"># Polling interval</span></span><br><span class="line">[ refresh_interval: &lt;duration&gt; | default = 30s ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#基于令牌的身份验证的可选身份验证信息https://docs.mesosphere.com/1.11/security/ent/iam-api/#passing-an-authentication-token</span></span><br><span class="line"><span class="comment">#它与auth_token_file和其他身份验证机制互斥。</span></span><br><span class="line">[ auth_token: &lt;secret&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#基于令牌的身份验证的可选身份验证信息https://docs.mesosphere.com/1.11/security/ent/iam-api/#passing-an-authentication-token</span></span><br><span class="line"><span class="comment">#它与auth_token和其他身份验证机制互斥。</span></span><br><span class="line">[ auth_token_file: &lt;filename&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用配置的用户名和密码在每个请求上设置``Authorization&#x27;&#x27;标头，这与其他身份验证机制互斥.password和password_file是互斥的。</span></span><br><span class="line">basic_auth:</span><br><span class="line">  [ username: &lt;string&gt; ]</span><br><span class="line">  [ password: &lt;string&gt; ]</span><br><span class="line">  [ password_file: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用配置的载体令牌在每个请求上设置“Authorization”标头。它与`bearer_token_file`和其他身份验证机制互斥。注意：当前版本的DC/OS marathon（v1.11.0）不支持标准的Bearer令牌身份验证。 使用`auth_token`代替。</span></span><br><span class="line">[ bearer_token: &lt;string&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#使用从配置文件中读取的承载令牌，对每个请求设置“ Authorization”标头。 它与`bearer_token`和其他身份验证机制互斥。注意：当前版本的DC/OS marathon（v1.11.0）不支持标准的Bearer令牌身份验证。 请改用auth_token_file。</span></span><br><span class="line">[ bearer_token_file: /path/to/bearer/token/file ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#用于连接到marathon服务器的TLS配置</span></span><br><span class="line">tls_config:</span><br><span class="line">  [ &lt;tls_config&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#可选的代理URL。</span></span><br><span class="line">[ proxy_url: &lt;string&gt; ]</span><br></pre></td></tr></table></figure>
+
+<p>      默认情况下，Prometheus将scraped Marathon中列出的每个应用。 如果并非所有服务都提供Prometheus指标，则可以使用Marathon标签和Prometheus重新标签来控制实际上将被scraped的实例。 有关如何设置Marathon应用程序和Prometheus配置的实际示例，请参阅Prometheus marathon-sd配置文件。默认情况下，所有应用程序都将在Prometheus（配置文件中指定的一项）中显示为单个作业，也可以使用重新标记进行更改。</p>
+<p>&lt;nerve_sd_config&gt;</p>
+<p>     Nerve SD配置允许从AirBnB的Nerve中检索scrape目标，这些scrape目标存储在Zookeeper中。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">__meta_nerve_path: Zookeeper中端点节点的完整路径</span><br><span class="line">__meta_nerve_endpoint_host: 端点的主机</span><br><span class="line">__meta_nerve_endpoint_port: 端点的端口</span><br><span class="line">__meta_nerve_endpoint_name: 端点名称</span><br></pre></td></tr></table></figure>
+
+<p>配置如下：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#Zookeeper服务器。</span></span><br><span class="line">servers:</span><br><span class="line">  - &lt;host&gt;</span><br><span class="line"><span class="comment">#路径可以指向单个服务，也可以指向服务树的根。</span></span><br><span class="line">paths:</span><br><span class="line">  - &lt;string&gt;[ <span class="built_in">timeout</span>: &lt;duration&gt; | default = 10s ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;serverset_sd_config&gt;</p>
+<p>       Serverset SD配置允许从存储在Zookeeper中的Serverset检索抓取目标。 服务器集通常由Finagle和Aurora使用。重新标记期间，以下meta标签可用于目标：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">__meta_serverset_path: Zookeeper中服务器集成员节点的完整路径</span><br><span class="line">__meta_serverset_endpoint_host: 默认端点的主机</span><br><span class="line">__meta_serverset_endpoint_port: 默认端点的端口</span><br><span class="line">__meta_serverset_endpoint_host_&lt;endpoint&gt;: 给定端点的主机</span><br><span class="line">__meta_serverset_endpoint_port_&lt;endpoint&gt;: 给定端点的端口</span><br><span class="line">__meta_serverset_shard: 成员的分片号</span><br><span class="line">__meta_serverset_status: 成员的状态</span><br></pre></td></tr></table></figure>
+
+<p>配置如下：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#Zookeeper服务器。</span></span><br><span class="line">servers:</span><br><span class="line">  - &lt;host&gt;</span><br><span class="line"><span class="comment">#路径可以指向单个服务器集，也可以指向服务器集树的根。</span></span><br><span class="line">paths:</span><br><span class="line">  - &lt;string&gt;[ <span class="built_in">timeout</span>: &lt;duration&gt; | default = 10s ]</span><br></pre></td></tr></table></figure>
+
+<p>Serverset数据必须为JSON格式，当前不支持Thrift格式。</p>
+<p>&lt;triton_sd_config&gt;</p>
+<p>#请参照官网</p>
+<h2 id="二、基于文件的自动发现"><a href="#二、基于文件的自动发现" class="headerlink" title="二、基于文件的自动发现"></a>二、基于文件的自动发现</h2><p>static_configs: 静态服务发现。文件的自动发现配置是：file_sd_configs区域的配置，文件可以是YAML和JSON两种格式。</p>
+<h3 id="2-1-通过文件自动发现多node-export"><a href="#2-1-通过文件自动发现多node-export" class="headerlink" title="2.1 通过文件自动发现多node_export"></a>2.1 通过文件自动发现多node_export</h3><p>先通过JSON方式来一波：</p>
+<p>加载一个文件：</p>
+<p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- job_name: k8s_node</span><br><span class="line">  file_sd_configs:</span><br><span class="line">    - files:</span><br><span class="line">      - /opt/prometheus/file_sd/k8s_node.json</span><br><span class="line">      refresh_interval: 10s</span><br></pre></td></tr></table></figure>
+
+<p>#files下面指定文件的位置，当然也可以用- &#x2F;opt&#x2F;prometheus&#x2F;file_sd&#x2F;*.json代替匹配目录下的多个文件哈，refresh_interval表示prometheus每隔多久检测一下这些配置文件加载新的配置，当然第一次添加文件位置的时候需要重新加载prometheus，如果只是修改已经加载的json文件的话不需要重新加载prometheus，prometheus定时刷新有新的变化会重新加载。</p>
+<p># vim &#x2F;opt&#x2F;prometheus&#x2F;file_sd&#x2F;k8s_node.json</p>
+<p>[</p>
+<p>  {</p>
+<p>    “targets”:  [“192.168.1.135:9100”,”192.168.1.136:9100”]</p>
+<p>  }</p>
+<p>]</p>
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p>#从界面可以看到两台机器已经加载到监控里面来了哈。</p>
+<p>target资源如果变化大的话可以把间隔时间调小点，如果比较稳定的话可以把间隔时间调大点比如60m。</p>
+<p>#用下面promql语句可以查看上次更改时间：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">prometheus_sd_file_mtime_seconds</span><br></pre></td></tr></table></figure>
+
+<p>加载多个文件：  </p>
+<p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- job_name: k8s_node</span><br><span class="line">  file_sd_configs:</span><br><span class="line">    - files:</span><br><span class="line">      - /opt/prometheus/file_sd/k8s_node.json</span><br><span class="line">      - /opt/prometheus/file_sd/k8s_master.json</span><br><span class="line">      refresh_interval: 10s</span><br></pre></td></tr></table></figure>
+
+<p># vim &#x2F;opt&#x2F;prometheus&#x2F;file_sd&#x2F;k8s_master.json</p>
+<p>[</p>
+<p>  {</p>
+<p>    “targets”:  [“192.168.1.137:9100”]</p>
+<p>  }</p>
+<p>]</p>
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p>然后再通过yaml文件来一波：</p>
+<p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- job_name: k8s_node</span><br><span class="line">  file_sd_configs:</span><br><span class="line">    - files:</span><br><span class="line">      -  /opt/prometheus/file_sd/k8s*.yml</span><br><span class="line">      refresh_interval: 10s</span><br></pre></td></tr></table></figure>
+
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p># vim &#x2F;opt&#x2F;prometheus&#x2F;file_sd&#x2F;k8s_node.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">- targets: [<span class="string">&quot;192.168.1.136:9100&quot;</span>,<span class="string">&quot;192.168.1.137:9100&quot;</span>]</span><br><span class="line">  labels:</span><br><span class="line">    __env__: <span class="string">&quot;prod&quot;</span></span><br><span class="line">    node_type: <span class="string">&quot;node&quot;</span></span><br><span class="line">- targets: [<span class="string">&quot;192.168.1.157:9100&quot;</span>]</span><br><span class="line">  labels:</span><br><span class="line">    __env__: <span class="string">&quot;env&quot;</span></span><br><span class="line">    node_type: <span class="string">&quot;logstash&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>#上面我们可以针对不同的targets标签，这样我们就知道这个采集的类型，然后还记得把__开头的标签是不会写到metrics数据的，但是node_type确实可以写到metrics中的。</p>
+<p># vim &#x2F;opt&#x2F;prometheus&#x2F;file_sd&#x2F;k8s_master.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- targets:</span><br><span class="line">  - <span class="string">&quot;192.168.1.135:9100&quot;</span></span><br><span class="line">  labels:</span><br><span class="line">    __env__: <span class="string">&quot;prod&quot;</span></span><br><span class="line">    node_type: <span class="string">&quot;master&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>#这是targets的另外一种写法，这样我们就可以通过node_type来区分k8s的master节点和node节点的数据了。  </p>
+<p>#可以看到每个targets类型的列表都打了不同的标签。如：node_cpu_seconds_total{node_type&#x3D;”master”}  我们就可以针对不同的标签做不同的数据采样和监控报警了。</p>
+<h2 id="三、kube-state-metrics理论基础"><a href="#三、kube-state-metrics理论基础" class="headerlink" title="三、kube-state-metrics理论基础"></a>三、kube-state-metrics理论基础</h2><h3 id="3-1-kube-state-metrics"><a href="#3-1-kube-state-metrics" class="headerlink" title="3.1 kube-state-metrics"></a>3.1 kube-state-metrics</h3><p>概述：  </p>
+<p>已经有了cadvisor、heapster、metric-server，几乎容器运行的所有指标都能拿到，但是下面这种情况却无能为力：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">我调度了多少个replicas？现在可用的有几个？</span><br><span class="line">多少个Pod是running/stopped/terminated状态？</span><br><span class="line">Pod重启了多少次？</span><br><span class="line">我有多少job在运行中</span><br></pre></td></tr></table></figure>
+
+<p>而这些则是kube-state-metrics提供的内容，它基于client-go开发，轮询Kubernetes API，并将Kubernetes的结构化信息转换为metrics。</p>
+<p>指标分类：</p>
+<p>指标类别包括：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">CronJob Metrics</span><br><span class="line">DaemonSet Metrics</span><br><span class="line">Deployment Metrics</span><br><span class="line">Job Metrics</span><br><span class="line">LimitRange Metrics</span><br><span class="line">Node Metrics</span><br><span class="line">PersistentVolume Metrics</span><br><span class="line">PersistentVolumeClaim Metrics</span><br><span class="line">Pod Metrics</span><br><span class="line">Pod Disruption Budget Metrics</span><br><span class="line">ReplicaSet Metrics</span><br><span class="line">ReplicationController Metrics</span><br><span class="line">ResourceQuota Metrics</span><br><span class="line">Service Metrics</span><br><span class="line">StatefulSet Metrics</span><br><span class="line">Namespace Metrics</span><br><span class="line">Horizontal Pod Autoscaler Metrics</span><br><span class="line">Endpoint Metrics</span><br><span class="line">Secret Metrics</span><br><span class="line">ConfigMap Metrics</span><br></pre></td></tr></table></figure>
+
+<p>以pod为例：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">kube_pod_info</span><br><span class="line">kube_pod_owner</span><br><span class="line">kube_pod_status_phase</span><br><span class="line">kube_pod_status_ready</span><br><span class="line">kube_pod_status_scheduled</span><br><span class="line">kube_pod_container_status_waiting</span><br><span class="line">kube_pod_container_status_terminated_reason</span><br><span class="line">…</span><br></pre></td></tr></table></figure>
+
+<p>对于pod的资源限制，一般情况下：200MiB memory 0.1 cores</p>
+<p>超过100节点的集群：2MiB memory per node 0.001 cores per node</p>
+<p>     请注意，如果将CPU限制设置得太低，则将无法足够快地处理kube-state-metrics的内部队列，从而随着队列长度的增加而导致内存消耗增加。 如果遇到内存分配过多导致的问题，请尝试增加CPU限制。</p>
+<p>      因为kube-state-metrics-service.yaml中有prometheus.io&#x2F;scrape: ‘true’标识，因此会将metric暴露给prometheus，而Prometheus会在kubernetes-service-endpoints这个job下自动发现kube-state-metrics，并开始拉取metrics，无需其他配置。</p>
+<p>使用kube-state-metrics后的常用场景有：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">存在执行失败的Job: kube_job_status_failed&#123;job=“kubernetes-service-endpoints”,k8s_app=“kube-state-metrics”&#125;==1</span><br><span class="line">集群节点状态错误: kube_node_status_condition&#123;condition=“Ready”,status!=“<span class="literal">true</span>”&#125;==1</span><br><span class="line">集群中存在启动失败的Pod：kube_pod_status_phase&#123;phase=~“Failed|Unknown”&#125;==1</span><br><span class="line">最近30分钟内有Pod容器重启: changes(kube_pod_container_status_restarts[30m])&gt;0</span><br></pre></td></tr></table></figure>
+
+<p>kube-state-metrics本质上是不断轮询api-server。度量标准在侦听端口的HTTP endpoint &#x2F;metrics上导出（默认为8080）。</p>
+<p>与metric-server的对比：</p>
+<p>1. metric-server（或heapster）是从api-server中获取cpu、内存使用率这种监控指标，并把他们发送给存储后端，如influxdb或云厂商，他当前的核心作用是：为HPA等组件提供决策指标支持。</p>
+<p>2. kube-state-metrics关注于获取k8s各种资源的最新状态，如deployment或者daemonset，之所以没有把kube-state-metrics纳入到metric-server的能力中，是因为他们的关注点本质上是不一样的。metric-server仅仅是获取、格式化现有数据，写入特定的存储，实质上是一个监控系统。而kube-state-metrics是将k8s的运行状况在内存中做了个快照，并且获取新的指标，但他没有能力导出这些指标</p>
+<p>3. 换个角度讲，kube-state-metrics本身是metric-server的一种数据来源，虽然现在没有这么做。</p>
+<p>4. 另外，像Prometheus这种监控系统，并不会去用metric-server中的数据，他都是自己做指标收集、集成的（Prometheus包含了metric-server的能力），但Prometheus可以监控metric-server本身组件的监控状态并适时报警，这里的监控就可以通过kube-state-metrics来实现，如metric-serverpod的运行状态。</p>
+<p>优化点和问题：</p>
+<p>1.因为kube-state-metrics是监听资源的add、delete、update事件，那么在kube-state-metrics部署之前已经运行的资源，岂不是拿不到数据？kube-state-metric利用client-go可以初始化所有已经存在的资源对象，确保没有任何遗漏</p>
+<p>2.kube-state-metrics当前不会输出metadata信息(如help和description）</p>
+<p>3.缓存实现是基于golang的map，解决并发读问题当期是用了一个简单的互斥锁，应该可以解决问题，后续会考虑golang的sync.Map安全map。</p>
+<p>4.kube-state-metrics通过比较resource version来保证event的顺序</p>
+<p>5.kube-state-metrics并不保证包含所有资源</p>
+<h3 id="3-2-kube-state-metrics部署"><a href="#3-2-kube-state-metrics部署" class="headerlink" title="3.2 kube-state-metrics部署"></a>3.2 kube-state-metrics部署</h3><p>github地址：<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics">https://github.com/kubernetes/kube-state-metrics</a></p>
+<p>Kubernetes部署： <a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics#kubernetes-deployment">https://github.com/kubernetes/kube-state-metrics#kubernetes-deployment</a></p>
+<p>#要根据你的k8s集群版本选择对应的kube-state-metrics版本。  </p>
+<p>#wget <a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics/archive/v1.9.5.tar.gz">https://github.com/kubernetes/kube-state-metrics/archive/v1.9.5.tar.gz</a></p>
+<p>#tar zxf v1.9.5.tar.gz</p>
+<p># cd kube-state-metrics-1.9.5&#x2F;examples&#x2F;</p>
+<p># kubectl apply -f standard&#x2F;</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">clusterrolebinding.rbac.authorization.k8s.io/kube-state-metrics created</span><br><span class="line">clusterrole.rbac.authorization.k8s.io/kube-state-metrics created</span><br><span class="line">deployment.apps/kube-state-metrics created</span><br><span class="line">serviceaccount/kube-state-metrics created</span><br><span class="line">service/kube-state-metrics created</span><br></pre></td></tr></table></figure>
+
+<p># kubectl  get pods -n kube-system |grep kube-state-metrics</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kube-state-metrics-54d587f66c-dc2mv   1/1     Running   0          12m</span><br></pre></td></tr></table></figure>
+
+<p># kubectl logs kube-state-metrics-54d587f66c-dc2mv -n kube-system</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">I0315 03:07:11.290601       1 main.go:86] Using default collectors</span><br><span class="line">I0315 03:07:11.290665       1 main.go:98] Using all namespace</span><br><span class="line">I0315 03:07:11.290673       1 main.go:139] metric white-blacklisting: blacklisting the following items:</span><br><span class="line">W0315 03:07:11.290695       1 client_config.go:543] Neither --kubeconfig nor --master was specified.  Using the inClusterConfig.  This might not work.</span><br><span class="line">I0315 03:07:11.291800       1 main.go:184] Testing communication with server</span><br><span class="line">I0315 03:07:11.298582       1 main.go:189] Running with Kubernetes cluster version: v1.17. git version: v1.17.2. git tree state: clean. commit: 59603c6e503c87169aea6106f57b9f242f64df89. platform: linux/amd64</span><br><span class="line">I0315 03:07:11.298603       1 main.go:191] Communication with server successful</span><br><span class="line">I0315 03:07:11.298723       1 main.go:225] Starting metrics server: 0.0.0.0:8080</span><br><span class="line">I0315 03:07:11.298908       1 metrics_handler.go:96] Autosharding disabled</span><br><span class="line">I0315 03:07:11.300469       1 builder.go:146] Active collectors: certificatesigningrequests,configmaps,cronjobs,daemonsets,deployments,endpoints,horizontalpodautoscalers,ingresses,<span class="built_in">jobs</span>,limitranges,mutatingwebhookconfigurations,namespaces,networkpolicies,nodes,persistentvolumeclaims,persistentvolumes,poddisruptionbudgets,pods,replicasets,replicationcontrollers,resourcequotas,secrets,services,statefulsets,storageclasses,validatingwebhookconfigurations,volumeattachments</span><br><span class="line">I0315 03:07:11.299537       1 main.go:200] Starting kube-state-metrics self metrics server: 0.0.0.0:8081</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-3-将kube-state-metrics中的数据采集出来"><a href="#3-3-将kube-state-metrics中的数据采集出来" class="headerlink" title="3. 3 将kube-state-metrics中的数据采集出来"></a>3. 3 将kube-state-metrics中的数据采集出来</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;kubernetes-service-endpoints&#x27;</span></span><br><span class="line">  kubernetes_sd_configs:</span><br><span class="line">  - role: endpoints</span><br><span class="line">  relabel_configs:</span><br><span class="line">  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]</span><br><span class="line">    action: keep</span><br><span class="line">    regex: <span class="literal">true</span></span><br><span class="line">  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scheme]</span><br><span class="line">    action: replace</span><br><span class="line">    target_label: __scheme__</span><br><span class="line">    regex: (https?)</span><br><span class="line">  - source_labels: [__meta_kubernetes_service_annotation_prometheus_io_path]</span><br><span class="line">    action: replace</span><br><span class="line">    target_label: __metrics_path__</span><br><span class="line">    regex: (.+)</span><br><span class="line">  - source_labels: [__address__, __meta_kubernetes_service_annotation_prometheus_io_port]</span><br><span class="line">    action: replace</span><br><span class="line">    target_label: __address__</span><br><span class="line">    regex: ([^:]+)(?::\d+)?;(\d+)</span><br><span class="line">    replacement: <span class="variable">$1</span>:<span class="variable">$2</span></span><br><span class="line">  - action: labelmap</span><br><span class="line">    regex: __meta_kubernetes_service_label_(.+)</span><br><span class="line">  - source_labels: [__meta_kubernetes_namespace]</span><br><span class="line">    action: replace</span><br><span class="line">    target_label: kubernetes_namespace</span><br><span class="line">  - source_labels: [__meta_kubernetes_service_name]</span><br><span class="line">    action: replace</span><br><span class="line">    target_label: kubernetes_name</span><br></pre></td></tr></table></figure>
+
+
+<h2 id="四、kube-state-metrics指标记录"><a href="#四、kube-state-metrics指标记录" class="headerlink" title="四、kube-state-metrics指标记录"></a>四、kube-state-metrics指标记录</h2><p>所有监控的指标：<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics/tree/master/docs">https://github.com/kubernetes/kube-state-metrics/tree/master/docs</a></p>
+<h3 id="4-1-ConfigMap-Metrics"><a href="#4-1-ConfigMap-Metrics" class="headerlink" title="4.1 ConfigMap Metrics"></a>4.1 ConfigMap Metrics</h3><p>#查询地址指标数据地址：<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/configmap_test.go">https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/configmap_test.go</a></p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">kube_configmap_info  <span class="comment">#gauge类型，有关configmap的信息</span></span><br><span class="line">kube_configmap_created  <span class="comment">#gauge类型，Unix创建时间戳</span></span><br><span class="line">kube_configmap_metadata_resource_version  <span class="comment">#gauge类型，表示configmap特定版本的资源版本。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-2-CronJob-Metrics"><a href="#4-2-CronJob-Metrics" class="headerlink" title="4.2 CronJob Metrics"></a>4.2 CronJob Metrics</h3><p>#查询地址：<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/job_test.go">https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/cronjob_test.go</a></p>
+<p>#其他的就不贴地址了哈，基本都是在<a target="_blank" rel="noopener" href="https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/%E4%B8%8B%E9%9D%A2%E6%89%BE%E6%8C%87%E5%AE%9A%E5%90%8D%E7%A7%B0/_test.go%E6%A0%87%E5%BF%97%E7%9A%84%E6%96%87%E4%BB%B6%E3%80%82">https://github.com/kubernetes/kube-state-metrics/blob/master/internal/store/下面找指定名称\_test.go标志的文件。</a></p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">kube_cronjob_info   <span class="comment">#gauge类型，关于cronjob的信息</span></span><br><span class="line">kube_cronjob_labels  <span class="comment">#gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_cronjob_created  <span class="comment">#gauge类型，Unix创建时间戳</span></span><br><span class="line">kube_cronjob_next_schedule_time  <span class="comment">#gauge类型，下次应该安排cronjob。 在lastScheduleTime之后的时间，或者在cron作业的创建时间之后（如果从未计划过）。 使用它来确定作业是否延迟。</span></span><br><span class="line">kube_cronjob_status_active  <span class="comment">#gauge类型，活动保持指向当前正在运行的作业的指针。</span></span><br><span class="line">kube_cronjob_status_last_schedule_time  <span class="comment">#gauge类型，LastScheduleTime保留有关上一次成功调度作业的时间的信息。</span></span><br><span class="line">kube_cronjob_spec_suspend  <span class="comment">#gauge类型，挂起标志告诉控制器挂起后续执行。</span></span><br><span class="line">kube_cronjob_spec_starting_deadline_seconds  <span class="comment">#gauge类型，如果由于任何原因错过了计划时间，则开始工作的最后期限（以秒为单位）。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-3-DaemonSet-Metrics"><a href="#4-3-DaemonSet-Metrics" class="headerlink" title="4.3 DaemonSet Metrics"></a>4.3 DaemonSet Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">kube_daemonset_created  <span class="comment">#gauge类型，Unix创建时间戳</span></span><br><span class="line">kube_daemonset_status_current_number_scheduled  <span class="comment">#gauge类型，运行至少一个且应该运行的守护程序容器的节点数。</span></span><br><span class="line">kube_daemonset_status_desired_number_scheduled  <span class="comment">#gauge类型，应该运行守护程序容器的节点数。</span></span><br><span class="line">kube_daemonset_status_number_available  <span class="comment">#gauge类型，应该运行守护程序容器并具有一个或多个守护程序容器正在运行并且可用的节点数</span></span><br><span class="line">kube_daemonset_status_number_misscheduled  <span class="comment">#gauge类型，运行守护程序容器但不应该运行的节点数。</span></span><br><span class="line">kube_daemonset_status_number_ready  <span class="comment">#gauge类型，应该运行守护程序容器并已运行一个或多个守护程序容器并准备就绪的节点数。</span></span><br><span class="line">kube_daemonset_status_number_unavailable  <span class="comment">#gauge类型，应该运行守护程序容器且没有任何守护程序容器正在运行并且可用的节点数</span></span><br><span class="line">kube_daemonset_updated_number_scheduled  <span class="comment">#gauge类型，正在运行更新的守护程序pod的节点总数</span></span><br><span class="line">kube_daemonset_metadata_generation  <span class="comment">#gauge类型，代表所需状态的特定生成的序列号。</span></span><br><span class="line">kube_daemonset_labels  <span class="comment">#gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-4-Deployment-Metrics"><a href="#4-4-Deployment-Metrics" class="headerlink" title="4.4 Deployment Metrics"></a>4.4 Deployment Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">kube_deployment_status_replicas  <span class="comment">#Gauge类型，每个deployment的副本数。</span></span><br><span class="line">kube_deployment_status_replicas_available  <span class="comment">#Gauge类型，每个deployment的可用副本数</span></span><br><span class="line">kube_deployment_status_replicas_unavailable  <span class="comment">#Gauge类型，每个deployment中不可用副本的数量</span></span><br><span class="line">kube_deployment_status_replicas_updated  <span class="comment">#Gauge类型，每个deployment的更新副本数</span></span><br><span class="line">kube_deployment_status_observed_generation  <span class="comment">#Gauge类型，deployment控制器观察到的生成</span></span><br><span class="line">kube_deployment_status_condition  <span class="comment">#Gauge类型，部署的当前状态condition</span></span><br><span class="line">kube_deployment_spec_replicas  <span class="comment">#Gauge类型，deployment所需的Pod数</span></span><br><span class="line">kube_deployment_spec_paused  <span class="comment">#Gauge类型，deployment是否暂停，并且deployment控制器不会处理。</span></span><br><span class="line">kube_deployment_spec_strategy_rollingupdate_max_unavailable  <span class="comment">#Gauge类型，</span></span><br><span class="line">kube_deployment_spec_strategy_rollingupdate_max_surge  <span class="comment">#Gauge类型，滚动更新deployment期间的最大不可用副本数。</span></span><br><span class="line">kube_deployment_metadata_generation  <span class="comment">#Gauge类型，代表期望状态的特定生成的序列号</span></span><br><span class="line">kube_deployment_labels  <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签</span></span><br><span class="line">kube_deployment_created  <span class="comment">#Gauge类型，Unix创建时间戳</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-5-Endpoint-Metrics"><a href="#4-5-Endpoint-Metrics" class="headerlink" title="4.5 Endpoint Metrics"></a>4.5 Endpoint Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">kube_endpoint_address_not_ready  <span class="comment">#Gauge类型，endpoint中not ready的addresses数</span></span><br><span class="line">kube_endpoint_address_available  <span class="comment">#Gauge类型，endpoint中可用的addresses数。</span></span><br><span class="line">kube_endpoint_info  <span class="comment">#Gauge类型，有关endpoint的信息</span></span><br><span class="line">kube_endpoint_labels  <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_endpoint_created  <span class="comment">#Gauge类型，Unix创建时间戳</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-6-Horizontal-Pod-Autoscaler-Metrics"><a href="#4-6-Horizontal-Pod-Autoscaler-Metrics" class="headerlink" title="4.6 Horizontal Pod Autoscaler Metrics"></a>4.6 Horizontal Pod Autoscaler Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">kube_horizontalpodautoscaler_labels  <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_horizontalpodautoscaler_metadata_generation  <span class="comment">#Gauge类型，通过HorizontalPodAutoscaler控制器观察到的生成。</span></span><br><span class="line">kube_horizontalpodautoscaler_spec_max_replicas  <span class="comment">#Gauge类型，自动定标器可以设置的容器数量上限； 不能小于MinReplicas。</span></span><br><span class="line">kube_horizontalpodautoscaler_spec_min_replicas  <span class="comment">#Gauge类型，自动定标器可以设置的Pod数量下限，默认为1。</span></span><br><span class="line">kube_horizontalpodautoscaler_spec_target_metric  <span class="comment">#Gauge类型，此自动定标器在计算所需副本数时使用的度量标准。</span></span><br><span class="line">kube_horizontalpodautoscaler_status_condition  <span class="comment">#Gauge类型，此自动定标器的条件。</span></span><br><span class="line">kube_horizontalpodautoscaler_status_current_replicas  <span class="comment">#Gauge类型，此自动缩放器管理的Pod的当前副本数。</span></span><br><span class="line">kube_horizontalpodautoscaler_status_desired_replicas  <span class="comment">#Gauge类型，此自动缩放器管理的所需Pod副本数。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-7-Ingress-Metrics"><a href="#4-7-Ingress-Metrics" class="headerlink" title="4.7 Ingress Metrics"></a>4.7 Ingress Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">kube_ingress_info  <span class="comment">#Gauge类型，有关ingress的信息</span></span><br><span class="line">kube_ingress_labels  <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_ingress_created  <span class="comment">#Gauge类型，Unix创建时间戳</span></span><br><span class="line">kube_ingress_metadata_resource_version  <span class="comment">#Gauge类型，代表特定ingress版本的资源版本。</span></span><br><span class="line">kube_ingress_path  <span class="comment">#Gauge类型，ingress host, paths and backend service 信息。</span></span><br><span class="line">kube_ingress_tls  <span class="comment">#Gauge类型，ingress TLS host and secret 信息。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-8-Job-Metrics"><a href="#4-8-Job-Metrics" class="headerlink" title="4.8 Job Metrics"></a>4.8 Job Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">kube_job_info  <span class="comment">#Gauge类型，有关job的信息。</span></span><br><span class="line">kube_job_labels  <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_job_owner  <span class="comment">#Gauge类型，有关job所有者的信息。</span></span><br><span class="line">kube_job_spec_parallelism  <span class="comment">#Gauge类型，在任何给定时间，job应运行的pod的最大期望数量。</span></span><br><span class="line">kube_job_spec_completions  <span class="comment">#Gauge类型，运行job所需的成功完成的Pod数量。</span></span><br><span class="line">kube_job_spec_active_deadline_seconds  <span class="comment">#Gauge类型，在系统尝试终止job之前，作业相对于startTime的活动持续时间（以秒为单位）。</span></span><br><span class="line">kube_job_status_active  <span class="comment">#Gauge类型，正在运行的pod数。</span></span><br><span class="line">kube_job_status_succeeded  <span class="comment">#Gauge类型，成功reached Phase的pod数量。</span></span><br><span class="line">kube_job_status_failed  <span class="comment">#Gauge类型，Failed reached Phase的pod数量。</span></span><br><span class="line">kube_job_status_start_time  <span class="comment">#Gauge类型，StartTime表示作业Job Manager job的时间。</span></span><br><span class="line">kube_job_status_completion_time  <span class="comment">#Gauge类型，CompletionTime表示job完成的时间。</span></span><br><span class="line">kube_job_complete  <span class="comment">#Gauge类型，job已完成执行。</span></span><br><span class="line">kube_job_failed  <span class="comment">#Gauge类型，job执行失败。</span></span><br><span class="line">kube_job_created  <span class="comment">#Gauge类型，Unix创建时间戳</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-9-Lease-Metrics"><a href="#4-9-Lease-Metrics" class="headerlink" title="4.9 Lease Metrics"></a>4.9 Lease Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kube_lease_owner <span class="comment">#Gauge类型，有关lease所有者的信息。</span></span><br><span class="line">kube_lease_renew_time <span class="comment">#Gauge类型,Kube lease续订时间。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-10-LimitRange-Metrics"><a href="#4-10-LimitRange-Metrics" class="headerlink" title="4.10 LimitRange Metrics"></a>4.10 LimitRange Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kube_limitrange <span class="comment">#Gauge类型，有关limitrange的信息。</span></span><br><span class="line">kube_limitrange_created <span class="comment">#Gauge类型，Unix创建时间戳</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-11-MutatingWebhookConfiguration-Metrics"><a href="#4-11-MutatingWebhookConfiguration-Metrics" class="headerlink" title="4.11 MutatingWebhookConfiguration Metrics"></a>4.11 MutatingWebhookConfiguration Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">kube_mutatingwebhookconfiguration_info <span class="comment">#Gauge类型，有关MutatingWebhookConfiguration的信息。</span></span><br><span class="line">kube_mutatingwebhookconfiguration_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_mutatingwebhookconfiguration_metadata_resource_version <span class="comment">#Gauge类型，资源版本，表示MutatingWebhookConfiguration的特定版本。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-12-Namespace-Metrics"><a href="#4-12-Namespace-Metrics" class="headerlink" title="4.12 Namespace Metrics"></a>4.12 Namespace Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">kube_namespace_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_namespace_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_namespace_status_condition <span class="comment">#Gauge类型，命名空间的状态。</span></span><br><span class="line">kube_namespace_status_phase <span class="comment">#Gauge类型，kubernetes命名空间状态阶段。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-13-Network-Policy-Metrics"><a href="#4-13-Network-Policy-Metrics" class="headerlink" title="4.13 Network Policy Metrics"></a>4.13 Network Policy Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">kube_networkpolicy_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_networkpolicy_labels <span class="comment">#Gauge类型，</span></span><br><span class="line">kube_networkpolicy_spec_egress_rules <span class="comment">#Gauge类型，规格出口规则</span></span><br><span class="line">kube_networkpolicy_spec_ingress_rules <span class="comment">#Gauge类型，规格入口规则</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-14-Node-Metrics"><a href="#4-14-Node-Metrics" class="headerlink" title="4.14 Node Metrics"></a>4.14 Node Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">kube_node_info <span class="comment">#Gauge类型，有关群集节点的信息。</span></span><br><span class="line">kube_node_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_node_role <span class="comment">#Gauge类型，集群节点的角色。</span></span><br><span class="line">kube_node_spec_unschedulable <span class="comment">#Gauge类型，节点是否可以调度新的Pod。</span></span><br><span class="line">kube_node_spec_taint <span class="comment">#Gauge类型，群集节点的污点。</span></span><br><span class="line">kube_node_status_capacity <span class="comment">#Gauge类型，节点不同资源的容量。</span></span><br><span class="line">kube_node_status_allocatable <span class="comment">#Gauge类型，可用于调度的节点的不同资源的可分配资源。</span></span><br><span class="line">kube_node_status_condition <span class="comment">#Gauge类型，群集节点的状况。</span></span><br><span class="line">kube_node_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-15-PersistentVolume-Metrics"><a href="#4-15-PersistentVolume-Metrics" class="headerlink" title="4.15 PersistentVolume Metrics"></a>4.15 PersistentVolume Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">kube_persistentvolume_capacity_bytes <span class="comment">#Gauge类型，persistentvolume（持久卷）容量（以字节为单位）。</span></span><br><span class="line">kube_persistentvolume_status_phase <span class="comment">#Gauge类型，该阶段指示某个卷是否可用，绑定到声明或由声明释放。</span></span><br><span class="line">kube_persistentvolume_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_persistentvolume_info <span class="comment">#Gauge类型，有关持久卷的信息。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-16-PersistentVolumeClaim-Metrics"><a href="#4-16-PersistentVolumeClaim-Metrics" class="headerlink" title="4.16 PersistentVolumeClaim Metrics"></a>4.16 PersistentVolumeClaim Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">kube_persistentvolumeclaim_access_mode <span class="comment">#Gauge类型，永久卷声明指定的访问模式。</span></span><br><span class="line">kube_persistentvolumeclaim_info <span class="comment">#Gauge类型，有关持久卷声明的信息。</span></span><br><span class="line">kube_persistentvolumeclaim_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_persistentvolumeclaim_resource_requests_storage_bytes <span class="comment">#Gauge类型，持久卷声明所请求的存储容量。</span></span><br><span class="line">kube_persistentvolumeclaim_status_condition <span class="comment">#Gauge类型，有关持续量索赔的不同条件的状态的信息。</span></span><br><span class="line">kube_persistentvolumeclaim_status_phase <span class="comment">#Gauge类型，永久批量声明当前处于此阶段。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-17-PodDisruptionBudget-Metrics"><a href="#4-17-PodDisruptionBudget-Metrics" class="headerlink" title="4.17 PodDisruptionBudget Metrics"></a>4.17 PodDisruptionBudget Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">kube_poddisruptionbudget_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_poddisruptionbudget_status_current_healthy <span class="comment">#Gauge类型，当前健康pod的数量</span></span><br><span class="line">kube_poddisruptionbudget_status_desired_healthy <span class="comment">#Gauge类型，所需的健康pod的最小数量</span></span><br><span class="line">kube_poddisruptionbudget_status_pod_disruptions_allowed <span class="comment">#Gauge类型，当前允许的pod中断次数</span></span><br><span class="line">kube_poddisruptionbudget_status_expected_pods <span class="comment">#Gauge类型，此中断预算计算的pod总数</span></span><br><span class="line">kube_poddisruptionbudget_status_observed_generation <span class="comment">#Gauge类型，更新此PDB状态时观察到的最新一代</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-18-Pod-Metrics"><a href="#4-18-Pod-Metrics" class="headerlink" title="4.18 Pod Metrics"></a>4.18 Pod Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">kube_pod_info <span class="comment">#Gauge类型，有关pod的信息。</span></span><br><span class="line">kube_pod_start_time <span class="comment">#Gauge类型，pod的unix时间戳记中的开始时间。</span></span><br><span class="line">kube_pod_completion_time <span class="comment">#Gauge类型，pod的unix时间戳记中的完成时间。</span></span><br><span class="line">kube_pod_owner <span class="comment">#Gauge类型，有关Pod所有者的信息。</span></span><br><span class="line">kube_pod_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_pod_status_phase <span class="comment">#Gauge类型，Pod当前阶段。</span></span><br><span class="line">kube_pod_status_ready <span class="comment">#Gauge类型，描述容器是否准备好处理请求。</span></span><br><span class="line">kube_pod_status_scheduled <span class="comment">#Gauge类型，描述pod的调度过程的状态。</span></span><br><span class="line">kube_pod_container_info <span class="comment">#Gauge类型，有关容器中container的信息。</span></span><br><span class="line">kube_pod_container_status_waiting <span class="comment">#Gauge类型，描述容器当前是否处于等待状态。</span></span><br><span class="line">kube_pod_container_status_waiting_reason <span class="comment">#Gauge类型，描述容器当前处于等待状态的原因。</span></span><br><span class="line">kube_pod_container_status_running <span class="comment">#Gauge类型，描述容器当前是否处于运行状态。</span></span><br><span class="line">kube_pod_container_status_terminated <span class="comment">#Gauge类型，描述容器当前是否处于终止状态。</span></span><br><span class="line">kube_pod_container_status_terminated_reason <span class="comment">#Gauge类型，描述容器当前处于终止状态的原因。</span></span><br><span class="line">kube_pod_container_status_last_terminated_reason <span class="comment">#Gauge类型，描述容器处于终止状态的最后原因。</span></span><br><span class="line">kube_pod_container_status_ready <span class="comment">#Gauge类型，Describes whether the containers readiness check succeeded.</span></span><br><span class="line">kube_pod_container_status_restarts_total <span class="comment">#Gauge类型，每个容器的容器重新启动次数。</span></span><br><span class="line">kube_pod_container_resource_requests <span class="comment">#Gauge类型，容器请求的请求资源数。</span></span><br><span class="line">kube_pod_container_resource_limits <span class="comment">#Gauge类型，容器请求的限制资源数量。</span></span><br><span class="line">kube_pod_overhead <span class="comment">#Gauge类型</span></span><br><span class="line">kube_pod_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_pod_deletion_timestamp <span class="comment">#Gauge类型，Unix删除时间戳</span></span><br><span class="line">kube_pod_restart_policy <span class="comment">#Gauge类型，描述此pod使用的重新启动策略。</span></span><br><span class="line">kube_pod_init_container_info <span class="comment">#Gauge类型，有关Pod中init容器的信息。</span></span><br><span class="line">kube_pod_init_container_status_waiting <span class="comment">#Gauge类型，描述初始化容器当前是否处于等待状态。</span></span><br><span class="line">kube_pod_init_container_status_waiting_reason <span class="comment">#Gauge类型，Describes the reason the init container is currently in waiting state.</span></span><br><span class="line">kube_pod_init_container_status_running <span class="comment">#Gauge类型，描述初始化容器当前是否处于运行状态。</span></span><br><span class="line">kube_pod_init_container_status_terminated <span class="comment">#Gauge类型，描述初始化容器当前是否处于终止状态。</span></span><br><span class="line">kube_pod_init_container_status_terminated_reason <span class="comment">#Gauge类型，描述初始化容器当前处于终止状态的原因。</span></span><br><span class="line">kube_pod_init_container_status_last_terminated_reason <span class="comment">#Gauge类型，描述初始化容器处于终止状态的最后原因。</span></span><br><span class="line">kube_pod_init_container_status_ready <span class="comment">#Gauge类型，描述初始化容器准备情况检查是否成功。</span></span><br><span class="line">kube_pod_init_container_status_restarts_total  <span class="comment">#Counter类型，初始化容器的重新启动次数。    </span></span><br><span class="line">kube_pod_init_container_resource_limits <span class="comment">#Gauge类型，初始化容器请求的限制资源数。</span></span><br><span class="line">kube_pod_spec_volumes_persistentvolumeclaims_info <span class="comment">#Gauge类型，有关Pod中持久卷声明卷的信息。</span></span><br><span class="line">kube_pod_spec_volumes_persistentvolumeclaims_readonly <span class="comment">#Gauge类型，描述是否以只读方式安装了持久卷声明。</span></span><br><span class="line">kube_pod_status_reason <span class="comment">#Gauge类型，pod状态原因</span></span><br><span class="line">kube_pod_status_scheduled_time <span class="comment">#Gauge类型，Pod移至计划状态时的Unix时间戳</span></span><br><span class="line">kube_pod_status_unschedulable <span class="comment">#Gauge类型，描述pod的unschedulable状态。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-19-ReplicaSet-Metrics"><a href="#4-19-ReplicaSet-Metrics" class="headerlink" title="4.19 ReplicaSet Metrics"></a>4.19 ReplicaSet Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">kube_replicaset_status_replicas <span class="comment">#Gauge类型，每个ReplicaSet的副本数。</span></span><br><span class="line">kube_replicaset_status_fully_labeled_replicas <span class="comment">#Gauge类型，每个ReplicaSet的全标签副本数。</span></span><br><span class="line">kube_replicaset_status_ready_replicas <span class="comment">#Gauge类型，每个ReplicaSet的就绪副本数。</span></span><br><span class="line">kube_replicaset_status_observed_generation <span class="comment">#Gauge类型，ReplicaSet控制器观察到的生成。</span></span><br><span class="line">kube_replicaset_spec_replicas <span class="comment">#Gauge类型，ReplicaSet所需的pods数。</span></span><br><span class="line">kube_replicaset_metadata_generation <span class="comment">#Gauge类型，代表所需状态的特定生成的序列号。</span></span><br><span class="line">kube_replicaset_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_replicaset_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_replicaset_owner <span class="comment">#Gauge类型，有关副本集所有者的信息。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-20-ReplicationController-metrics"><a href="#4-20-ReplicationController-metrics" class="headerlink" title="4.20 ReplicationController metrics"></a>4.20 ReplicationController metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">kube_replicationcontroller_status_replicas <span class="comment">#Gauge类型，每个ReplicationController的副本数。</span></span><br><span class="line">kube_replicationcontroller_status_fully_labeled_replicas <span class="comment">#Gauge类型，每个ReplicationController具有完全标记的副本数。</span></span><br><span class="line">kube_replicationcontroller_status_ready_replicas <span class="comment">#Gauge类型，每个ReplicationController的就绪副本数。</span></span><br><span class="line">kube_replicationcontroller_status_available_replicas <span class="comment">#Gauge类型，每个ReplicationController可用副本的数量。</span></span><br><span class="line">kube_replicationcontroller_status_observed_generation <span class="comment">#Gauge类型，ReplicationController控制器观察到的生成。</span></span><br><span class="line">kube_replicationcontroller_spec_replicas <span class="comment">#Gauge类型，ReplicationController所需的Pod数。</span></span><br><span class="line">kube_replicationcontroller_metadata_generation <span class="comment">#Gauge类型，代表所需状态的特定生成的序列号。</span></span><br><span class="line">kube_replicationcontroller_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_replicationcontroller_owner <span class="comment">#Gauge类型，有关ReplicationController所有者的信息。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-21-ResourceQuota-Metrics"><a href="#4-21-ResourceQuota-Metrics" class="headerlink" title="4.21 ResourceQuota Metrics"></a>4.21 ResourceQuota Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kube_resourcequota <span class="comment">#Gauge类型，有关资源配额的信息。</span></span><br><span class="line">kube_resourcequota_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-22-Secret-Metrics"><a href="#4-22-Secret-Metrics" class="headerlink" title="4.22 Secret Metrics"></a>4.22 Secret Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">kube_secret_info <span class="comment">#Gauge类型，有关secret的信息。</span></span><br><span class="line">kube_secret_type <span class="comment">#Gauge类型，Type about secret.</span></span><br><span class="line">kube_secret_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_secret_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_secret_metadata_resource_version <span class="comment">#Gauge类型，代表secret特定版本的资源版本。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-23-Service-Metrics"><a href="#4-23-Service-Metrics" class="headerlink" title="4.23 Service Metrics"></a>4.23 Service Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">kube_service_info <span class="comment">#Gauge类型，有关service的信息。</span></span><br><span class="line">kube_service_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_service_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_service_spec_type <span class="comment">#Gauge类型，Type about service.</span></span><br><span class="line">kube_service_spec_external_ip <span class="comment">#Gauge类型，服务外部IP。 每个IP一个组。</span></span><br><span class="line">kube_service_status_load_balancer_ingress <span class="comment">#Gauge类型，服务负载均衡器入口状态</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-24-Stateful-Set-Metrics"><a href="#4-24-Stateful-Set-Metrics" class="headerlink" title="4.24 Stateful Set Metrics"></a>4.24 Stateful Set Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">kube_statefulset_status_replicas <span class="comment">#Gauge类型，每个StatefulSet的副本数。</span></span><br><span class="line">kube_statefulset_status_replicas_current <span class="comment">#Gauge类型，每个StatefulSet的当前副本数。</span></span><br><span class="line">kube_statefulset_status_replicas_ready <span class="comment">#Gauge类型，每个StatefulSet的就绪副本数。</span></span><br><span class="line">kube_statefulset_status_replicas_updated <span class="comment">#Gauge类型，每个StatefulSet的更新副本数。</span></span><br><span class="line">kube_statefulset_status_observed_generation <span class="comment">#Gauge类型，StatefulSet控制器观察到的生成。</span></span><br><span class="line">kube_statefulset_replicas <span class="comment">#Gauge类型，StatefulSet所需的pod数。</span></span><br><span class="line">kube_statefulset_metadata_generation <span class="comment">#Gauge类型，表示StatefulSet所需状态的特定生成的序列号。</span></span><br><span class="line">kube_statefulset_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_statefulset_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_statefulset_status_current_revision <span class="comment">#Gauge类型，指示用于按顺序[0，currentReplicas）生成Pod的StatefulSet的版本。</span></span><br><span class="line">kube_statefulset_status_update_revision <span class="comment">#Gauge类型，指示用于按顺序[replicas-updatedReplicas，replicas]生成Pod的StatefulSet的版本。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-25-StorageClass-Metrics"><a href="#4-25-StorageClass-Metrics" class="headerlink" title="4.25 StorageClass Metrics"></a>4.25 StorageClass Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">kube_storageclass_info <span class="comment">#Gauge类型，有关storageclass的信息。</span></span><br><span class="line">kube_storageclass_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_storageclass_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-26-ValidatingWebhookConfiguration-Metrics"><a href="#4-26-ValidatingWebhookConfiguration-Metrics" class="headerlink" title="4.26 ValidatingWebhookConfiguration Metrics"></a>4.26 ValidatingWebhookConfiguration Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">kube_validatingwebhookconfiguration_info <span class="comment">#Gauge类型，有关ValidatingWebhookConfiguration的信息。</span></span><br><span class="line">kube_validatingwebhookconfiguration_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_validatingwebhookconfiguration_metadata_resource_version <span class="comment">#Gauge类型，表示ValidatingWebhookConfiguration特定版本的资源版本。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-27-Vertical-Pod-Autoscaler-Metrics"><a href="#4-27-Vertical-Pod-Autoscaler-Metrics" class="headerlink" title="4.27 Vertical Pod Autoscaler Metrics"></a>4.27 Vertical Pod Autoscaler Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_minallowed <span class="comment">#Gauge类型，VerticalPodAutoscaler可以为与名称匹配的容器设置的最小资源。</span></span><br><span class="line">kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_maxallowed <span class="comment">#Gauge类型，VerticalPodAutoscaler可以为与名称匹配的容器设置的最大资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_lowerbound <span class="comment">#Gauge类型，在VerticalPodAutoscaler更新程序逐出容器之前，容器可以使用的最少资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_target <span class="comment">#Gauge类型，VerticalPodAutoscaler为容器推荐的目标资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_uncappedtarget <span class="comment">#Gauge类型，VerticalPodAutoscaler建议的目标资源，用于忽略边界的容器。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_upperbound <span class="comment">#Gauge类型，在VerticalPodAutoscaler更新程序逐出容器之前，容器可以使用的最大资源。</span></span><br><span class="line">kube_verticalpodautoscaler_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_verticalpodautoscaler_spec_updatepolicy_updatemode <span class="comment">#Gauge类型，VerticalPodAutoscaler的更新模式。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-28-Vertical-Pod-Autoscaler-Metrics"><a href="#4-28-Vertical-Pod-Autoscaler-Metrics" class="headerlink" title="4.28 Vertical Pod Autoscaler Metrics"></a>4.28 Vertical Pod Autoscaler Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_minallowed <span class="comment">#Gauge类型，VerticalPodAutoscaler可以为与名称匹配的容器设置的最小资源。</span></span><br><span class="line">kube_verticalpodautoscaler_spec_resourcepolicy_container_policies_maxallowed <span class="comment">#Gauge类型，VerticalPodAutoscaler可以为与名称匹配的容器设置的最大资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_lowerbound <span class="comment">#Gauge类型，在VerticalPodAutoscaler更新程序逐出容器之前，容器可以使用的最少资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_target <span class="comment">#Gauge类型，VerticalPodAutoscaler为容器推荐的目标资源。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_uncappedtarget <span class="comment">#Gauge类型，VerticalPodAutoscaler建议的目标资源，用于忽略边界的容器。</span></span><br><span class="line">kube_verticalpodautoscaler_status_recommendation_containerrecommendations_upperbound <span class="comment">#Gauge类型，在VerticalPodAutoscaler更新程序逐出容器之前，容器可以使用的最大资源。</span></span><br><span class="line">kube_verticalpodautoscaler_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_verticalpodautoscaler_spec_updatepolicy_updatemode <span class="comment">#Gauge类型，VerticalPodAutoscaler的更新模式。</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="4-29-VolumeAttachment-Metrics"><a href="#4-29-VolumeAttachment-Metrics" class="headerlink" title="4.29 VolumeAttachment Metrics"></a>4.29 VolumeAttachment Metrics</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">kube_volumeattachment_info <span class="comment">#Gauge类型，有关volumeattachment的信息。</span></span><br><span class="line">kube_volumeattachment_created <span class="comment">#Gauge类型，Unix创建时间戳。</span></span><br><span class="line">kube_volumeattachment_labels <span class="comment">#Gauge类型，Kubernetes标签转换为Prometheus标签。</span></span><br><span class="line">kube_volumeattachment_spec_source_persistentvolume <span class="comment">#Gauge类型，PersistentVolume源参考。</span></span><br><span class="line">kube_volumeattachment_status_attached <span class="comment">#Gauge类型，Information about volumeattachment. status</span></span><br><span class="line">kube_volumeattachment_status_attachment_metadata <span class="comment">#Gauge类型，volumeattachment metadata.</span></span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/26/Prometheus%E4%B9%8B%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/26/Prometheus%E7%9B%91%E6%8E%A7Kubernetes/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Prometheus监控Kubernetes
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/26/Prometheus%E4%B9%8B%E6%A0%87%E7%AD%BE%E7%9A%84%E6%93%8D%E4%BD%9C/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus之标签的操作</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>vmbackup和vmrestore使用介绍 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-vmbackup和vmrestore使用介绍"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  vmbackup和vmrestore使用介绍
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/27/vmbackup%E5%92%8Cvmrestore%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2023-12-27T01:58:11.000Z" itemprop="datePublished">2023-12-27</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">12 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h4 id="vmbackup"><a href="#vmbackup" class="headerlink" title="vmbackup"></a><strong>vmbackup</strong></h4><p>vmbackup是一个数据备份的工具，可以从vmstorage即时的快照中去备份vm数据，同时支持将备份数据存储到存储系统，如：</p>
+<ul>
+<li>GCS. Example: gs:&#x2F;&#x2F;&#x2F;&lt;path&#x2F;to&#x2F;backup&gt;</li>
+<li>S3. Example: s3:&#x2F;&#x2F;&#x2F;&lt;path&#x2F;to&#x2F;backup&gt;</li>
+<li>Any S3-compatible storage such as MinIO, Ceph or Swift. See these docs for details</li>
+<li>Local filesystem. Example: fs:&#x2F;&#x2F;&lt;&#x2F;absolute&#x2F;path&#x2F;to&#x2F;backup&gt;</li>
+</ul>
+<p>vmbackup支持增量备份和全备。当备份数据存储路径已经有了之前的备份数据，增量备份将自动进行；而全备则可以通过-origin指定相同的远端存储去加速备份。因为在这种情况下，可以在远端存储进行新备份与已经存在的备份之间进行共有数据的复制，从而节省了时间和其他花销。备份进程可以在任何时间被打断，但当你使用vmbackup使用同样的参数进行再次备份时，备份将从打断处自动恢复。同时，通过vmbackup备份的数据能够被vmrestore用来恢复数据。</p>
+<h4 id="vmrestore"><a href="#vmrestore" class="headerlink" title="vmrestore"></a><strong>vmrestore</strong></h4><p>vmrestore被用于从通过vmbackup备份的数据中进行恢复数据，跟vmbackup备份进程一样，恢复数据进程也可以在任何时候被打断；当再次使用相同的命令和参数去恢复数据时，将从断点处自动恢复。原vmstorage数据存储的的数据将被恢复的数据所替换。</p>
+<h4 id="实操"><a href="#实操" class="headerlink" title="实操"></a><strong>实操</strong></h4><h5 id="数据备份"><a href="#数据备份" class="headerlink" title="数据备份"></a><strong>数据备份</strong></h5><p>1、创建快照</p>
+<p>上面提到过，vmbackup需要从即时的快照去备份数据，因此想要备份，我们需要先创建快照。vmstorage给我们提供了API去创建快照。使用以下的方式：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># request</span><br><span class="line">curl <span class="attr">http</span>:<span class="comment">//&lt;victoriametrics-addr&gt;:8428/snapshot/create # 需要根据实际部署修改地址和端口</span></span><br><span class="line"></span><br><span class="line"># response</span><br><span class="line">&#123;<span class="string">&quot;status&quot;</span>:<span class="string">&quot;ok&quot;</span>,<span class="string">&quot;snapshot&quot;</span>:<span class="string">&quot;&lt;snapshot-name&gt;&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>下面来实操一下：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@test ~]# curl <span class="attr">http</span>:<span class="comment">//172.16.47.122:8482/snapshot/create</span></span><br><span class="line">&#123;<span class="string">&quot;status&quot;</span>:<span class="string">&quot;ok&quot;</span>,<span class="string">&quot;snapshot&quot;</span>:<span class="string">&quot;20220119051931-16CA0D126A870F8B&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>我们再看看vmstorage的日志：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>767Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/storage.<span class="property">go</span>:<span class="number">304</span> creating <span class="title class_">Storage</span> snapshot <span class="keyword">for</span> <span class="string">&quot;/vm-data&quot;</span>...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>771Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/table.<span class="property">go</span>:<span class="number">143</span> creating table snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/data&quot;</span>...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>773Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/partition.<span class="property">go</span>:<span class="number">1549</span> creating partition snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/data/small/2022_01&quot;</span> and <span class="string">&quot;/vm-data/data/big/2022_01&quot;</span>...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>920Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/partition.<span class="property">go</span>:<span class="number">1570</span> created partition snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/data/small/2022_01&quot;</span> and <span class="string">&quot;/vm-data/data/big/2022_01&quot;</span> at <span class="string">&quot;/vm-data/data/small/snapshots/20220119051931-16CA0D126A870F8B/2022_01&quot;</span> and <span class="string">&quot;/vm-data/data/big/snapshots/20220119051931-16CA0D126A870F8B/2022_01&quot;</span> <span class="keyword">in</span> <span class="number">0.146</span> seconds</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>920Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/table.<span class="property">go</span>:<span class="number">171</span> created table snapshot <span class="keyword">for</span> <span class="string">&quot;/vm-data/data&quot;</span> at (<span class="string">&quot;/vm-data/data/small/snapshots/20220119051931-16CA0D126A870F8B&quot;</span>, <span class="string">&quot;/vm-data/data/big/snapshots/20220119051931-16CA0D126A870F8B&quot;</span>) <span class="keyword">in</span> <span class="number">0.149</span> seconds</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>921Z info <span class="title class_">VictoriaMetrics</span>/lib/mergeset/table.<span class="property">go</span>:<span class="number">1161</span> creating <span class="title class_">Table</span> snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/indexdb/16CA0D126A874608&quot;</span>...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>963Z info <span class="title class_">VictoriaMetrics</span>/lib/mergeset/table.<span class="property">go</span>:<span class="number">1230</span> created <span class="title class_">Table</span> snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/indexdb/16CA0D126A874608&quot;</span> at <span class="string">&quot;/vm-data/indexdb/snapshots/20220119051931-16CA0D126A870F8B/16CA0D126A874608&quot;</span> <span class="keyword">in</span> <span class="number">0.041</span> seconds</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>963Z info <span class="title class_">VictoriaMetrics</span>/lib/mergeset/table.<span class="property">go</span>:<span class="number">1161</span> creating <span class="title class_">Table</span> snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/indexdb/16CA0D126A874607&quot;</span>...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>966Z info <span class="title class_">VictoriaMetrics</span>/lib/mergeset/table.<span class="property">go</span>:<span class="number">1230</span> created <span class="title class_">Table</span> snapshot <span class="keyword">of</span> <span class="string">&quot;/vm-data/indexdb/16CA0D126A874607&quot;</span> at <span class="string">&quot;/vm-data/indexdb/snapshots/20220119051931-16CA0D126A870F8B/16CA0D126A874607&quot;</span> <span class="keyword">in</span> <span class="number">0.003</span> seconds</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">19</span>:<span class="number">31.</span>971Z info <span class="title class_">VictoriaMetrics</span>/lib/storage/storage.<span class="property">go</span>:<span class="number">361</span> created <span class="title class_">Storage</span> snapshot <span class="keyword">for</span> <span class="string">&quot;/vm-data&quot;</span> at <span class="string">&quot;/vm-data/snapshots/20220119051931-16CA0D126A870F8B&quot;</span> <span class="keyword">in</span> <span class="number">0.204</span> seconds</span><br></pre></td></tr></table></figure>
+
+<p>最后去vmstorage的存储路径下看看文件：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"># 我这里是直接去我的nfs下vmstorage对应的存储path下查看的。</span><br><span class="line"># 可以很清楚看到我们之前的快照</span><br><span class="line">[root@test ~]# cd /nfs_data/pvc-b06968ca-f31e-4d93-b16d-cf66a10c64d9/</span><br><span class="line">[root@test pvc-b06968ca-f31e-4d93-b16d-cf66a10c64d9]# ls -al</span><br><span class="line">total <span class="number">24</span></span><br><span class="line">drwxr-xr-x <span class="number">6</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> .</span><br><span class="line">drwxr-xrwx <span class="number">6</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> ..</span><br><span class="line">drwxr-xr-x <span class="number">4</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> data</span><br><span class="line">-rw-r--r-- <span class="number">1</span> root root    <span class="number">0</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> flock.<span class="property">lock</span></span><br><span class="line">drwxr-xr-x <span class="number">5</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> indexdb</span><br><span class="line">drwxr-xr-x <span class="number">2</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> metadata</span><br><span class="line">drwxr-xr-x <span class="number">3</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> snapshots</span><br><span class="line">[root@test pvc-b06968ca-f31e-4d93-b16d-cf66a10c64d9]# cd snapshots/</span><br><span class="line">[root@test snapshots]# ls -al</span><br><span class="line">total <span class="number">12</span></span><br><span class="line">drwxr-xr-x <span class="number">3</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> .</span><br><span class="line">drwxr-xr-x <span class="number">6</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">14</span> <span class="number">13</span>:<span class="number">49</span> ..</span><br><span class="line">drwxr-xr-x <span class="number">4</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> <span class="number">20220119051931</span>-16CA0D126A870F8B</span><br><span class="line">[root@test snapshots]# cd <span class="number">20220119051931</span>-16CA0D126A870F8B/</span><br><span class="line">[root@test <span class="number">20220119051931</span>-16CA0D126A870F8B]# ls -al</span><br><span class="line">total <span class="number">16</span></span><br><span class="line">drwxr-xr-x <span class="number">4</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> .</span><br><span class="line">drwxr-xr-x <span class="number">3</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> ..</span><br><span class="line">drwxr-xr-x <span class="number">2</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> data</span><br><span class="line">lrwxrwxrwx <span class="number">1</span> root root   <span class="number">55</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> indexdb -&gt; ../../indexdb/snapshots/<span class="number">20220119051931</span>-16CA0D126A870F8B</span><br><span class="line">drwxr-xr-x <span class="number">2</span> root root <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">13</span>:<span class="number">19</span> metadata</span><br></pre></td></tr></table></figure>
+
+<p>其实也可以通过vmstorage提供的API去查看我们刚刚创建的快照</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># 到这里我们的快照已经准备就绪了</span><br><span class="line">[root@test ~]# curl <span class="attr">http</span>:<span class="comment">//172.16.47.122:8482/snapshot/list</span></span><br><span class="line">&#123;<span class="string">&quot;status&quot;</span>:<span class="string">&quot;ok&quot;</span>,<span class="string">&quot;snapshots&quot;</span>:[</span><br><span class="line"><span class="string">&quot;20220119051931-16CA0D126A870F8B&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>2、数据备份</p>
+<p>有了上面的快照，下面我们来进行备份,我这边没有s3、gcs，直接用local filesystem，将其备份到本地&#x2F;opt目录下</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"># 通过刚刚创建的快照进行备份</span><br><span class="line">./vmbackup-prod -storageDataPath=<span class="regexp">/vm-data -snapshotName=20220119051931-16CA0D126A870F8B -dst=fs:/</span><span class="comment">//opt</span></span><br><span class="line"></span><br><span class="line"># 输出如下</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">12</span> build <span class="attr">version</span>: vmbackup-<span class="number">20210715</span>-<span class="number">111047</span>-tags-v1<span class="number">.63</span><span class="number">.0</span>-<span class="number">0</span>-g61cc13c16</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">13</span> command line flags</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;concurrency&quot;</span>=<span class="string">&quot;10&quot;</span> (is_set=<span class="literal">false</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;configFilePath&quot;</span>=<span class="string">&quot;&quot;</span> (is_set=<span class="literal">false</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;configProfile&quot;</span>=<span class="string">&quot;&quot;</span> (is_set=<span class="literal">false</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;credsFilePath&quot;</span>=<span class="string">&quot;&quot;</span> (is_set=<span class="literal">false</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;customS3Endpoint&quot;</span>=<span class="string">&quot;&quot;</span> (is_set=<span class="literal">false</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">45</span>:<span class="number">29.</span>709Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;dst&quot;</span>=<span class="string">&quot;fs:///opt&quot;</span> (is_set=<span class="literal">true</span>)</span><br><span class="line">...省略...</span><br><span class="line">00_22197_20220119051721<span class="number">.456_20220119051724</span>.766_16CA152B5133B4AD/timestamps.<span class="property">bin</span><span class="string">&quot;, file_size: 0, offset: 0, size: 0&#125; from src fslocal &quot;</span>/vm-data/snapshots/<span class="number">20220119051931</span>-16CA0D126A870F8B<span class="string">&quot; to dst fsremote &quot;</span>/opt<span class="string">&quot;</span></span><br><span class="line"><span class="string">2022-01-19T05:45:30.374Z info VictoriaMetrics/lib/backup/actions/backup.go:164 uploaded 125373885 out of 125373885 bytes from src fslocal &quot;</span>/vm-data/snapshots/<span class="number">20220119051931</span>-16CA0D126A870F8B<span class="string">&quot; to dst fsremote &quot;</span>/opt<span class="string">&quot; in 627.488079ms</span></span><br><span class="line"><span class="string">2022-01-19T05:45:30.374Z info VictoriaMetrics/lib/backup/actions/backup.go:171 backup from src fslocal &quot;</span>/vm-data/snapshots/<span class="number">20220119051931</span>-16CA0D126A870F8B<span class="string">&quot; to dst fsremote &quot;</span>/opt<span class="string">&quot; with origin fsnil is complete; backed up 125373885 bytes in 0.664 seconds; deleted 0 bytes; server-side copied 0 bytes; uploaded 125373885 bytes</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string"># 再去/opt目录下确保数据备份正确</span></span><br><span class="line"><span class="string">/vm-data # cd /opt/</span></span><br><span class="line"><span class="string">/opt # ls -al</span></span><br><span class="line"><span class="string">total 24</span></span><br><span class="line"><span class="string">drwxr-xr-x    1 root     root          4096 Jan 19 05:45 .</span></span><br><span class="line"><span class="string">drwxr-xr-x    1 root     root          4096 Jan 14 05:49 ..</span></span><br><span class="line"><span class="string">-rw-------    1 root     root             2 Jan 19 05:45 backup_complete.ignore</span></span><br><span class="line"><span class="string">drwx------    4 root     root          4096 Jan 19 05:45 data</span></span><br><span class="line"><span class="string">drwx------    4 root     root          4096 Jan 19 05:45 indexdb</span></span><br><span class="line"><span class="string">drwx------    3 root     root          4096 Jan 19 05:45 metadata</span></span><br></pre></td></tr></table></figure>
+
+<p>3、创建第二个快照</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@test /]# curl <span class="attr">http</span>:<span class="comment">//172.16.47.122:8482/snapshot/create</span></span><br><span class="line">&#123;<span class="string">&quot;status&quot;</span>:<span class="string">&quot;ok&quot;</span>,<span class="string">&quot;snapshot&quot;</span>:<span class="string">&quot;20220119055254-16CA0D126A870F8C&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>4、增量备份</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># 备份</span><br><span class="line">./vmbackup-prod -storageDataPath=<span class="regexp">/vm-data -snapshotName=20220119055254-16CA0D126A870F8C  -dst=fs:/</span><span class="comment">//opt</span></span><br><span class="line"># 日志输出</span><br><span class="line">...省略...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T05</span>:<span class="number">55</span>:<span class="number">18.</span>548Z info <span class="title class_">VictoriaMetrics</span>/lib/backup/actions/backup.<span class="property">go</span>:<span class="number">171</span> backup <span class="keyword">from</span> src fslocal <span class="string">&quot;/vm-data/snapshots/20220119055254-16CA0D126A870F8C&quot;</span> to dst fsremote <span class="string">&quot;/opt&quot;</span> <span class="keyword">with</span> origin fsnil is complete; backed up <span class="number">127597222</span> bytes <span class="keyword">in</span> <span class="number">0.214</span> seconds; deleted <span class="number">2714902</span> bytes; server-side copied <span class="number">0</span> bytes; uploaded <span class="number">4938239</span> bytes</span><br><span class="line"></span><br><span class="line">从日志上不难看出，增量备份时，<span class="keyword">delete</span> file 的值不为<span class="number">0</span>，这里删除的是第一次快照中存在，但在第二次快照中不会存在的数据；另外</span><br><span class="line">花费的时间也明显小于咱们第一次全备。</span><br></pre></td></tr></table></figure>
+
+<p>5、再做一个快照，测试server-side copy</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"># 创建快照</span><br><span class="line">[root@test ~]# curl <span class="attr">http</span>:<span class="comment">//172.16.47.122:8482/snapshot/create</span></span><br><span class="line">&#123;<span class="string">&quot;status&quot;</span>:<span class="string">&quot;ok&quot;</span>,<span class="string">&quot;snapshot&quot;</span>:<span class="string">&quot;20220119073821-16CA0D126A870F8D&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>6、全备，备份时添加-origin参数</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># 备份，添加-origin指定之前备份数据所在目录</span><br><span class="line">./vmbackup-prod -storageDataPath=<span class="regexp">/vm-data -snapshotName=20220119073821-16CA0D126A870F8D  -dst=fs:/</span><span class="comment">//ss -origin=fs:///opt</span></span><br><span class="line"></span><br><span class="line"># 从命令输出来看，确定有进行server-side copy</span><br><span class="line">...省略...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T07</span>:<span class="number">44</span>:<span class="number">56.</span>657Z info <span class="title class_">VictoriaMetrics</span>/lib/backup/actions/backup.<span class="property">go</span>:<span class="number">171</span> backup <span class="keyword">from</span> src fslocal <span class="string">&quot;/vm-data/snapshots/20220119073821-16CA0D126A870F8D&quot;</span> to dst fsremote <span class="string">&quot;/ss&quot;</span> <span class="keyword">with</span> origin fsremote <span class="string">&quot;/opt&quot;</span> is complete; backed up <span class="number">131747249</span> bytes <span class="keyword">in</span> <span class="number">0.190</span> seconds; deleted <span class="number">0</span> bytes; server-side copied <span class="number">121316947</span> bytes; uploaded <span class="number">10430302</span> bytes</span><br></pre></td></tr></table></figure>
+
+<h5 id="数据恢复"><a href="#数据恢复" class="headerlink" title="数据恢复"></a><strong>数据恢复</strong></h5><p>上面我们创建了多个快照，也进行了多次备份。这里我选择从fs:&#x2F;&#x2F;&#x2F;ss目录下的备份进行恢复到&#x2F;tt目录下</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"># 进行恢复</span><br><span class="line">./vmrestore-prod  -src=<span class="attr">fs</span>:<span class="comment">///ss -storageDataPath=/tt</span></span><br><span class="line"># vm停止，再进行数据恢复；恢复后，vm再次重启时-storageDataPath参数需要指定为/tt目录，即恢复的数据所在的目录</span><br><span class="line"># 控制台输出</span><br><span class="line">...省略...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T07</span>:<span class="number">58</span>:<span class="number">32.</span>117Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;src&quot;</span>=<span class="string">&quot;fs:///ss&quot;</span> (is_set=<span class="literal">true</span>)</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T07</span>:<span class="number">58</span>:<span class="number">32.</span>117Z info <span class="title class_">VictoriaMetrics</span>/lib/logger/flag.<span class="property">go</span>:<span class="number">28</span> flag <span class="string">&quot;storageDataPath&quot;</span>=<span class="string">&quot;/tt&quot;</span> (is_set=<span class="literal">true</span>)</span><br><span class="line">...省略...</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T07</span>:<span class="number">58</span>:<span class="number">32.</span>751Z info <span class="title class_">VictoriaMetrics</span>/lib/backup/actions/restore.<span class="property">go</span>:<span class="number">185</span> downloaded <span class="number">131747249</span> out <span class="keyword">of</span> <span class="number">131747249</span> bytes <span class="keyword">from</span> fsremote <span class="string">&quot;/ss&quot;</span> to fslocal <span class="string">&quot;/tt&quot;</span> <span class="keyword">in</span> <span class="number">624.</span>892637ms</span><br><span class="line"><span class="number">2022</span>-<span class="number">01</span>-19<span class="attr">T07</span>:<span class="number">58</span>:<span class="number">32.</span>751Z info <span class="title class_">VictoriaMetrics</span>/lib/backup/actions/restore.<span class="property">go</span>:<span class="number">192</span> restored <span class="number">131747249</span> bytes <span class="keyword">from</span> backup <span class="keyword">in</span> <span class="number">0.635</span> seconds; deleted <span class="number">0</span> bytes; downloaded <span class="number">131747249</span> bytes</span><br><span class="line"></span><br><span class="line"># 查看/tt目录下的恢复的数据</span><br><span class="line">/vm-data # ls -al /tt/</span><br><span class="line">total <span class="number">20</span></span><br><span class="line">drwxr-xr-x    <span class="number">5</span> root     root          <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">58</span> .</span><br><span class="line">drwxr-xr-x    <span class="number">1</span> root     root          <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">44</span> ..</span><br><span class="line">drwx------    <span class="number">4</span> root     root          <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">58</span> data</span><br><span class="line">-rw-r--r--    <span class="number">1</span> root     root             <span class="number">0</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">58</span> flock.<span class="property">lock</span></span><br><span class="line">drwx------    <span class="number">4</span> root     root          <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">58</span> indexdb</span><br><span class="line">drwx------    <span class="number">2</span> root     root          <span class="number">4096</span> <span class="title class_">Jan</span> <span class="number">19</span> <span class="number">07</span>:<span class="number">58</span> metadata</span><br></pre></td></tr></table></figure>
+
+<p>注：在进行恢复数据期间，vm应该停止。</p>
+<h3 id="Troubleshooting"><a href="#Troubleshooting" class="headerlink" title="Troubleshooting"></a><strong>Troubleshooting</strong></h3><ul>
+<li>当发现备份数据时很慢，可以通过设置-concurrency参数来设置并发来加快上传数据至存储系统</li>
+<li>如果vmbackup&#x2F;vmrestore使用了太多的带宽，可以通过maxBytesPerSecond参数进行限制</li>
+<li>如果备份&#x2F;恢复数据时被打断，使用相同的命令参数重新备份&#x2F;恢复即可，将在断点处自动恢复</li>
+<li>单节点vm备份的数据不能被用于恢复数据至集群版本vm</li>
+</ul>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a><strong>总结</strong></h4><p>以上就是本次我对vmbackup和vmrestore的简单介绍了，更多内容请查看官网。如果你觉得vm不错，动手试试看吧！</p>
+<h4 id="参考"><a href="#参考" class="headerlink" title="参考"></a><strong>参考</strong></h4><ul>
+<li><a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/">https://docs.victoriametrics.com</a></li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/27/vmbackup%E5%92%8Cvmrestore%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/27/victoriametrics%E5%9C%A8kubesphere%E4%B8%ADprometheus%E7%9A%84%E5%BA%94%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            victoriametrics在kubesphere中prometheus的应用
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/26/Prometheus%E7%9B%91%E6%8E%A7Kubernetes/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus监控Kubernetes</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

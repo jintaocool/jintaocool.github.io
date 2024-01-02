@@ -1,0 +1,796 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Keepalived部署与配置详解 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Keepalived-Keepalived部署与配置详解"
+  class="article article-type-Keepalived"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Keepalived部署与配置详解
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/02/Keepalived%E9%83%A8%E7%BD%B2%E4%B8%8E%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3/" class="article-date">
+  <time datetime="2024-01-02T03:04:32.000Z" itemprop="datePublished">2024-01-02</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Keepalived/">Keepalived</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">14 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="工作原理"><a href="#工作原理" class="headerlink" title="工作原理"></a>工作原理</h2><p>Keepalived本质就是为ipvs服务的，它也不需要共享存储。IPVS其实就是一些规则，Keepalived主要的任务就是去调用ipvsadm命令，来生成规则，并自动实现将用户需要访问的地址转移到可用LVS节点实现。所以keepalive的高可用是属于具有很强针对性的高可用，它和corosync这种通用性HA方案不同。</p>
+<p>Keepalived的主要目的就是它自身启动为一个服务，它工作在多个LVS主机节点上，当前活动的节点叫做Master备用节点叫做Backup，_Master会不停的向Backup节点通告自己的心跳，这种通告是基于VRRP协议的。Backup节点一旦接收不到Master的通告信息，它就会把LVS的VIP拿过来，并且把ipvs的规则也拿过来，在自己身上生效，从而替代Master节点_。</p>
+<p>Keepalived除了可以监控和转移LVS资源之外，它还可以直接配置LVS而不需要直接使用ipvsadm命令，因为它可以调用，也就是说在LVS+KEEPALIVED模型中，你所有的工作在Keepalived中配置就可以了，而且它还有对后端应用服务器健康检查的功能。</p>
+<p>直接一句话Keepalived就是VRRP协议的实现，该协议是虚拟冗余路由协议。</p>
+<h3 id="VRRP工作原理简述"><a href="#VRRP工作原理简述" class="headerlink" title="VRRP工作原理简述"></a>VRRP工作原理简述</h3><p>那么这个VRRP协议是干嘛用呢？传统上来说我们通过一个路由器上网，如果故障那就不能用了，如果使用2个路由器，有一个故障你就需要手动的设置客户端切换到另外的路由器上，或者使用ARP客户端也可以实现，但总之部署比较麻烦不利于管理，就像下图：</p>
+<p><img src="/images/1704164528-2977377c8b0ca0ba4cfd9c981a19ff57.png"></p>
+<p>有没有一种办法可以自动转移而省去手动配置呢？我们就可以通过VRRP协议来实现路由器的故障转移。如下图：</p>
+<p><img src="/images/1704164528-7ba2c38225cafea124860bef937458e2.png"></p>
+<p>这里有个问题，VRRP提供一个VIP，它可以来设定那个路由器是活动节点，然后出现故障进行切换，VIP也随之对应到新的路由器上，但是内网是用过MAC地址来寻址的，虽然VIP对应到了新的路由器上，可是MAC变了，客户端的ARP表也没有更新，所以还是用不了，为了解决这个问题VRRP不但提供VIP还提供VMAC地址，这个VMAC地址是VRRP单独申请的，大家都可以正常使用。</p>
+<p>故障切换的时候虽然改变了后端路由器，但是由于客户端使用的是VIP和VMAC地址，这样就不会有任何影响了。</p>
+<p>所以Keepalived就是在Linux系统上提供了VRRP功能，当然还提供了服务监控功能，比如监控后端服务器的健康检查、LVS服务可用性检查。</p>
+<p>VRRP的工作过程是这样的：</p>
+<ol>
+<li>虚拟路由器中的路由器根据优先级选举出Master，Master路由器通过发送免费ARP报文，将自己的虚拟MAC地址通告给与它连接的设备。</li>
+<li>Master路由器周期性发送VRRP报文，以公布自己的配置信息（优先级等）和工作状态</li>
+<li>如果Master故障，虚拟路由器中的Backup路由器将根据优先级重新选举新的Master</li>
+<li>虚拟路由器状态切换时，Master路由器由一台设备切换会另外一台设备，新的Master路由器只是简单的发送一个携带虚拟MAC地址和虚拟IP的免费ARP报文，这样就可以更新其他设备中缓存的ARP信息</li>
+<li>Backup路由器的优先级高于Master时，由Backup的工作方式（抢占式或者非抢占式）决定是否重新选举Master。</li>
+</ol>
+<p>VRRP还支持认证，就是为了防止随意一个VRRP设备加入到当前的虚拟路由组离来，它提供无认证、简单8位字符串认证和MD5认证（该认证方式Keepalive不支持）。</p>
+<h3 id="Keepalive软件结构"><a href="#Keepalive软件结构" class="headerlink" title="Keepalive软件结构"></a>Keepalive软件结构</h3><p><img src="/images/1704164528-ebac6d787cbc3c572478d674ba020b85.png"></p>
+<p>Keepalived启动后以后会有一个主进程Master，它会生成还有2个子进程，一个是VRRP Stack负责VRRP（也就是VRRP协议的实现）、一个是Checkers负责IPVS的后端的应用服务器的健康检查，当检测失败就会调用IPVS规则删除后端服务器的IP地址，检测成功了再加回来。当检测后端有失败的情况可以使用SMTP通知管理员。另外VRRP如果检测到另外一个Keepalive失败也可以通过SMTP通知管理员。</p>
+<p>Control Plane：这个就是主进程，主进程的功能是分析配置文件，读取、配置和生效配置文件，指挥那2个子进程工作。</p>
+<p>WatchDog：看门狗，这个是Linux系统内核的一个模块，它的作用是帮助主进程盯着那2个子进程，因为主进程并不负责具体工作，具体工作都是子进程完成的。如果子进程挂了，那Keepalived就不完整了，所以那2个子进程会定期的向主进程打开的一个内部Unix Socket文件写心跳信息。如果有某个子进程不写信息了，它就会重启子进程，主进程就是让WatchDog来监控子进程的。下面我们就使用Keepalive来做LVS的高可用讲解。关于后端服务器上的设置我这里就不说了请看另外一篇博文。</p>
+<h2 id="Keepalive安装和配置"><a href="#Keepalive安装和配置" class="headerlink" title="Keepalive安装和配置"></a>Keepalive安装和配置</h2><table>
+<thead>
+<tr>
+<th>服务器</th>
+<th>IP地址</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Srv01</td>
+<td>172.16.42.100  <br>VIP: 172.16.42.111</td>
+<td>LVS+Keepalive</td>
+</tr>
+<tr>
+<td>Srv02</td>
+<td>172.16.42.101  <br>VIP: 192.168.100.1</td>
+<td>LVS+Keepalive</td>
+</tr>
+<tr>
+<td>Srv03</td>
+<td>172.16.42.102  <br>VIP: 172.16.42.111</td>
+<td>Nginx</td>
+</tr>
+<tr>
+<td>Srv04</td>
+<td>172.16.42.103  <br>VIP: 172.16.42.111</td>
+<td>Nginx</td>
+</tr>
+</tbody></table>
+<h3 id="先决条件"><a href="#先决条件" class="headerlink" title="先决条件"></a>先决条件</h3><ol>
+<li><p>禁用SElinux、清除iptables规则、关闭防火墙。就算因某种原因不能清除iptables规则，那么你需要增加一条规则放行多播</p>
+</li>
+<li><p>各个节点时间同步，启用时间同步服务<code>systemctl start chronyd</code></p>
+</li>
+<li><p>确保Keepalive使用的网卡开启了多播，如下图：</p>
+</li>
+</ol>
+<p><img src="/images/1704164528-24f71ba30da666fbc7066e5034c83df8.png"></p>
+<p>如果没有开启，可以使用该命令打开<code>ip link set multicast on dev ens33</code>，ens33是网卡名称。</p>
+<h3 id="安装keepalive"><a href="#安装keepalive" class="headerlink" title="安装keepalive"></a>安装keepalive</h3><p>之间通过yum安装即可<code>yum install -y keepalived</code>。我这里使用的是阿里云的源，它默认就在里面，如下图：</p>
+<p><img src="/images/1704164528-1e1ca7272d9fdbc9d445dc00719c68ac.png"></p>
+<p>在2个节点都安装。</p>
+<table>
+<thead>
+<tr>
+<th>文件</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>&#x2F;usr&#x2F;sbin&#x2F;keepalived</td>
+<td>二进制程序</td>
+</tr>
+<tr>
+<td>&#x2F;etc&#x2F;keepalived&#x2F;keepalived.conf</td>
+<td>配置文件</td>
+</tr>
+<tr>
+<td>&#x2F;usr&#x2F;lib&#x2F;systemd&#x2F;system&#x2F;keepalived.service</td>
+<td>服务文件</td>
+</tr>
+</tbody></table>
+<h3 id="Keepalive配置文件说明"><a href="#Keepalive配置文件说明" class="headerlink" title="Keepalive配置文件说明"></a>Keepalive配置文件说明</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br></pre></td><td class="code"><pre><span class="line"></span><br><span class="line"><span class="comment"># 全局配置</span></span><br><span class="line">global_defs &#123;</span><br><span class="line">   <span class="comment"># 邮件通知信息</span></span><br><span class="line">   notification_email &#123;</span><br><span class="line">     <span class="comment"># 定义收件人</span></span><br><span class="line">     acassen@firewall.loc</span><br><span class="line">   &#125;</span><br><span class="line">   <span class="comment"># 定义发件人</span></span><br><span class="line">   notification_email_from Alexandre.Cassen@firewall.loc</span><br><span class="line">   <span class="comment"># SMTP服务器地址</span></span><br><span class="line">   smtp_server 192.168.200.1</span><br><span class="line">   smtp_connect_timeout 30</span><br><span class="line">   <span class="comment"># 路由器标识，一般不用改，也可以写成每个主机自己的主机名</span></span><br><span class="line">   router_id LVS_DEVEL</span><br><span class="line">   <span class="comment"># VRRP的ipv4和ipv6的广播地址，配置了VIP的网卡向这个地址广播来宣告自己的配置信息，下面是默认值</span></span><br><span class="line">   vrrp_mcast_group4 224.0.0.18</span><br><span class="line">   vrrp_mcast_group6 ff02::12</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义用于实例执行的脚本内容，比如可以在线降低优先级，用于强制切换</span></span><br><span class="line">vrrp_script SCRIPT_NAME &#123;</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 一个vrrp_instance就是定义一个虚拟路由器的，实例名称</span></span><br><span class="line">vrrp_instance VI_1 &#123;</span><br><span class="line">    <span class="comment"># 定义初始状态，可以是MASTER或者BACKUP</span></span><br><span class="line">    state MASTER</span><br><span class="line">    <span class="comment"># 工作接口，通告选举使用哪个接口进行</span></span><br><span class="line">    interface ens33</span><br><span class="line">    <span class="comment"># 虚拟路由ID，如果是一组虚拟路由就定义一个ID，如果是多组就要定义多个，而且这个虚拟</span></span><br><span class="line">    <span class="comment"># ID还是虚拟MAC最后一段地址的信息，取值范围0-255</span></span><br><span class="line">    virtual_router_id 51</span><br><span class="line">    <span class="comment"># 使用哪个虚拟MAC地址</span></span><br><span class="line">    use_vmac XX:XX:XX:XX:XX</span><br><span class="line">    <span class="comment"># 监控本机上的哪个网卡，网卡一旦故障则需要把VIP转移出去</span></span><br><span class="line">    track_interface &#123;</span><br><span class="line">        eth0</span><br><span class="line">        ens33</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment"># 如果你上面定义了MASTER,这里的优先级就需要定义的比其他的高</span></span><br><span class="line">    priority 100</span><br><span class="line">    <span class="comment"># 通告频率，单位为秒</span></span><br><span class="line">    advert_int 1</span><br><span class="line">    <span class="comment"># 通信认证机制，这里是明文认证还有一种是加密认证</span></span><br><span class="line">    authentication &#123;</span><br><span class="line">        auth_type PASS</span><br><span class="line">        auth_pass 1111</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment"># 设置虚拟VIP地址，一般就设置一个，在LVS中这个就是为LVS主机设置VIP的，这样你就不用自己手动设置了</span></span><br><span class="line">    virtual_ipaddress &#123;</span><br><span class="line">        <span class="comment"># IP/掩码 dev 配置在哪个网卡</span></span><br><span class="line">        192.168.200.16/24 dev eth1</span><br><span class="line">        <span class="comment"># IP/掩码 dev 配置在哪个网卡的哪个别名上</span></span><br><span class="line">        192.168.200.17/24 dev label eth1:1</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment"># 虚拟路由，在需要的情况下可以设置lvs主机 数据包在哪个网卡进来从哪个网卡出去</span></span><br><span class="line">    virtual_routes &#123;</span><br><span class="line">        192.168.110.0/24 dev eth2</span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment"># 工作模式，nopreempt表示工作在非抢占模式，默认是抢占模式 preempt</span></span><br><span class="line">    nopreempt|preempt</span><br><span class="line">    <span class="comment"># 如果是抢占默认则可以设置等多久再抢占，默认5分钟</span></span><br><span class="line">    preempt delay 300</span><br><span class="line">    <span class="comment"># 追踪脚本，通常用于去执行上面的vrrp_script定义的脚本内容</span></span><br><span class="line">    track_script &#123;</span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">    <span class="comment"># 三个指令，如果主机状态变成Master|Backup|Fault之后会去执行的通知脚本，脚本要自己写</span></span><br><span class="line">    notify_master <span class="string">&quot;&quot;</span></span><br><span class="line">    notify_backup <span class="string">&quot;&quot;</span></span><br><span class="line">    notify_fault <span class="string">&quot;&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 定义LVS集群服务，可以是IP+PORT；也可以是fwmark 数字，也就是防火墙规则</span></span><br><span class="line"><span class="comment"># 所以通过这里就可以看出来keepalive天生就是为ipvs而设计的</span></span><br><span class="line">virtual_server 10.10.10.2 1358 &#123;</span><br><span class="line">    delay_loop 6</span><br><span class="line">    <span class="comment"># 算法</span></span><br><span class="line">    lb_algo rr|wrr|lc|wlc|lblc|sh|dh </span><br><span class="line">    <span class="comment"># LVS的模式</span></span><br><span class="line">    lb_kind NAT|DR|TUN</span><br><span class="line">    <span class="comment"># 子网掩码，这个掩码是VIP的掩码</span></span><br><span class="line">    nat_mask 255.255.255.0</span><br><span class="line">    <span class="comment"># 持久连接超时时间</span></span><br><span class="line">    persistence_timeout 50</span><br><span class="line">    <span class="comment"># 定义协议</span></span><br><span class="line">    protocol TCP</span><br><span class="line">    <span class="comment"># 如果后端应用服务器都不可用，就会定向到那个服务器上</span></span><br><span class="line">    sorry_server 192.168.200.200 1358</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 后端应用服务器 IP PORT</span></span><br><span class="line">    real_server 192.168.200.2 1358 &#123;</span><br><span class="line">        <span class="comment"># 权重</span></span><br><span class="line">        weight 1</span><br><span class="line">        <span class="comment"># MSIC_CHECK|SMTP_CHEKC|TCP_CHECK|SSL_GET|HTTP_GET这些都是</span></span><br><span class="line">        <span class="comment"># 针对应用服务器做健康检查的方法</span></span><br><span class="line">        MISC_CHECK &#123;&#125;</span><br><span class="line">        <span class="comment"># 用于检查SMTP服务器的</span></span><br><span class="line">        SMTP_CHEKC &#123;&#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 如果应用服务器不是WEB服务器，就用TCP_CHECK检查</span></span><br><span class="line">        TCP_CHECK &#123;</span><br><span class="line">          <span class="comment"># 向哪一个端口检查，如果不指定默认使用上面定义的端口</span></span><br><span class="line">          connect_port &lt;PORT&gt;</span><br><span class="line">          <span class="comment"># 向哪一个IP检测，如果不指定默认使用上面定义的IP地址</span></span><br><span class="line">          bindto &lt;IP&gt;</span><br><span class="line">          <span class="comment"># 连接超时时间</span></span><br><span class="line">          connect_timeout 3</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 如果对方是HTTPS服务器就用SSL_GET方法去检查，里面配置的内容和HTTP_GET一样</span></span><br><span class="line">        SSL_GET &#123;&#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 应用服务器UP或者DOWN，就执行那个脚本</span></span><br><span class="line">        notify_up <span class="string">&quot;这里写的是路径，如果脚本后有参数，整体路径+参数引起来&quot;</span></span><br><span class="line">        notify_down <span class="string">&quot;/PATH/SCRIPTS.sh 参数&quot;</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 使用HTTP_GET方法去检查</span></span><br><span class="line">        HTTP_GET &#123;</span><br><span class="line">            <span class="comment"># 检测URL</span></span><br><span class="line">            url &#123; </span><br><span class="line">              <span class="comment"># 具体检测哪一个URL</span></span><br><span class="line">              path /testurl/test.jsp</span><br><span class="line">              <span class="comment"># 检测内容的哈希值</span></span><br><span class="line">              digest 640205b7b0fc66c1ea91c463fac6334d</span><br><span class="line">              <span class="comment"># 除了检测哈希值还可以检测状态码，比如HTTP的200 表示正常，两种方法二选一即可</span></span><br><span class="line">              status_code 200</span><br><span class="line">            &#125;</span><br><span class="line">            url &#123; </span><br><span class="line">              path /testurl2/test.jsp</span><br><span class="line">              digest 640205b7b0fc66c1ea91c463fac6334d</span><br><span class="line">            &#125;</span><br><span class="line">            url &#123; </span><br><span class="line">              path /testurl3/test.jsp</span><br><span class="line">              digest 640205b7b0fc66c1ea91c463fac6334d</span><br><span class="line">            &#125;</span><br><span class="line">            <span class="comment"># 向哪一个端口检查，如果不指定默认使用上面定义的端口</span></span><br><span class="line">            connect_port &lt;PORT&gt;</span><br><span class="line">            <span class="comment"># 向哪一个IP检测，如果不指定默认使用上面定义的IP地址</span></span><br><span class="line">            bindto &lt;IP&gt;</span><br><span class="line">            <span class="comment"># 连接超时时间</span></span><br><span class="line">            connect_timeout 3</span><br><span class="line">            <span class="comment"># 尝试次数</span></span><br><span class="line">            nb_get_retry 3</span><br><span class="line">            <span class="comment"># 每次尝试之间间隔几秒</span></span><br><span class="line">            delay_before_retry 3</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    real_server 192.168.200.3 1358 &#123;</span><br><span class="line">        weight 1</span><br><span class="line">        HTTP_GET &#123;</span><br><span class="line">            url &#123; </span><br><span class="line">              path /testurl/test.jsp</span><br><span class="line">              digest 640205b7b0fc66c1ea91c463fac6334c</span><br><span class="line">            &#125;</span><br><span class="line">            url &#123; </span><br><span class="line">              path /testurl2/test.jsp</span><br><span class="line">              digest 640205b7b0fc66c1ea91c463fac6334c</span><br><span class="line">            &#125;</span><br><span class="line">            connect_timeout 3</span><br><span class="line">            nb_get_retry 3</span><br><span class="line">            delay_before_retry 3</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置Srv01和Srv02"><a href="#配置Srv01和Srv02" class="headerlink" title="配置Srv01和Srv02"></a>配置Srv01和Srv02</h3><h4 id="配置VRRP部分"><a href="#配置VRRP部分" class="headerlink" title="配置VRRP部分"></a>配置VRRP部分</h4><p>Srv01上的keepalived.conf</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">global_defs &#123;</span><br><span class="line">   notification_email &#123;</span><br><span class="line">     acassen@firewall.loc</span><br><span class="line">   &#125;</span><br><span class="line">   notification_email_from Alexandre.Cassen@firewall.loc</span><br><span class="line">   smtp_server 127.0.0.1</span><br><span class="line">   smtp_connect_timeout 30</span><br><span class="line">   router_id srv01</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">vrrp_instance VI_1 &#123;</span><br><span class="line">    state MASTER</span><br><span class="line">    interface ens33</span><br><span class="line">    virtual_router_id 51</span><br><span class="line">    priority 100</span><br><span class="line">    advert_int 1</span><br><span class="line">    authentication &#123;</span><br><span class="line">        auth_type PASS</span><br><span class="line">        auth_pass 1111</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    virtual_ipaddress &#123;</span><br><span class="line">        172.16.42.111/24 brd 172.16.42.111 dev ens33 label ens33:0</span><br><span class="line">    &#125;</span><br><span class="line">    preempt delay 60</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>Srv02上的keepalived.conf，唯一不同的就是state、priority以及router_id。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">global_defs &#123;</span><br><span class="line">   notification_email &#123;</span><br><span class="line">     acassen@firewall.loc</span><br><span class="line">   &#125;</span><br><span class="line">   notification_email_from Alexandre.Cassen@firewall.loc</span><br><span class="line">   smtp_server 127.0.0.1</span><br><span class="line">   smtp_connect_timeout 30</span><br><span class="line">   router_id srv02</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">vrrp_instance VI_1 &#123;</span><br><span class="line">    state BACKUP</span><br><span class="line">    interface ens33</span><br><span class="line">    virtual_router_id 51</span><br><span class="line">    priority 90</span><br><span class="line">    advert_int 1</span><br><span class="line">    authentication &#123;</span><br><span class="line">        auth_type PASS</span><br><span class="line">        auth_pass 1111</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    virtual_ipaddress &#123;</span><br><span class="line">        172.16.42.111/24 brd 172.16.42.111 dev ens33 label ens33:0</span><br><span class="line">    &#125;</span><br><span class="line">    preempt delay 60</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>启动2个节点，启动后会自动配置ens33:0这个子接口的虚拟IP</p>
+<p><img src="/images/1704164528-6ac8bcc796422e40f179648b720689f3.png"></p>
+<p>在主节点上你通过<code>systemctl status keepalived</code>看不到它到底是什么角色，不过在BACKUP节点上你可以看到，但是你在主节点日志中<code>cat /var/log/message</code>里可以看到Srv01进入到MASTER状态，如下图：</p>
+<p><img src="/images/1704164528-e9266218e78e73d035b4b4378495eb7c.png"></p>
+<p>查看Srv02的状态</p>
+<p><img src="/images/1704164528-17947a1fcca350d00eef4970cf05051f.png"></p>
+<p>那么你通过停止Srv01上的keepalived服务就看到MASTER会被转移到Srv02上。</p>
+<p>使用该命令查看VRRP通告<code>tcpdum -i ens33 -nn host 224.0.0.18</code>，你在2台主机都会看到相同的信息。</p>
+<p><img src="/images/1704164528-d2d98f084a19e208e82ff7343ac1ed7d.png"></p>
+<p>Srv01使用真实物理IP对该地址进行发送通告，那么Srv02也会收到，如果Srv01宕机，那么Srv02就会使用自己的物理IP向该地址发送通告，由于Srv01已经宕机那么此时Srv02的优先级就是最高的，所以Srv02就变成了MASTER。</p>
+<h4 id="配置LVS部分"><a href="#配置LVS部分" class="headerlink" title="配置LVS部分"></a>配置LVS部分</h4><p>这里只是用了LVS来说明如何配置Keepalived：</p>
+<p>在keepalived.conf文件中增加下面的内容，2台服务器增加的内容一致，所以这里就写一份。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">virtual_server 172.16.42.111 80 &#123;</span><br><span class="line">    delay_loop 6</span><br><span class="line">    lb_algo rr</span><br><span class="line">    lb_kind DR</span><br><span class="line">    nat_mask 255.255.255.0</span><br><span class="line">    persistence_timeout 0</span><br><span class="line">    protocol TCP</span><br><span class="line"></span><br><span class="line">    sorry_server 192.168.200.200 1358</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 后端应用服务器 IP PORT</span></span><br><span class="line">    real_server 172.16.42.102 80 &#123;</span><br><span class="line">        weight 1</span><br><span class="line">        <span class="comment"># 应用服务器UP或者DOWN，就执行那个脚本</span></span><br><span class="line">        notify_up <span class="string">&quot;/usr/local/notify.sh up&quot;</span></span><br><span class="line">        notify_down <span class="string">&quot;/usr/local/notify.sh down&quot;</span></span><br><span class="line">        HTTP_GET &#123;</span><br><span class="line">            <span class="comment"># 检测URL</span></span><br><span class="line">            url &#123; </span><br><span class="line">              path /index.html</span><br><span class="line">              <span class="comment"># 除了检测哈希值还可以检测状态码，比如HTTP的200 表示正常，两种方法二选一即可</span></span><br><span class="line">              status_code 200</span><br><span class="line">            &#125;</span><br><span class="line">            connect_timeout 3</span><br><span class="line">            nb_get_retry 3</span><br><span class="line">            delay_before_retry 3</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    real_server 172.16.42.103 80 &#123;</span><br><span class="line">        weight 1</span><br><span class="line">        <span class="comment"># 应用服务器UP或者DOWN，就执行那个脚本</span></span><br><span class="line">        notify_up <span class="string">&quot;/usr/local/notify.sh up&quot;</span></span><br><span class="line">        notify_down <span class="string">&quot;/usr/local/notify.sh down&quot;</span></span><br><span class="line">        HTTP_GET &#123;</span><br><span class="line">            <span class="comment"># 检测URL</span></span><br><span class="line">            url &#123; </span><br><span class="line">              path /index.html</span><br><span class="line">              <span class="comment"># 除了检测哈希值还可以检测状态码，比如HTTP的200 表示正常，两种方法二选一即可</span></span><br><span class="line">              status_code 200</span><br><span class="line">            &#125;</span><br><span class="line">            connect_timeout 3</span><br><span class="line">            nb_get_retry 3</span><br><span class="line">            delay_before_retry 3</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这里的notify_up|down脚本我写的很简单就是为了使用一下这个功能，内容如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 不同的是2个主机上的echo部分不一样，因为主机名不同。</span></span><br><span class="line"><span class="keyword">if</span> [ <span class="variable">$1</span> == <span class="string">&quot;up&quot;</span> ]; <span class="keyword">then</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;Srv02 is UP&quot;</span> &gt; /tmp/notify.txt</span><br><span class="line"><span class="keyword">elif</span> [ <span class="variable">$1</span> == <span class="string">&quot;down&quot;</span> ]; <span class="keyword">then</span></span><br><span class="line">  <span class="built_in">echo</span> <span class="string">&quot;Srv02 is DOWN&quot;</span> &gt; /tmp/notify.txt</span><br><span class="line"><span class="keyword">fi</span></span><br></pre></td></tr></table></figure>
+
+<p>重启Keepalived服务之后你就可以通过<code>ipvsadm -Ln</code>查看ipvs规则了，这些规则在2台服务器上都会有，如下图：</p>
+<p><img src="/images/1704164528-307a99579cefad29ed42892c976468ea.png"></p>
+<p>测试访问</p>
+<p>使用下面的命令快速访问<code>for i in &#123;1..20&#125;; do curl http://172.16.42.111/ | grep &quot;Srv0&quot; --color ; done</code></p>
+<p><img src="/images/1704164528-d9aa7bb6af1bc0dcedb35f87ceb86a85.png"></p>
+<p>可以看到2台服务器交替，因为我们使用的rr调度算法。</p>
+<h3 id="故障转移测试"><a href="#故障转移测试" class="headerlink" title="故障转移测试"></a>故障转移测试</h3><p>连续访问VIP，然后停止Srv01上面的keepalived服务，这就意味着Srv01也就是失去了VIP，然后观察请求情况以及是否触发之前设定的脚本。</p>
+<p><img src="/images/1704164528-b14d6fdb51f1a44c730b8c4b9e67810e.png"></p>
+<p>在Srv01上查看脚本执行情况</p>
+<p><img src="/images/1704164528-1302b714370323c73340905db25d9748.png"></p>
+<p>查看Srv02上面的日志</p>
+<p><img src="/images/1704164528-a4047cce8a5c2ac318b4127ef5941a39.png"></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/02/Keepalived%E9%83%A8%E7%BD%B2%E4%B8%8E%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Keepalived/" rel="tag">Keepalived</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2024/01/02/%E4%BD%BF%E7%94%A8Keepalived%E6%9E%84%E5%BB%BALVS%E9%AB%98%E5%8F%AF%E7%94%A8%E9%9B%86%E7%BE%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            使用Keepalived构建LVS高可用集群
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/29/CMDB%E4%B8%8E%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F%E7%9A%84%E8%9E%8D%E5%90%88-%E4%B8%89/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">CMDB与监控系统的融合[三]</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus之标签的操作 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus之标签的操作"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus之标签的操作
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/26/Prometheus%E4%B9%8B%E6%A0%87%E7%AD%BE%E7%9A%84%E6%93%8D%E4%BD%9C/" class="article-date">
+  <time datetime="2023-12-26T09:00:33.000Z" itemprop="datePublished">2023-12-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">15 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一、Prometheus配置文件官网翻译（可直接忽略）"><a href="#一、Prometheus配置文件官网翻译（可直接忽略）" class="headerlink" title="一、Prometheus配置文件官网翻译（可直接忽略）"></a>一、Prometheus配置文件官网翻译（可直接忽略）</h2><h3 id="1-1-官网配置文件介绍"><a href="#1-1-官网配置文件介绍" class="headerlink" title="1.1 官网配置文件介绍"></a>1.1 官网配置文件介绍</h3><p>&lt;static_config&gt;</p>
+<p>     static_config允许指定目标列表和目标的通用标签集。 这是在抓取配置中指定静态目标的规范方法。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#静态配置指定的目标。</span></span><br><span class="line">targets:</span><br><span class="line">  [ - <span class="string">&#x27;&lt;host&gt;&#x27;</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#分配给从目标中抓取的所有指标的标签。</span></span><br><span class="line">labels:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;labelvalue&gt; ... ]</span><br></pre></td></tr></table></figure>
+
+<p>&lt;relabel_config&gt;  </p>
+<p>       重新标记是功能强大的工具，可在scraped目标之前动态重写目标的标签集。 每个scraped配置可以配置多个重新标记步骤。 它们按照在配置文件中出现的顺序应用于每个目标的标签集。</p>
+<p>      最初，除了配置的每个目标标签外，目标的作业标签还设置为相应的抓取配置的job_name值。 __address__标签设置为目标的<host>:<port>地址。 重新标记后，如果在重新标记期间未设置实例标签，则默认情况下将其设置为__address__的值。 __scheme__和__metrics_path__标签分别设置为目标的方案和指标路径。__param_<name>标签设置为第一个传递的URL参数称为<name>的值。</p>
+<p>      在重新标记阶段，可能会加上以__meta_开头的其他标签。 它们由提供目标的服务发现机制设置，并且在机制之间有所不同。目标重新标记完成后，将从__ will的标签将从标签集中删除。如果重新标记步骤仅需要临时存储标签值（作为后续重新标记步骤的输入），请使用__tmp标签名称前缀。 保证该前缀不会被Prometheus自己使用。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#source标签从现有标签中选择值。 它们的内容使用配置的分隔符连接起来，并与配置的正则表达式匹配，以进行替换，保留和放置操作。</span></span><br><span class="line">[ source_labels: <span class="string">&#x27;[&#x27;</span> &lt;labelname&gt; [, ...] <span class="string">&#x27;]&#x27;</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#在连接的source标签值之间放置分隔符。</span></span><br><span class="line">[ separator: &lt;string&gt; | default = ; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#在替换操作中将结果值写入的标签。在替换操作中将结果值写入的标签。</span></span><br><span class="line">[ target_label: &lt;labelname&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#与提取的值匹配的正则表达式。</span></span><br><span class="line">[ regex: &lt;regex&gt; | default = (.*) ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#源标签值哈希值的取模。</span></span><br><span class="line">[ modulus: &lt;uint64&gt; ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#如果正则表达式匹配，则执行正则表达式替换的替换值。 正则表达式捕获组可用。</span></span><br><span class="line">[ replacement: &lt;string&gt; | default = <span class="variable">$1</span> ]</span><br><span class="line"></span><br><span class="line"><span class="comment">#基于正则表达式匹配执行的操作。</span></span><br><span class="line">[ action: &lt;relabel_action&gt; | default = replace ]</span><br></pre></td></tr></table></figure>
+
+<p>       <regex>是任何有效的RE2正则表达式。这是必需的replace, keep, drop, labelmap,labeldrop and labelkeep行动。 正则表达式固定在两端。 要取消锚定正则表达式，请使用.*<regex>.*。&lt;relabel_action&gt;确定要执行的重新标记操作：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">replace: 将正则表达式与串联的source_labels匹配。然后，将target_label设置为replace，用替换中的匹配组引用(<span class="variable">$&#123;1&#125;</span>, <span class="variable">$&#123;2&#125;</span>, ...)替换为其值。 如果正则表达式不匹配，则不会进行替换。</span><br><span class="line">keep: 删除其正则表达式与串联的source_labels不匹配的目标。</span><br><span class="line">drop: 删除其正则表达式与串联的source_labels匹配的目标。</span><br><span class="line">hashmod: 将target_label设置为串联的source_labels的哈希的模数。</span><br><span class="line">labelmap: 将正则表达式与所有标签名称匹配。 然后，将匹配标签的值复制到通过替换为它们的值替换的匹配组引用(<span class="variable">$&#123;1&#125;</span>, <span class="variable">$&#123;2&#125;</span>, ...)给出的标签名称。</span><br><span class="line">labeldrop: 将正则表达式与所有标签名称匹配。 任何匹配的标签将从标签集中删除。</span><br><span class="line">labelkeep: 将正则表达式与所有标签名称匹配。 任何不匹配的标签将从标签集中删除。</span><br></pre></td></tr></table></figure>
+
+<p>       必须谨慎对待labeldrop和labelkeep，以确保一旦删除标签，度量标准仍会唯一地进行标签。</p>
+<p>&lt;metric_relabel_configs&gt;</p>
+<p>       ingestion前的最后一步是对样品进行公制重新标记。 它具有与目标重新标记相同的配置格式和操作。 指标重新标记不适用于自动生成的时间序列，例如up。这样做的一种用途是将太expensive而无法摄取的时间序列列入黑名单。</p>
+<p>&lt;alert_relabel_configs&gt;  </p>
+<p>       警报重新标记将应用于警报，然后再将其发送到Alertmanager。 它具有与目标重新标记相同的配置格式和操作。 警报重新贴标签在外部标签之后应用。一种用途是确保具有不同外部标签的HA对Prometheus服务器对发送相同的警报。</p>
+<h3 id="1-2-Prometheus的Relabeling机制"><a href="#1-2-Prometheus的Relabeling机制" class="headerlink" title="1.2 Prometheus的Relabeling机制"></a>1.2 Prometheus的Relabeling机制</h3><p>在Prometheus所有的Target实例中，都包含一些默认的Metadata标签信息。可以通过Prometheus UI的Targets页面中查看这些实例的Metadata标签的内容：</p>
+<p><img src="/assets/1703581087-7b9b2e8e473c2be85ecce3ad4cbb72c4.png" alt="image.png"></p>
+<p>默认情况下，当Prometheus加载Target实例完成后，这些Target时候都会包含一些默认的标签：</p>
+<ul>
+<li><p><code>__address__</code>：当前Target实例的访问地址<code>&lt;host&gt;:&lt;port&gt;</code></p>
+</li>
+<li><p><code>__scheme__</code>：采集目标服务访问地址的HTTP Scheme，HTTP或者HTTPS</p>
+</li>
+<li><p><code>__metrics_path__</code>：采集目标服务访问地址的访问路径</p>
+</li>
+<li><p><code>__param_&lt;name&gt;</code>：采集任务目标服务的中包含的请求参数</p>
+</li>
+</ul>
+<p>上面这些标签将会告诉Prometheus如何从该Target实例中获取监控数据。除了这些默认的标签以外，我们还可以为Target添加自定义的标签。</p>
+<p>      一般来说，Target以__作为前置的标签是在系统内部使用的，因此这些标签不会被写入到样本数据中。不过这里有一些例外，例如，我们会发现所有通过Prometheus采集的样本数据中都会包含一个名为instance的标签，该标签的内容对应到Target实例的<code>__address__</code>。 这里实际上是发生了一次标签的重写处理。</p>
+<p>      这种发生在采集样本数据之前，对Target实例的标签进行重写的机制在Prometheus被称为Relabeling。Prometheus允许用户在采集任务设置中通过relabel_configs来添加自定义的Relabeling过程。</p>
+<h3 id="1-3-action字段"><a href="#1-3-action字段" class="headerlink" title="1.3 action字段"></a>1.3 action字段</h3><p>可以用到的action以及对应所需的字段</p>
+<table>
+<thead>
+<tr>
+<th>动作</th>
+<th>所需字段</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>replace</td>
+<td>regex source_labels target_label replacement</td>
+<td>根据正则匹配标签的<strong>值</strong>,替换标签target_label必须</td>
+</tr>
+<tr>
+<td>keep</td>
+<td>regex source_labels</td>
+<td>根据正则匹配标签的<strong>值</strong>保留数据采集源</td>
+</tr>
+<tr>
+<td>drop</td>
+<td>regex source_labels</td>
+<td>根据正则匹配标签的<strong>值</strong>剔除数据采集源</td>
+</tr>
+<tr>
+<td>hashmod</td>
+<td>source_labels target_label modulus</td>
+<td>hash模式</td>
+</tr>
+<tr>
+<td>labelmap</td>
+<td>regex replacement</td>
+<td>根据正则匹配标签的<strong>名称</strong>进行映射</td>
+</tr>
+<tr>
+<td>labeldrop</td>
+<td>regex</td>
+<td>根据正则匹配标签的<strong>名称</strong>剔除标签</td>
+</tr>
+<tr>
+<td>labelkeep</td>
+<td>regex</td>
+<td>根据正则匹配标签的<strong>名称</strong>保留标签</td>
+</tr>
+</tbody></table>
+<h2 id="二、relabel-configs对标签实例操作"><a href="#二、relabel-configs对标签实例操作" class="headerlink" title="二、relabel_configs对标签实例操作"></a>二、relabel_configs对标签实例操作</h2><h3 id="2-1-给target增加标签"><a href="#2-1-给target增加标签" class="headerlink" title="2.1  给target增加标签"></a>2.1  给target增加标签</h3><p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;prometheus&#x27;</span></span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [ <span class="string">&#x27;localhost:9090&#x27;</span>]</span><br><span class="line">    labels:</span><br><span class="line">      <span class="built_in">env</span>: <span class="string">&#x27;prod&#x27;</span></span><br><span class="line">      __hostname__: <span class="string">&#x27;localhost&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p><img src="/assets/1703581087-bb45770be6d330fa8b972697f2e630e4.png" alt="image.png"></p>
+<p>#从上图可以看到已经从原来的标签基础之上又增加了两个标签。要注意的是内部标签默认是不现实的，只有把鼠标移动到Labels那里才会显示。只有在Labels里面显示的标签才会出现在杨蓓数据中,也就是说比如我们的环境分为prod,dev,sandbox之类的，集群太多了区分不过来，我们想针对env这个变量做不同的报警区分，是一个不错的注意。</p>
+<p>#要注意__这种开头的是不会写到metrics指标里面的，因为这属于系统内置标签。env这种没有__作为前缀的是可以写到metrics指标中的。</p>
+<h3 id="2-2-将target的初始标签里面的值替换到新的标签中"><a href="#2-2-将target的初始标签里面的值替换到新的标签中" class="headerlink" title="2.2 将target的初始标签里面的值替换到新的标签中"></a>2.2 将target的初始标签里面的值替换到新的标签中</h3><p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;prometheus&#x27;</span></span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [ <span class="string">&#x27;localhost:9090&#x27;</span>]</span><br><span class="line">  relabel_configs:</span><br><span class="line">    - source_labels: [ <span class="string">&#x27;__address__&#x27;</span> ]</span><br><span class="line">      target_label:  <span class="string">&#x27;addr&#x27;</span></span><br><span class="line">    - source_labels: [ <span class="string">&#x27;__metrics_path__&#x27;</span> ]</span><br><span class="line">      target_label:  <span class="string">&#x27;path&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>#上面是一个例子，上面直接替换了两个标签，action那些都有默认值都可以先不加，如果只替换一个标签就不用写两个source_lables了，还有一点要注意，目标标签不能用__标签名__。  </p>
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p>#上图在Service Discovery上面就可以看到替换效果了。</p>
+<p>如果要替换成指定值呢？</p>
+<p>    relabel_configs:</p>
+<p>      - source_labels: [ ‘__address__‘ ]</p>
+<p>        target_label:  ‘addr’</p>
+<p>        replacement: ‘localhost’</p>
+<p>#上面就是将__address__替换成addr，然后再让addr&#x3D;localhost</p>
+<p>如果要正则匹配替换呢？</p>
+<p>    relabel_configs:</p>
+<p>      - source_labels: [ ‘__address__‘ ]</p>
+<p>        target_label:  ‘addr’</p>
+<p>        #regex: “(.*):.*“     #如果只是取$1,那么这句话跟下面的意思一样</p>
+<p>        regex: “(.*):(.*)”</p>
+<p>        replacement: $1</p>
+<p>#上面就是将localhost:9090通过正则截图成两段，然后将第一段交给replacement去替换addr的值也就是替换（localhost:9090）。这其实挺好的，比如我们配置targets的时候一般是IP:port的时候，不同的主机可能端口不一样，这时候我们想通过instance去匹配的话还要精确匹配其端口，如果做了正则替换我们就不用关心这个Nodeip的被采集端口是多少了。</p>
+<p>#当然也可以使用下面的写法：</p>
+<p>    relabel_configs:</p>
+<p>    - action: replace</p>
+<p>      source_labels: [ ‘__address__‘ ]</p>
+<p>      regex: “(.*):(.*)”</p>
+<p>      replacement: $1</p>
+<p>      target_label:  ‘addr’</p>
+<h3 id="2-3-根据标签drop一下"><a href="#2-3-根据标签drop一下" class="headerlink" title="2.3 根据标签drop一下"></a>2.3 根据标签drop一下</h3><p>#这里只是打个比方啊不要删哈。比方说我们有的job_name下面有个实例我想暂时想不采集了怎么办呢？  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#可以通过graph界面查看一下我们有哪些Job，job也就是prom配置文件的job_name</span></span><br><span class="line">count by (job) (&#123;job=~<span class="string">&quot;.+&quot;</span>&#125;)</span><br></pre></td></tr></table></figure>
+<p># vim prometheus.yml</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [<span class="string">&#x27;instance&#x27;</span>]</span><br><span class="line">    action: drop</span><br></pre></td></tr></table></figure>
+
+<p>或者像下面写法：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">- action: drop</span><br><span class="line">  source_labels: [<span class="string">&#x27;instance&#x27;</span>]</span><br></pre></td></tr></table></figure>
+
+<p>或者像下面写法：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [<span class="string">&#x27;instance&#x27;</span>]</span><br><span class="line">    regex: <span class="string">&quot;instance&quot;</span>   <span class="comment">#这里匹配不上，keep是丢弃 source_labels 的值中没有匹配到 regex 正则表达式内容的 Target 实例</span></span><br><span class="line">    action: keep</span><br></pre></td></tr></table></figure>
+
+<p>#这三种都可以，但是意义不大啊，不想采集这些节点了不在tagets那里填写不就好了吗，当然这里重要说的是这个drop，这个drop是把匹配到的标签的target直接将这些数据丢弃掉了，也就是不采集数据了。特别注意当你设置了drop之后，那么这个target在drop期间是没数据，但是不要担心历史数据还是再的，只是你drop的这段时间没有数据了。  </p>
+<h3 id="2-4-labelmap标签名替换"><a href="#2-4-labelmap标签名替换" class="headerlink" title="2.4 labelmap标签名替换"></a>2.4 labelmap标签名替换</h3><p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__metrics_path__&#x27;</span> ]</span><br><span class="line">    regex: __metrics_(.+)__   <span class="comment">#这相当于将path截取出来作为新的标签名称</span></span><br><span class="line">    action: labelmap</span><br></pre></td></tr></table></figure>
+
+<p>#或者下面的方式</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - regex:  __metrics_(.+)__</span><br><span class="line">    action: labelmap</span><br></pre></td></tr></table></figure>
+
+<p>#labelmap: 根据 regex 去匹配 Target 实例所有标签的名称（注意是名称），并且将捕获到的内容作为为新的标签名称，regex 匹配到标签的的值作为新标签的值.当然这个新的标签也会加到样本数据中。也就是你可以通过container_cpu_user_seconds_total{path&#x3D;”&#x2F;metrics”}  进行查询</p>
+<h3 id="2-5-根据hashmod来选择采集哪些target"><a href="#2-5-根据hashmod来选择采集哪些target" class="headerlink" title="2.5 根据hashmod来选择采集哪些target"></a>2.5 根据hashmod来选择采集哪些target</h3><p>当relabel_config设置为hashmod时，Prometheus会根据modulus的值作为系数，计算source_labels值的hash值。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__address__&#x27;</span> ]</span><br><span class="line">    modulus: 10</span><br><span class="line">    target_label: tmp_hash</span><br><span class="line">    action: hashmod</span><br></pre></td></tr></table></figure>
+
+<p>#根据当前Target实例<code>__address__</code>的值以10作为系数，这样每个Target实例都会包含一个新的标签tmp_hash，并且该值的范围在1~10之间.看下图.比如我又三个实例，还是把这个系数搞大一点吧，这样tmp_hash的值不容易重复。</p>
+<p>这时候比如我们想把tmp_hash&#x3D;5这个的实例给drop掉(regex正则貌似对于IP那种正则匹配不好匹配上，通过这种可以屏蔽那个问题)：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__address__&#x27;</span> ]</span><br><span class="line">    modulus: 10</span><br><span class="line">    target_label: tmp_hash</span><br><span class="line">    action: hashmod</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;tmp_hash&#x27;</span> ]</span><br><span class="line">    regex: <span class="string">&quot;^5$&quot;</span></span><br><span class="line">    action: drop</span><br></pre></td></tr></table></figure>
+
+<p>#上面就是将tmp_hash是5的给target给drop掉。重启服务效果就可以看到了哈，这里就不截图了。</p>
+<p>下面的写法也是可以的：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__address__&#x27;</span> ]</span><br><span class="line">    modulus: 10</span><br><span class="line">    target_label: tmp_hash</span><br><span class="line">    action: hashmod</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;tmp_hash&#x27;</span> ]</span><br><span class="line">    regex: <span class="string">&quot;(^1$|^9$)&quot;</span></span><br><span class="line">    action: keep</span><br></pre></td></tr></table></figure>
+
+<p>#解决了吗？还没有结束虽然效果实现了，但是所有的数据里面都有了tmp_hash标签了如下图：</p>
+<p>#所以可以首先用tmp_hash这种显示标签获得不同实例的值，然后得到instance对应的hash值之后，可以将tmp_hash改为__tmp_hash__，这样此通过该前缀定义的标签就不会写入到Target或者采集到的样本的标签中。如下面：</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__address__&#x27;</span> ]</span><br><span class="line">    modulus: 10</span><br><span class="line">    target_label: __tmp_hash__</span><br><span class="line">    action: hashmod</span><br><span class="line">  - source_labels: [ <span class="string">&#x27;__tmp_hash__&#x27;</span> ]</span><br><span class="line">    regex: <span class="string">&quot;(^1$)&quot;</span></span><br><span class="line">    action: drop</span><br></pre></td></tr></table></figure>
+
+<p>#当然此例子只是为了演示一下hash_mod的作用。  </p>
+<h3 id="2-6-labeldrop使用"><a href="#2-6-labeldrop使用" class="headerlink" title="2.6 labeldrop使用"></a>2.6 labeldrop使用</h3><p>#此操作并不是修改metric中的标签操作。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line">  - source_labels:   </span><br><span class="line">      - <span class="string">&#x27;__address__&#x27;</span></span><br><span class="line">      - <span class="string">&#x27;job&#x27;</span></span><br><span class="line">    separator: _  </span><br><span class="line">    target_label: test_id</span><br><span class="line">  - regex: <span class="string">&#x27;(job)&#x27;</span></span><br><span class="line">    action: labeldrop</span><br></pre></td></tr></table></figure>
+
+<p>#separator是分隔符，__address__和job的值就会用_做分割拼接在一起，然后传给test_id这个标签。这时候比如把job标签去掉。这时候再查询发现多了一个test_id标签，并且metrics数据中多了一个test_id的标签并且已经没有job标签了。当然labelkeep就相反了就不举例子了</p>
+<h2 id="三、metric-relabel-configs对拉取数据的操作"><a href="#三、metric-relabel-configs对拉取数据的操作" class="headerlink" title="三、metric_relabel_configs对拉取数据的操作"></a>三、metric_relabel_configs对拉取数据的操作</h2><p>       Prometheus 从数据源拉取数据后，会对原始数据进行编辑；其中 metric_relabel_configs是 Prometheus 在保存数据前的最后一步标签重新编辑（relabel_configs）。哪怕你将 metric_relabel_configs模块放在 job_name模块的最前端，Prometheus 解析编辑文件后，也会将 metric_relabel_configs放在最后。</p>
+<p>      metric_relabel_configs 模块和 relabel_config 模块很相似。metric_relabel_configs一个很常用的用途：将监控不需要的数据，直接丢掉，不在Prometheus 中保存。  </p>
+<h3 id="3-1-删除不需要的metric"><a href="#3-1-删除不需要的metric" class="headerlink" title="3.1 删除不需要的metric"></a>3.1 删除不需要的metric</h3><p>#还是以cAdvisor采集的数据为例。先介绍__name__ 标签，此标签是标识指标名称的预留标签。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">metric_relabel_configs:</span><br><span class="line">- source_labels: [ __name__ ]</span><br><span class="line">  regex: <span class="string">&#x27;container_cpu_cfs_periods_total&#x27;</span></span><br><span class="line">  action: drop</span><br></pre></td></tr></table></figure>
+
+<p>#如上面我们用不到这个container_cpu_cfs_periods_total，那么我们就可以不采集这个metric来节省空间了，特别强调是metric的名称而不是metric里面那些标签哦。这样你再通过：container_cpu_cfs_periods_total{job&#x3D;”cadvisor”}  已经查询不到数据了。</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">metric_relabel_configs:</span><br><span class="line">- source_labels: [ __name__ ]</span><br><span class="line">  regex: <span class="string">&#x27;container_cpu_cfs_.*&#x27;</span></span><br><span class="line">  action: drop</span><br></pre></td></tr></table></figure>
+
+<p>#上面就是将container_cpu_cfs开头的metric全不采集了。</p>
+<h3 id="3-2-修改指标-metric-中的标签-label"><a href="#3-2-修改指标-metric-中的标签-label" class="headerlink" title="3.2 修改指标(metric) 中的标签(label)"></a>3.2 修改指标(metric) 中的标签(label)</h3><p>#比如有些标签是采集程序自己加上去的，我们想把这些各个程序采集的标签名改成统一的标签名也方便我们程序去做判断应该怎么弄呢？</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [ <span class="string">&#x27;container_label_io_kubernetes_pod_name&#x27;</span> ]</span><br><span class="line">  regex: (.+)</span><br><span class="line">  target_label: pod_name</span><br><span class="line">  replacement: <span class="variable">$1</span></span><br><span class="line">  action: replace</span><br></pre></td></tr></table></figure>
+
+<p>#上面就是让metric标签中的container_label_io_kubernetes_pod_name这个标签的值赋给新的标签pod_name，但是不等于，则不会处理此label。再次强调必须是&#x3D;&#x3D;这种完全匹配关系，不然新增标签是添加不了的，就算使用了separator: ; 如果只是单标签匹配也不会给新标签赋予;这个值，另外新标签也不会出现。</p>
+<p>#如果批量多条呢？  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [ <span class="string">&#x27;container_label_io_kubernetes_pod_name&#x27;</span> ]</span><br><span class="line">  regex: (.+)</span><br><span class="line">  target_label: pod_name</span><br><span class="line">  replacement: <span class="variable">$1</span></span><br><span class="line">  action: replace</span><br><span class="line">- source_labels: [ <span class="string">&#x27;container_label_io_kubernetes_docker_type&#x27;</span> ]</span><br><span class="line">  regex: (.+)</span><br><span class="line">  target_label: pod_type</span><br><span class="line">  replacement: <span class="variable">$1</span></span><br><span class="line">  action: replace</span><br></pre></td></tr></table></figure>
+
+<p># curl -XPOST <a target="_blank" rel="noopener" href="http://localhost:9090/-/reload">http://localhost:9090/-/reload</a></p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">container_cpu_user_seconds_total&#123;job=<span class="string">&quot;cadvisor&quot;</span>&#125;</span><br><span class="line"><span class="comment">#下面查询结果最后的一小部分：</span></span><br><span class="line">pod_name=<span class="string">&quot;kubernetes-dashboard-f9bd45cd6-6vk8n&quot;</span>,pod_type=<span class="string">&quot;container&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>#如果要多条合并呢？  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [ <span class="string">&#x27;container_label_io_kubernetes_docker_type&#x27;</span>,<span class="string">&#x27;container_label_io_kubernetes_container_name&#x27;</span> ]</span><br><span class="line">  regex: (.+)</span><br><span class="line">  separator: ;</span><br><span class="line">  target_label: pod_type</span><br><span class="line">  replacement: <span class="variable">$1</span></span><br><span class="line">  action: replace</span><br></pre></td></tr></table></figure>
+
+<p>#从上图可以看到把docker_type和container_name的值通过;分割合并到了一起。</p>
+<p>#如果多条合并并不完全匹配会怎么样呢？</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [ <span class="string">&#x27;docker_type&#x27;</span>,<span class="string">&#x27;container_name&#x27;</span> ]</span><br><span class="line">  regex: (.+)</span><br><span class="line">  separator: ;</span><br><span class="line">  target_label: pod_type</span><br><span class="line">  replacement: <span class="variable">$1</span></span><br><span class="line">  action: replace</span><br></pre></td></tr></table></figure>
+
+<p>下面是语句查询的结果：</p>
+<p>pod_name&#x3D;”kubernetes-dashboard-f9bd45cd6-6vk8n”,pod_type&#x3D;”;”}</p>
+<p>#从上面的结果可以看到直接给了一个;，因为是有值的所以给pod_type标签一个;。</p>
+<h3 id="3-3-删除标签"><a href="#3-3-删除标签" class="headerlink" title="3.3 删除标签"></a>3.3 删除标签</h3><p>#既然我们已经将metrics里面将老的标签里面的值赋予给了新的标签，那么是不是可以把老的标签去掉了呢？至少让我的prom界面显得简洁一点呢？</p>
+<p>首先删除单个标签：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- regex: <span class="string">&#x27;container_label_io_kubernetes_docker_type&#x27;</span></span><br><span class="line">  action: labeldrop</span><br></pre></td></tr></table></figure>
+
+<p>然后删除多个标签：  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">- regex: <span class="string">&#x27;container_label_io_kubernetes_docker_type&#x27;</span></span><br><span class="line">  action: labeldrop</span><br><span class="line">- regex: <span class="string">&#x27;(container_label_io_kubernetes_container_logpath|container_label_io_kubernetes_container_name)&#x27;</span></span><br><span class="line">  action: labeldrop</span><br></pre></td></tr></table></figure>
+
+<p>然后我想正则匹配删除标签呢？</p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- regex: container_label_io_kubernetes_.*</span><br><span class="line">  action: labeldrop</span><br></pre></td></tr></table></figure>
+
+<p>然后我想多个正则匹配删除多个标签呢？  </p>
+<p>Bash</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- regex: <span class="string">&#x27;(container_label_io_kubernetes_.*|container_label_annotation_io_kubernetes_.*)&#x27;</span></span><br><span class="line">  action: labeldrop</span><br></pre></td></tr></table></figure>
+
+<p>#可以看到很多标签都删除消失了。什么时候把这些drop去掉了，再刷这些标签的值就又出现了，当然drop这段时间是没有的。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/26/Prometheus%E4%B9%8B%E6%A0%87%E7%AD%BE%E7%9A%84%E6%93%8D%E4%BD%9C/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/26/Prometheus%E4%B9%8B%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Prometheus之自动发现
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/22/vmagent%E7%AE%80%E4%BB%8B%E4%B8%8E%E9%83%A8%E7%BD%B2/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">vmagent简介与部署</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

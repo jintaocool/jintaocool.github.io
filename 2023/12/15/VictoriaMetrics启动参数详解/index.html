@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>VictoriaMetrics启动参数详解 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-VictoriaMetrics启动参数详解"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  VictoriaMetrics启动参数详解
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/15/VictoriaMetrics%E5%90%AF%E5%8A%A8%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3/" class="article-date">
+  <time datetime="2023-12-15T06:00:42.000Z" itemprop="datePublished">2023-12-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">5.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">29 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="启动参数、命令行参数"><a href="#启动参数、命令行参数" class="headerlink" title="启动参数、命令行参数"></a>启动参数、命令行参数</h2><h3 id="Environment-variables"><a href="#Environment-variables" class="headerlink" title="Environment variables"></a>Environment variables</h3><p>可以通过环境变量设置参数：</p>
+<ul>
+<li>必须设置-envflag.enable</li>
+<li>参数名中的每个.必须由_代替（例如-insert.maxQueueDuration <duration>将转换为insert_maxQueueDuration&#x3D;<duration>）</li>
+<li>对于重复参数，用,作为分隔符将不同的值合并为一个值（例如-storageNode <nodeA> -storageNode <nodeB>将转换为storageNode&#x3D;<nodeA>,<nodeB>）</li>
+<li>可以使用-envflag.prefix为环境变量设置前缀。例如，如果-envflag.prefix&#x3D;VM_，那么env vars必须以VM_开头</li>
+</ul>
+<p>vmstorage</p>
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br></pre></td><td class="code"><pre><span class="line"><span class="operator">./</span>vmstorage<span class="operator">-</span>prod <span class="operator">--</span>help</span><br><span class="line"></span><br><span class="line"># 处理大型合并时所用的最大cpu核数</span><br><span class="line"><span class="operator">-</span>bigMergeConcurrency int</span><br><span class="line">    <span class="type">The</span> maximum number of <span class="type">CPU</span> cores to use <span class="keyword">for</span> big merges. <span class="type">Default</span> value <span class="keyword">is</span> used <span class="keyword">if</span> <span class="keyword">set</span> to <span class="number">0</span></span><br><span class="line"></span><br><span class="line"># 如果时序数据之间的时间差比该配置小，则剔除<span class="operator">。</span>当多个<span class="type">Prometheus同时写入一个VictoriaMetric时，这对减少开销很有帮助</span><span class="operator">。</span>当设置为<span class="number">0</span>时，不生效<span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>dedup.minScrapeInterval duration</span><br><span class="line">    <span class="type">Remove</span> superflouos samples from time series <span class="keyword">if</span> they are located closer to <span class="keyword">each</span> other than this duration. <span class="type">This</span> may be useful <span class="keyword">for</span> reducing overhead when multiple identically configured <span class="type">Prometheus</span> instances write data to the same <span class="type">VictoriaMetrics</span>. <span class="type">Deduplication</span> <span class="keyword">is</span> disabled <span class="keyword">if</span> the <span class="operator">-</span>dedup.minScrapeInterval <span class="keyword">is</span> <span class="number">0</span></span><br><span class="line"></span><br><span class="line"># 是否拒绝已配置的<span class="operator">-</span>retentionPeriod(数据保留时长)之外的查询<span class="operator">。</span> 设置后，<span class="regexp">/api/</span>v1<span class="operator">/</span>query_range对于<span class="operator">-</span>retentionPeriod以外的&#x27;from&#x27;值的查询，将返回&#x27;<span class="number">503</span> <span class="type">Service</span> <span class="type">Unavailable</span>&#x27;错误<span class="operator">。</span> 当多个具有不同数据保留时长的数据源隐藏在query<span class="operator">-</span>tee后面时，该项可能很有用</span><br><span class="line"><span class="operator">-</span>denyQueriesOutsideRetention</span><br><span class="line">    <span class="type">Whether</span> to deny queries outside of the configured <span class="operator">-</span>retentionPeriod. <span class="type">When</span> <span class="keyword">set</span>, then <span class="regexp">/api/</span>v1<span class="operator">/</span>query_range would <span class="keyword">return</span> &#x27;<span class="number">503</span> <span class="type">Service</span> <span class="type">Unavailable</span>&#x27; error <span class="keyword">for</span> queries with &#x27;from&#x27; value outside <span class="operator">-</span>retentionPeriod. <span class="type">This</span> may be useful when multiple data sources with distinct retentions are hidden behind query<span class="operator">-</span>tee</span><br><span class="line"></span><br><span class="line"># 是否监听和使用ipv6，默认只使用ipv4</span><br><span class="line"><span class="operator">-</span>enableTCP6</span><br><span class="line">    <span class="type">Whether</span> to enable <span class="type">IPv6</span> <span class="keyword">for</span> listening and dialing. <span class="type">By</span> <span class="keyword">default</span> only <span class="type">IPv4</span> <span class="type">TCP</span> <span class="keyword">is</span> used</span><br><span class="line"></span><br><span class="line"># 是否读取命令行以外的环境变量的参数，命令行参数的等级高于环境变量参数<span class="operator">。</span>若未设置时，只读取命令行参数<span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>envflag.enable</span><br><span class="line">    <span class="type">Whether</span> to enable reading flags from environment variables additionally to command line. <span class="type">Command</span> line flag values have priority over values from environment vars. <span class="type">Flags</span> are read only from command line <span class="keyword">if</span> this flag isn&#x27;t <span class="keyword">set</span></span><br><span class="line"></span><br><span class="line"># 环境变量的前缀，如果设置了<span class="operator">-</span>envflag.enable</span><br><span class="line"><span class="operator">-</span>envflag.prefix string</span><br><span class="line">    <span class="type">Prefix</span> <span class="keyword">for</span> environment variables <span class="keyword">if</span> <span class="operator">-</span>envflag.enable <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"></span><br><span class="line"># 没有新数据插入之后，在完成每月分区的最终合并之前的延迟<span class="operator">。</span>完成最终合并后，通常会降低查询速度和磁盘空间使用率<span class="operator">。</span>最终合并的延迟过短可能会导致磁盘<span class="type">IO使用率和CPU使用率增加（默认为30秒）</span></span><br><span class="line"><span class="operator">-</span>finalMergeDelay duration</span><br><span class="line">    <span class="type">The</span> delay before starting <span class="keyword">final</span> merge <span class="keyword">for</span> per<span class="operator">-</span>month partition after no new data <span class="keyword">is</span> ingested into it. <span class="type">Query</span> speed and disk space usage <span class="keyword">is</span> usually reduced after the <span class="keyword">final</span> merge <span class="keyword">is</span> complete. <span class="type">Too</span> low delay <span class="keyword">for</span> <span class="keyword">final</span> merge may result <span class="keyword">in</span> increased disk <span class="type">IO</span> usage and <span class="type">CPU</span> usage (<span class="keyword">default</span> 30s)</span><br><span class="line"></span><br><span class="line"># 授权字符串，必须以查询字符串的形式传递给<span class="regexp">/internal/</span>force_flush 接口</span><br><span class="line"><span class="operator">-</span>forceFlushAuthKey string</span><br><span class="line">    authKey, which must be passed <span class="keyword">in</span> query string to <span class="regexp">/internal/</span>force_flush pages</span><br><span class="line"></span><br><span class="line"># 授权字符串，必须以查询字符串的形式传递给<span class="regexp">/internal/</span>force_merge 接口</span><br><span class="line"><span class="operator">-</span>forceMergeAuthKey string</span><br><span class="line">    authKey, which must be passed <span class="keyword">in</span> query string to <span class="regexp">/internal/</span>force_merge pages</span><br><span class="line"></span><br><span class="line"># 是否使用pread()代替mmap()读取数据文件<span class="operator">。</span>默认情况下，mmap()用于<span class="number">64</span>位架构，而pread()用于<span class="number">32</span>位架构，因为它们无法读取内存中大于<span class="number">2</span><span class="operator">^</span><span class="number">32</span>字节的数据文件<span class="operator">。</span>mmap()通常比pread()更快地读取小数据块<span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>fs.disableMmap</span><br><span class="line">    <span class="type">Whether</span> to use pread() instead of mmap() <span class="keyword">for</span> reading data files. <span class="type">By</span> <span class="keyword">default</span> mmap() <span class="keyword">is</span> used <span class="keyword">for</span> <span class="number">64</span><span class="operator">-</span>bit arches and pread() <span class="keyword">is</span> used <span class="keyword">for</span> <span class="number">32</span><span class="operator">-</span>bit arches, since they cannot read data files bigger than <span class="number">2</span><span class="operator">^</span><span class="number">32</span> bytes <span class="keyword">in</span> memory. mmap() <span class="keyword">is</span> usually faster <span class="keyword">for</span> reading small data chunks than pread()</span><br><span class="line"></span><br><span class="line"># 外部http请求在超过该值后，将被关闭<span class="operator">。</span>这可能有助于在负载均衡器后面的服务集群之间分配传入负载<span class="operator">。</span>请注意，实际超时可能会增加多达<span class="number">10</span>％，以防止出现惊群效应（默认为2m0s）</span><br><span class="line"><span class="operator">-</span>http.connTimeout duration</span><br><span class="line">    <span class="type">Incoming</span> http connections are closed after the configured timeout. <span class="type">This</span> may help spreading incoming load among a cluster of services behind load balancer. <span class="type">Note</span> that the real timeout may be bigger by up to <span class="number">10</span><span class="operator">%</span> <span class="keyword">as</span> a protection from <span class="type">Thundering</span> herd problem (<span class="keyword">default</span> 2m0s)</span><br><span class="line"></span><br><span class="line">#禁用<span class="type">HTTP响应压缩以节省CPU资源</span><span class="operator">。</span>默认情况下启用压缩以节省网络带宽</span><br><span class="line"><span class="operator">-</span>http.disableResponseCompression</span><br><span class="line">    <span class="type">Disable</span> compression of <span class="type">HTTP</span> responses <span class="keyword">for</span> saving <span class="type">CPU</span> resources. <span class="type">By</span> <span class="keyword">default</span> compression <span class="keyword">is</span> enabled to save network bandwidth</span><br><span class="line"></span><br><span class="line"># 空闲http请求超时时间</span><br><span class="line"><span class="operator">-</span>http.idleConnTimeout duration</span><br><span class="line">    <span class="type">Timeout</span> <span class="keyword">for</span> incoming idle http connections (<span class="keyword">default</span> 1m0s)</span><br><span class="line"></span><br><span class="line"># <span class="type">HTTP</span> server正常关闭的最大持续时间<span class="operator">。</span>高负载服务器可能需要增加值才能正常关闭（默认为<span class="number">7</span>秒）</span><br><span class="line"><span class="operator">-</span>http.maxGracefulShutdownDuration duration</span><br><span class="line">    <span class="type">The</span> maximum duration <span class="keyword">for</span> graceful shutdown of <span class="type">HTTP</span> server. <span class="type">Highly</span> loaded server may require increased value <span class="keyword">for</span> graceful shutdown (<span class="keyword">default</span> 7s)</span><br><span class="line"></span><br><span class="line"># http url代理前缀<span class="operator">。</span>此项在nginx等代理时有用</span><br><span class="line"><span class="operator">-</span>http.pathPrefix string</span><br><span class="line">    <span class="type">An</span> <span class="keyword">optional</span> <span class="keyword">prefix</span> to add to all the paths handled by http server. <span class="type">For</span> example, <span class="keyword">if</span> &#x27;<span class="operator">-</span>http.pathPrefix<span class="operator">=/</span>foo<span class="regexp">/bar&#x27; is set, then all the http requests will be handled on &#x27;/</span>foo<span class="regexp">/bar/</span><span class="operator">*</span>&#x27; paths. <span class="type">This</span> may be useful <span class="keyword">for</span> proxied requests. <span class="type">See</span> https:<span class="comment">//www.robustperception.io/using-external-urls-and-proxies-with-prometheus</span></span><br><span class="line"></span><br><span class="line"># <span class="type">HTTP</span> server 关闭之前的可选延迟<span class="operator">。</span>在此交易期间，http server 为<span class="operator">/</span>health 接口返回了non<span class="operator">-</span><span class="type">OK响应，因此负载均衡器可以将新请求路由到其他server上</span></span><br><span class="line"><span class="operator">-</span>http.shutdownDelay duration</span><br><span class="line">    <span class="type">Optional</span> delay before http server shutdown. <span class="type">During</span> this dealy the servier returns non<span class="operator">-</span><span class="type">OK</span> responses from <span class="operator">/</span>health page, so load balancers can route new requests to other servers</span><br><span class="line"></span><br><span class="line"># http 监控地址</span><br><span class="line"><span class="operator">-</span>httpListenAddr string</span><br><span class="line">    <span class="type">Address</span> to listen <span class="keyword">for</span> http connections (<span class="keyword">default</span> <span class="string">&quot;:8482&quot;</span>)</span><br><span class="line"></span><br><span class="line"># 是否禁用在日志中写入时间戳</span><br><span class="line"><span class="operator">-</span>loggerDisableTimestamps</span><br><span class="line">    <span class="type">Whether</span> to disable writing timestamps <span class="keyword">in</span> logs</span><br><span class="line"></span><br><span class="line"># 每秒错误日志数量的限制<span class="operator">。</span> 如果每秒发出的错误数量超过给定的数量，那么剩余的错误将被抑制<span class="operator">。</span>零值禁用速率限制（默认值为<span class="number">10</span>）</span><br><span class="line"><span class="operator">-</span>loggerErrorsPerSecondLimit int</span><br><span class="line">    <span class="type">Per</span><span class="operator">-</span>second limit on the number of <span class="type">ERROR</span> messages. <span class="type">If</span> more than the given number of errors are emitted per second, then the remaining errors are suppressed. <span class="type">Zero</span> value disables the rate limit (<span class="keyword">default</span> <span class="number">10</span>)</span><br><span class="line"></span><br><span class="line"># 日志格式</span><br><span class="line"><span class="operator">-</span>loggerFormat string</span><br><span class="line">    <span class="type">Format</span> <span class="keyword">for</span> logs. <span class="type">Possible</span> values: <span class="keyword">default</span>, json (<span class="keyword">default</span> <span class="string">&quot;default&quot;</span>)</span><br><span class="line"></span><br><span class="line"># 日志等级</span><br><span class="line"><span class="operator">-</span>loggerLevel string</span><br><span class="line">    <span class="type">Minimum</span> level of errors to log. <span class="type">Possible</span> values: <span class="type">INFO</span>, <span class="type">WARN</span>, <span class="type">ERROR</span>, <span class="type">FATAL</span>, <span class="type">PANIC</span> (<span class="keyword">default</span> <span class="string">&quot;INFO&quot;</span>)</span><br><span class="line"></span><br><span class="line"># 日志输出</span><br><span class="line"><span class="operator">-</span>loggerOutput string</span><br><span class="line">    <span class="type">Output</span> <span class="keyword">for</span> the logs. <span class="type">Supported</span> values: stderr, stdout (<span class="keyword">default</span> <span class="string">&quot;stderr&quot;</span>)</span><br><span class="line"></span><br><span class="line"># <span class="type">VictoriaMetrics可用的缓存大小，如果设置为非0值，将覆盖</span><span class="operator">-</span>memory.allowedPercent参数<span class="operator">。</span>值太低可能会增加高速缓存未命中率，这通常会导致更高的<span class="type">CPU和磁盘IO使用率</span><span class="operator">。</span>值太高可能会从<span class="type">OS页面缓存中驱逐过多数据，这将导致更高的磁盘IO使用率</span><span class="operator">。</span></span><br><span class="line">支持以下值的可选后缀：<span class="type">KB，MB，GB，KiB，MiB，GiB（默认0）</span></span><br><span class="line"><span class="operator">-</span>memory.allowedBytes value</span><br><span class="line">    <span class="type">Allowed</span> size of system memory <span class="type">VictoriaMetrics</span> caches may occupy. <span class="type">This</span> option overrides <span class="operator">-</span>memory.allowedPercent <span class="keyword">if</span> <span class="keyword">set</span> to non<span class="operator">-</span>zero value. <span class="type">Too</span> low value may increase cache miss rate, which usually results <span class="keyword">in</span> higher <span class="type">CPU</span> and disk <span class="type">IO</span> usage. <span class="type">Too</span> high value may evict too much data from <span class="type">OS</span> page cache, which will result <span class="keyword">in</span> higher disk <span class="type">IO</span> usage</span><br><span class="line">    <span class="type">Supports</span> the following <span class="keyword">optional</span> suffixes <span class="keyword">for</span> values: <span class="type">KB</span>, <span class="type">MB</span>, <span class="type">GB</span>, <span class="type">KiB</span>, <span class="type">MiB</span>, <span class="type">GiB</span> (<span class="keyword">default</span> <span class="number">0</span>)</span><br><span class="line"></span><br><span class="line"># <span class="type">VictoriaMetrics可用的缓存占用系统内存的百分比</span><span class="operator">。</span>默认<span class="number">60</span><span class="operator">%</span> </span><br><span class="line"><span class="operator">-</span>memory.allowedPercent float</span><br><span class="line">    <span class="type">Allowed</span> percent of system memory <span class="type">VictoriaMetrics</span> caches may occupy. <span class="type">See</span> also <span class="operator">-</span>memory.allowedBytes. <span class="type">Too</span> low value may increase cache miss rate, which usually results <span class="keyword">in</span> higher <span class="type">CPU</span> and disk <span class="type">IO</span> usage. <span class="type">Too</span> high value may evict too much data from <span class="type">OS</span> page cache, which will result <span class="keyword">in</span> higher disk <span class="type">IO</span> usage (<span class="keyword">default</span> <span class="number">60</span>)</span><br><span class="line"></span><br><span class="line"># 每个值要存储的精度位数<span class="operator">。</span>较低的精度位以精度损失为代价提高了数据压缩比（默认为<span class="number">64</span>）</span><br><span class="line"><span class="operator">-</span>precisionBits int</span><br><span class="line">    <span class="type">The</span> number of precision bits to store per <span class="keyword">each</span> value. <span class="type">Lower</span> precision bits improves data compression at the cost of precision loss (<span class="keyword">default</span> <span class="number">64</span>)</span><br><span class="line"></span><br><span class="line"># 数据保留时长，时间戳在该值之外的数据将被自动删除<span class="operator">。</span></span><br><span class="line">支持以下可选后缀：h（小时），d（天），w（周），y（年）<span class="operator">。</span>如果未设置后缀，则持续时间以月为单位（默认为<span class="number">1</span>）</span><br><span class="line"><span class="operator">-</span>retentionPeriod value</span><br><span class="line">    <span class="type">Data</span> with timestamps outside the retentionPeriod <span class="keyword">is</span> automatically deleted</span><br><span class="line">    <span class="type">The</span> following <span class="keyword">optional</span> suffixes are supported: h (hour), d (day), w (week), y (year). <span class="type">If</span> suffix isn&#x27;t <span class="keyword">set</span>, then the duration <span class="keyword">is</span> counted <span class="keyword">in</span> months (<span class="keyword">default</span> <span class="number">1</span>)</span><br><span class="line"></span><br><span class="line"># 禁用<span class="type">RPC流量压缩</span><span class="operator">。</span> 这样可以减少<span class="type">CPU使用率，但会占用更高的网络带宽</span></span><br><span class="line"><span class="operator">-</span>rpc.disableCompression</span><br><span class="line">    <span class="type">Disable</span> compression of <span class="type">RPC</span> traffic. <span class="type">This</span> reduces <span class="type">CPU</span> usage at the cost of higher network bandwidth usage</span><br><span class="line"></span><br><span class="line"># 每次搜索返回的最大标签建数量</span><br><span class="line"><span class="operator">-</span>search.maxTagKeys int</span><br><span class="line">    <span class="type">The</span> maximum number of tag keys returned per search (<span class="keyword">default</span> <span class="number">100000</span>)</span><br><span class="line"></span><br><span class="line"># 从<span class="regexp">/metrics/</span>find 返回的标签值后缀的最大数量（默认为<span class="number">100000</span>）</span><br><span class="line"><span class="operator">-</span>search.maxTagValueSuffixesPerSearch int</span><br><span class="line">    <span class="type">The</span> maximum number of tag value suffixes returned from <span class="regexp">/metrics/</span>find (<span class="keyword">default</span> <span class="number">100000</span>)</span><br><span class="line"></span><br><span class="line"># 每次搜索返回的标签值的最大数量（默认为<span class="number">100000</span>）</span><br><span class="line"><span class="operator">-</span>search.maxTagValues int</span><br><span class="line">    <span class="type">The</span> maximum number of tag values returned per search (<span class="keyword">default</span> <span class="number">100000</span>)</span><br><span class="line"></span><br><span class="line"># 每次搜索扫描可以支持的独立事件序列的最大数量</span><br><span class="line"><span class="operator">-</span>search.maxUniqueTimeseries int</span><br><span class="line">    <span class="type">The</span> maximum number of unique time series <span class="keyword">each</span> search can scan (<span class="keyword">default</span> <span class="number">300000</span>)</span><br><span class="line"></span><br><span class="line"># 用于小型合并的最大<span class="type">CPU内核数</span><span class="operator">。</span>如果设置为<span class="number">0</span>，则使用默认值</span><br><span class="line"><span class="operator">-</span>smallMergeConcurrency int</span><br><span class="line">    <span class="type">The</span> maximum number of <span class="type">CPU</span> cores to use <span class="keyword">for</span> small merges. <span class="type">Default</span> value <span class="keyword">is</span> used <span class="keyword">if</span> <span class="keyword">set</span> to <span class="number">0</span></span><br><span class="line"></span><br><span class="line"># authKey，必须以查询字符串的形式传递给<span class="operator">/</span>snapshot<span class="operator">*</span> 接口</span><br><span class="line"><span class="operator">-</span>snapshotAuthKey string</span><br><span class="line">    authKey, which must be passed <span class="keyword">in</span> query string to <span class="operator">/</span>snapshot<span class="operator">*</span> pages</span><br><span class="line"></span><br><span class="line"># 数据存储路径</span><br><span class="line"><span class="operator">-</span>storageDataPath string</span><br><span class="line">    <span class="type">Path</span> to storage data (<span class="keyword">default</span> <span class="string">&quot;vmstorage-data&quot;</span>)</span><br><span class="line"></span><br><span class="line"># 是否启动tls</span><br><span class="line"><span class="operator">-</span>tls</span><br><span class="line">    <span class="type">Whether</span> to enable <span class="type">TLS</span> (aka <span class="type">HTTPS</span>) <span class="keyword">for</span> incoming requests. <span class="operator">-</span>tlsCertFile and <span class="operator">-</span>tlsKeyFile must be <span class="keyword">set</span> <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>tlsCertFile string</span><br><span class="line">    <span class="type">Path</span> to file with <span class="type">TLS</span> certificate. <span class="type">Used</span> only <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span>. <span class="type">Prefer</span> <span class="type">ECDSA</span> certs instead of <span class="type">RSA</span> certs, since <span class="type">RSA</span> certs are slow</span><br><span class="line"><span class="operator">-</span>tlsKeyFile string</span><br><span class="line">    <span class="type">Path</span> to file with <span class="type">TLS</span> key. <span class="type">Used</span> only <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>version</span><br><span class="line">    <span class="type">Show</span> <span class="type">VictoriaMetrics</span> version</span><br><span class="line"><span class="operator">-</span>vminsertAddr string</span><br><span class="line">    <span class="type">TCP</span> address to accept connections from vminsert services (<span class="keyword">default</span> <span class="string">&quot;:8400&quot;</span>)</span><br><span class="line"><span class="operator">-</span>vmselectAddr string</span><br><span class="line">    <span class="type">TCP</span> address to accept connections from vmselect services (<span class="keyword">default</span> <span class="string">&quot;:8401&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<p>vminsert</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br></pre></td><td class="code"><pre><span class="line">./vminsert-prod --help</span><br><span class="line">vminsert<span class="number">-20201116</span><span class="number">-190946</span>-tags-v1<span class="number">.47</span><span class="number">.0</span>-cluster<span class="number">-0</span>-ga00df790b</span><br><span class="line">Usage of ./vminsert-prod:</span><br><span class="line"></span><br><span class="line"><span class="meta"># 导入csv数据时的时间戳间隔。最小时间间隔为1ms，使用较高的时间间隔（如1s）可以有效降低磁盘占用</span></span><br><span class="line">-csvTrimTimestamp duration</span><br><span class="line">    Trim timestamps <span class="keyword">when</span> importing csv data to <span class="keyword">this</span> duration. Minimum practical duration <span class="keyword">is</span> <span class="number">1</span>ms. <span class="function">Higher <span class="title">duration</span> (<span class="params">i.e. <span class="number">1</span>s</span>) may be used <span class="keyword">for</span> reducing disk space usage <span class="keyword">for</span> timestamp <span class="title">data</span> (<span class="params"><span class="literal">default</span> <span class="number">1</span>ms</span>)</span></span><br><span class="line"><span class="function">-enableTCP6</span></span><br><span class="line"><span class="function">    Whether to enable IPv6 <span class="keyword">for</span> listening <span class="keyword">and</span> dialing. By <span class="literal">default</span> only IPv4 TCP <span class="keyword">is</span> used</span></span><br><span class="line"><span class="function">-envflag.enable</span></span><br><span class="line"><span class="function">    Whether to enable reading flags <span class="keyword">from</span> environment variables additionally to command line. Command line flag values have priority over values <span class="keyword">from</span> environment vars. Flags are read only <span class="keyword">from</span> command line <span class="keyword">if</span> <span class="keyword">this</span> flag isn&#x27;t <span class="keyword">set</span></span></span><br><span class="line"><span class="function">-envflag.prefix <span class="built_in">string</span></span></span><br><span class="line"><span class="function">    Prefix <span class="keyword">for</span> environment variables <span class="keyword">if</span> -envflag.enable <span class="keyword">is</span> <span class="keyword">set</span></span></span><br><span class="line"><span class="function">-fs.disableMmap</span></span><br><span class="line"><span class="function">    Whether to use <span class="title">pread</span>() instead of <span class="title">mmap</span>() <span class="keyword">for</span> reading data files. By <span class="literal">default</span> <span class="title">mmap</span>() <span class="keyword">is</span> used <span class="keyword">for</span> 64-bit arches <span class="keyword">and</span> <span class="title">pread</span>() <span class="keyword">is</span> used <span class="keyword">for</span> 32-bit arches, since they cannot read data files bigger than 2^32 bytes <span class="keyword">in</span> memory. <span class="title">mmap</span>() <span class="keyword">is</span> usually faster <span class="keyword">for</span> reading small data chunks than <span class="title">pread</span>()</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"># 监听Graphite数据的tcp和udp地址，为空则不监听</span></span><br><span class="line"><span class="function">-graphiteListenAddr <span class="built_in">string</span></span></span><br><span class="line"><span class="function">    TCP <span class="keyword">and</span> UDP address to listen <span class="keyword">for</span> Graphite plaintext data. Usually :2003 must be <span class="keyword">set</span>. Doesn&#x27;t work <span class="keyword">if</span> empty</span></span><br><span class="line"><span class="function"></span></span><br><span class="line"><span class="function"># Graphite数据时间戳间隔时间</span></span><br><span class="line"><span class="function">-graphiteTrimTimestamp duration</span></span><br><span class="line"><span class="function">    Trim timestamps <span class="keyword">for</span> Graphite data to <span class="keyword">this</span> duration. Minimum practical duration <span class="keyword">is</span> 1s. Higher <span class="title">duration</span> (<span class="params">i.e. <span class="number">1</span>m</span>) may be used <span class="keyword">for</span> reducing disk space usage <span class="keyword">for</span> timestamp <span class="title">data</span> (<span class="params"><span class="literal">default</span> <span class="number">1</span>s</span>)</span></span><br><span class="line"><span class="function">-http.connTimeout duration</span></span><br><span class="line"><span class="function">    Incoming http connections are closed after the configured timeout. This may help spreading incoming load among a cluster of services behind load balancer. Note that the real timeout may be bigger <span class="keyword">by</span> up to 10% <span class="keyword">as</span> a protection <span class="keyword">from</span> Thundering herd <span class="title">problem</span> (<span class="params"><span class="literal">default</span> <span class="number">2</span>m0s</span>)</span></span><br><span class="line"><span class="function">-http.disableResponseCompression</span></span><br><span class="line"><span class="function">    Disable compression of HTTP responses <span class="keyword">for</span> saving CPU resources. By <span class="literal">default</span> compression <span class="keyword">is</span> enabled to save network bandwidth</span></span><br><span class="line"><span class="function">-http.idleConnTimeout duration</span></span><br><span class="line"><span class="function">    Timeout <span class="keyword">for</span> incoming idle http <span class="title">connections</span> (<span class="params"><span class="literal">default</span> <span class="number">1</span>m0s</span>)</span></span><br><span class="line"><span class="function">-http.maxGracefulShutdownDuration duration</span></span><br><span class="line"><span class="function">    The maximum duration <span class="keyword">for</span> graceful shutdown of HTTP server. Highly loaded server may require increased <span class="keyword">value</span> <span class="keyword">for</span> graceful <span class="title">shutdown</span> (<span class="params"><span class="literal">default</span> <span class="number">7</span>s</span>)</span></span><br><span class="line"><span class="function">-http.pathPrefix <span class="built_in">string</span></span></span><br><span class="line"><span class="function">    An optional prefix to <span class="keyword">add</span> to all the paths handled <span class="keyword">by</span> http server. For example, <span class="keyword">if</span> &#x27;-http.pathPrefix</span>=/foo/bar<span class="string">&#x27; is set, then all the http requests will be handled on &#x27;</span>/foo/bar<span class="comment">/*&#x27; paths. This may be useful for proxied requests. See https://www.robustperception.io/using-external-urls-and-proxies-with-prometheus</span></span><br><span class="line"><span class="comment">-http.shutdownDelay duration</span></span><br><span class="line"><span class="comment">    Optional delay before http server shutdown. During this dealy the servier returns non-OK responses from /health page, so load balancers can route new requests to other servers</span></span><br><span class="line"><span class="comment">-httpListenAddr string</span></span><br><span class="line"><span class="comment">    Address to listen for http connections (default &quot;:8480&quot;)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># /api/v1/import 接口接收的最大数据长度，可以通过max_rows_per_line url参数修改</span></span><br><span class="line"><span class="comment">-import.maxLineLen max_rows_per_line</span></span><br><span class="line"><span class="comment">    The maximum length in bytes of a single line accepted by /api/v1/import; the line length can be limited with max_rows_per_line query arg passed to /api/v1/export</span></span><br><span class="line"><span class="comment">    Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 104857600)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 单次解析influx数据的最大长度</span></span><br><span class="line"><span class="comment">-influx.maxLineSize value</span></span><br><span class="line"><span class="comment">    The maximum size in bytes for a single Influx line during parsing</span></span><br><span class="line"><span class="comment">    Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 262144)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># influx地址</span></span><br><span class="line"><span class="comment">-influxListenAddr http://&lt;vminsert&gt;:8480/insert/&lt;accountID&gt;/influx/write</span></span><br><span class="line"><span class="comment">    TCP and UDP address to listen for Influx line protocol data. Usually :8189 must be set. Doesn&#x27;t work if empty. This flag isn&#x27;t needed when ingesting data over HTTP - just send it to http://&lt;vminsert&gt;:8480/insert/&lt;accountID&gt;/influx/write</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 插入influx时的metric名称分隔符</span></span><br><span class="line"><span class="comment">-influxMeasurementFieldSeparator string</span></span><br><span class="line"><span class="comment">    Separator for &#x27;&#123;measurement&#125;&#123;separator&#125;&#123;field_name&#125;&#x27; metric name when inserted via Influx line protocol (default &quot;_&quot;)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 使用field_name 最为metric名称，忽略measurement 和 -influxMeasurementFieldSeparator</span></span><br><span class="line"><span class="comment">-influxSkipMeasurement</span></span><br><span class="line"><span class="comment">    Uses &#x27;&#123;field_name&#125;&#x27; as a metric name while ignoring &#x27;&#123;measurement&#125;&#x27; and &#x27;-influxMeasurementFieldSeparator&#x27;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 如果Influx行仅包含一个字段，请使用“ &#123;measurement&#125;”而不是“ &#123;measurement&#125; &#123;separator&#125; &#123;field_name&#125;”作为模板名称</span></span><br><span class="line"><span class="comment">-influxSkipSingleField</span></span><br><span class="line"><span class="comment">    Uses &#x27;&#123;measurement&#125;&#x27; instead of &#x27;&#123;measurement&#125;&#123;separator&#125;&#123;field_name&#125;&#x27; for metic name if Influx line contains only a single field</span></span><br><span class="line"><span class="comment">-influxTrimTimestamp duration</span></span><br><span class="line"><span class="comment">    Trim timestamps for Influx line protocol data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 因为-maxConcurrentInserts 导致的插入队列最大等待时间</span></span><br><span class="line"><span class="comment">-insert.maxQueueDuration duration</span></span><br><span class="line"><span class="comment">    The maximum duration for waiting in the queue for insert requests due to -maxConcurrentInserts (default 1m0s)</span></span><br><span class="line"><span class="comment">-loggerDisableTimestamps</span></span><br><span class="line"><span class="comment">    Whether to disable writing timestamps in logs</span></span><br><span class="line"><span class="comment">-loggerErrorsPerSecondLimit int</span></span><br><span class="line"><span class="comment">    Per-second limit on the number of ERROR messages. If more than the given number of errors are emitted per second, then the remaining errors are suppressed. Zero value disables the rate limit (default 10)</span></span><br><span class="line"><span class="comment">-loggerFormat string</span></span><br><span class="line"><span class="comment">    Format for logs. Possible values: default, json (default &quot;default&quot;)</span></span><br><span class="line"><span class="comment">-loggerLevel string</span></span><br><span class="line"><span class="comment">    Minimum level of errors to log. Possible values: INFO, WARN, ERROR, FATAL, PANIC (default &quot;INFO&quot;)</span></span><br><span class="line"><span class="comment">-loggerOutput string</span></span><br><span class="line"><span class="comment">    Output for the logs. Supported values: stderr, stdout (default &quot;stderr&quot;)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 最大并发插入数，默认值在大多数情况下都是最优解，因为他最大程度的减少了并发开销。和-insert.maxQueueDuration配合使用</span></span><br><span class="line"><span class="comment">-maxConcurrentInserts int</span></span><br><span class="line"><span class="comment">    The maximum number of concurrent inserts. Default value should work for most cases, since it minimizes the overhead for concurrent inserts. This option is tigthly coupled with -insert.maxQueueDuration (default 8)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 单个Prometheus remote_write API请求的最大长度</span></span><br><span class="line"><span class="comment">-maxInsertRequestSize value</span></span><br><span class="line"><span class="comment">    The maximum size in bytes of a single Prometheus remote_write API request</span></span><br><span class="line"><span class="comment">    Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 每个时序数据能够接受的最大label数量</span></span><br><span class="line"><span class="comment">-maxLabelsPerTimeseries int</span></span><br><span class="line"><span class="comment">    The maximum number of labels accepted per time series. Superflouos labels are dropped (default 30)</span></span><br><span class="line"><span class="comment">-memory.allowedBytes value</span></span><br><span class="line"><span class="comment">    Allowed size of system memory VictoriaMetrics caches may occupy. This option overrides -memory.allowedPercent if set to non-zero value. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage</span></span><br><span class="line"><span class="comment">    Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 0)</span></span><br><span class="line"><span class="comment">-memory.allowedPercent float</span></span><br><span class="line"><span class="comment">    Allowed percent of system memory VictoriaMetrics caches may occupy. See also -memory.allowedBytes. Too low value may increase cache miss rate, which usually results in higher CPU and disk IO usage. Too high value may evict too much data from OS page cache, which will result in higher disk IO usage (default 60)</span></span><br><span class="line"><span class="comment">-opentsdbHTTPListenAddr string</span></span><br><span class="line"><span class="comment">    TCP address to listen for OpentTSDB HTTP put requests. Usually :4242 must be set. Doesn&#x27;t work if empty</span></span><br><span class="line"><span class="comment">-opentsdbListenAddr string</span></span><br><span class="line"><span class="comment">    TCP and UDP address to listen for OpentTSDB metrics. Telnet put messages and HTTP /api/put messages are simultaneously served on TCP port. Usually :4242 must be set. Doesn&#x27;t work if empty</span></span><br><span class="line"><span class="comment">-opentsdbTrimTimestamp duration</span></span><br><span class="line"><span class="comment">    Trim timestamps for OpenTSDB &#x27;telnet put&#x27; data to this duration. Minimum practical duration is 1s. Higher duration (i.e. 1m) may be used for reducing disk space usage for timestamp data (default 1s)</span></span><br><span class="line"><span class="comment">-opentsdbhttp.maxInsertRequestSize value</span></span><br><span class="line"><span class="comment">    The maximum size of OpenTSDB HTTP put request</span></span><br><span class="line"><span class="comment">    Supports the following optional suffixes for values: KB, MB, GB, KiB, MiB, GiB (default 33554432)</span></span><br><span class="line"><span class="comment">-opentsdbhttpTrimTimestamp duration</span></span><br><span class="line"><span class="comment">    Trim timestamps for OpenTSDB HTTP data to this duration. Minimum practical duration is 1ms. Higher duration (i.e. 1s) may be used for reducing disk space usage for timestamp data (default 1ms)</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 标签重置的配置文件路径</span></span><br><span class="line"><span class="comment">-relabelConfig string</span></span><br><span class="line"><span class="comment">    Optional path to a file with relabeling rules, which are applied to all the ingested metrics. See https://victoriametrics.github.io/#relabeling for details</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># 副本数，即在-storageNode要复制多少个副本。当-replicationFactor&gt;1时，vmselect必须以-dedup.minScrapeInterval=1ms运行，以进行重复数据的删除。~~vmselect的-dedup.minScrapeInterval 可以大一些~~</span></span><br><span class="line"><span class="comment">-replicationFactor int</span></span><br><span class="line"><span class="comment">    Replication factor for the ingested data, i.e. how many copies to make among distinct -storageNode instances. Note that vmselect must run with -dedup.minScrapeInterval=1ms for data de-duplication when replicationFactor is greater than 1. Higher values for -dedup.minScrapeInterval at vmselect is OK (default 1)</span></span><br><span class="line"><span class="comment">-rpc.disableCompression</span></span><br><span class="line"><span class="comment">    Disable compression of RPC traffic. This reduces CPU usage at the cost of higher network bandwidth usage</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"># vmstorage节点列表</span></span><br><span class="line"><span class="comment">-storageNode array</span></span><br><span class="line"><span class="comment">    Address of vmstorage nodes; usage: -storageNode=vmstorage-host1:8400 -storageNode=vmstorage-host2:8400</span></span><br><span class="line"><span class="comment">    Supports array of values separated by comma or specified via multiple flags.</span></span><br><span class="line"><span class="comment">-tls</span></span><br><span class="line"><span class="comment">    Whether to enable TLS (aka HTTPS) for incoming requests. -tlsCertFile and -tlsKeyFile must be set if -tls is set</span></span><br><span class="line"><span class="comment">-tlsCertFile string</span></span><br><span class="line"><span class="comment">    Path to file with TLS certificate. Used only if -tls is set. Prefer ECDSA certs instead of RSA certs, since RSA certs are slow</span></span><br><span class="line"><span class="comment">-tlsKeyFile string</span></span><br><span class="line"><span class="comment">    Path to file with TLS key. Used only if -tls is set</span></span><br><span class="line"><span class="comment">-version</span></span><br><span class="line"><span class="comment">    Show VictoriaMetrics version</span></span><br></pre></td></tr></table></figure>
+
+<p>vmselect</p>
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br></pre></td><td class="code"><pre><span class="line"><span class="operator">./</span>vmselect<span class="operator">-</span>prod <span class="operator">--</span>help</span><br><span class="line">vmselect<span class="operator">-</span><span class="number">20201116</span><span class="operator">-</span><span class="number">190952</span><span class="operator">-</span>tags<span class="operator">-</span>v1.<span class="number">47.0</span><span class="operator">-</span>cluster<span class="operator">-</span><span class="number">0</span><span class="operator">-</span>ga00df790b</span><br><span class="line"><span class="type">Usage</span> of <span class="operator">./</span>vmselect<span class="operator">-</span>prod:</span><br><span class="line"></span><br><span class="line"># 缓存文件的存储地址，如果不配置则不启用缓存</span><br><span class="line"><span class="operator">-</span>cacheDataPath string</span><br><span class="line">    <span class="type">Path</span> to directory <span class="keyword">for</span> cache files. <span class="type">Cache</span> isn&#x27;t saved <span class="keyword">if</span> empty</span><br><span class="line"></span><br><span class="line"># 如果同一个metric的两条数据时间差小于该值，则作为重复数据删除<span class="operator">。</span>如果为<span class="number">0</span>则不启用去重；</span><br><span class="line"><span class="operator">-</span>dedup.minScrapeInterval duration</span><br><span class="line">    <span class="type">Remove</span> superflouos samples from time series <span class="keyword">if</span> they are located closer to <span class="keyword">each</span> other than this duration. <span class="type">This</span> may be useful <span class="keyword">for</span> reducing overhead when multiple identically configured <span class="type">Prometheus</span> instances write data to the same <span class="type">VictoriaMetrics</span>. <span class="type">Deduplication</span> <span class="keyword">is</span> disabled <span class="keyword">if</span> the <span class="operator">-</span>dedup.minScrapeInterval <span class="keyword">is</span> <span class="number">0</span></span><br><span class="line"><span class="operator">-</span>enableTCP6</span><br><span class="line">    <span class="type">Whether</span> to enable <span class="type">IPv6</span> <span class="keyword">for</span> listening and dialing. <span class="type">By</span> <span class="keyword">default</span> only <span class="type">IPv4</span> <span class="type">TCP</span> <span class="keyword">is</span> used</span><br><span class="line"><span class="operator">-</span>envflag.enable</span><br><span class="line">    <span class="type">Whether</span> to enable reading flags from environment variables additionally to command line. <span class="type">Command</span> line flag values have priority over values from environment vars. <span class="type">Flags</span> are read only from command line <span class="keyword">if</span> this flag isn&#x27;t <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>envflag.prefix string</span><br><span class="line">    <span class="type">Prefix</span> <span class="keyword">for</span> environment variables <span class="keyword">if</span> <span class="operator">-</span>envflag.enable <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>fs.disableMmap</span><br><span class="line">    <span class="type">Whether</span> to use pread() instead of mmap() <span class="keyword">for</span> reading data files. <span class="type">By</span> <span class="keyword">default</span> mmap() <span class="keyword">is</span> used <span class="keyword">for</span> <span class="number">64</span><span class="operator">-</span>bit arches and pread() <span class="keyword">is</span> used <span class="keyword">for</span> <span class="number">32</span><span class="operator">-</span>bit arches, since they cannot read data files bigger than <span class="number">2</span><span class="operator">^</span><span class="number">32</span> bytes <span class="keyword">in</span> memory. mmap() <span class="keyword">is</span> usually faster <span class="keyword">for</span> reading small data chunks than pread()</span><br><span class="line"><span class="operator">-</span>http.connTimeout duration</span><br><span class="line">    <span class="type">Incoming</span> http connections are closed after the configured timeout. <span class="type">This</span> may help spreading incoming load among a cluster of services behind load balancer. <span class="type">Note</span> that the real timeout may be bigger by up to <span class="number">10</span><span class="operator">%</span> <span class="keyword">as</span> a protection from <span class="type">Thundering</span> herd problem (<span class="keyword">default</span> 2m0s)</span><br><span class="line"><span class="operator">-</span>http.disableResponseCompression</span><br><span class="line">    <span class="type">Disable</span> compression of <span class="type">HTTP</span> responses <span class="keyword">for</span> saving <span class="type">CPU</span> resources. <span class="type">By</span> <span class="keyword">default</span> compression <span class="keyword">is</span> enabled to save network bandwidth</span><br><span class="line"><span class="operator">-</span>http.idleConnTimeout duration</span><br><span class="line">    <span class="type">Timeout</span> <span class="keyword">for</span> incoming idle http connections (<span class="keyword">default</span> 1m0s)</span><br><span class="line"><span class="operator">-</span>http.maxGracefulShutdownDuration duration</span><br><span class="line">    <span class="type">The</span> maximum duration <span class="keyword">for</span> graceful shutdown of <span class="type">HTTP</span> server. <span class="type">Highly</span> loaded server may require increased value <span class="keyword">for</span> graceful shutdown (<span class="keyword">default</span> 7s)</span><br><span class="line"><span class="operator">-</span>http.pathPrefix string</span><br><span class="line">    <span class="type">An</span> <span class="keyword">optional</span> <span class="keyword">prefix</span> to add to all the paths handled by http server. <span class="type">For</span> example, <span class="keyword">if</span> &#x27;<span class="operator">-</span>http.pathPrefix<span class="operator">=/</span>foo<span class="regexp">/bar&#x27; is set, then all the http requests will be handled on &#x27;/</span>foo<span class="regexp">/bar/</span><span class="operator">*</span>&#x27; paths. <span class="type">This</span> may be useful <span class="keyword">for</span> proxied requests. <span class="type">See</span> https:<span class="comment">//www.robustperception.io/using-external-urls-and-proxies-with-prometheus</span></span><br><span class="line"><span class="operator">-</span>http.shutdownDelay duration</span><br><span class="line">    <span class="type">Optional</span> delay before http server shutdown. <span class="type">During</span> this dealy the servier returns non<span class="operator">-</span><span class="type">OK</span> responses from <span class="operator">/</span>health page, so load balancers can route new requests to other servers</span><br><span class="line"><span class="operator">-</span>httpListenAddr string</span><br><span class="line">    <span class="type">Address</span> to listen <span class="keyword">for</span> http connections (<span class="keyword">default</span> <span class="string">&quot;:8481&quot;</span>)</span><br><span class="line"><span class="operator">-</span>loggerDisableTimestamps</span><br><span class="line">    <span class="type">Whether</span> to disable writing timestamps <span class="keyword">in</span> logs</span><br><span class="line"><span class="operator">-</span>loggerErrorsPerSecondLimit int</span><br><span class="line">    <span class="type">Per</span><span class="operator">-</span>second limit on the number of <span class="type">ERROR</span> messages. <span class="type">If</span> more than the given number of errors are emitted per second, then the remaining errors are suppressed. <span class="type">Zero</span> value disables the rate limit (<span class="keyword">default</span> <span class="number">10</span>)</span><br><span class="line"><span class="operator">-</span>loggerFormat string</span><br><span class="line">    <span class="type">Format</span> <span class="keyword">for</span> logs. <span class="type">Possible</span> values: <span class="keyword">default</span>, json (<span class="keyword">default</span> <span class="string">&quot;default&quot;</span>)</span><br><span class="line"><span class="operator">-</span>loggerLevel string</span><br><span class="line">    <span class="type">Minimum</span> level of errors to log. <span class="type">Possible</span> values: <span class="type">INFO</span>, <span class="type">WARN</span>, <span class="type">ERROR</span>, <span class="type">FATAL</span>, <span class="type">PANIC</span> (<span class="keyword">default</span> <span class="string">&quot;INFO&quot;</span>)</span><br><span class="line"><span class="operator">-</span>loggerOutput string</span><br><span class="line">    <span class="type">Output</span> <span class="keyword">for</span> the logs. <span class="type">Supported</span> values: stderr, stdout (<span class="keyword">default</span> <span class="string">&quot;stderr&quot;</span>)</span><br><span class="line"><span class="operator">-</span>memory.allowedBytes value</span><br><span class="line">    <span class="type">Allowed</span> size of system memory <span class="type">VictoriaMetrics</span> caches may occupy. <span class="type">This</span> option overrides <span class="operator">-</span>memory.allowedPercent <span class="keyword">if</span> <span class="keyword">set</span> to non<span class="operator">-</span>zero value. <span class="type">Too</span> low value may increase cache miss rate, which usually results <span class="keyword">in</span> higher <span class="type">CPU</span> and disk <span class="type">IO</span> usage. <span class="type">Too</span> high value may evict too much data from <span class="type">OS</span> page cache, which will result <span class="keyword">in</span> higher disk <span class="type">IO</span> usage</span><br><span class="line">    <span class="type">Supports</span> the following <span class="keyword">optional</span> suffixes <span class="keyword">for</span> values: <span class="type">KB</span>, <span class="type">MB</span>, <span class="type">GB</span>, <span class="type">KiB</span>, <span class="type">MiB</span>, <span class="type">GiB</span> (<span class="keyword">default</span> <span class="number">0</span>)</span><br><span class="line"><span class="operator">-</span>memory.allowedPercent float</span><br><span class="line">    <span class="type">Allowed</span> percent of system memory <span class="type">VictoriaMetrics</span> caches may occupy. <span class="type">See</span> also <span class="operator">-</span>memory.allowedBytes. <span class="type">Too</span> low value may increase cache miss rate, which usually results <span class="keyword">in</span> higher <span class="type">CPU</span> and disk <span class="type">IO</span> usage. <span class="type">Too</span> high value may evict too much data from <span class="type">OS</span> page cache, which will result <span class="keyword">in</span> higher disk <span class="type">IO</span> usage (<span class="keyword">default</span> <span class="number">60</span>)</span><br><span class="line"></span><br><span class="line"># 当前时间和响应数据的最大差值，只查询原始数据，不适用缓存<span class="operator">。</span>如果发现数据源和<span class="type">VictoriaMetrics之间的时间同步存在问题，请增加此值</span><span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>search.cacheTimestampOffset duration</span><br><span class="line">    <span class="type">The</span> maximum duration since the current time <span class="keyword">for</span> response data, which <span class="keyword">is</span> always queried from the original raw data, without using the response cache. <span class="type">Increase</span> this value <span class="keyword">if</span> you see gaps <span class="keyword">in</span> responses due to time synchronization issues between <span class="type">VictoriaMetrics</span> and data sources (<span class="keyword">default</span> 5m0s)</span><br><span class="line"></span><br><span class="line"># 如果部分<span class="operator">-</span>storageNode实例无法执行查询时，是否拒绝部分响应<span class="operator">。</span>此项在保证一致性的时候牺牲了可用性</span><br><span class="line"><span class="operator">-</span>search.denyPartialResponse</span><br><span class="line">    <span class="type">Whether</span> to deny partial responses <span class="keyword">if</span> a part of <span class="operator">-</span>storageNode instances fail to perform queries; this trades availability over consistency; see also <span class="operator">-</span>search.maxQueryDuration and <span class="operator">-</span>search.storageTimeout</span><br><span class="line"></span><br><span class="line"># 禁止返回数据缓存<span class="operator">。</span>此项在数据回填时候很有用</span><br><span class="line"><span class="operator">-</span>search.disableCache</span><br><span class="line">    <span class="type">Whether</span> to disable response caching. <span class="type">This</span> may be useful during data backfilling</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="operator">-</span>search.latencyOffset duration</span><br><span class="line">    <span class="type">The</span> time when data points become visible <span class="keyword">in</span> query results after the collection. <span class="type">Too</span> small value can result <span class="keyword">in</span> incomplete last points <span class="keyword">for</span> query results (<span class="keyword">default</span> 30s)</span><br><span class="line"></span><br><span class="line"># 在日志中记录超过此时间的查询<span class="operator">。</span><span class="number">0</span>则禁用慢查询日志</span><br><span class="line"><span class="operator">-</span>search.logSlowQueryDuration duration</span><br><span class="line">    <span class="type">Log</span> queries with execution time exceeding this value. <span class="type">Zero</span> disables slow query logging (<span class="keyword">default</span> 5s)</span><br><span class="line"></span><br><span class="line"># 查询搜索的并发数，不应该很大，因为单个搜索有可能让所有cpu饱和<span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>search.maxConcurrentRequests int</span><br><span class="line">    <span class="type">The</span> maximum number of concurrent search requests. <span class="type">It</span> shouldn&#x27;t be high, since a single request can saturate all the <span class="type">CPU</span> cores. <span class="type">See</span> also <span class="operator">-</span>search.maxQueueDuration (<span class="keyword">default</span> <span class="number">4</span>)</span><br><span class="line"></span><br><span class="line"># <span class="regexp">/api/</span>v1<span class="operator">/</span>export 导出接口的最大持续时间</span><br><span class="line"><span class="operator">-</span>search.maxExportDuration duration</span><br><span class="line">    <span class="type">The</span> maximum duration <span class="keyword">for</span> <span class="regexp">/api/</span>v1<span class="operator">/</span>export call (<span class="keyword">default</span> 720h0m0s)</span><br><span class="line"></span><br><span class="line"># </span><br><span class="line"><span class="operator">-</span>search.maxLookback duration</span><br><span class="line">    <span class="type">Synonim</span> to <span class="operator">-</span>search.lookback<span class="operator">-</span>delta from <span class="type">Prometheus</span>. <span class="type">The</span> value <span class="keyword">is</span> dynamically detected from interval between time series datapoints <span class="keyword">if</span> not <span class="keyword">set</span>. <span class="type">It</span> can be overridden on per<span class="operator">-</span>query basis via max_lookback arg. <span class="type">See</span> also &#x27;<span class="operator">-</span>search.maxStalenessInterval&#x27; flag, which has the same meaining due to historical reasons</span><br><span class="line"></span><br><span class="line"># 一个请求中单个时间序列的最大点数</span><br><span class="line"><span class="operator">-</span>search.maxPointsPerTimeseries int</span><br><span class="line">    <span class="type">The</span> maximum points per a single timeseries returned from the search (<span class="keyword">default</span> <span class="number">30000</span>)</span><br><span class="line"></span><br><span class="line"># 查询执行的最大持续时间</span><br><span class="line"><span class="operator">-</span>search.maxQueryDuration duration</span><br><span class="line">    <span class="type">The</span> maximum duration <span class="keyword">for</span> query execution; see also <span class="operator">-</span>search.storageTimeout (<span class="keyword">default</span> 30s)</span><br><span class="line"></span><br><span class="line"># 查询语句长度的最大字节数</span><br><span class="line"><span class="operator">-</span>search.maxQueryLen value</span><br><span class="line">    <span class="type">The</span> maximum search query length <span class="keyword">in</span> bytes</span><br><span class="line">    <span class="type">Supports</span> the following <span class="keyword">optional</span> suffixes <span class="keyword">for</span> values: <span class="type">KB</span>, <span class="type">MB</span>, <span class="type">GB</span>, <span class="type">KiB</span>, <span class="type">MiB</span>, <span class="type">GiB</span> (<span class="keyword">default</span> <span class="number">16384</span>)</span><br><span class="line"></span><br><span class="line"># 达到 <span class="operator">-</span>search.maxConcurrentRequests 时，查询请求的最大等待时间</span><br><span class="line"><span class="operator">-</span>search.maxQueueDuration duration</span><br><span class="line">    <span class="type">The</span> maximum time the request waits <span class="keyword">for</span> execution when <span class="operator">-</span>search.maxConcurrentRequests limit <span class="keyword">is</span> reached; see also <span class="operator">-</span>search.maxQueryDuration (<span class="keyword">default</span> 10s)</span><br><span class="line"></span><br><span class="line"># </span><br><span class="line"><span class="operator">-</span>search.maxStalenessInterval duration</span><br><span class="line">    <span class="type">The</span> maximum interval <span class="keyword">for</span> staleness calculations. <span class="type">By</span> <span class="keyword">default</span> it <span class="keyword">is</span> automatically calculated from the median interval between samples. <span class="type">This</span> flag could be useful <span class="keyword">for</span> tuning <span class="type">Prometheus</span> data model closer to <span class="type">Influx</span><span class="operator">-</span>style data model. <span class="type">See</span> https:<span class="comment">//prometheus.io/docs/prometheus/latest/querying/basics/#staleness for details. See also &#x27;-search.maxLookback&#x27; flag, which has the same meaning due to historical reasons</span></span><br><span class="line"></span><br><span class="line"># </span><br><span class="line"><span class="operator">-</span>search.minStalenessInterval duration</span><br><span class="line">    <span class="type">The</span> minimum interval <span class="keyword">for</span> staleness calculations. <span class="type">This</span> flag could be useful <span class="keyword">for</span> removing gaps on graphs generated from time series with irregular intervals between samples. <span class="type">See</span> also &#x27;<span class="operator">-</span>search.maxStalenessInterval&#x27;</span><br><span class="line"></span><br><span class="line"># 可选authKey，用于通过<span class="regexp">/internal/</span>resetRollupResultCache 接口来重置缓存</span><br><span class="line"><span class="operator">-</span>search.resetCacheAuthKey string</span><br><span class="line">    <span class="type">Optional</span> authKey <span class="keyword">for</span> resetting rollup cache via <span class="regexp">/internal/</span>resetRollupResultCache call</span><br><span class="line"></span><br><span class="line"># 在每个存储上的查询超时时间<span class="operator">。</span>该项允许某些storage节点查询缓慢时，返回部分查询数据</span><br><span class="line"><span class="operator">-</span>search.storageTimeout duration</span><br><span class="line">    <span class="type">The</span> timeout <span class="keyword">for</span> per<span class="operator">-</span>storage query processing; this allows returning partial responses <span class="keyword">if</span> certain <span class="operator">-</span>storageNode instances slowly process the query; see also <span class="operator">-</span>search.maxQueryDuration and <span class="operator">-</span>search.denyPartialResponse command<span class="operator">-</span>line flags</span><br><span class="line"></span><br><span class="line"><span class="operator">-</span>search.treatDotsAsIsInRegexps</span><br><span class="line">    <span class="type">Whether</span> to treat dots <span class="keyword">as</span> <span class="keyword">is</span> <span class="keyword">in</span> regexp label filters used <span class="keyword">in</span> queries. <span class="type">For</span> example, foo&#123;bar<span class="operator">=~</span><span class="string">&quot;a.b.c&quot;</span>&#125; will be automatically converted to foo&#123;bar<span class="operator">=~</span><span class="string">&quot;a<span class="subst">\\</span>.b<span class="subst">\\</span>.c&quot;</span>&#125;, i.e. all the dots <span class="keyword">in</span> regexp filters will be automatically escaped <span class="keyword">in</span> order to match only dot char instead of matching <span class="keyword">any</span> char. <span class="type">Dots</span> <span class="keyword">in</span> <span class="string">&quot;.+&quot;</span>, <span class="string">&quot;.*&quot;</span> and <span class="string">&quot;.&#123;n&#125;&quot;</span> regexps aren&#x27;t escaped. <span class="type">Such</span> escaping can be useful when querying <span class="type">Graphite</span> data</span><br><span class="line"></span><br><span class="line"># 查询节点列表<span class="operator">。</span></span><br><span class="line"><span class="operator">-</span>selectNode array</span><br><span class="line">    <span class="type">Addresses</span> of vmselect nodes; usage: <span class="operator">-</span>selectNode<span class="operator">=</span>vmselect<span class="operator">-</span>host1:<span class="number">8481</span> <span class="operator">-</span>selectNode<span class="operator">=</span>vmselect<span class="operator">-</span>host2:<span class="number">8481</span></span><br><span class="line">    <span class="type">Supports</span> array of values separated by comma or specified via multiple flags.</span><br><span class="line"></span><br><span class="line"># 存储节点列表</span><br><span class="line"><span class="operator">-</span>storageNode array</span><br><span class="line">    <span class="type">Addresses</span> of vmstorage nodes; usage: <span class="operator">-</span>storageNode<span class="operator">=</span>vmstorage<span class="operator">-</span>host1:<span class="number">8401</span> <span class="operator">-</span>storageNode<span class="operator">=</span>vmstorage<span class="operator">-</span>host2:<span class="number">8401</span></span><br><span class="line">    <span class="type">Supports</span> array of values separated by comma or specified via multiple flags.</span><br><span class="line"><span class="operator">-</span>tls</span><br><span class="line">    <span class="type">Whether</span> to enable <span class="type">TLS</span> (aka <span class="type">HTTPS</span>) <span class="keyword">for</span> incoming requests. <span class="operator">-</span>tlsCertFile and <span class="operator">-</span>tlsKeyFile must be <span class="keyword">set</span> <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>tlsCertFile string</span><br><span class="line">    <span class="type">Path</span> to file with <span class="type">TLS</span> certificate. <span class="type">Used</span> only <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span>. <span class="type">Prefer</span> <span class="type">ECDSA</span> certs instead of <span class="type">RSA</span> certs, since <span class="type">RSA</span> certs are slow</span><br><span class="line"><span class="operator">-</span>tlsKeyFile string</span><br><span class="line">    <span class="type">Path</span> to file with <span class="type">TLS</span> key. <span class="type">Used</span> only <span class="keyword">if</span> <span class="operator">-</span>tls <span class="keyword">is</span> <span class="keyword">set</span></span><br><span class="line"><span class="operator">-</span>version</span><br><span class="line">    <span class="type">Show</span> <span class="type">VictoriaMetrics</span> version</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/15/VictoriaMetrics%E5%90%AF%E5%8A%A8%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/15/VictoriaMetrics%E2%80%94%E5%BF%AB%E9%80%9F%E3%80%81%E7%BB%8F%E6%B5%8E%E9%AB%98%E6%95%88%E4%B8%94%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E6%97%B6%E9%97%B4%E5%BA%8F%E5%88%97%E6%95%B0%E6%8D%AE%E5%BA%93/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            VictoriaMetrics—快速、经济高效且可扩展的时间序列数据库
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/15/Skywalking%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E7%A4%BA%E4%BE%8B/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Skywalking告警规则示例</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

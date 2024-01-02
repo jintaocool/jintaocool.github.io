@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Zabbix优化建议[5.x] |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-Zabbix优化建议-5-x"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Zabbix优化建议[5.x]
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/" class="article-date">
+  <time datetime="2023-12-28T02:07:43.000Z" itemprop="datePublished">2023-12-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">5.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">21 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>在使用Zabbix过程中，正确的调整Zabbix系统，使之保持高性能是非常重要的，能够充分利用硬件资源，监控更多主机和性能指标。</p>
+<h2 id="硬件"><a href="#硬件" class="headerlink" title="硬件"></a>硬件</h2><p>关于zabbix server端硬件的建议:</p>
+<ul>
+<li>处理器：使用最新稳定的处理器，一般同级别的处理器，新一代的往往比上一代的性能更强、功耗更低；</li>
+<li>磁盘：建议固态硬盘，或者不低于10K RPM的机械硬盘，建议做RAID；</li>
+<li>内存：通常建议不低于8G，若监控主机超过1000台，建议配置更高的内存；</li>
+<li>网卡：建议至少千兆网卡；</li>
+</ul>
+<p>官网硬件配置参考：</p>
+<table>
+<thead>
+<tr>
+<th>规模</th>
+<th>平台</th>
+<th>CPU&#x2F;内存</th>
+<th>数据库</th>
+<th>受监控的主机数量</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><em>小型</em></td>
+<td>CentOS</td>
+<td>Virtual Appliance</td>
+<td>MySQL InnoDB</td>
+<td>100</td>
+</tr>
+<tr>
+<td><em>中型</em></td>
+<td>CentOS</td>
+<td>2 CPU cores&#x2F;2GB</td>
+<td>MySQL InnoDB</td>
+<td>500</td>
+</tr>
+<tr>
+<td><em>大型</em></td>
+<td>RedHat Enterprise Linux</td>
+<td>4 CPU cores&#x2F;8GB</td>
+<td>RAID10 MySQL InnoDB 或 PostgreSQL</td>
+<td>&gt;1000</td>
+</tr>
+<tr>
+<td><em>极大型</em></td>
+<td>RedHat Enterprise Linux</td>
+<td>8 CPU cores&#x2F;16GB</td>
+<td>Fast RAID10 MySQL InnoDB 或 PostgreSQL</td>
+<td>&gt;10000</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Tips：实际配置应不低于官方推荐。</p>
+</blockquote>
+<h2 id="系统"><a href="#系统" class="headerlink" title="系统"></a>系统</h2><ul>
+<li>使用最新稳定版的操作系统，比如CentOS目前最新稳定版是7.9；</li>
+<li>最小化安装系统镜像，按需安装Zabbix Server需要的依赖；</li>
+<li>调整内核参数，调整<code>open files</code>、<code>max user processes</code>等参数；</li>
+<li>应以特定用户最小权限去运行Zabbix程序和文件；</li>
+<li>时间同步，在运行 Zabbix 的服务器上拥有精确的系统日期非常重要；</li>
+</ul>
+<h2 id="数据库"><a href="#数据库" class="headerlink" title="数据库"></a>数据库</h2><ul>
+<li>推荐MySQL5.7+；</li>
+<li>独立部署；</li>
+<li>推荐使用固态+Raid；</li>
+<li>足够的磁盘空间；</li>
+</ul>
+<p>Zabbix 数据库大小主要取决于这些变量，这些变量决定了存储的历史数据量：</p>
+<ul>
+<li>每秒处理值的数量；</li>
+<li>历史数据；</li>
+</ul>
+<p>Zabbix 将接收到的值保存一段固定的时间，通常为几周或几个月。 每个新值都需要一定量的磁盘空间用于数据和索引。</p>
+<h2 id="web服务"><a href="#web服务" class="headerlink" title="web服务"></a>web服务</h2><ul>
+<li>PHP：建议使用Zabbix官网推荐版本；</li>
+<li>Nginx：建议使用最新稳定版本；</li>
+</ul>
+<h2 id="Zabbix-Server"><a href="#Zabbix-Server" class="headerlink" title="Zabbix Server"></a>Zabbix Server</h2><p>配置文件优化参考：</p>
+<table>
+<thead>
+<tr>
+<th>参数名称</th>
+<th>推荐值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CacheSize</td>
+<td>256M</td>
+<td>缓存大小, 单位为字节。 用于存储主机、监控项、触发器数据的共享内存大小。 Zabbix2.2.3以前的版本最大可配置值为2GB。</td>
+</tr>
+<tr>
+<td>CacheUpdateFrequency</td>
+<td>60</td>
+<td>Zabbix 配置缓存更新频率, 单位为秒. 另外参考 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/concepts/server#server_process">runtime control</a> 选项。</td>
+</tr>
+<tr>
+<td>DebugLevel</td>
+<td>3</td>
+<td>指定调试等级: 0 - Zabbix进程的起停基本信息 1 - 严重（Critical）信息 2 - 错误（Error）信息 3 - 警告（Warning）信息 4 - 调试（Debug）信息 (产生大量信息) 5 - 扩展调试 (产生更多信息) 另外可参考 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/concepts/server#server_process">runtime control</a> 选项。</td>
+</tr>
+<tr>
+<td>ExportFileSize</td>
+<td>1G</td>
+<td>每个导出文件的最大限制，单位为字节。仅当ExportDir参数设置后才使用，用于轮转生成导出的文件。 此参数从Zabbix 4.0.0开始支持。</td>
+</tr>
+<tr>
+<td>HistoryCacheSize</td>
+<td>128M</td>
+<td>历史缓存数据大小, 单位为字节。</td>
+</tr>
+<tr>
+<td>HistoryIndexCacheSize</td>
+<td>16M</td>
+<td>历史索引缓存大小, 单位为字节。\缓存一个item大概需要大小为100字节的空间。 该参数从Zabbix 3.0.0开始支持。</td>
+</tr>
+<tr>
+<td>HistoryStorageDateIndex</td>
+<td>1</td>
+<td>启用历史数据预处理，可以将数据存储到不同的基于时间的索引: 0 - 禁止 1 - 允许</td>
+</tr>
+<tr>
+<td>HistoryStorageURL</td>
+<td>你的ES URL</td>
+<td>历史数据存储 HTTP[S] URL，用于把历史数据存储到ElasticSearch。 这个参数参考 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/appendix/install/elastic_search_setup">Elasticsearch</a>进行配置。</td>
+</tr>
+<tr>
+<td>HistoryStorageTypes</td>
+<td>uint,dbl,str,log,text</td>
+<td>以逗号分隔的列表配置哪些类型的历史数据需要存储到Elasticsearch。 这个参数参考 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/appendix/install/elastic_search_setup">Elasticsearch</a> 进行配置。</td>
+</tr>
+<tr>
+<td>HousekeepingFrequency</td>
+<td>3</td>
+<td>Zabbix 执行 housekeeping 的频率 (单位为小时)。 housekeeping负责从数据库中删除过期的信息。 <em>注意</em>: 为了防止 housekeeper 负载过大 (例如, 当历史和趋势周期大大减小时), 对于每一个监控项，不会在一个housekeeping周期内删除超过4倍HousekeepingFrequency 的过期数据。 因此, 如果 HousekeepingFrequency 是 1小时, 一个周期内不会删除超过4小时的过期信息 (从最旧的数据开始) 。 <em>备注</em>: 为降低 server压力， housekeeping将在server启动以后，延迟30分钟执行。 因此, 如果 HousekeepingFrequency 是1小时,server启动30分后执行第一次 housekeeping , 然后按1小时为周期重复执行。从Zabbix 2.4.0以后有了这种延迟行为。 从Zabbix 3.0.0开始，可以设置HousekeepingFrequency为0来禁止自动housekeeping。 此时 housekeeping 只能通过 <em>housekeeper_execute</em> 启动， 在一个housuekeeping周期内删除的过期信息时长为从最后一次housekeeping以来到配置周期的4倍,不少于4小时且不大于4天。 也可参见<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/concepts/server#server_process">运行控制</a> 选项。</td>
+</tr>
+<tr>
+<td>LogFile</td>
+<td></td>
+<td>日志文件名称。</td>
+</tr>
+<tr>
+<td>LogFileSize</td>
+<td>128</td>
+<td>日志文件大小，单位 MB。 0 - 禁止日志文件自动回滚. <em>注意</em>: 如果日志文件达到限定的大小，文件回滚失败, 不管是什么原因, 现有的日志会被截断，并重新记录日志。</td>
+</tr>
+<tr>
+<td>LogType</td>
+<td>file</td>
+<td>日志输出类型: <em>file</em> - 写入LogFile 参数指定的日志文件中, <em>system</em> - 写入syslog, <em>console</em> - 控制台输出. 从Zabbix 3.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>LogSlowQueries</td>
+<td>3000</td>
+<td>数据库查询消耗时间，大于该时间将会记入日志 (毫秒)。 0 - 不记录慢查询日志。 DebugLevel&#x3D;3时该选项可用。 从Zabbix 1.8.2开始支持该参数</td>
+</tr>
+<tr>
+<td>MaxHousekeeperDelete</td>
+<td>50000</td>
+<td>一个housekeeping周期内，一个任务删除的最大行数 （相应的表名，字段名，值）。 如果设置为0，不限制删除的行数，这种情况，你必须清楚这样做的影响! 从Zabbix 1.8.2 开始支持该参数，仅在对已经被删除的监控项进行历史和趋势数据删除操作时有效。</td>
+</tr>
+<tr>
+<td>ProxyConfigFrequency</td>
+<td>180</td>
+<td>Zabbix server 多少秒向Zabbix proxy 发送一次配置数据，用于被动模式的proxy 。 从Zabbix 1.8.3开始支持该参数。</td>
+</tr>
+<tr>
+<td>ProxyDataFrequency</td>
+<td>1</td>
+<td>Zabbix server 多少秒向Zabbix proxy请求一次历史数据， 用于被动模式的proxy。\从Zabbix 1.8.3开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartDBSyncers</td>
+<td>8</td>
+<td>数据库进程的初始实例数量。</td>
+</tr>
+<tr>
+<td>StartAlerters</td>
+<td>12</td>
+<td>报警进程的初始实例数量。 从Zabbix 3.4.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartDiscoverers</td>
+<td>12</td>
+<td>发现进程的初始实例数量。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartEscalators</td>
+<td>12</td>
+<td>escalators进程的初始实例数量。 从Zabbix 3.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartHTTPPollers</td>
+<td>6</td>
+<td>HTTP 轮询进程的初始实例数量**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartIPMIPollers</td>
+<td>3</td>
+<td>IPMI 轮询进程的初始实例数量。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartJavaPollers</td>
+<td>6</td>
+<td>Java 轮询子进程的初始实例数量。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 从Zabbix 2.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartLLDProcessors</td>
+<td>2</td>
+<td>Number of pre-forked instances of low-level discovery (LLD) workers**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. The LLD manager process is automatically started when an LLD worker is started. This parameter is supported since Zabbix 4.2.0.</td>
+</tr>
+<tr>
+<td>StartPingers</td>
+<td>12</td>
+<td>ICMP pingers进程的初始实例数量**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartPollersUnreachable</td>
+<td>6</td>
+<td>不可达主机 (包括IPMI 和 Java)的轮询进程的初始实例数量。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 从Zabbix 2.4.0开始，如果IPMI或Java轮询器启动，那么至少有一个针对不可访问主机的轮询进程必须运行。 在Zabbix 1.8.5版本之前，最大能设置为255。 这个参数从Zabbix 1.8.3版本缺失。</td>
+</tr>
+<tr>
+<td>StartPollers</td>
+<td>12</td>
+<td>轮询进程的初始实例数量。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**.\_注意_如果要内部，聚合，计算的监控项能正常工作，这个参数值必须非0。</td>
+</tr>
+<tr>
+<td>StartPreprocessors</td>
+<td>12</td>
+<td>预处理工作进程的初始实例数量。\预处理管理进程将跟随预处理工作进程启动。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 从Zabbix 3.4.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartProxyPollers</td>
+<td>3</td>
+<td>被动proxy的轮询进程初始实例数量。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**.\在Zabbix 1.8.5版本之前，最大能设置为255。 从Zabbix 1.8.3开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartSNMPTrapper</td>
+<td>0</td>
+<td>设置为1, SNMP trapper进程将启动。 从Zabbix 2.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartTimers</td>
+<td>1</td>
+<td>计时器进程的初始实例数量。 计时器进程处理基于时间的触发器和维护期功能。 只有第一个计时器进程处理维护期。 从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartTrappers</td>
+<td>12</td>
+<td>trapper进程的初始实例数量。**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. Trapper接收来自Zabbix发送者、主动agent和主动proxies的数据。 至少要运行一个trapper进程用于在web前端展示服务器可用性和队列视图。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartVMwareCollectors</td>
+<td>2</td>
+<td>vmware采集器进程的初始实例数量。\从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StatsAllowedIP</td>
+<td></td>
+<td>逗号分隔的IP地址列表,可选CIDR表示法, 或外部Zabbix实例的DNS名称. 只接受来自此处列出的地址的Stats请求。如果未设置此参数，则不接受stats请求。 如果启用IPv6支持，则’127.0.0.1’, ‘::127.0.0.1’, ‘::ffff:127.0.0.1’ 与’::&#x2F;0’等价表示为允许任何IPv4或IPv6地址。’0.0.0.0&#x2F;0’可用于允许任何IPv4地址。 示例: StatsAllowedIP&#x3D;127.0.0.1,192.168.1.0&#x2F;24,::1,2001:db8::&#x2F;32,zabbix.example.com 从Zabbix 4.2.0开始支持此参数。</td>
+</tr>
+<tr>
+<td>Timeout</td>
+<td>3</td>
+<td>agent, SNMP设备或外部检查的超时时长(单位为秒)。</td>
+</tr>
+<tr>
+<td>TrapperTimeout</td>
+<td>300</td>
+<td>定义trapper处理数据的超时时间。</td>
+</tr>
+<tr>
+<td>TrendCacheSize</td>
+<td>16M</td>
+<td>趋势数据缓存大小，单位字节。 用于存储趋势数据的共享内存大小。</td>
+</tr>
+<tr>
+<td>UnavailableDelay</td>
+<td>60</td>
+<td>在资源<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/appendix/items/unreachability#unavailable_host">不可用</a>期间，Zabbix多少秒检查一次资源是否可用。</td>
+</tr>
+<tr>
+<td>UnreachableDelay</td>
+<td>15</td>
+<td>在资源<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/appendix/items/unreachability#unreachable_host">不可达</a>期间 ，Zabbix多少秒检查一次资源是否可达。</td>
+</tr>
+<tr>
+<td>UnreachablePeriod</td>
+<td>45</td>
+<td>在主机 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/appendix/items/unreachability#unreachable_host">不可用</a>多少秒后，即视为主机不可用。</td>
+</tr>
+<tr>
+<td>User</td>
+<td>zabbix</td>
+<td>降低系统某普通用户的权限。 仅当以’root’身份运行且AllowRoot参数设置为禁止时，该参数才起作用。 从Zabbix 2.4.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>ValueCacheSize</td>
+<td>8M</td>
+<td></td>
+</tr>
+<tr>
+<td>VMwareCacheSize</td>
+<td>8M</td>
+<td>存储VMware数据的共享内存大小。 VMware内部检查[vmware,buffer,…] 可以用来监控VMware缓存使用情况 (参见 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/config/items/itemtypes/internal">内部检查</a>)。 注意，如果没有配置并启动vmware收集器实例，那么共享内存就不会被分配。\从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwareFrequency</td>
+<td>60</td>
+<td>间隔多少秒从单个VMware服务收集数据。\任何VMware监控项的最小更新周期都大于或等于该时间。 从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwarePerfFrequency</td>
+<td>60</td>
+<td>间隔多少秒从单个VMware服务检索性能计数器统计数据。 该时间为任一VMware <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/config/items/itemtypes/simple_checks/vmware_keys#footnotes">监控项</a>（使用VMware性能计数器）的最小更新间隔。 从Zabbix 2.2.9, 2.4.4开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwareTimeout</td>
+<td>10</td>
+<td>vmware采集器等待 VMware 服务(vCenter or ESX 管理程序)响应的最大时长。 从Zabbix 2.2.9, 2.4.4开始支持该参数。</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>Tips：太多的数据采集进程 (pollers, unreachable pollers, HTTP pollers, Java pollers, pingers, trappers, proxypollers) 与 IPMI manager , SNMP trapper 和预处理工作进程(preprocessing workers)一起会<strong>耗尽</strong>预处理管理器的每进程文件描述符限制。因此，需要增大<code>open files</code>、<code>max user processes</code>。</p>
+</blockquote>
+<h2 id="Agent"><a href="#Agent" class="headerlink" title="Agent"></a>Agent</h2><p>推荐使用Zabbix Agent2。Agent和Agent2版本对比如下：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>Zabbix agent</th>
+<th>Zabbix agent 2</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>程序设计语言</td>
+<td>C</td>
+<td>一部分使用C，其他用go</td>
+</tr>
+<tr>
+<td>守护进程</td>
+<td>yes</td>
+<td>no (Windows 5.0.4之后版本支持)</td>
+</tr>
+<tr>
+<td>扩展支持</td>
+<td>自定义C的<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/conf%E7%9A%84ig/items/loadablemodules">可加载模块</a>。</td>
+<td>自定义GO的<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/config/items/plugins">插件</a>。</td>
+</tr>
+<tr>
+<td>请求</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>支持平台</td>
+<td>Linux, IBM AIX, FreeBSD, NetBSD, OpenBSD, HP-UX, Mac OS X, Solaris: 9, 10, 11, Windows: 从xp开始所有的桌面和服务端版本。</td>
+<td>Linux, Windows: 从xp开始所有的桌面和服务端版本。</td>
+</tr>
+<tr>
+<td>支持的加密库</td>
+<td>GnuTLS 3.1.18 and newer OpenSSL 1.0.1, 1.0.2, 1.1.0, 1.1.1 SSL库 - tested with versions 2.7.4, 2.8.2 (某些限制的使用, 查看 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/encryption#compiling_zabbix_with_encryption_support">加密</a>详情页).</td>
+<td>Linux: OpenSSL 1.0.1和最新版本在Zabbix 4.4.8之后支持。 MS Windows: OpenSSL 1.1.1或者最新版. OpenSSL库必须开启PSK，否则LibreSSL不支持.</td>
+</tr>
+<tr>
+<td>监控进程</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>进程</td>
+<td>每个server&#x2F;proxy都有独立的进程。</td>
+<td>单个进程多线程。 这最大的线程数由GOMAXPROCS环境变量决定。</td>
+</tr>
+<tr>
+<td>指标</td>
+<td><strong>UNIX</strong>: 查看支持的 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/config/items/itemtypes/zabbix_agent">items</a>. <strong>Windows</strong>: 查看指定Windows版本的<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/config/items/itemtypes/zabbix_agent/win_keys">监控项</a>.</td>
+<td><strong>UNIX</strong>: Zabbix agent支持所有指标。 其他的, agent2 提供Docker, Memcached, MySQL, PostgreSQL, Redis, systemd (查看agent2的<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/config/items/itemtypes/zabbix_agent/zabbix_agent2">监控项</a>)的Zabbix-native监控方案 <strong>Windows</strong>: Zabbix agent支持所有指标和HTTPS检查 net.tcp.service* , LDAP. 其他的, agent2 提供关于PostgreSQL, Redis的Zabbix-native监控方案。</td>
+</tr>
+<tr>
+<td>并发</td>
+<td>单进程按监控项顺序进行检查</td>
+<td>来自不同插件的检查或一个插件内的多个检查可以同时执行。</td>
+</tr>
+<tr>
+<td>计划&#x2F;灵活 间隔</td>
+<td>仅支持被动检查。</td>
+<td>支持主动检查。</td>
+</tr>
+<tr>
+<td>第三方traps</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>Additional features</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>永久存储</td>
+<td>no</td>
+<td>yes</td>
+</tr>
+<tr>
+<td>超时设置</td>
+<td>只能定义agent级别。</td>
+<td>超时插件可以覆盖在agent上的级别超时设置。</td>
+</tr>
+<tr>
+<td>删除用户权限</td>
+<td>yes (Unix-like systems only)</td>
+<td>no</td>
+</tr>
+<tr>
+<td>用户可配置密码套件</td>
+<td>yes</td>
+<td>no</td>
+</tr>
+</tbody></table>
+<h2 id="Proxy"><a href="#Proxy" class="headerlink" title="Proxy"></a>Proxy</h2><p>Zabbix proxy 是一个可以从一个或多个受监控设备采集监控数据并将信息发送到 Zabbix server 的进程，主要是代表 Zabbix server 工作。 所有收集的数据都在本地缓存，然后传输到 proxy 所属的 Zabbix server。</p>
+<p>部署Zabbix proxy 是可选的，但可能非常有利于分担单个 Zabbix server 的负载。 如果只有代理采集数据，则 Zabbix server 上会减少 CPU 和磁盘 I&#x2F;O 的开销。</p>
+<p>建议：</p>
+<ul>
+<li>尽量减少Server直接监控主机的数量，建议由多个Proxy负担大部分的负载；</li>
+<li>选择性能较好的主机作为Proxy；</li>
+</ul>
+<p>配置优化参考：</p>
+<table>
+<thead>
+<tr>
+<th>必须配置</th>
+<th>推荐值</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>CacheSize</td>
+<td>256M</td>
+<td>缓存大小, 单位为字节。 用于存储主机、监控项数据的共享内存大小。 在Zabbix 5.0.1版本这参数的最大值可以从8G增加到64G。</td>
+</tr>
+<tr>
+<td>ConfigFrequency</td>
+<td>180</td>
+<td>每隔多少秒proxy从Zabbix server获取配置数据。 该参数只有主动proxy才会使用，proxy工作模式由参数ProxyMode决定。</td>
+</tr>
+<tr>
+<td>DataSenderFrequency</td>
+<td>1</td>
+<td>Proxy将采集到的数据以一定的时间间隔（单位为秒）发送给Zabbix server。 该参数只有主动proxy才会使用，proxy工作模式由参数ProxyMode决定。</td>
+</tr>
+<tr>
+<td>DebugLevel</td>
+<td>3</td>
+<td>指定调试等级: 0 - Zabbix进程的起停基本信息 1 - 重要（Critical）信息 2 - 错误（Error）信息 3 - 警告（Warning）信息 4 - 调试（Debug）信息 (产生大量信息) 5 - 扩展调试 (产生更多信息)</td>
+</tr>
+<tr>
+<td>EnableRemoteCommands</td>
+<td>0</td>
+<td>是否允许Zabbix server远程执行命令。 0 - 禁止 1 - 允许 从Zabbix 3.4.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>HeartbeatFrequency</td>
+<td>60</td>
+<td>心跳信息发送频率，单位为秒。 用于监视proxy的可用性。 0 - 禁止 该参数只有主动proxy才会使用，proxy工作模式由参数ProxyMode决定。</td>
+</tr>
+<tr>
+<td>HistoryCacheSize</td>
+<td>128M</td>
+<td>历史缓存数据大小, 单位为字节。 存储历史数据使用共享内存.</td>
+</tr>
+<tr>
+<td>HistoryIndexCacheSize</td>
+<td>16M</td>
+<td>历史索引缓存大小, 单位为字节。\缓存一个item大概需要大小为100字节的空间。 该参数从Zabbix 3.0.0开始支持。</td>
+</tr>
+<tr>
+<td>HousekeepingFrequency</td>
+<td>1</td>
+<td>Zabbix 执行 housekeeping 的频率 (单位为小时)。 housekeeping负责从数据库中删除过期的信息。 <em>注意</em>: 为了防止 housekeeper 负载过大 (例如, 当历史和趋势周期大大减小时), 对于每一个监控项，不会在一个housekeeping周期内删除超过4倍HousekeepingFrequency 的过期数据。 因此, 如果 HousekeepingFrequency 是 1小时, 一个周期内不会删除超过4小时的过期信息 (从最旧的数据开始) 。 <em>备注</em>: 为降低 server压力， housekeeping将在server启动以后，延迟30分钟执行。 因此, 如果 HousekeepingFrequency 是1小时,serverg启动30分后执行第一次 housekeeping , 然后按1小时为周期重复执行。从Zabbix 2.4.0以后有了这种延迟行为。 从Zabbix 3.0.0开始，可以设置HousekeepingFrequency为0来禁止自动housekeeping。 此时 housekeeping 只能通过 <em>housekeeper_execute</em> 启动， 在一个housuekeeping周期内删除的过期信息时长为从最后一次housekeeping以来到配置周期的4倍,不少于4小时且不大于4天。</td>
+</tr>
+<tr>
+<td>LogFile</td>
+<td></td>
+<td>日志文件名字</td>
+</tr>
+<tr>
+<td>LogFileSize</td>
+<td>128M</td>
+<td>日志文件大小，单位 MB。 0 - 禁止日志文件自动回滚. <em>注意</em>: 如果日志文件达到限定的大小，文件回滚失败, 不管是什么原因, 现有的日志会被截断，并重新记录日志。</td>
+</tr>
+<tr>
+<td>LogRemoteCommands</td>
+<td>1</td>
+<td>当执行shell命令时可以记录日志。 0 - 禁止 1 - 允许 从Zabbix 3.4.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>LogType</td>
+<td>file</td>
+<td>日志输出类型: <em>file</em> - 写入LogFile 参数指定的日志文件中, <em>system</em> - 写入syslog, <em>console</em> - 控制台输出. 从Zabbix 3.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>LogSlowQueries</td>
+<td>3000</td>
+<td>数据库查询消耗时间，大于该时间将会记入日志 (毫秒)。 0 - 不记录慢查询日志。 DebugLevel&#x3D;3时该选项可用。 从Zabbix 1.8.2开始支持该参数。</td>
+</tr>
+<tr>
+<td>ProxyLocalBuffer</td>
+<td>24</td>
+<td>Proxy将在本地保留数据N小时，即使数据已与server同步。\如果第三方应用程序将使用本地数据，则可以使用此参数。</td>
+</tr>
+<tr>
+<td>ProxyMode</td>
+<td>0</td>
+<td>Proxy工作模式。 0 - 主动模式 1 - 被动模式 从Zabbix 1.8.3开始支持该参数。 <em>注意</em> 当使用 Active proxy 时，敏感的 proxy 配置数据可供有权访问Zabbix server trapper端口的应用使用。 因为第三方应用可以假装是活动proxy并请求配置数据而不会进行身份验证。</td>
+</tr>
+<tr>
+<td>ProxyOfflineBuffer</td>
+<td>72</td>
+<td>如果无法连接Zabbix server，proxy将保留数据N小时。\旧数据将丢失。</td>
+</tr>
+<tr>
+<td>StartDBSyncers</td>
+<td>8</td>
+<td>数据库进程的初始实例数量。 在版本1.8.5之前，上限是64。 这个参数从Zabbix 1.8.3开始得到了支持。</td>
+</tr>
+<tr>
+<td>StartDiscoverers</td>
+<td>8</td>
+<td>发现进程的初始实例数量。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartHTTPPollers</td>
+<td>3</td>
+<td>HTTP 轮询进程的初始实例数量。</td>
+</tr>
+<tr>
+<td>StartIPMIPollers</td>
+<td>1</td>
+<td>IPMI 轮询进程的初始实例数量。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartJavaPollers</td>
+<td>3</td>
+<td>Java 轮询子进程的初始实例数量。 从Zabbix 2.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartPingers</td>
+<td>4</td>
+<td>ICMP pingers进程的初始实例数量 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartPollersUnreachable</td>
+<td>8</td>
+<td>不可达主机 (包括IPMI 和 Java)的轮询进程的初始实例数量。 从Zabbix 2.4.0开始，如果IPMI或Java轮询器启动，那么至少有一个针对不可访问主机的轮询进程必须运行。\在Zabbix 1.8.5版本之前，最大能设置为255。 这个参数从Zabbix 1.8.3开始得到了支持。</td>
+</tr>
+<tr>
+<td>StartPollers</td>
+<td>12</td>
+<td>轮询进程的初始实例数量。\在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartPreprocessors</td>
+<td>8</td>
+<td>pre-forked实例的预处理线程数量**<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/config/zabbix_server#footnotes">1</a>**. 预处理器工作进程启动时，预处理管理器进程将自动启动。 从Zabbix 4.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartSNMPTrapper</td>
+<td>0</td>
+<td>设置为1, SNMP trapper进程将启动。 从Zabbix 2.0.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StartTrappers</td>
+<td>8</td>
+<td>trapper进程的初始实例数量。 Trapper接收来自Zabbix发送者、主动agent的数据。 至少要运行一个trapper进程用于在web前端展示服务器可用性和队列视图。 在Zabbix 1.8.5版本之前，最大能设置为255。</td>
+</tr>
+<tr>
+<td>StartVMwareCollectors</td>
+<td>2</td>
+<td>vmware采集器进程的初始实例数量。\从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>StatsAllowedIP</td>
+<td></td>
+<td>ip地址列表以”，”分割,也可以使用CIDR、或者DNS. 只接受ip里表中的请求. 如果未设置此参数，则不接受请求.如果启用ipv6,则 ‘127.0.0.1’, ‘::127.0.0.1’, ‘::ffff:127.0.0.1’ ipv4和ipv6都支持 ，’::&#x2F;0’ 支持IPv4或者IPv6地址. ‘0.0.0.0&#x2F;0’ 只支持ipv4. 例如:StatsAllowedIP&#x3D;127.0.0.1,192.168.1.0&#x2F;24,::1,2001:db8::&#x2F;32,zabbix.example.com 从Zabbix 4.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>Timeout</td>
+<td>3</td>
+<td>agent、SNMP设备或外部检查的超时时长(单位为秒)。</td>
+</tr>
+<tr>
+<td>TrapperTimeout</td>
+<td>60</td>
+<td>定义trapper处理数据的超时时间。</td>
+</tr>
+<tr>
+<td>UnavailableDelay</td>
+<td>60</td>
+<td>在资源<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/items/unreachability#unavailable_host">不可达</a>期间，Zabbix多少秒检查一次资源是否可用。</td>
+</tr>
+<tr>
+<td>UnreachableDelay</td>
+<td>15</td>
+<td>在资源<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/items/unreachability#unreachable_host">不可</a> 期间 ，Zabbix多少秒检查一次资源是否可达.</td>
+</tr>
+<tr>
+<td>UnreachablePeriod</td>
+<td>45</td>
+<td>在资源<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/appendix/items/unreachability#unreachable_host">不可</a>期间 ，Zabbix多少秒检查一次资源是否可达。</td>
+</tr>
+<tr>
+<td>VMwareCacheSize</td>
+<td>64M</td>
+<td>存储VMware数据的共享内存大小。 VMware内部检查[vmware,buffer,…] 可以用来监控VMware缓存使用情况 (参见 <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/manual/config/items/itemtypes/internal">内部检查</a>)。 注意，如果没有配置并启动vmware收集器实例，那么共享内存就不会被分配。\从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwareFrequency</td>
+<td>60</td>
+<td>间隔多少秒从单个VMware服务收集数据。\任何VMware监控项的最小更新周期都大于或等于该时间。 从Zabbix 2.2.0开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwarePerfFrequency</td>
+<td>60</td>
+<td>间隔多少秒从单个VMware服务检索性能计数器统计数据。 该时间为任一VMware <a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/zh/manual/config/items/itemtypes/simple_checks/vmware_keys#footnotes">监控项</a>（使用VMware性能计数器）的最小更新间隔。 从Zabbix 2.2.9, 2.4.4开始支持该参数。</td>
+</tr>
+<tr>
+<td>VMwareTimeout</td>
+<td>10</td>
+<td>vmware采集器等待 VMware 服务(vCenter or ESX 管理程序)响应的最大时长。 从Zabbix 2.2.9, 2.4.4开始支持该参数。</td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>注意：Zabbix只支持不带BOM的UTF-8编码的配置文件。</p>
+</blockquote>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/28/MySQL%E5%9F%BA%E7%A1%80%EF%BC%9Ashow%E5%91%BD%E4%BB%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            MySQL基础：show命令
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/27/%E4%BD%BF%E7%94%A8VictoriaMetrics-Operator%E7%AE%A1%E7%90%86VM%E9%9B%86%E7%BE%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">使用VictoriaMetrics Operator管理VM集群</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

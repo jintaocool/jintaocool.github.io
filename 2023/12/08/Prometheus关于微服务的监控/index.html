@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus关于微服务的监控 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus关于微服务的监控"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus关于微服务的监控
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/08/Prometheus%E5%85%B3%E4%BA%8E%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%9A%84%E7%9B%91%E6%8E%A7/" class="article-date">
+  <time datetime="2023-12-08T08:44:45.000Z" itemprop="datePublished">2023-12-08</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">9.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">52 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>       在微服务架构下随着服务越来越多，定位问题也变得越来越复杂，因此监控服务的运行状态以及针对异常状态及时的发出告警也成为微服务治理不可或缺的一环。服务的监控主要有日志监控、调用链路监控、指标监控等几种类型方式，其中指标监控在整个微服务监控中比重最高，也是实际生产中排查问题最重要的依赖。</p>
+<p>指标监控又可以细分为多种类型:</p>
+<p><strong>基础监控</strong>: 是针运行服务的基础设施的监控，比如容器、虚拟机、物理机等，监控的指标主要有内存的使用率，cpu 的使用率等资源的监控，通过对资源的监控和告警能够及时发现资源瓶颈从而进行扩容操作避免影响服务，同时针对资源的异常变化也能辅助定位服务问题，比如内存泄漏会导致内存异常。</p>
+<p><strong>运行时监控</strong>: 运行时监控主要有 GC 的监控包括 GC 次数、GC 耗时，线程数量的监控等等。</p>
+<p><strong>通用监控</strong>: 通用监控主要包括对流量和耗时的监控，通过流量的变化趋势可以清晰的了解到服务的流量高峰以及流量的增长情况，流量同时也是资源分配的重要参考指标。耗时是服务性能的直观体现，耗时比较大的服务我们往往需要进行优化，平均耗时往往参考价值不大，因为我们采取中位数，包括 90、95、99 值等。</p>
+<p><strong>错误监控</strong>: 错误监控是服务健康状态的直观体现，主要包括请求返回的错误码，如 HTTP 的错误码 5xx、4xx，熔断、限流等等，通过对服务错误率的观察可以了解到服务当前的健康状态。</p>
+<h2 id="一、pull方式接入"><a href="#一、pull方式接入" class="headerlink" title="一、pull方式接入"></a>一、pull方式接入</h2><h4 id="1-1、微服务网关监控"><a href="#1-1、微服务网关监控" class="headerlink" title="1.1、微服务网关监控"></a>1.1、微服务网关监控</h4><p>微服务网关接入监控，需要保证微服务网关集成了promethues。如果业务系统fork了网关的代码，也可以像1.2章节一样，在pom中添加依赖。</p>
+<p><strong>STEP1:添加配置</strong></p>
+<p>在配置中心gateway对应的namespace下添加</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">management:</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &quot;prometheus&quot;</span><br><span class="line">  metrics:</span><br><span class="line">    tags:</span><br><span class="line">      application: $&#123;spring.application.name&#125;</span><br><span class="line">      podName: $&#123;HOSTNAME&#125;</span><br><span class="line">    distribution:</span><br><span class="line">      percentiles:</span><br><span class="line">        http.server.requests: 0.5,0.9,0.95,0.99</span><br></pre></td></tr></table></figure>
+
+<p>注意：添加完成后保存，发布才能生效。 </p>
+<p><strong>STEP2:验证</strong></p>
+<p>启动项目，并根据ip:port&#x2F;actuator&#x2F;prometheus 访问，得到如下结果即为配置成功</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"># HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool</span><br><span class="line"># TYPE jvm_gc_max_data_size_bytes gauge</span><br><span class="line">jvm_gc_max_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 2.845310976E9</span><br><span class="line"># HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool</span><br><span class="line"># TYPE jvm_buffer_count_buffers gauge</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 11.0</span><br><span class="line"># HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool</span><br><span class="line"># TYPE jvm_buffer_total_capacity_bytes gauge</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP process_start_time_seconds Start time of the process since unix epoch.</span><br><span class="line"># TYPE process_start_time_seconds gauge</span><br><span class="line">process_start_time_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1.652236181116E9</span><br><span class="line"># HELP process_cpu_usage The &quot;recent cpu usage&quot; for the Java Virtual Machine process</span><br><span class="line"># TYPE process_cpu_usage gauge</span><br><span class="line">process_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 1.4355937217250055E-4</span><br><span class="line"># HELP log4j2_events_total Number of fatal level log events</span><br><span class="line"># TYPE log4j2_events_total counter</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;error&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;debug&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;fatal&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;info&quot;,&#125; 7.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;trace&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;warn&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_usage The &quot;recent cpu usage&quot; for the whole system</span><br><span class="line"># TYPE system_cpu_usage gauge</span><br><span class="line">system_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 0.08581370970137281</span><br><span class="line"># HELP tomcat_sessions_active_max_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_max_sessions gauge</span><br><span class="line">tomcat_sessions_active_max_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads</span><br><span class="line"># TYPE jvm_threads_live_threads gauge</span><br><span class="line">jvm_threads_live_threads&#123;application=&quot;polaris-client&quot;,&#125; 25.0</span><br><span class="line"># HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC</span><br><span class="line"># TYPE jvm_gc_memory_promoted_bytes_total counter</span><br><span class="line">jvm_gc_memory_promoted_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 5262472.0</span><br><span class="line"># HELP tomcat_sessions_active_current_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_current_sessions gauge</span><br><span class="line">tomcat_sessions_active_current_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_count The number of processors available to the Java virtual machine</span><br><span class="line"># TYPE system_cpu_count gauge</span><br><span class="line">system_cpu_count&#123;application=&quot;polaris-client&quot;,&#125; 8.0</span><br><span class="line"># HELP tomcat_sessions_expired_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_expired_sessions_total counter</span><br><span class="line">tomcat_sessions_expired_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_used_bytes The amount of used memory</span><br><span class="line"># TYPE jvm_memory_used_bytes gauge</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 5712960.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9707600.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.4643392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.16392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 3.3126456E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8354752.0</span><br><span class="line"># HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset</span><br><span class="line"># TYPE jvm_threads_peak_threads gauge</span><br><span class="line">jvm_threads_peak_threads&#123;application=&quot;polaris-client&quot;,&#125; 29.0</span><br><span class="line"># HELP jvm_threads_daemon_threads The current number of live daemon threads</span><br><span class="line"># TYPE jvm_threads_daemon_threads gauge</span><br><span class="line">jvm_threads_daemon_threads&#123;application=&quot;polaris-client&quot;,&#125; 21.0</span><br><span class="line"># HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next</span><br><span class="line"># TYPE jvm_gc_memory_allocated_bytes_total counter</span><br><span class="line">jvm_gc_memory_allocated_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 1.49866568E8</span><br><span class="line"># HELP jvm_classes_unloaded_classes_total The total number of classes unloaded since the Java virtual machine has started execution</span><br><span class="line"># TYPE jvm_classes_unloaded_classes_total counter</span><br><span class="line">jvm_classes_unloaded_classes_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_created_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_created_sessions_total counter</span><br><span class="line">tomcat_sessions_created_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation</span><br><span class="line"># TYPE jvm_gc_live_data_size_bytes gauge</span><br><span class="line">jvm_gc_live_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 1.46352E7</span><br><span class="line"># HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool</span><br><span class="line"># TYPE jvm_buffer_memory_used_bytes gauge</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine</span><br><span class="line"># TYPE jvm_classes_loaded_classes gauge</span><br><span class="line">jvm_classes_loaded_classes&#123;application=&quot;polaris-client&quot;,&#125; 8473.0</span><br><span class="line"># HELP tomcat_sessions_rejected_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_rejected_sessions_total counter</span><br><span class="line">tomcat_sessions_rejected_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_alive_max_seconds  </span><br><span class="line"># TYPE tomcat_sessions_alive_max_seconds gauge</span><br><span class="line">tomcat_sessions_alive_max_seconds&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_states_threads The current number of threads having NEW state</span><br><span class="line"># TYPE jvm_threads_states_threads gauge</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;blocked&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;waiting&quot;,&#125; 12.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;terminated&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;new&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;runnable&quot;,&#125; 9.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;timed-waiting&quot;,&#125; 4.0</span><br><span class="line"># HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management</span><br><span class="line"># TYPE jvm_memory_max_bytes gauge</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 1.073741824E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 2.845310976E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; -1.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 1.400897536E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 2.5165824E8</span><br><span class="line"># HELP jvm_gc_pause_seconds Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds summary</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.006</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.008</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.03</span><br><span class="line"># HELP jvm_gc_pause_seconds_max Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds_max gauge</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use</span><br><span class="line"># TYPE jvm_memory_committed_bytes gauge</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 6340608.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.78782208E8</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.4875776E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 9.7517568E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8388608.0</span><br><span class="line"># HELP process_uptime_seconds The uptime of the Java virtual machine</span><br><span class="line"># TYPE process_uptime_seconds gauge</span><br><span class="line">process_uptime_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1527.975</span><br><span class="line"># HELP http_server_requests_seconds  </span><br><span class="line"># TYPE http_server_requests_seconds summary</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 10.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.015297999</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 1.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0066571</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 68.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 6.131796103</span><br><span class="line"># HELP http_server_requests_seconds_max  </span><br><span class="line"># TYPE http_server_requests_seconds_max gauge</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 0.0230935</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-2、微服务基础监控"><a href="#1-2、微服务基础监控" class="headerlink" title="1.2、微服务基础监控"></a>1.2、微服务基础监控</h4><p>微服务的监控，按以下步骤配置。</p>
+<p><strong>STEP1:配置****指标</strong></p>
+<p>如果微服务是使用脚手架创建的，则跳过STEP1，直接执行STEP2即可。</p>
+<p>pom中添加依赖</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&lt;!--监控相关--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-starter-actuator&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">&lt;!--普罗米修斯相关--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;io.micrometer&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;micrometer-registry-prometheus&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">&lt;!--如果没有springboot web的依赖也要添加--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+
+<p>在application.yml中添加如下配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">management:</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &quot;prometheus&quot;</span><br><span class="line">  metrics:</span><br><span class="line">    tags:</span><br><span class="line">      application: $&#123;spring.application.name&#125;</span><br><span class="line">      podName: $&#123;HOSTNAME&#125;</span><br><span class="line">    distribution:</span><br><span class="line">      percentiles:</span><br><span class="line">        http.server.requests: 0.5,0.9,0.95,0.99</span><br></pre></td></tr></table></figure>
+
+
+<p>若无spring.application.name 则需要添加如下配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">spring:</span><br><span class="line">  application:</span><br><span class="line">    name: 服务名称</span><br></pre></td></tr></table></figure>
+
+
+<p>启动项目，并根据ip:port&#x2F;${context-path}&#x2F;actuator&#x2F;prometheus 访问，得到如下结果即为配置成功</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"># HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool</span><br><span class="line"># TYPE jvm_gc_max_data_size_bytes gauge</span><br><span class="line">jvm_gc_max_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 2.845310976E9</span><br><span class="line"># HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool</span><br><span class="line"># TYPE jvm_buffer_count_buffers gauge</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 11.0</span><br><span class="line"># HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool</span><br><span class="line"># TYPE jvm_buffer_total_capacity_bytes gauge</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP process_start_time_seconds Start time of the process since unix epoch.</span><br><span class="line"># TYPE process_start_time_seconds gauge</span><br><span class="line">process_start_time_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1.652236181116E9</span><br><span class="line"># HELP process_cpu_usage The &quot;recent cpu usage&quot; for the Java Virtual Machine process</span><br><span class="line"># TYPE process_cpu_usage gauge</span><br><span class="line">process_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 1.4355937217250055E-4</span><br><span class="line"># HELP log4j2_events_total Number of fatal level log events</span><br><span class="line"># TYPE log4j2_events_total counter</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;error&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;debug&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;fatal&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;info&quot;,&#125; 7.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;trace&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;warn&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_usage The &quot;recent cpu usage&quot; for the whole system</span><br><span class="line"># TYPE system_cpu_usage gauge</span><br><span class="line">system_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 0.08581370970137281</span><br><span class="line"># HELP tomcat_sessions_active_max_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_max_sessions gauge</span><br><span class="line">tomcat_sessions_active_max_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads</span><br><span class="line"># TYPE jvm_threads_live_threads gauge</span><br><span class="line">jvm_threads_live_threads&#123;application=&quot;polaris-client&quot;,&#125; 25.0</span><br><span class="line"># HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC</span><br><span class="line"># TYPE jvm_gc_memory_promoted_bytes_total counter</span><br><span class="line">jvm_gc_memory_promoted_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 5262472.0</span><br><span class="line"># HELP tomcat_sessions_active_current_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_current_sessions gauge</span><br><span class="line">tomcat_sessions_active_current_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_count The number of processors available to the Java virtual machine</span><br><span class="line"># TYPE system_cpu_count gauge</span><br><span class="line">system_cpu_count&#123;application=&quot;polaris-client&quot;,&#125; 8.0</span><br><span class="line"># HELP tomcat_sessions_expired_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_expired_sessions_total counter</span><br><span class="line">tomcat_sessions_expired_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_used_bytes The amount of used memory</span><br><span class="line"># TYPE jvm_memory_used_bytes gauge</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 5712960.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9707600.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.4643392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.16392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 3.3126456E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8354752.0</span><br><span class="line"># HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset</span><br><span class="line"># TYPE jvm_threads_peak_threads gauge</span><br><span class="line">jvm_threads_peak_threads&#123;application=&quot;polaris-client&quot;,&#125; 29.0</span><br><span class="line"># HELP jvm_threads_daemon_threads The current number of live daemon threads</span><br><span class="line"># TYPE jvm_threads_daemon_threads gauge</span><br><span class="line">jvm_threads_daemon_threads&#123;application=&quot;polaris-client&quot;,&#125; 21.0</span><br><span class="line"># HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next</span><br><span class="line"># TYPE jvm_gc_memory_allocated_bytes_total counter</span><br><span class="line">jvm_gc_memory_allocated_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 1.49866568E8</span><br><span class="line"># HELP jvm_classes_unloaded_classes_total The total number of classes unloaded since the Java virtual machine has started execution</span><br><span class="line"># TYPE jvm_classes_unloaded_classes_total counter</span><br><span class="line">jvm_classes_unloaded_classes_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_created_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_created_sessions_total counter</span><br><span class="line">tomcat_sessions_created_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation</span><br><span class="line"># TYPE jvm_gc_live_data_size_bytes gauge</span><br><span class="line">jvm_gc_live_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 1.46352E7</span><br><span class="line"># HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool</span><br><span class="line"># TYPE jvm_buffer_memory_used_bytes gauge</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine</span><br><span class="line"># TYPE jvm_classes_loaded_classes gauge</span><br><span class="line">jvm_classes_loaded_classes&#123;application=&quot;polaris-client&quot;,&#125; 8473.0</span><br><span class="line"># HELP tomcat_sessions_rejected_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_rejected_sessions_total counter</span><br><span class="line">tomcat_sessions_rejected_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_alive_max_seconds  </span><br><span class="line"># TYPE tomcat_sessions_alive_max_seconds gauge</span><br><span class="line">tomcat_sessions_alive_max_seconds&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_states_threads The current number of threads having NEW state</span><br><span class="line"># TYPE jvm_threads_states_threads gauge</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;blocked&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;waiting&quot;,&#125; 12.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;terminated&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;new&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;runnable&quot;,&#125; 9.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;timed-waiting&quot;,&#125; 4.0</span><br><span class="line"># HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management</span><br><span class="line"># TYPE jvm_memory_max_bytes gauge</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 1.073741824E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 2.845310976E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; -1.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 1.400897536E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 2.5165824E8</span><br><span class="line"># HELP jvm_gc_pause_seconds Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds summary</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.006</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.008</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.03</span><br><span class="line"># HELP jvm_gc_pause_seconds_max Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds_max gauge</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use</span><br><span class="line"># TYPE jvm_memory_committed_bytes gauge</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 6340608.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.78782208E8</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.4875776E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 9.7517568E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8388608.0</span><br><span class="line"># HELP process_uptime_seconds The uptime of the Java virtual machine</span><br><span class="line"># TYPE process_uptime_seconds gauge</span><br><span class="line">process_uptime_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1527.975</span><br><span class="line"># HELP http_server_requests_seconds  </span><br><span class="line"># TYPE http_server_requests_seconds summary</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 10.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.015297999</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 1.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0066571</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 68.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 6.131796103</span><br><span class="line"># HELP http_server_requests_seconds_max  </span><br><span class="line"># TYPE http_server_requests_seconds_max gauge</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 0.0230935</span><br></pre></td></tr></table></figure>
+
+
+<p> ​</p>
+<h4 id="1-3、自定义监控"><a href="#1-3、自定义监控" class="headerlink" title="1.3、自定义监控"></a>1.3、自定义监控</h4><p><strong>配置方式</strong></p>
+<p>  自定义监控采用开发人员主动埋点的机制(Micrometer)，需在做完微服务监控的基础上，在项目中引入如下包：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;com.xxx.metrics&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;custom-metrics&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;1.0.1&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">引入此包，之前的spring-boot-starter-actuator和micrometer-registry-prometheus可以不引。</span><br></pre></td></tr></table></figure>
+
+
+<p><strong>原理介绍</strong></p>
+<p>  Micrometer埋点分为三部分：指标名称、指标值、指标标签。指标标签是这条指标数据的特征，可以用于这条指标数据的查询条件、分组key等。根据指标标签的查询或分组，可以对指标值进行计算。举例如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">指标名称：高速收费站过站时长</span><br><span class="line">指标标签：收费站编码、高速路编码</span><br><span class="line">指标值：过站时长</span><br><span class="line"></span><br><span class="line">car_passby_time&#123;station=&quot;T1&quot;,highway=&quot;H1&quot;&#125; 30</span><br></pre></td></tr></table></figure>
+
+
+<p>可以根据收费站编码、高速路编码进行筛选或者分组统计过站时长。</p>
+<p><strong>使用方式</strong></p>
+<p>  使用MetricsUtil的相关方法进行埋点。MetricsUtil目前只封装Micrometer最常用的counter指标，可以满足当前多数的业务需求，后期会继续扩展指标。举例如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">MetricsUtil.errorCounter();</span><br><span class="line">在业务代码中打印ERROR日志的后面增加上述代码，即可实现默认的系统报错大盘</span><br><span class="line">建议应用使用统一的LoggerUtil类，在LoggerUtil.error中添加此行代码。</span><br><span class="line">后期会将此能力集成到脚手架中，再不需要开发者手动写此行代码。</span><br><span class="line"></span><br><span class="line">MetricsUtil.counter(String metricsName)</span><br><span class="line">累计计数，步长为1</span><br><span class="line">应用场景举例：输错账号密码的次数或速率。</span><br><span class="line">这行代码在系统中生效后，promethues就可以采集到的这个指标，然后在grafana中使用这个指标即可配置panel</span><br><span class="line"></span><br><span class="line">MetricsUtil.counter(String metricsName, double stepLength)</span><br><span class="line">累计计数，步长为N</span><br><span class="line"></span><br><span class="line">MetricsUtil.counter(String metricsName, Map&lt;String, String&gt; tagMap, double stepLength)</span><br><span class="line">如果需要指定指标标签，可以使用此方法，标签传入tagMap中，标签的k/v不能为空</span><br><span class="line"></span><br><span class="line">其他方法可以查看具体工具类的代码注释</span><br></pre></td></tr></table></figure>
+
+
+<h3 id="监控指标说明"><a href="#监控指标说明" class="headerlink" title="监控指标说明"></a>监控指标说明</h3><p>指标与含义的对照表如下（仅供参考）：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指标大类</td>
+<td>指标名称</td>
+<td>含义</td>
+<td>说明</td>
+</tr>
+<tr>
+<td>I&#x2F;O overview</td>
+<td>Rate</td>
+<td>io的qps</td>
+<td></td>
+</tr>
+<tr>
+<td>Errors</td>
+<td>http状态码5xx的次数</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Duration</td>
+<td>耗时（平均&#x2F;最大）</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Utilisation</td>
+<td>tomcat网络线程数</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>JVM Memory</td>
+<td>JVM Heap</td>
+<td>堆内存使用量</td>
+<td></td>
+</tr>
+<tr>
+<td>JVM Non-Heap</td>
+<td>非堆内存使用量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>JVM Total</td>
+<td>内存总使用量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>JVM Process Memory</td>
+<td>进程内存使用量</td>
+<td>进程内存&#x3D;jvm内存+系统所占内存</td>
+<td></td>
+</tr>
+<tr>
+<td>JVM Misc</td>
+<td>CPU Usage</td>
+<td>CPU使用率</td>
+<td></td>
+</tr>
+<tr>
+<td>Load</td>
+<td>load</td>
+<td>线程在CPU排队队列中的数量</td>
+<td></td>
+</tr>
+<tr>
+<td>Threads</td>
+<td>线程数</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Thread States</td>
+<td>线程状态统计</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Log Events</td>
+<td>error、warn、info、debug等级下日志的数量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>File Descriptors</td>
+<td>系统打开的文件描述符数量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Garbage Collection</td>
+<td>Collections</td>
+<td>Minor gc可以理解为young gc Major gc可以近似理解为full gc</td>
+<td>Allocation Failure和GCLocker Initiated GC指的是引起GC的原因</td>
+</tr>
+<tr>
+<td>Pause Durations</td>
+<td>各种gc的耗时</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Allocated&#x2F;Promoted</td>
+<td>Allocated：分配内存的量 Promoted：提升到老年代的内存量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Classloading</td>
+<td>Classes loaded</td>
+<td>jvm内加载的class数量</td>
+<td></td>
+</tr>
+<tr>
+<td>Class delta</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Buffer Pools</td>
+<td>Direct Buffers</td>
+<td>jvm缓冲区计数缓冲区Direct Buffers数量</td>
+<td></td>
+</tr>
+<tr>
+<td>Mapped Buffers</td>
+<td>jvm缓冲区计数缓冲区Mapped Buffers数量</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>HTTP Edpoints</td>
+<td>Total number of requests</td>
+<td>各接口的按返回结果状态（200or500）的请求数量</td>
+<td></td>
+</tr>
+<tr>
+<td>Average inbound request duration</td>
+<td>各接口的按返回结果状态（200or500）的接口平均耗时</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Maximum inbound request duration</td>
+<td>各接口的按返回结果状态（200or500）的接口最大耗时</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Sum of the duration of every request</td>
+<td>此指标可以忽略</td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<h2 id="二、push方式接入"><a href="#二、push方式接入" class="headerlink" title="二、push方式接入"></a>二、push方式接入</h2><h4 id="2-1、微服务网关监控"><a href="#2-1、微服务网关监控" class="headerlink" title="2.1、微服务网关监控"></a>2.1、微服务网关监控</h4><p>  微服务网关接入监控，需要保证微服务网关集成了promethues。如果业务系统fork了网关的代码，也可以像2.2章节一样，在pom中添加依赖。</p>
+<p><strong>STEP1:添加配置</strong></p>
+<p>在配置中心gateway对应的namespace下添加</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">management:</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &quot;prometheus&quot;</span><br><span class="line">  metrics:</span><br><span class="line">    tags:</span><br><span class="line">      project: $&#123;app.id&#125;</span><br><span class="line">      application: $&#123;spring.application.name&#125;</span><br><span class="line">      podName: $&#123;HOSTNAME&#125;</span><br><span class="line">    distribution:</span><br><span class="line">      percentiles:</span><br><span class="line">        http.server.requests: 0.5,0.9,0.95,0.99</span><br><span class="line">    export:</span><br><span class="line">      prometheus:</span><br><span class="line">        pushgateway:</span><br><span class="line">          enabled: true</span><br><span class="line">          base-url: http://10.10.10.10:31883</span><br><span class="line">          push-rate: 15s</span><br><span class="line">          shutdown-operation: push</span><br><span class="line">          job: $&#123;HOSTNAME&#125;</span><br><span class="line">        </span><br><span class="line"> 注：</span><br><span class="line"> 1、base-url为pushgateway地址 </span><br><span class="line"> 2、app.id指的是应用ID，没有的可以自行在配置文件中加入app.id</span><br><span class="line"> 3、spring.application.name指的是微服务的名称，没有的可以自行在配置文件中加 </span><br><span class="line">    spring.application.name</span><br></pre></td></tr></table></figure>
+
+<p>注意：添加完成后保存，发布才能生效。</p>
+<p><strong>STEP2:验证</strong></p>
+<p>启动项目，并根据ip:port&#x2F;actuator&#x2F;prometheus 访问，得到如下结果即为配置成功</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"># HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool</span><br><span class="line"># TYPE jvm_gc_max_data_size_bytes gauge</span><br><span class="line">jvm_gc_max_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 2.845310976E9</span><br><span class="line"># HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool</span><br><span class="line"># TYPE jvm_buffer_count_buffers gauge</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 11.0</span><br><span class="line"># HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool</span><br><span class="line"># TYPE jvm_buffer_total_capacity_bytes gauge</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP process_start_time_seconds Start time of the process since unix epoch.</span><br><span class="line"># TYPE process_start_time_seconds gauge</span><br><span class="line">process_start_time_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1.652236181116E9</span><br><span class="line"># HELP process_cpu_usage The &quot;recent cpu usage&quot; for the Java Virtual Machine process</span><br><span class="line"># TYPE process_cpu_usage gauge</span><br><span class="line">process_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 1.4355937217250055E-4</span><br><span class="line"># HELP log4j2_events_total Number of fatal level log events</span><br><span class="line"># TYPE log4j2_events_total counter</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;error&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;debug&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;fatal&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;info&quot;,&#125; 7.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;trace&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;warn&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_usage The &quot;recent cpu usage&quot; for the whole system</span><br><span class="line"># TYPE system_cpu_usage gauge</span><br><span class="line">system_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 0.08581370970137281</span><br><span class="line"># HELP tomcat_sessions_active_max_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_max_sessions gauge</span><br><span class="line">tomcat_sessions_active_max_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads</span><br><span class="line"># TYPE jvm_threads_live_threads gauge</span><br><span class="line">jvm_threads_live_threads&#123;application=&quot;polaris-client&quot;,&#125; 25.0</span><br><span class="line"># HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC</span><br><span class="line"># TYPE jvm_gc_memory_promoted_bytes_total counter</span><br><span class="line">jvm_gc_memory_promoted_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 5262472.0</span><br><span class="line"># HELP tomcat_sessions_active_current_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_current_sessions gauge</span><br><span class="line">tomcat_sessions_active_current_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_count The number of processors available to the Java virtual machine</span><br><span class="line"># TYPE system_cpu_count gauge</span><br><span class="line">system_cpu_count&#123;application=&quot;polaris-client&quot;,&#125; 8.0</span><br><span class="line"># HELP tomcat_sessions_expired_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_expired_sessions_total counter</span><br><span class="line">tomcat_sessions_expired_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_used_bytes The amount of used memory</span><br><span class="line"># TYPE jvm_memory_used_bytes gauge</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 5712960.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9707600.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.4643392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.16392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 3.3126456E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8354752.0</span><br><span class="line"># HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset</span><br><span class="line"># TYPE jvm_threads_peak_threads gauge</span><br><span class="line">jvm_threads_peak_threads&#123;application=&quot;polaris-client&quot;,&#125; 29.0</span><br><span class="line"># HELP jvm_threads_daemon_threads The current number of live daemon threads</span><br><span class="line"># TYPE jvm_threads_daemon_threads gauge</span><br><span class="line">jvm_threads_daemon_threads&#123;application=&quot;polaris-client&quot;,&#125; 21.0</span><br><span class="line"># HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next</span><br><span class="line"># TYPE jvm_gc_memory_allocated_bytes_total counter</span><br><span class="line">jvm_gc_memory_allocated_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 1.49866568E8</span><br><span class="line"># HELP jvm_classes_unloaded_classes_total The total number of classes unloaded since the Java virtual machine has started execution</span><br><span class="line"># TYPE jvm_classes_unloaded_classes_total counter</span><br><span class="line">jvm_classes_unloaded_classes_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_created_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_created_sessions_total counter</span><br><span class="line">tomcat_sessions_created_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation</span><br><span class="line"># TYPE jvm_gc_live_data_size_bytes gauge</span><br><span class="line">jvm_gc_live_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 1.46352E7</span><br><span class="line"># HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool</span><br><span class="line"># TYPE jvm_buffer_memory_used_bytes gauge</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine</span><br><span class="line"># TYPE jvm_classes_loaded_classes gauge</span><br><span class="line">jvm_classes_loaded_classes&#123;application=&quot;polaris-client&quot;,&#125; 8473.0</span><br><span class="line"># HELP tomcat_sessions_rejected_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_rejected_sessions_total counter</span><br><span class="line">tomcat_sessions_rejected_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_alive_max_seconds  </span><br><span class="line"># TYPE tomcat_sessions_alive_max_seconds gauge</span><br><span class="line">tomcat_sessions_alive_max_seconds&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_states_threads The current number of threads having NEW state</span><br><span class="line"># TYPE jvm_threads_states_threads gauge</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;blocked&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;waiting&quot;,&#125; 12.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;terminated&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;new&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;runnable&quot;,&#125; 9.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;timed-waiting&quot;,&#125; 4.0</span><br><span class="line"># HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management</span><br><span class="line"># TYPE jvm_memory_max_bytes gauge</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 1.073741824E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 2.845310976E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; -1.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 1.400897536E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 2.5165824E8</span><br><span class="line"># HELP jvm_gc_pause_seconds Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds summary</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.006</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.008</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.03</span><br><span class="line"># HELP jvm_gc_pause_seconds_max Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds_max gauge</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use</span><br><span class="line"># TYPE jvm_memory_committed_bytes gauge</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 6340608.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.78782208E8</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.4875776E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 9.7517568E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8388608.0</span><br><span class="line"># HELP process_uptime_seconds The uptime of the Java virtual machine</span><br><span class="line"># TYPE process_uptime_seconds gauge</span><br><span class="line">process_uptime_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1527.975</span><br><span class="line"># HELP http_server_requests_seconds  </span><br><span class="line"># TYPE http_server_requests_seconds summary</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 10.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.015297999</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 1.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0066571</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 68.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 6.131796103</span><br><span class="line"># HELP http_server_requests_seconds_max  </span><br><span class="line"># TYPE http_server_requests_seconds_max gauge</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 0.0230935</span><br></pre></td></tr></table></figure>
+
+<h4 id="2-2、微服务基础监控"><a href="#2-2、微服务基础监控" class="headerlink" title="2.2、微服务基础监控"></a>2.2、微服务基础监控</h4><p>微服务的监控，按以下步骤配置。</p>
+<p><strong>STEP1:配置指标</strong></p>
+<p>pom中添加依赖，请检查依赖中是否直接或间接引入了下列依赖包</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">&lt;!--监控相关--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-starter-actuator&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">&lt;!--普罗米修斯相关--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;io.micrometer&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;micrometer-registry-prometheus&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">&lt;!--如果没有springboot web的依赖也要添加--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-starter-web&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">&lt;!--指标的主动push--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">   &lt;groupId&gt;io.prometheus&lt;/groupId&gt;</span><br><span class="line">   &lt;artifactId&gt;simpleclient_pushgateway&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<p>在application.yml中添加如下配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line">management:</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &quot;prometheus&quot;</span><br><span class="line">  metrics:</span><br><span class="line">    tags:</span><br><span class="line">      project: $&#123;app.id&#125;</span><br><span class="line">      application: $&#123;spring.application.name&#125;</span><br><span class="line">      podName: $&#123;HOSTNAME&#125;</span><br><span class="line">    distribution:</span><br><span class="line">      percentiles:</span><br><span class="line">        http.server.requests: 0.5,0.9,0.95,0.99</span><br><span class="line">    export:</span><br><span class="line">      prometheus:</span><br><span class="line">        pushgateway:</span><br><span class="line">          enabled: true</span><br><span class="line">          base-url: http://10.10.10.10:31883</span><br><span class="line">          push-rate: 15s</span><br><span class="line">          shutdown-operation: push</span><br><span class="line">          job: $&#123;HOSTNAME&#125;</span><br><span class="line">        </span><br><span class="line"> 注：</span><br><span class="line"> 1、base-url为pushgateway地址</span><br><span class="line"> 2、app.id指的是应用ID，没有的可以自行在配置文件中加入app.id。如已有应用ID，可以使用应用ID对应 </span><br><span class="line">    的key，请注意app.id是否会与系统中原有的key冲突</span><br><span class="line"> 3、spring.application.name指的是微服务的名称，没有的可以自行在配置文件中加入 </span><br><span class="line">    spring.application.name。如已有微服务名称，可以使用微服务名称对应的key，请注意 </span><br><span class="line">    spring.application.name是否会与系统中原有的key冲突</span><br></pre></td></tr></table></figure>
+
+<p>启动项目，并根据ip:port&#x2F;${context-path}&#x2F;actuator&#x2F;prometheus 访问，得到如下结果即为配置成功</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br></pre></td><td class="code"><pre><span class="line"># HELP jvm_gc_max_data_size_bytes Max size of long-lived heap memory pool</span><br><span class="line"># TYPE jvm_gc_max_data_size_bytes gauge</span><br><span class="line">jvm_gc_max_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 2.845310976E9</span><br><span class="line"># HELP jvm_buffer_count_buffers An estimate of the number of buffers in the pool</span><br><span class="line"># TYPE jvm_buffer_count_buffers gauge</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_count_buffers&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 11.0</span><br><span class="line"># HELP jvm_buffer_total_capacity_bytes An estimate of the total capacity of the buffers in this pool</span><br><span class="line"># TYPE jvm_buffer_total_capacity_bytes gauge</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_total_capacity_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP process_start_time_seconds Start time of the process since unix epoch.</span><br><span class="line"># TYPE process_start_time_seconds gauge</span><br><span class="line">process_start_time_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1.652236181116E9</span><br><span class="line"># HELP process_cpu_usage The &quot;recent cpu usage&quot; for the Java Virtual Machine process</span><br><span class="line"># TYPE process_cpu_usage gauge</span><br><span class="line">process_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 1.4355937217250055E-4</span><br><span class="line"># HELP log4j2_events_total Number of fatal level log events</span><br><span class="line"># TYPE log4j2_events_total counter</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;error&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;debug&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;fatal&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;info&quot;,&#125; 7.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;trace&quot;,&#125; 0.0</span><br><span class="line">log4j2_events_total&#123;application=&quot;polaris-client&quot;,level=&quot;warn&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_usage The &quot;recent cpu usage&quot; for the whole system</span><br><span class="line"># TYPE system_cpu_usage gauge</span><br><span class="line">system_cpu_usage&#123;application=&quot;polaris-client&quot;,&#125; 0.08581370970137281</span><br><span class="line"># HELP tomcat_sessions_active_max_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_max_sessions gauge</span><br><span class="line">tomcat_sessions_active_max_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_live_threads The current number of live threads including both daemon and non-daemon threads</span><br><span class="line"># TYPE jvm_threads_live_threads gauge</span><br><span class="line">jvm_threads_live_threads&#123;application=&quot;polaris-client&quot;,&#125; 25.0</span><br><span class="line"># HELP jvm_gc_memory_promoted_bytes_total Count of positive increases in the size of the old generation memory pool before GC to after GC</span><br><span class="line"># TYPE jvm_gc_memory_promoted_bytes_total counter</span><br><span class="line">jvm_gc_memory_promoted_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 5262472.0</span><br><span class="line"># HELP tomcat_sessions_active_current_sessions  </span><br><span class="line"># TYPE tomcat_sessions_active_current_sessions gauge</span><br><span class="line">tomcat_sessions_active_current_sessions&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP system_cpu_count The number of processors available to the Java virtual machine</span><br><span class="line"># TYPE system_cpu_count gauge</span><br><span class="line">system_cpu_count&#123;application=&quot;polaris-client&quot;,&#125; 8.0</span><br><span class="line"># HELP tomcat_sessions_expired_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_expired_sessions_total counter</span><br><span class="line">tomcat_sessions_expired_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_used_bytes The amount of used memory</span><br><span class="line"># TYPE jvm_memory_used_bytes gauge</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 5712960.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9707600.0</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.4643392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.16392E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 3.3126456E7</span><br><span class="line">jvm_memory_used_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8354752.0</span><br><span class="line"># HELP jvm_threads_peak_threads The peak live thread count since the Java virtual machine started or peak was reset</span><br><span class="line"># TYPE jvm_threads_peak_threads gauge</span><br><span class="line">jvm_threads_peak_threads&#123;application=&quot;polaris-client&quot;,&#125; 29.0</span><br><span class="line"># HELP jvm_threads_daemon_threads The current number of live daemon threads</span><br><span class="line"># TYPE jvm_threads_daemon_threads gauge</span><br><span class="line">jvm_threads_daemon_threads&#123;application=&quot;polaris-client&quot;,&#125; 21.0</span><br><span class="line"># HELP jvm_gc_memory_allocated_bytes_total Incremented for an increase in the size of the (young) heap memory pool after one GC to before the next</span><br><span class="line"># TYPE jvm_gc_memory_allocated_bytes_total counter</span><br><span class="line">jvm_gc_memory_allocated_bytes_total&#123;application=&quot;polaris-client&quot;,&#125; 1.49866568E8</span><br><span class="line"># HELP jvm_classes_unloaded_classes_total The total number of classes unloaded since the Java virtual machine has started execution</span><br><span class="line"># TYPE jvm_classes_unloaded_classes_total counter</span><br><span class="line">jvm_classes_unloaded_classes_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_created_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_created_sessions_total counter</span><br><span class="line">tomcat_sessions_created_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_gc_live_data_size_bytes Size of long-lived heap memory pool after reclamation</span><br><span class="line"># TYPE jvm_gc_live_data_size_bytes gauge</span><br><span class="line">jvm_gc_live_data_size_bytes&#123;application=&quot;polaris-client&quot;,&#125; 1.46352E7</span><br><span class="line"># HELP jvm_buffer_memory_used_bytes An estimate of the memory that the Java virtual machine is using for this buffer pool</span><br><span class="line"># TYPE jvm_buffer_memory_used_bytes gauge</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;mapped&quot;,&#125; 0.0</span><br><span class="line">jvm_buffer_memory_used_bytes&#123;application=&quot;polaris-client&quot;,id=&quot;direct&quot;,&#125; 86016.0</span><br><span class="line"># HELP jvm_classes_loaded_classes The number of classes that are currently loaded in the Java virtual machine</span><br><span class="line"># TYPE jvm_classes_loaded_classes gauge</span><br><span class="line">jvm_classes_loaded_classes&#123;application=&quot;polaris-client&quot;,&#125; 8473.0</span><br><span class="line"># HELP tomcat_sessions_rejected_sessions_total  </span><br><span class="line"># TYPE tomcat_sessions_rejected_sessions_total counter</span><br><span class="line">tomcat_sessions_rejected_sessions_total&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP tomcat_sessions_alive_max_seconds  </span><br><span class="line"># TYPE tomcat_sessions_alive_max_seconds gauge</span><br><span class="line">tomcat_sessions_alive_max_seconds&#123;application=&quot;polaris-client&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_threads_states_threads The current number of threads having NEW state</span><br><span class="line"># TYPE jvm_threads_states_threads gauge</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;blocked&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;waiting&quot;,&#125; 12.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;terminated&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;new&quot;,&#125; 0.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;runnable&quot;,&#125; 9.0</span><br><span class="line">jvm_threads_states_threads&#123;application=&quot;polaris-client&quot;,state=&quot;timed-waiting&quot;,&#125; 4.0</span><br><span class="line"># HELP jvm_memory_max_bytes The maximum amount of memory in bytes that can be used for memory management</span><br><span class="line"># TYPE jvm_memory_max_bytes gauge</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 1.073741824E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 2.845310976E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; -1.0</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 1.400897536E9</span><br><span class="line">jvm_memory_max_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 2.5165824E8</span><br><span class="line"># HELP jvm_gc_pause_seconds Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds summary</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.006</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.008</span><br><span class="line">jvm_gc_pause_seconds_count&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 1.0</span><br><span class="line">jvm_gc_pause_seconds_sum&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.03</span><br><span class="line"># HELP jvm_gc_pause_seconds_max Time spent in GC pause</span><br><span class="line"># TYPE jvm_gc_pause_seconds_max gauge</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of minor GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Allocation Failure&quot;,&#125; 0.0</span><br><span class="line">jvm_gc_pause_seconds_max&#123;action=&quot;end of major GC&quot;,application=&quot;polaris-client&quot;,cause=&quot;Metadata GC Threshold&quot;,&#125; 0.0</span><br><span class="line"># HELP jvm_memory_committed_bytes The amount of memory in bytes that is committed for the Java virtual machine to use</span><br><span class="line"># TYPE jvm_memory_committed_bytes gauge</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Compressed Class Space&quot;,&#125; 6340608.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Survivor Space&quot;,&#125; 9961472.0</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Old Gen&quot;,&#125; 1.78782208E8</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Metaspace&quot;,&#125; 4.4875776E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;heap&quot;,id=&quot;PS Eden Space&quot;,&#125; 9.7517568E7</span><br><span class="line">jvm_memory_committed_bytes&#123;application=&quot;polaris-client&quot;,area=&quot;nonheap&quot;,id=&quot;Code Cache&quot;,&#125; 8388608.0</span><br><span class="line"># HELP process_uptime_seconds The uptime of the Java virtual machine</span><br><span class="line"># TYPE process_uptime_seconds gauge</span><br><span class="line">process_uptime_seconds&#123;application=&quot;polaris-client&quot;,&#125; 1527.975</span><br><span class="line"># HELP http_server_requests_seconds  </span><br><span class="line"># TYPE http_server_requests_seconds summary</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 10.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.015297999</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 1.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0066571</span><br><span class="line">http_server_requests_seconds_count&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 68.0</span><br><span class="line">http_server_requests_seconds_sum&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 6.131796103</span><br><span class="line"># HELP http_server_requests_seconds_max  </span><br><span class="line"># TYPE http_server_requests_seconds_max gauge</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/hc&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;CLIENT_ERROR&quot;,status=&quot;404&quot;,uri=&quot;/**&quot;,&#125; 0.0</span><br><span class="line">http_server_requests_seconds_max&#123;application=&quot;polaris-client&quot;,exception=&quot;None&quot;,method=&quot;GET&quot;,outcome=&quot;SUCCESS&quot;,status=&quot;200&quot;,uri=&quot;/actuator/prometheus&quot;,&#125; 0.0230935</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、监控k8s中微服务JVM与服务的自动发现"><a href="#三、监控k8s中微服务JVM与服务的自动发现" class="headerlink" title="三、监控k8s中微服务JVM与服务的自动发现"></a>三、监控k8s中微服务JVM与服务的自动发现</h2><p><strong>需求</strong>：业务方需要看到每个服务实例的JVM资源使用情况</p>
+<p><strong>难点</strong>：1，每个服务实例在k8s中都是一个pod且分布在不同的namespace中数量成百上千<br>            2，prometheus监控需要服务提供metrics接口<br>            3，prometheus需要在配置文件中添加每个实例的metrics地址，因为pod的ip一直在变，所以配置文件写死了无法完成，需要配置自动发现</p>
+<h4 id="3-1-修改pom"><a href="#3-1-修改pom" class="headerlink" title="3.1 修改pom"></a>3.1 修改pom</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&lt;!-- 用于集成actuator功能 --&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">   &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">   &lt;artifactId&gt;spring-boot-starter-actuator&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line"></span><br><span class="line">&lt;!-- 用于将actuator指标转换成prometheus可以解析的格式，并暴露为Http接口 --&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">   &lt;groupId&gt;io.micrometer&lt;/groupId&gt;</span><br><span class="line">   &lt;artifactId&gt;micrometer-registry-prometheus&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
+
+<h4 id="3-2-修改application-yml-properties"><a href="#3-2-修改application-yml-properties" class="headerlink" title="3.2 修改application.yml(.properties)"></a>3.2 修改application.yml(.properties)</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">spring:</span><br><span class="line">  application:</span><br><span class="line">    name: test-app</span><br><span class="line"></span><br><span class="line"># 该配置用于将所有的actuator http endpoint暴露出来，并将actuator服务通过18081端口进行暴露，用于prometheus收集访问</span><br><span class="line">management:</span><br><span class="line">  server:</span><br><span class="line">    port: 18081</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &#x27;*&#x27;</span><br><span class="line"></span><br><span class="line">metrics:</span><br><span class="line">  tags:</span><br><span class="line">    application: $&#123;spring.application.name&#125;</span><br></pre></td></tr></table></figure>
+
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">management:</span><br><span class="line">  server:</span><br><span class="line">    port: 18081</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: prometheus, health</span><br><span class="line">  metrics:</span><br><span class="line">    export:</span><br><span class="line">      simple:</span><br><span class="line">        enabled: false</span><br><span class="line">    tags:</span><br><span class="line">      application: $&#123;spring.application.name&#125;</span><br><span class="line">      podName: $&#123;HOSTNAME&#125;</span><br><span class="line">    distribution:</span><br><span class="line">      percentiles:</span><br><span class="line">        http.server.requests: 0.5,0.9,0.95,0.99</span><br></pre></td></tr></table></figure>
+
+<p>说明：这里建议通过设置 management. server. port 字段，单独为actuator开放端口访问。例如业务端口8080，actuator端口18081。主要目的是为了防止当8080端口的服务被负载均衡暴露到公网时，&#x2F;actuator 路径被访问到，从而导致安全风险。</p>
+<p>访问如下能暴露出指标即为成功：</p>
+<p><img src="https://img-blog.csdnimg.cn/ad73658295174252a6bf2fdf59a49264.png"></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/08/Prometheus%E5%85%B3%E4%BA%8E%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%9A%84%E7%9B%91%E6%8E%A7/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/08/Pushgateway%E7%9A%84%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Pushgateway的场景使用
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/08/Prometheus%E6%9F%A5%E8%AF%A2API%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus查询API说明文档</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

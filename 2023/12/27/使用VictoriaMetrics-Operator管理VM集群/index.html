@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>使用VictoriaMetrics Operator管理VM集群 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-使用VictoriaMetrics-Operator管理VM集群"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  使用VictoriaMetrics Operator管理VM集群
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/27/%E4%BD%BF%E7%94%A8VictoriaMetrics-Operator%E7%AE%A1%E7%90%86VM%E9%9B%86%E7%BE%A4/" class="article-date">
+  <time datetime="2023-12-27T09:14:55.000Z" itemprop="datePublished">2023-12-27</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">18 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>Operator 我们知道是 Kubernetes 的一大杀器，可以大大简化应用的安装、配置和管理，同样对于 VictoriaMetrics 官方也开发了一个对应的 Operator 来进行管理 - **<code>vm-operator</code>**，它的设计和实现灵感来自 **<code>prometheus-operator</code>**，它是管理应用程序监控配置的绝佳工具。</p>
+<p>vm-operator 定义了如下一些 CRD：</p>
+<ul>
+<li><code>VMCluster</code>：定义 VM 集群</li>
+<li><code>VMAgent</code>：定义 vmagent 实例</li>
+<li><code>VMServiceScrape</code>：定义从 Service 支持的 Pod 中抓取指标配置</li>
+<li><code>VMPodScrape</code>：定义从 Pod 中抓取指标配置</li>
+<li><code>VMRule</code>：定义报警和记录规则</li>
+<li><code>VMProbe</code>：使用 blackbox exporter 为目标定义探测配置</li>
+</ul>
+<p>此外该 Operator 默认还可以识别 prometheus-operator 中的 <code>ServiceMonitor</code>、<code>PodMonitor</code>、<code>PrometheusRule</code> 和 <code>Probe</code> 对象，还允许你使用 CRD 对象来管理 Kubernetes 集群内的 VM 应用。</p>
+<h2 id="安装"><a href="#安装" class="headerlink" title="安装"></a>安装</h2><p>vm-operator 提供了 Helm Charts 包，所以可以使用 Helm 来进行一键安装：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ helm repo add vm <span class="attr">https</span>:<span class="comment">//victoriametrics.github.io/helm-charts/</span></span><br><span class="line">☸ ➜ helm repo update</span><br></pre></td></tr></table></figure>
+
+<p>根据自己的需要定制 values 值，默认的 <code>values.yaml</code> 可以通过下面的命令获得：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ helm show values vm/victoria-metrics-operator &gt; values.<span class="property">yaml</span></span><br></pre></td></tr></table></figure>
+
+<p>我们这里只对下面的内容做了修改：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"># values.<span class="property">yaml</span></span><br><span class="line"><span class="attr">rbac</span>:</span><br><span class="line">  <span class="attr">create</span>: <span class="literal">true</span></span><br><span class="line">  <span class="attr">pspEnabled</span>: <span class="literal">false</span> # 不创建psp</span><br><span class="line"></span><br><span class="line"><span class="attr">operator</span>:</span><br><span class="line">  # -- 默认情况下，vm-operator会转换prometheus-operator对象</span><br><span class="line">  <span class="attr">disable_prometheus_converter</span>: <span class="literal">false</span></span><br><span class="line">  # -- 默认情况下，vm-operator会为它的对象创建psp</span><br><span class="line">  <span class="attr">psp_auto_creation_enabled</span>: <span class="literal">false</span></span><br><span class="line">  # -- 启用转换后的 prometheus-operator 对象的所有权引用，如果删除 prometheus 对象，它将删除相应的 victoria-metrics 对象。</span><br><span class="line">  <span class="attr">enable_converter_ownership</span>: <span class="literal">false</span></span><br><span class="line">  # -- <span class="title class_">Enables</span> custom config-reloader, bundled <span class="keyword">with</span> operator.</span><br><span class="line">  # <span class="title class_">It</span> should reduce  vmagent and vmauth config sync-time and make it predictable.</span><br><span class="line">  <span class="attr">useCustomConfigReloader</span>: <span class="literal">true</span></span><br><span class="line"># -- 是否开启资源校验的准入控制器(生产环境建议开启)</span><br><span class="line"># <span class="attr">admissionWebhooks</span>:</span><br><span class="line">#   # -- <span class="title class_">Enables</span> validation webhook.</span><br><span class="line">#   <span class="attr">enabled</span>: <span class="literal">false</span></span><br><span class="line">#   # -- <span class="title class_">What</span> to <span class="keyword">do</span> <span class="keyword">in</span> <span class="keyword">case</span>, when operator not available to validate request.</span><br><span class="line">#   <span class="attr">policy</span>: <span class="title class_">Fail</span></span><br><span class="line">#   # -- <span class="title class_">Enables</span> custom ca bundle, <span class="keyword">if</span> you are not using cert-manager.</span><br><span class="line">#   # -- <span class="keyword">in</span> <span class="keyword">case</span> <span class="keyword">of</span> custom ca, you have to create secret - &#123;&#123;chart-name&#125;&#125;-validation</span><br><span class="line">#   # -- <span class="keyword">with</span> <span class="attr">keys</span>: tls.<span class="property">key</span>, tls.<span class="property">crt</span>, ca.<span class="property">crt</span></span><br><span class="line">#   <span class="attr">caBundle</span>: <span class="string">&quot;&quot;</span></span><br><span class="line">#   <span class="attr">certManager</span>:</span><br><span class="line">#     # -- <span class="title class_">Enables</span> cert creation and injection by cert-manager.</span><br><span class="line">#     <span class="attr">enabled</span>: <span class="literal">false</span></span><br><span class="line">#     # --<span class="title class_">If</span> needed, provide own issuer. <span class="title class_">Operator</span> will create self-signed <span class="keyword">if</span> empty.</span><br><span class="line">#     <span class="attr">issuer</span>: &#123;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>然后使用下面的命令即可一键安装 vm-operator：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ helm upgrade --install victoria-metrics-operator vm/victoria-metrics-operator -f values.<span class="property">yaml</span> -n vm-operator --create-namespace</span><br><span class="line"><span class="attr">NAME</span>: victoria-metrics-operator</span><br><span class="line"><span class="variable constant_">LAST</span> <span class="attr">DEPLOYED</span>: <span class="title class_">Tue</span> <span class="title class_">May</span> <span class="number">17</span> <span class="number">15</span>:<span class="number">51</span>:<span class="number">40</span> <span class="number">2022</span></span><br><span class="line"><span class="attr">NAMESPACE</span>: vm-operator</span><br><span class="line"><span class="attr">STATUS</span>: deployed</span><br><span class="line"><span class="attr">REVISION</span>: <span class="number">1</span></span><br><span class="line"><span class="variable constant_">TEST</span> <span class="attr">SUITE</span>: <span class="title class_">None</span></span><br><span class="line"><span class="attr">NOTES</span>:</span><br><span class="line">victoria-metrics-operator has been installed. <span class="title class_">Check</span> its status by <span class="attr">running</span>:</span><br><span class="line">  kubectl --namespace vm-operator get pods -l <span class="string">&quot;app.kubernetes.io/instance=victoria-metrics-operator&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="title class_">Get</span> more information on <span class="attr">https</span>:<span class="comment">//github.com/VictoriaMetrics/helm-charts/tree/master/charts/victoria-metrics-operator.</span></span><br><span class="line"><span class="title class_">See</span> <span class="string">&quot;Getting started guide for VM Operator&quot;</span> on <span class="attr">https</span>:<span class="comment">//docs.victoriametrics.com/guides/getting-started-with-vm-operator.html .</span></span><br></pre></td></tr></table></figure>
+
+<p>安装完成后可以查看 vm-operator 的状态来验证是否安装成功：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ helm ls -n vm-operator</span><br><span class="line"><span class="variable constant_">NAME</span>                            <span class="variable constant_">NAMESPACE</span>       <span class="variable constant_">REVISION</span>        <span class="variable constant_">UPDATED</span>                                 <span class="variable constant_">STATUS</span>       <span class="variable constant_">CHART</span>                           <span class="variable constant_">APP</span> <span class="variable constant_">VERSION</span></span><br><span class="line">victoria-metrics-operator       vm-operator     <span class="number">1</span>               <span class="number">2022</span>-<span class="number">05</span>-<span class="number">17</span> <span class="number">15</span>:<span class="number">53</span>:<span class="number">14.60667</span> +<span class="number">0800</span> <span class="variable constant_">CST</span>     deployed     victoria-metrics-operator-<span class="number">0.9</span><span class="number">.0</span> <span class="number">0.24</span><span class="number">.0</span></span><br><span class="line">☸ ➜ kubectl --namespace vm-operator get pods -l <span class="string">&quot;app.kubernetes.io/instance=victoria-metrics-operator&quot;</span></span><br><span class="line"><span class="variable constant_">NAME</span>                                        <span class="variable constant_">READY</span>   <span class="variable constant_">STATUS</span>    <span class="variable constant_">RESTARTS</span>   <span class="variable constant_">AGE</span></span><br><span class="line">victoria-metrics-operator-d467cf69c-glh6v   <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>          2m58s</span><br></pre></td></tr></table></figure>
+
+<h2 id="部署-VM-集群"><a href="#部署-VM-集群" class="headerlink" title="部署 VM 集群"></a>部署 VM 集群</h2><p>Operator 安装完成后会包含如下所示的一些 CRD：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl get crd |grep victoriametrics</span><br><span class="line">vmagents.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmalertmanagerconfigs.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>   <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmalertmanagers.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>         <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmalerts.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmauths.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                 <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmclusters.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>              <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmnodescrapes.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>           <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmpodscrapes.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>            <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmprobes.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmrules.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                 <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmservicescrapes.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>        <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmsingles.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>               <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmstaticscrapes.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>         <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br><span class="line">vmusers.<span class="property">operator</span>.<span class="property">victoriametrics</span>.<span class="property">com</span>                 <span class="number">2022</span>-<span class="number">05</span>-17<span class="attr">T07</span>:<span class="number">51</span>:42Z</span><br></pre></td></tr></table></figure>
+
+<p>比如现在我们要来部署 VM，如果只是想要单节点模式则可以直接使用 <code>VMSingle</code> 对象，如果要部署一套 VM 的集群则可以直接使用 <code>VMCluster</code> 来定义一个对象即可，完全不需要我们去手动创建各个组件，Operator 会根据我们的定义去帮我们拉起一套集群起来。</p>
+<p>比如这里我们定义一个如下所示的 <code>VMCluster</code> 对象：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line"># vmcluster-demo.<span class="property">yaml</span></span><br><span class="line"><span class="attr">apiVersion</span>: operator.<span class="property">victoriametrics</span>.<span class="property">com</span>/v1beta1</span><br><span class="line"><span class="attr">kind</span>: <span class="title class_">VMCluster</span></span><br><span class="line"><span class="attr">metadata</span>:</span><br><span class="line">  <span class="attr">name</span>: vmcluster-demo</span><br><span class="line"><span class="attr">spec</span>:</span><br><span class="line">  <span class="attr">replicationFactor</span>: <span class="number">1</span></span><br><span class="line">  <span class="attr">retentionPeriod</span>: <span class="string">&quot;1w&quot;</span></span><br><span class="line">  <span class="attr">vmstorage</span>:</span><br><span class="line">    <span class="attr">replicaCount</span>: <span class="number">2</span></span><br><span class="line">    <span class="attr">storage</span>:</span><br><span class="line">      <span class="attr">volumeClaimTemplate</span>:</span><br><span class="line">        <span class="attr">spec</span>:</span><br><span class="line">          <span class="attr">accessModes</span>:</span><br><span class="line">            - <span class="title class_">ReadWriteOnce</span></span><br><span class="line">          <span class="attr">resources</span>:</span><br><span class="line">            <span class="attr">requests</span>:</span><br><span class="line">              <span class="attr">storage</span>: 10G</span><br><span class="line">          <span class="attr">storageClassName</span>: nfs-client</span><br><span class="line">    <span class="attr">storageDataPath</span>: /vm-data</span><br><span class="line">  <span class="attr">vmselect</span>:</span><br><span class="line">    <span class="attr">replicaCount</span>: <span class="number">2</span></span><br><span class="line">    <span class="attr">cacheMountPath</span>: /cache</span><br><span class="line">    <span class="attr">storage</span>:</span><br><span class="line">      <span class="attr">volumeClaimTemplate</span>:</span><br><span class="line">        <span class="attr">spec</span>:</span><br><span class="line">          <span class="attr">storageClassName</span>: nfs-client</span><br><span class="line">          <span class="attr">accessModes</span>:</span><br><span class="line">            - <span class="title class_">ReadWriteOnce</span></span><br><span class="line">          <span class="attr">resources</span>:</span><br><span class="line">            <span class="attr">requests</span>:</span><br><span class="line">              <span class="attr">storage</span>: 1G</span><br><span class="line">  <span class="attr">vminsert</span>:</span><br><span class="line">    <span class="attr">replicaCount</span>: <span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<p>这里我们通过 <code>spec.retentionPeriod</code> 指定了数据保留的时长为 1 周，<code>replicaCount</code> 用来指定各个组件的副本数为 2，通过 <code>storage.volumeClaimTemplate</code> 指定了数据持久化的 PVC 模板，整个对象可配置的属性我们可以通过 <code>kubectl explain</code> 来获取：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl explain <span class="title class_">VMCluster</span>.<span class="property">spec</span></span><br><span class="line"><span class="attr">KIND</span>:     <span class="title class_">VMCluster</span></span><br><span class="line"><span class="attr">VERSION</span>:  operator.<span class="property">victoriametrics</span>.<span class="property">com</span>/v1beta1</span><br><span class="line"></span><br><span class="line"><span class="attr">RESOURCE</span>: spec &lt;<span class="title class_">Object</span>&gt;</span><br><span class="line"></span><br><span class="line"><span class="attr">DESCRIPTION</span>:</span><br><span class="line">     <span class="title class_">VMClusterSpec</span> defines the desired state <span class="keyword">of</span> <span class="title class_">VMCluster</span></span><br><span class="line"></span><br><span class="line"><span class="attr">FIELDS</span>:</span><br><span class="line">   clusterVersion       &lt;string&gt;</span><br><span class="line">     <span class="title class_">ClusterVersion</span> defines <span class="keyword">default</span> images tag <span class="keyword">for</span> all components. it can be</span><br><span class="line">     overwritten <span class="keyword">with</span> component specific image.<span class="property">tag</span> value.</span><br><span class="line"></span><br><span class="line">   imagePullSecrets     &lt;[]<span class="title class_">Object</span>&gt;</span><br><span class="line">     <span class="title class_">ImagePullSecrets</span> <span class="title class_">An</span> optional list <span class="keyword">of</span> references to secrets <span class="keyword">in</span> the same</span><br><span class="line">     namespace to use <span class="keyword">for</span> pulling images <span class="keyword">from</span> registries see</span><br><span class="line">     <span class="attr">http</span>:<span class="comment">//kubernetes.io/docs/user-guide/images#specifying-imagepullsecrets-on-a-pod</span></span><br><span class="line"></span><br><span class="line">   podSecurityPolicyName        &lt;string&gt;</span><br><span class="line">     <span class="title class_">PodSecurityPolicyName</span> - defines name <span class="keyword">for</span> podSecurityPolicy <span class="keyword">in</span> <span class="keyword">case</span> <span class="keyword">of</span> empty</span><br><span class="line">     value, prefixedName will be used.</span><br><span class="line"></span><br><span class="line">   replicationFactor    &lt;integer&gt;</span><br><span class="line">     <span class="title class_">ReplicationFactor</span> defines how many copies <span class="keyword">of</span> data make among distinct</span><br><span class="line">     storage nodes</span><br><span class="line"></span><br><span class="line">   retentionPeriod      &lt;string&gt; -required-</span><br><span class="line">     <span class="title class_">RetentionPeriod</span> <span class="keyword">for</span> the stored metrics <span class="title class_">Note</span> <span class="title class_">VictoriaMetrics</span> has data/ and</span><br><span class="line">     indexdb/ folders metrics <span class="keyword">from</span> data/ removed eventually <span class="keyword">as</span> soon <span class="keyword">as</span> partition</span><br><span class="line">     leaves retention period reverse index data at indexdb rotates once at the</span><br><span class="line">     half <span class="keyword">of</span> configured retention period</span><br><span class="line">     <span class="attr">https</span>:<span class="comment">//docs.victoriametrics.com/Single-server-VictoriaMetrics.html#retention</span></span><br><span class="line"></span><br><span class="line">   serviceAccountName   &lt;string&gt;</span><br><span class="line">     <span class="title class_">ServiceAccountName</span> is the name <span class="keyword">of</span> the <span class="title class_">ServiceAccount</span> to use to run the</span><br><span class="line">     <span class="title class_">VMSelect</span> <span class="title class_">Pods</span>.</span><br><span class="line"></span><br><span class="line">   vminsert     &lt;<span class="title class_">Object</span>&gt;</span><br><span class="line"></span><br><span class="line">   vmselect     &lt;<span class="title class_">Object</span>&gt;</span><br><span class="line"></span><br><span class="line">   vmstorage    &lt;<span class="title class_">Object</span>&gt;</span><br></pre></td></tr></table></figure>
+
+<p>同样要想获取组件可以定义的属性也可以通过该方式来获取，比如查看 <code>vmstorage</code> 对象可以配置的属性：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl explain <span class="title class_">VMCluster</span>.<span class="property">spec</span>.<span class="property">vmstorage</span></span><br><span class="line"><span class="attr">KIND</span>:     <span class="title class_">VMCluster</span></span><br><span class="line"><span class="attr">VERSION</span>:  operator.<span class="property">victoriametrics</span>.<span class="property">com</span>/v1beta1</span><br><span class="line"></span><br><span class="line"><span class="attr">RESOURCE</span>: vmstorage &lt;<span class="title class_">Object</span>&gt;</span><br><span class="line"></span><br><span class="line"><span class="attr">DESCRIPTION</span>:</span><br><span class="line">     &lt;empty&gt;</span><br><span class="line"></span><br><span class="line"><span class="attr">FIELDS</span>:</span><br><span class="line">   affinity     &lt;&gt;</span><br><span class="line">     <span class="title class_">Affinity</span> <span class="title class_">If</span> specified, the pod<span class="string">&#x27;s scheduling constraints.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   configMaps   &lt;[]string&gt;</span></span><br><span class="line"><span class="string">     ConfigMaps is a list of ConfigMaps in the same namespace as the VMSelect</span></span><br><span class="line"><span class="string">     object, which shall be mounted into the VMSelect Pods. The ConfigMaps are</span></span><br><span class="line"><span class="string">     mounted into /etc/vm/configs/&lt;configmap-name&gt;.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   containers   &lt;[]&gt;</span></span><br><span class="line"><span class="string">     Containers property allows to inject additions sidecars or to patch</span></span><br><span class="line"><span class="string">     existing containers. It can be useful for proxies, backup, etc.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   dnsConfig    &lt;Object&gt;</span></span><br><span class="line"><span class="string">     Specifies the DNS parameters of a pod. Parameters specified here will be</span></span><br><span class="line"><span class="string">     merged to the generated DNS configuration based on DNSPolicy.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   dnsPolicy    &lt;string&gt;</span></span><br><span class="line"><span class="string">     DNSPolicy sets DNS policy for the pod</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   extraArgs    &lt;map[string]string&gt;</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   extraEnvs    &lt;[]&gt;</span></span><br><span class="line"><span class="string">     ExtraEnvs that will be added to VMSelect pod</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   hostNetwork  &lt;boolean&gt;</span></span><br><span class="line"><span class="string">     HostNetwork controls whether the pod may use the node network namespace</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   image        &lt;Object&gt;</span></span><br><span class="line"><span class="string">     Image - docker image settings for VMStorage</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   initContainers       &lt;[]&gt;</span></span><br><span class="line"><span class="string">     InitContainers allows adding initContainers to the pod definition. Those</span></span><br><span class="line"><span class="string">     can be used to e.g. fetch secrets for injection into the VMSelect</span></span><br><span class="line"><span class="string">     configuration from external sources. Any errors during the execution of an</span></span><br><span class="line"><span class="string">     initContainer will lead to a restart of the Pod. More info:</span></span><br><span class="line"><span class="string">     https://kubernetes.io/docs/concepts/workloads/pods/init-containers/ Using</span></span><br><span class="line"><span class="string">     initContainers for any use case other then secret fetching is entirely</span></span><br><span class="line"><span class="string">     outside the scope of what the maintainers will support and by doing so, you</span></span><br><span class="line"><span class="string">     accept that this behaviour may break at any time without notice.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   livenessProbe        &lt;&gt;</span></span><br><span class="line"><span class="string">     LivenessProbe that will be added CRD pod</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   logFormat    &lt;string&gt;</span></span><br><span class="line"><span class="string">     LogFormat for VMSelect to be configured with. default or json</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   logLevel     &lt;string&gt;</span></span><br><span class="line"><span class="string">     LogLevel for VMSelect to be configured with.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   maintenanceInsertNodeIDs     &lt;[]integer&gt;</span></span><br><span class="line"><span class="string">     MaintenanceInsertNodeIDs - excludes given node ids from insert requests</span></span><br><span class="line"><span class="string">     routing, must contain pod suffixes - for pod-0, id will be 0 and etc. lets</span></span><br><span class="line"><span class="string">     say, you have pod-0, pod-1, pod-2, pod-3. to exclude pod-0 and pod-3 from</span></span><br><span class="line"><span class="string">     insert routing, define nodeIDs: [0,3]. Useful at storage expanding, when</span></span><br><span class="line"><span class="string">     you want to rebalance some data at cluster.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   maintenanceSelectNodeIDs     &lt;[]integer&gt;</span></span><br><span class="line"><span class="string">     MaintenanceInsertNodeIDs - excludes given node ids from select requests</span></span><br><span class="line"><span class="string">     routing, must contain pod suffixes - for pod-0, id will be 0 and etc.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   name &lt;string&gt;</span></span><br><span class="line"><span class="string">     Name is deprecated and will be removed at 0.22.0 release</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   nodeSelector &lt;map[string]string&gt;</span></span><br><span class="line"><span class="string">     NodeSelector Define which Nodes the Pods are scheduled on.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   podDisruptionBudget  &lt;Object&gt;</span></span><br><span class="line"><span class="string">     PodDisruptionBudget created by operator</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   podMetadata  &lt;Object&gt;</span></span><br><span class="line"><span class="string">     PodMetadata configures Labels and Annotations which are propagated to the</span></span><br><span class="line"><span class="string">     VMSelect pods.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   port &lt;string&gt;</span></span><br><span class="line"><span class="string">     Port for health check connetions</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   priorityClassName    &lt;string&gt;</span></span><br><span class="line"><span class="string">     Priority class assigned to the Pods</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   readinessProbe       &lt;&gt;</span></span><br><span class="line"><span class="string">     ReadinessProbe that will be added CRD pod</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   replicaCount &lt;integer&gt; -required-</span></span><br><span class="line"><span class="string">     ReplicaCount is the expected size of the VMStorage cluster. The controller</span></span><br><span class="line"><span class="string">     will eventually make the size of the running cluster equal to the expected</span></span><br><span class="line"><span class="string">     size.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   resources    &lt;Object&gt;</span></span><br><span class="line"><span class="string">     Resources container resource request and limits,</span></span><br><span class="line"><span class="string">     https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   rollingUpdateStrategy        &lt;string&gt;</span></span><br><span class="line"><span class="string">     RollingUpdateStrategy defines strategy for application updates Default is</span></span><br><span class="line"><span class="string">     OnDelete, in this case operator handles update process Can be changed for</span></span><br><span class="line"><span class="string">     RollingUpdate</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   runtimeClassName     &lt;string&gt;</span></span><br><span class="line"><span class="string">     RuntimeClassName - defines runtime class for kubernetes pod.</span></span><br><span class="line"><span class="string">     https://kubernetes.io/docs/concepts/containers/runtime-class/</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   schedulerName        &lt;string&gt;</span></span><br><span class="line"><span class="string">     SchedulerName - defines kubernetes scheduler name</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   secrets      &lt;[]string&gt;</span></span><br><span class="line"><span class="string">     Secrets is a list of Secrets in the same namespace as the VMSelect object,</span></span><br><span class="line"><span class="string">     which shall be mounted into the VMSelect Pods. The Secrets are mounted into</span></span><br><span class="line"><span class="string">     /etc/vm/secrets/&lt;secret-name&gt;.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   securityContext      &lt;&gt;</span></span><br><span class="line"><span class="string">     SecurityContext holds pod-level security attributes and common container</span></span><br><span class="line"><span class="string">     settings. This defaults to the default PodSecurityContext.</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   serviceScrapeSpec    &lt;&gt;</span></span><br><span class="line"><span class="string">     ServiceScrapeSpec that will be added to vmselect VMServiceScrape spec</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   serviceSpec  &lt;Object&gt;</span></span><br><span class="line"><span class="string">     ServiceSpec that will be create additional service for vmstorage</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   startupProbe &lt;&gt;</span></span><br><span class="line"><span class="string">     StartupProbe that will be added to CRD pod</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   storage      &lt;Object&gt;</span></span><br><span class="line"><span class="string">     Storage - add persistent volume for StorageDataPath its useful for</span></span><br><span class="line"><span class="string">     persistent cache</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   storageDataPath      &lt;string&gt;</span></span><br><span class="line"><span class="string">     StorageDataPath - path to storage data</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   terminationGracePeriodSeconds        &lt;integer&gt;</span></span><br><span class="line"><span class="string">     TerminationGracePeriodSeconds period for container graceful termination</span></span><br><span class="line"><span class="string"></span></span><br><span class="line"><span class="string">   tolerations  &lt;[]Object&gt;</span></span><br><span class="line"><span class="string">     Tolerations If specified, the pod&#x27;</span>s tolerations.</span><br><span class="line"></span><br><span class="line">   topologySpreadConstraints    &lt;[]&gt;</span><br><span class="line">     <span class="title class_">TopologySpreadConstraints</span> embedded kubernetes pod configuration option,</span><br><span class="line">     controls how pods are spread across your cluster among failure-domains such</span><br><span class="line">     <span class="keyword">as</span> regions, zones, nodes, and other user-defined topology domains</span><br><span class="line">     <span class="attr">https</span>:<span class="comment">//kubernetes.io/docs/concepts/workloads/pods/pod-topology-spread-constraints/</span></span><br><span class="line"></span><br><span class="line">   vmBackup     &lt;<span class="title class_">Object</span>&gt;</span><br><span class="line">     <span class="title class_">VMBackup</span> configuration <span class="keyword">for</span> backup</span><br><span class="line"></span><br><span class="line">   vmInsertPort &lt;string&gt;</span><br><span class="line">     <span class="title class_">VMInsertPort</span> <span class="keyword">for</span> <span class="title class_">VMInsert</span> connections</span><br><span class="line"></span><br><span class="line">   vmSelectPort &lt;string&gt;</span><br><span class="line">     <span class="title class_">VMSelectPort</span> <span class="keyword">for</span> <span class="title class_">VMSelect</span> connections</span><br><span class="line"></span><br><span class="line">   volumeMounts &lt;[]<span class="title class_">Object</span>&gt;</span><br><span class="line">     <span class="title class_">VolumeMounts</span> allows configuration <span class="keyword">of</span> additional <span class="title class_">VolumeMounts</span> on the output</span><br><span class="line">     <span class="title class_">Deployment</span> definition. <span class="title class_">VolumeMounts</span> specified will be appended to other</span><br><span class="line">     <span class="title class_">VolumeMounts</span> <span class="keyword">in</span> the <span class="title class_">VMSelect</span> container, that are generated <span class="keyword">as</span> a result <span class="keyword">of</span></span><br><span class="line">     <span class="title class_">StorageSpec</span> objects.</span><br><span class="line"></span><br><span class="line">   volumes      &lt;[]&gt;</span><br><span class="line">     <span class="title class_">Volumes</span> allows configuration <span class="keyword">of</span> additional volumes on the output <span class="title class_">Deployment</span></span><br><span class="line">     definition. <span class="title class_">Volumes</span> specified will be appended to other volumes that are</span><br><span class="line">     generated <span class="keyword">as</span> a result <span class="keyword">of</span> <span class="title class_">StorageSpec</span> objects.</span><br></pre></td></tr></table></figure>
+
+<p>直接应用上面定义的对象：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vmcluster-demo.<span class="property">yaml</span></span><br><span class="line">☸ ➜ kubectl get vmcluster</span><br><span class="line"><span class="variable constant_">NAME</span>             <span class="variable constant_">INSERT</span> <span class="variable constant_">COUNT</span>   <span class="variable constant_">STORAGE</span> <span class="variable constant_">COUNT</span>   <span class="variable constant_">SELECT</span> <span class="variable constant_">COUNT</span>   <span class="variable constant_">AGE</span>     <span class="variable constant_">STATUS</span></span><br><span class="line">vmcluster-demo   <span class="number">2</span>              <span class="number">2</span>               <span class="number">2</span>              7m21s   expanding</span><br></pre></td></tr></table></figure>
+
+<p>应用后 vm-operator 会 watch 到我们创建了该 CRD 对象，然后会根据我们的定义去自动创建对应的 VM 集群，也就是前面提到的几个组件服务：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl get pods</span><br><span class="line"><span class="variable constant_">NAME</span>                                       <span class="variable constant_">READY</span>   <span class="variable constant_">STATUS</span>    <span class="variable constant_">RESTARTS</span>      <span class="variable constant_">AGE</span></span><br><span class="line">vminsert-vmcluster-demo-84956d98b5-5ckft   <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             93s</span><br><span class="line">vminsert-vmcluster-demo-84956d98b5-kpcj6   <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             93s</span><br><span class="line">vmselect-vmcluster-demo-<span class="number">0</span>                  <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             3m7s</span><br><span class="line">vmselect-vmcluster-demo-<span class="number">1</span>                  <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             3m7s</span><br><span class="line">vmstorage-vmcluster-demo-<span class="number">0</span>                 <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             4m54s</span><br><span class="line">vmstorage-vmcluster-demo-<span class="number">1</span>                 <span class="number">1</span>/<span class="number">1</span>     <span class="title class_">Running</span>   <span class="number">0</span>             4m54s</span><br><span class="line">☸ ➜ kubectl get svc</span><br><span class="line"><span class="variable constant_">NAME</span>                       <span class="variable constant_">TYPE</span>        <span class="variable constant_">CLUSTER</span>-<span class="variable constant_">IP</span>      <span class="variable constant_">EXTERNAL</span>-<span class="variable constant_">IP</span>   <span class="title function_">PORT</span>(S)                      <span class="variable constant_">AGE</span></span><br><span class="line">vminsert-vmcluster-demo    <span class="title class_">ClusterIP</span>   <span class="number">10.102</span><span class="number">.145</span><span class="number">.24</span>   &lt;none&gt;        <span class="number">8480</span>/<span class="variable constant_">TCP</span>                     4m57s</span><br><span class="line">vmselect-vmcluster-demo    <span class="title class_">ClusterIP</span>   <span class="title class_">None</span>            &lt;none&gt;        <span class="number">8481</span>/<span class="variable constant_">TCP</span>                     6m31s</span><br><span class="line">vmstorage-vmcluster-demo   <span class="title class_">ClusterIP</span>   <span class="title class_">None</span>            &lt;none&gt;        <span class="number">8482</span>/<span class="variable constant_">TCP</span>,<span class="number">8400</span>/<span class="variable constant_">TCP</span>,<span class="number">8401</span>/<span class="variable constant_">TCP</span>   8m18s</span><br></pre></td></tr></table></figure>
+
+<p>我们只通过定义简单的 <code>VMCluster</code> 对象就可以来管理 VM 集群了，是不是非常方便，特别是当你组件副本数量非常多的时候不需要我们去手动配置 <code>-storageNode</code> 参数了。</p>
+<p>现在 VM 集群安装成功了，但是现在还没有任何数据，所以还需要去配置监控指标的抓取，这里我们可以直接去创建一个 <code>VMAgent</code> 对象即可，创建一个如下所示的对象：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"># vmagent-demo.<span class="property">yaml</span></span><br><span class="line"><span class="attr">apiVersion</span>: operator.<span class="property">victoriametrics</span>.<span class="property">com</span>/v1beta1</span><br><span class="line"><span class="attr">kind</span>: <span class="title class_">VMAgent</span></span><br><span class="line"><span class="attr">metadata</span>:</span><br><span class="line">  <span class="attr">name</span>: vmagent-demo</span><br><span class="line"><span class="attr">spec</span>:</span><br><span class="line">  <span class="attr">serviceScrapeNamespaceSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">podScrapeNamespaceSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">podScrapeSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">serviceScrapeSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">nodeScrapeSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">nodeScrapeNamespaceSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">staticScrapeSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">staticScrapeNamespaceSelector</span>: &#123;&#125;</span><br><span class="line">  <span class="attr">replicaCount</span>: <span class="number">1</span></span><br><span class="line">  <span class="attr">remoteWrite</span>:</span><br><span class="line">    - <span class="attr">url</span>: <span class="string">&quot;http://vminsert-vmcluster-demo.default.svc.cluster.local:8480/insert/0/prometheus/api/v1/write&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>同样要获取 <code>VMAgent</code> 的所有可配置的属性可以通过 <code>kubectl explain VMAgent.spec</code> 来获取，这里最主要的配置就是通过 <code>remoteWrite.url</code> 来指定远程写入的 URL 地址，也就是 <code>vminsert</code> 组件的服务地址，其他几个属性可以用来对要抓取的指标进行过滤。</p>
+<p>直接应用上面的 <code>VMAgent</code> 对象即可开始抓取监控数据：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vmagent-demo.<span class="property">yaml</span></span><br><span class="line">☸ ➜ kubectl get vmagent</span><br><span class="line"><span class="variable constant_">NAME</span>           <span class="variable constant_">AGE</span></span><br><span class="line">vmagent-demo   6s</span><br></pre></td></tr></table></figure>
+
+<p>创建后 vm-operator 会根据对应的描述创建一个对应的 <code>vmagent</code> 实例：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl get pods -l app.<span class="property">kubernetes</span>.<span class="property">io</span>/name=vmagent</span><br><span class="line"><span class="variable constant_">NAME</span>                                    <span class="variable constant_">READY</span>   <span class="variable constant_">STATUS</span>    <span class="variable constant_">RESTARTS</span>   <span class="variable constant_">AGE</span></span><br><span class="line">vmagent-vmagent-demo-6dcc7f9dfd-hxsff   <span class="number">2</span>/<span class="number">2</span>     <span class="title class_">Running</span>   <span class="number">0</span>          4m24s</span><br></pre></td></tr></table></figure>
+
+<p>可以看到 <code>vmagent</code> 有两个容器，一个是 <code>vmagent</code> 应用容器，另外一个是用于挂载 Secret 对象的 <code>config-reloader</code> 容器，它会 watch 配置的变化，并发送信号为 <code>vmagent</code> 重新加载配置，该 Secret 对象中就是定义的 <code>vmagent</code> 抓取指标的配置内容。</p>
+<p>我们可以运行以下命令使 <code>vmagent</code> 的端口可以从本地机器上访问。</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl port-forward svc/vmagent-vmagent-demo <span class="number">8429</span>:<span class="number">8429</span></span><br><span class="line"><span class="title class_">Forwarding</span> <span class="keyword">from</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">8429</span> -&gt; <span class="number">8429</span></span><br><span class="line"><span class="title class_">Forwarding</span> <span class="keyword">from</span> [::<span class="number">1</span>]:<span class="number">8429</span> -&gt; <span class="number">8429</span></span><br></pre></td></tr></table></figure>
+
+<p>我们可以在浏览器中访问 <a target="_blank" rel="noopener" href="http://127.0.0.1:8429/targets">http://127.0.0.1:8429/targets</a> 来检查 <code>vmagent</code> 采集的集群指标：</p>
+<p><img src="/assets/1703668417-5c9fb5084a49e2598ec92da0f9126dc2.jpeg"></p>
+<p><code>vmagent</code> 会通过 Kubernetes 服务发现去获取需要抓取的目标，此服务发现由 vm-operator 控制。</p>
+<h2 id="验证-VM-集群"><a href="#验证-VM-集群" class="headerlink" title="验证 VM 集群"></a>验证 VM 集群</h2><p>接下来我们安装 Grafana 来验证 VM 集群，这里为了简单我们就直接使用 Helm Chart 进行安装：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ helm repo add grafana <span class="attr">https</span>:<span class="comment">//grafana.github.io/helm-charts</span></span><br><span class="line">☸ ➜ helm repo update</span><br></pre></td></tr></table></figure>
+
+<p>我们可以在 values 中提前定义数据源和内置一些 dashboard，如下所示：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">cat &lt;&lt;<span class="variable constant_">EOF</span> | helm install grafana grafana/grafana -f -</span><br><span class="line">  <span class="attr">datasources</span>:</span><br><span class="line">    datasources.<span class="property">yaml</span>:</span><br><span class="line">      <span class="attr">apiVersion</span>: <span class="number">1</span></span><br><span class="line">      <span class="attr">datasources</span>:</span><br><span class="line">        - <span class="attr">name</span>: victoriametrics</span><br><span class="line">          <span class="attr">type</span>: prometheus</span><br><span class="line">          <span class="attr">orgId</span>: <span class="number">1</span></span><br><span class="line">          <span class="attr">url</span>: <span class="attr">http</span>:<span class="comment">//vmselect-vmcluster-demo.default.svc.cluster.local:8481/select/0/prometheus/</span></span><br><span class="line">          <span class="attr">access</span>: proxy</span><br><span class="line">          <span class="attr">isDefault</span>: <span class="literal">true</span></span><br><span class="line">          <span class="attr">updateIntervalSeconds</span>: <span class="number">10</span></span><br><span class="line">          <span class="attr">editable</span>: <span class="literal">true</span></span><br><span class="line"></span><br><span class="line">  <span class="attr">dashboardProviders</span>:</span><br><span class="line">   dashboardproviders.<span class="property">yaml</span>:</span><br><span class="line">     <span class="attr">apiVersion</span>: <span class="number">1</span></span><br><span class="line">     <span class="attr">providers</span>:</span><br><span class="line">     - <span class="attr">name</span>: <span class="string">&#x27;default&#x27;</span></span><br><span class="line">       <span class="attr">orgId</span>: <span class="number">1</span></span><br><span class="line">       <span class="attr">folder</span>: <span class="string">&#x27;&#x27;</span></span><br><span class="line">       <span class="attr">type</span>: file</span><br><span class="line">       <span class="attr">disableDeletion</span>: <span class="literal">true</span></span><br><span class="line">       <span class="attr">editable</span>: <span class="literal">true</span></span><br><span class="line">       <span class="attr">options</span>:</span><br><span class="line">         <span class="attr">path</span>: <span class="regexp">/var/</span>lib/grafana/dashboards/<span class="keyword">default</span></span><br><span class="line"></span><br><span class="line">  <span class="attr">dashboards</span>:</span><br><span class="line">    <span class="attr">default</span>:</span><br><span class="line">      <span class="attr">victoriametrics</span>:</span><br><span class="line">        <span class="attr">gnetId</span>: <span class="number">11176</span></span><br><span class="line">        <span class="attr">revision</span>: <span class="number">18</span></span><br><span class="line">        <span class="attr">datasource</span>: victoriametrics</span><br><span class="line">      <span class="attr">vmagent</span>:</span><br><span class="line">        <span class="attr">gnetId</span>: <span class="number">12683</span></span><br><span class="line">        <span class="attr">revision</span>: <span class="number">7</span></span><br><span class="line">        <span class="attr">datasource</span>: victoriametrics</span><br><span class="line">      <span class="attr">kubernetes</span>:</span><br><span class="line">        <span class="attr">gnetId</span>: <span class="number">14205</span></span><br><span class="line">        <span class="attr">revision</span>: <span class="number">1</span></span><br><span class="line">        <span class="attr">datasource</span>: victoriametrics</span><br><span class="line"><span class="variable constant_">EOF</span></span><br><span class="line"><span class="attr">NAME</span>: grafana</span><br><span class="line"><span class="variable constant_">LAST</span> <span class="attr">DEPLOYED</span>: <span class="title class_">Tue</span> <span class="title class_">May</span> <span class="number">17</span> <span class="number">17</span>:<span class="number">13</span>:<span class="number">14</span> <span class="number">2022</span></span><br><span class="line"><span class="attr">NAMESPACE</span>: <span class="keyword">default</span></span><br><span class="line"><span class="attr">STATUS</span>: deployed</span><br><span class="line"><span class="attr">REVISION</span>: <span class="number">1</span></span><br><span class="line"><span class="attr">NOTES</span>:</span><br><span class="line"><span class="number">1.</span> <span class="title class_">Get</span> your <span class="string">&#x27;admin&#x27;</span> user password by <span class="attr">running</span>:</span><br><span class="line"></span><br><span class="line">   kubectl get secret --namespace <span class="keyword">default</span> grafana -o jsonpath=<span class="string">&quot;&#123;.data.admin-password&#125;&quot;</span> | base64 --decode ; echo</span><br><span class="line"></span><br><span class="line"><span class="number">2.</span> <span class="title class_">The</span> <span class="title class_">Grafana</span> server can be accessed via port <span class="number">80</span> on the following <span class="variable constant_">DNS</span> name <span class="keyword">from</span> within your <span class="attr">cluster</span>:</span><br><span class="line"></span><br><span class="line">   grafana.<span class="property">default</span>.<span class="property">svc</span>.<span class="property">cluster</span>.<span class="property">local</span></span><br><span class="line"></span><br><span class="line">   <span class="title class_">Get</span> the <span class="title class_">Grafana</span> <span class="variable constant_">URL</span> to visit by running these commands <span class="keyword">in</span> the same <span class="attr">shell</span>:</span><br><span class="line"></span><br><span class="line">     <span class="keyword">export</span> <span class="variable constant_">POD_NAME</span>=$(kubectl get pods --namespace <span class="keyword">default</span> -l <span class="string">&quot;app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana&quot;</span> -o jsonpath=<span class="string">&quot;&#123;.items[0].metadata.name&#125;&quot;</span>)</span><br><span class="line">     kubectl --namespace <span class="keyword">default</span> port-forward $POD_NAME <span class="number">3000</span></span><br><span class="line"></span><br><span class="line"><span class="number">3.</span> <span class="title class_">Login</span> <span class="keyword">with</span> the password <span class="keyword">from</span> step <span class="number">1</span> and the <span class="attr">username</span>: admin</span><br><span class="line">#################################################################################</span><br><span class="line">######   <span class="attr">WARNING</span>: <span class="title class_">Persistence</span> is disabled!!! <span class="title class_">You</span> will lose your data when   #####</span><br><span class="line">######            the <span class="title class_">Grafana</span> pod is terminated.                            #####</span><br><span class="line">#################################################################################</span><br></pre></td></tr></table></figure>
+
+<p>安装完成后可以使用上面提示的命令在本地暴露 Grafana 服务：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ <span class="keyword">export</span> <span class="variable constant_">POD_NAME</span>=$(kubectl get pods --namespace <span class="keyword">default</span> -l <span class="string">&quot;app.kubernetes.io/name=grafana,app.kubernetes.io/instance=grafana&quot;</span> -o jsonpath=<span class="string">&quot;&#123;.items[0].metadata.name&#125;&quot;</span>)</span><br><span class="line">     kubectl --namespace <span class="keyword">default</span> port-forward $POD_NAME <span class="number">3000</span></span><br><span class="line"><span class="title class_">Forwarding</span> <span class="keyword">from</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span>:<span class="number">3000</span> -&gt; <span class="number">3000</span></span><br><span class="line"><span class="title class_">Forwarding</span> <span class="keyword">from</span> [::<span class="number">1</span>]:<span class="number">3000</span> -&gt; <span class="number">3000</span></span><br></pre></td></tr></table></figure>
+
+<p>登录的用户名为 <code>admin</code>，密码可以通过下面的命令获取：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl get secret --namespace <span class="keyword">default</span> grafana -o jsonpath=<span class="string">&quot;&#123;.data.admin-password&#125;&quot;</span> | base64 --decode ; echo</span><br></pre></td></tr></table></figure>
+
+<p>我们可以查看下 victoriametrics cluster 的 dashboard：</p>
+<p><img src="/assets/1703668417-0844ee17493d5458d12393435ffe09a5.png"></p>
+<p>正常可以看到如下所示的页面：</p>
+<p><img src="/assets/1703668417-3fedc310e6983ab6c48f12322e119b74.png"></p>
+<p>这是因为默认情况下 <code>VMAgent</code> 会采集 VM 集群相关组件的指标，包括 <code>vmagent</code> 本身的，所以我们可以正常看到 VM 集群的 Dashboard，但是没有采集其他的指标，比如 node-exporter，我们可以在 Grafana 中导入 <code>16098</code> 这个 dashboard：</p>
+<p><img src="/assets/1703668417-4c316be38c36e9d77298eebd4a7e866b.png"></p>
+<p>这个时候我们可以通过 <code>VMNodeScrape</code> 这个 CRD 对象来进行定义，<code>VMNodeScrape</code> 对象可以用来自动发现 Kubernetes 节点，创建如下所示的资源对象来采集 node-exporter 指标：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"># vmnode-exporter-scrape.<span class="property">yaml</span></span><br><span class="line"><span class="attr">apiVersion</span>: operator.<span class="property">victoriametrics</span>.<span class="property">com</span>/v1beta1</span><br><span class="line"><span class="attr">kind</span>: <span class="title class_">VMNodeScrape</span></span><br><span class="line"><span class="attr">metadata</span>:</span><br><span class="line">  <span class="attr">name</span>: node-exporter</span><br><span class="line"><span class="attr">spec</span>:</span><br><span class="line">  <span class="attr">path</span>: /metrics</span><br><span class="line">  <span class="attr">port</span>: <span class="string">&quot;9111&quot;</span> # 指定 node-exporter 的端口</span><br><span class="line">  <span class="attr">scrape_interval</span>: 15s</span><br><span class="line">#   relabelConfigs：  # relabel配置</span><br><span class="line">#   <span class="attr">selector</span>:  # 过滤节点</span><br></pre></td></tr></table></figure>
+
+<p>直接应用上面的对象即可：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vmnode-exporter-scrape.<span class="property">yaml</span></span><br><span class="line">☸ ➜ kubectl get vmnodescrape</span><br><span class="line"><span class="variable constant_">NAME</span>            <span class="variable constant_">AGE</span></span><br><span class="line">node-exporter   19s</span><br></pre></td></tr></table></figure>
+
+<p>创建后 vmagent 就会自动去识别该对象去对 node-exporter 进行抓取了：</p>
+<p><img src="/assets/1703668417-4766dde35f5372f123d8692abc09fa36.png"></p>
+<p>这个时候再去查看 node-exporter 的 dashboard 就正常了：</p>
+<p><img src="/assets/1703668417-f1b358df84b37980702a24bb54527149.png"></p>
+<p>此外还可以通过 <code>VMServiceScrape</code> 去定义要抓取的 Service 服务（Endpoints），它基于选择器为 <code>vmagent</code> 生成抓取配置，如果想要抓取没有定义 Service 的 Pod 的指标，则可以通过 <code>VMPodScrape</code> 来进行定义，同样还有报警相关的也都有相应的 CRD 来进行管理。vm-operator 大大降低了我们对 VM 集群的管理，非常推荐使用。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/27/%E4%BD%BF%E7%94%A8VictoriaMetrics-Operator%E7%AE%A1%E7%90%86VM%E9%9B%86%E7%BE%A4/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Zabbix优化建议[5.x]
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/27/victoriametrics%E5%9C%A8kubesphere%E4%B8%ADprometheus%E7%9A%84%E5%BA%94%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">victoriametrics在kubesphere中prometheus的应用</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

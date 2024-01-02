@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>如何使用Prometheus在GitLab中进行异常检测 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-如何使用Prometheus在GitLab中进行异常检测"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  如何使用Prometheus在GitLab中进行异常检测
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/11/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8Prometheus%E5%9C%A8GitLab%E4%B8%AD%E8%BF%9B%E8%A1%8C%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B/" class="article-date">
+  <time datetime="2023-12-11T06:36:09.000Z" itemprop="datePublished">2023-12-11</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>【转载】Prometheus 查询语言的最基本功能之一是实时汇总时间序列数据。GitLab基础架构团队的杰出工程师 Andrew Newdigate 认为 Prometheus 查询语言也可以用于检测时间序列数据中的异常。本博客文章解释了异常检测如何与 Prometheus 一起工作，并包括您需要在自己的系统上亲自尝试的代码片段。</p>
+<p>为什么异常检测有效？</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<p>异常检测对 GitLab 非常重要的四个关键原因：</p>
+<ul>
+<li>诊断事件：我们可以快速找出哪些服务执行超出正常范围，并减少检测事件的平均时间（MTTD），从而更快地解决问题。</li>
+<li>检测应用程序性能回归：例如，如果引入 n+1 回归，发现一个服务以很高的速率调用另一个服务，可以迅速找到问题并加以解决。</li>
+<li>识别并解决滥用问题：GitLab 提供免费计算（GitLab CI&#x2F;CD）和托管（GitLab Pages），会被一小部分用户加以利用。</li>
+<li>安全性：异常检测对于发现 GitLab 时间序列数据中的异常趋势至关重要。</li>
+</ul>
+<p>由于以上以及其他许多原因，Andrew 研究了是否可以仅通过使用 Prometheus 查询和规则对 GitLab 时间序列数据执行异常检测。</p>
+<p>正确的聚合级别是什么？</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<p>首先，时间序列数据必须正确聚合。尽管可以将相同的技术应用到许多其他类型的指标，Andrew 使用了标准计数器 http_requests_total 作为数据源进行演示。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">http_requests_total&#123;</span><br><span class="line"> job=&quot;apiserver&quot;,</span><br><span class="line"> method=&quot;GET&quot;,</span><br><span class="line"> controller=&quot;ProjectsController&quot;,</span><br><span class="line"> status_code=&quot;200&quot;,</span><br><span class="line"> environment=&quot;prod&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>上述示例指标有一些额外的维度：method，controller，status_code，environment，如同 Prometheus 添加的维度 instance 和 job 一样。</p>
+<p>接下来，您必须为正在使用的数据选择正确的聚合级别。这有点像“金发姑娘问题”-太多，太少还是恰到好处-但这对于发现异常至关重要。过多地汇总数据，数据将缩减为过小的维度，从而产生两个潜在的问题：</p>
+<ol>
+<li>可能会错过真正的异常，因为聚合隐藏了数据子集中出现的问题。</li>
+<li>如果确实检测到异常，则不对异常进行更多调查，则很难将其归因于系统的特定部分。</li>
+</ol>
+<p>但是，聚合的数据汇太少，最终可能会得到一系列样本量非常小的数据。如此可能导致误报，并可能将真实数据标记为离群值（outliers）。</p>
+<p>恰到好处：我们的经验表明，正确的聚合级别是服务级别，因此我们将 job 和 environment 标签标签包括进来，但删除了其他维度。在本演讲的以下部分中使用的数据聚合包括：job、http requests、五分钟速率（基本上是五分钟窗口中覆盖 job 和 environment 之上的速率）。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">- record: job:http_requests:rate5m</span><br><span class="line">expr: sum without(instance, method, controller, status_code)</span><br><span class="line">(rate(http_requests_total[5m]))</span><br><span class="line"># --&gt; job:http_requests:rate5m&#123;job=&quot;apiserver&quot;, environment=&quot;prod&quot;&#125;  21321</span><br><span class="line"># --&gt; job:http_requests:rate5m&#123;job=&quot;gitserver&quot;, environment=&quot;prod&quot;&#125;  2212</span><br><span class="line"># --&gt; job:http_requests:rate5m&#123;job=&quot;webserver&quot;, environment=&quot;prod&quot;&#125;  53091</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>使用 z-score 进行异常检测</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<p>一些统计学的主要原理可以应用于 Prometheus 检测异常。</p>
+<p>如果知道 Prometheus 序列的平均值和标准偏差（σ），则可以使用该系列中的任何样本来计算 z-score。z-score 表示为：与平均值的标准偏差值。因此 z-score 为 0 表示 z-score 与具有正态分布的数据的平均值相同，而 z-score 为 1 则相对于平均值为 1.0σ，依此类推。</p>
+<p>假设基础数据是正态分布的，则 99.7％ 的样本的 z-score 应介于 0 到 3 之间。z-score 距离 0 越远，它越不可能出现。我们将此特性应用于检测 Prometheus 序列中的异常。</p>
+<p>使用样本数量较大的数据计算指标的平均值和标准偏差。在此示例中，我们使用了一周的数据。如果假设我们每分钟评估一次记录规则，那么一周的时间，能获得 10,000 多个样本。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># Long-term average value for the series</span><br><span class="line">- record: job:http_requests:rate5m:avg_over_time_1w</span><br><span class="line">expr: avg_over_time(job:http_requests:rate5m[1w])</span><br><span class="line"></span><br><span class="line"># Long-term standard deviation for the series</span><br><span class="line">- record: job:http_requests:rate5m:stddev_over_time_1w</span><br><span class="line">expr: stddev_over_time(job:http_requests:rate5m[1w])</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>一旦有了聚合的平均值和标准差，就可以计算 Prometheus 查询的 z-score。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># Z-Score for aggregation</span><br><span class="line">(</span><br><span class="line">job:http_requests:rate5m -</span><br><span class="line">job:http_requests:rate5m:avg_over_time_1w</span><br><span class="line">) /  job:http_requests:rate5m:stddev_over_time_1w</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>根据正态分布的统计原理，我们可以假设任何超出大约 +3 到 -3 范围的值都是异常。我们可以围绕这一原则建立警报。例如，当聚合超出此范围超过五分钟时，我们将收到警报。</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBUjZjZ2JsYVRXTmFnVjdpYTViTm1pY0s1YmtLUGVwZjY0SmxodTlkSXZsaWFKcWE4WVRTTkdSeExnLzY0MA?x-oss-process=image/format,png"></p>
+<p>GitLab.com 页面服务 48 小时的 RPS， ±3 z-score 区域为绿色</p>
+<p>z-score 在图形上难以解释，因为它们没有度量单位。但是此图表上的异常很容易检测。出现在绿色区域（表示 z-score 在 +3 或 -3 范围内）之外的任何值都是异常。</p>
+<p><strong>如果不是正态分布怎么办？</strong></p>
+<p>但是，请稍等：我们大跃进的假设潜在的聚合具有正态分布。如果我们使用非正态分布的数据计算 z-score，结果将不正确。有许多统计技术可以测试您的数据是否为正态分布，但是最好的选择是测试您的潜在数据的 z-score 约为 +4 到 -4。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">(</span><br><span class="line"> max_over_time(job:http_requests:rate5m[1w]) - avg_over_time(job:http_requests:rate5m[1w])</span><br><span class="line">) / stddev_over_time(job:http_requests:rate5m[1w])</span><br><span class="line"># --&gt; &#123;job=&quot;apiserver&quot;, environment=&quot;prod&quot;&#125;  4.01</span><br><span class="line"># --&gt; &#123;job=&quot;gitserver&quot;, environment=&quot;prod&quot;&#125;  3.96</span><br><span class="line"># --&gt; &#123;job=&quot;webserver&quot;, environment=&quot;prod&quot;&#125;  2.96</span><br><span class="line"></span><br><span class="line">(</span><br><span class="line"> min_over_time(job:http_requests:rate5m[1w]) - avg_over_time(job:http_requests:rate5m[1w])</span><br><span class="line">) / stddev_over_time(job:http_requests:rate5m[1w])</span><br><span class="line"># --&gt; &#123;job=&quot;apiserver&quot;, environment=&quot;prod&quot;&#125;  -3.8</span><br><span class="line"># --&gt; &#123;job=&quot;gitserver&quot;, environment=&quot;prod&quot;&#125;  -4.1</span><br><span class="line"># --&gt; &#123;job=&quot;webserver&quot;, environment=&quot;prod&quot;&#125;  -3.2</span><br><span class="line"></span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>两个 Prometheus 查询测试 z-score 的最小和最大值。</p>
+<p>如果结果返回的范围是 +20 到 -20，则尾巴太长，结果将倾斜。还要记住，这需要在聚合而不是非聚合的序列上运行。可能没有正态分布的指标包括诸如错误率、等待时间、队列长度等，但是无论如何，在固定阈值下告警，许多这些指标都趋向于工作的很好。</p>
+<p>使用季节性检测异常</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<p>尽管时间序列数据为正态分布时，计算 z-score 效果很好，但是还有第二种方法可以产生更准确的异常检测结果。季节性是时间序列指标的一个特征，其中该指标会经历定期且可预测的变化，这些变化会在每个周期重复出现。</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBdHJybnBaM0pWR0oydjVzY1VlaWJ4ZnBKZUhSc2JDdE1DWE5uWU9wM0Z0dU1YNkpMUEpueXpnZy82NDA?x-oss-process=image/format,png"></p>
+<p>周一至周日连续四个星期的每秒 Gitaly 请求（RPS）</p>
+<p>该图说明了连续四周的周一到周日的 7 天中 Gitaly 的 RPS（每秒请求数）速率。七天范围称为“偏移”，表示需要度量的模式。图上的每个星期都有不同的颜色。数据的季节性由图表中所示趋势的一致性表示 —— 每个星期一早晨，RPS 速率都会上升，而在星期五晚上，RPS 速率会逐渐下降，每周如此。</p>
+<p>通过利用时间序列数据中的季节性，可以创建更准确的预测，从而更好地进行异常检测。</p>
+<p><strong>如何利用季节性？</strong></p>
+<p>使用 Prometheus 计算季节性，需要在一些不同的统计原理上迭代。</p>
+<p>在第一次迭代中，我们通过将目前滚动的一周的增长趋势（注：平均值）与前一周的值相加来计算。通过从目前滚动的一周平均值中减去上周的滚动一周平均值来计算增长趋势。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- record: job:http_requests:rate5m_prediction</span><br><span class="line">  expr: &gt;</span><br><span class="line">    job:http_requests:rate5m offset 1w                     # Value from last period</span><br><span class="line">    + job:http_requests:rate5m:avg_over_time_1w            # One-week growth trend</span><br><span class="line">    - job:http_requests:rate5m:avg_over_time_1w offset 1w</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>第一次迭代有点狭窄；我们使用本周和上周的五分钟窗口来得出我们的预测。</p>
+<p>在第二次迭代中，将上周的四个小时平均值作为平均值，并将其与本周进行比较，以扩大范围。因此，如果要预测一个星期一上午 8 点的指标值，不是使用一周前的相同五分钟窗口，而是使用前一周早上的上午 6 点至上午 10 点的指标平均值。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- record: job:http_requests:rate5m_prediction</span><br><span class="line">  expr: &gt;</span><br><span class="line">    avg_over_time(job:http_requests:rate5m[4h] offset 166h) # Rounded value from last period</span><br><span class="line">    + job:http_requests:rate5m:avg_over_time_1w             # Add 1w growth trend</span><br><span class="line">    - job:http_requests:rate5m:avg_over_time_1w offset 1w</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>在查询中使用 166 个小时而不是一周，因为要根据一天中的当前时间使用四个小时，因此需要将偏移减少两个小时。</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBRVRsYkVGbDJxVWliaG1wdkY0UzFFNno0MnNlOE50TlcyWUNUSWFCUHFsd2ljalM5Wm5Ud3M1TGcvNjQw?x-oss-process=image/format,png"></p>
+<p>两周的 Gitaly 服务 RPS（黄色）vs 预测（蓝色）</p>
+<p>将实际的 Gitaly RPS（黄色）与 预测（蓝色）进行比较表明，计算相当准确。但是，这种方法有缺陷。因为 5 月 1 日是国际劳动节，一个许多国家庆祝的节日，GitLab 的使用量低于平常的星期三。由于增长率是由前一周的使用情况决定的，因此我们对下周（5 月 8 日，星期三）RPS 的预测会比 如果 5 月 1 日（星期三）没有假期更低。</p>
+<p>可以通过在 5 月 1 日（星期三）之前连续三周（之前的星期三，再之前的星期三和三周之前的星期三）进行三个预测来解决此问题。查询保持不变，但偏移量已调整。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">- record: job:http_requests:rate5m_prediction</span><br><span class="line">  expr: &gt;</span><br><span class="line">   quantile(0.5,</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 166h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 1w</span><br><span class="line">       , &quot;offset&quot;, &quot;1w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">     or</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 334h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 2w</span><br><span class="line">       , &quot;offset&quot;, &quot;2w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">     or</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 502h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 3w</span><br><span class="line">       , &quot;offset&quot;, &quot;3w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">   )</span><br><span class="line">   without (offset)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBb1owZU5Ob2NwbmczSjVtR1FQMTdyREJPalQ1S3V0UFpnS3N3cmxrQXRzbmF3Z0Nod1ZKMmVBLzY0MA?x-oss-process=image/format,png"></p>
+<p>三个星期三的三个预测与实际 5 月 8 日（星期三，国际劳动节之后的一周）的 Gitaly RPS</p>
+<p>在该图上，绘制了 5 月 8 日星期三和 5 月 8 日之前连续三个星期的三个预测。可以看到其中两个预测是好的，但是 5 月 1 日的预测仍远未达到基准。</p>
+<p>而且，我们不需要三个预测，我们想要一个预测。取平均值是不可行的，因为它将被倾斜的 5 月 1 日 RPS 数据所稀释。相反，我们要计算中位数。Prometheus 没有中位数查询，但可以使用分位数聚合来代替中位数。该方法的一个问题是，试图在一个聚合中包括三个系列，而这三个系列实际上在三周内都是相同的系列。换句话说，它们都具有相同的标签，因此连接它们很棘手。为避免混淆，我们创建了一个名为 offset 的标签，并使用 label-replace 函数为三个星期添加 offset。接下来，在分位数聚合中，将其去除，以获得了三个中间值。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">- record: job:http_requests:rate5m_prediction</span><br><span class="line">  expr: &gt;</span><br><span class="line">   quantile(0.5,</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 166h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 1w</span><br><span class="line">       , &quot;offset&quot;, &quot;1w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">     or</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 334h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 2w</span><br><span class="line">       , &quot;offset&quot;, &quot;2w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">     or</span><br><span class="line">     label_replace(</span><br><span class="line">       avg_over_time(job:http_requests:rate5m[4h] offset 502h)</span><br><span class="line">       + job:http_requests:rate5m:avg_over_time_1w - job:http_requests:rate5m:avg_over_time_1w offset 3w</span><br><span class="line">       , &quot;offset&quot;, &quot;3w&quot;, &quot;&quot;, &quot;&quot;)</span><br><span class="line">   )</span><br><span class="line">   without (offset)</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>现在，从三个聚合系列中得出中值的预测更加准确。</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBZ01sMFluMGljaWJSaGFPc0dpY2tudDlvSnZIRmljaWF6QnRWRTNmNUtMYk5tRkJVRzlTa3h0bkZpYTlnLzY0MA?x-oss-process=image/format,png"></p>
+<p>中位数预测与实际 Gitaly RPS 的比较，5 月 8 日（星期三，国际劳动节之后的一周）</p>
+<p><strong>怎么知道预测是真正准确的？</strong></p>
+<p>为了测试预测的准确性，可以返回 z-score。可以使用 z-score 来测量样本与标准偏差预测值之间的差距。偏离预测的标准偏差越多，则特定值是异常可能性就越大。</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9BMUhLVlhzZkhOazFlNGlhd2liSm55NHRyVXZMOTZ3WGRBY0ZIUFlhbHNicW1pYTlaN1pYZ3NEeDRuakNkYjlKOTRzTnJ5dW9Jc2szZk51aWM4NndSeW1lcGcvNjQw?x-oss-process=image/format,png"></p>
+<p>Gitaly 服务的预测正常范围 ±1.5σ</p>
+<p>我们可以更新 Grafana 图表以使用季节性预测而不是每周滚动平均值。一天中特定时间的正常范围以绿色阴影显示。任何落在绿色阴影区域之外的东西都被认为是异常值。在这种情况下，离群值发生在周日下午，此时我们的云提供商遇到了一些网络问题。在我们的预测的任一侧使用±2σ的边界是确定季节性预测的异常值的一种很好的方法。</p>
+<p>如何使用 Prometheus 设置警报</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<p>如果要为异常事件设置警报，可以对 Prometheus 应用一个非常简单的规则，该规则检查指标的 z-score 是否在标准偏差 +2 或 -2 之间。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">- alert: RequestRateOutsideNormalRange</span><br><span class="line">  expr: &gt;</span><br><span class="line">   abs(</span><br><span class="line">     (</span><br><span class="line">       job:http_requests:rate5m - job:http_requests:rate5m_prediction</span><br><span class="line">     ) / job:http_requests:rate5m:stddev_over_time_1w</span><br><span class="line">   ) &gt; 2</span><br><span class="line">  for: 10m</span><br><span class="line">  labels:</span><br><span class="line">    severity: warning</span><br><span class="line">  annotations:</span><br><span class="line">    summary: Requests for job &#123;&#123; $labels.job &#125;&#125; are outside of expected operating parameters</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<p>在 GitLab，我们使用了自定义路由规则，该规则会在检测到任何异常时 pings Slack，但不会寻呼值班的支持人员。</p>
+<p>总结</p>
+<p><img src="https://imgconvert.csdnimg.cn/aHR0cHM6Ly9tbWJpei5xcGljLmNuL21tYml6X3BuZy9iMllsVEx1R2JLRHNiSnp1cG5JTFZGaFB0TWFSam12UEtZUnFUTWppYkU5cG5kOG9pYXdMVnJRYk9IUWU0d0JYa0JRa3pwS0NXUEtCcVdnT0xnd2NjQnVnLzY0MA?x-oss-process=image/format,png"></p>
+<ul>
+<li>Prometheus 可用于某些类型的异常检测</li>
+<li>正确级别的数据聚合是异常检测的关键</li>
+<li>如果数据具有正态分布，则 z-score 是一种有效的方法</li>
+<li>季节性指标可以为异常检测提供出色的结果</li>
+</ul>
+<p>译文链接：<a target="_blank" rel="noopener" href="https://www.cyningsun.com/01-22-2020/use-prometheus-for-anomaly-detection.html">https://www.cyningsun.com/01-22-2020/use-prometheus-for-anomaly-detection.html</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/11/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8Prometheus%E5%9C%A8GitLab%E4%B8%AD%E8%BF%9B%E8%A1%8C%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/12/Prometheus%E5%8E%9F%E7%90%86%E5%92%8C%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Prometheus原理和使用介绍
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/08/SkyWalking-%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">SkyWalking 告警规则配置说明</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

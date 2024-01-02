@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus远程写参数配置 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus远程写参数配置"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus远程写参数配置
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/14/Prometheus%E8%BF%9C%E7%A8%8B%E5%86%99%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE/" class="article-date">
+  <time datetime="2023-12-14T09:50:53.000Z" itemprop="datePublished">2023-12-14</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id=""><a href="#" class="headerlink" title=""></a></h1><h2 id="一、概述"><a href="#一、概述" class="headerlink" title="一、概述"></a>一、概述</h2><p> prometheus可以通过远程存储来解决自身存储的瓶颈，所以其提供了远程存储接口，并可以通过过配置文件进行配置（prometheus.yml）。一般情况下我们使用其默认的配置参数，但是为了满足特定的应用场景需要对其进行优化，本章节介绍可通过<a target="_blank" rel="noopener" href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write">远程写入配置</a>使用的调整参数，如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"> 1 # The URL of the endpoint to send samples to.</span><br><span class="line"> 2 url: &lt;string&gt;</span><br><span class="line"> 3 </span><br><span class="line"> 4 # Timeout for requests to the remote write endpoint.</span><br><span class="line"> 5 [ remote_timeout: &lt;duration&gt; | default = 30s ]</span><br><span class="line"> 6 </span><br><span class="line"> 7 # List of remote write relabel configurations.</span><br><span class="line"> 8 write_relabel_configs:</span><br><span class="line"> 9   [ - &lt;relabel_config&gt; ... ]</span><br><span class="line">10 </span><br><span class="line">11 # Sets the `Authorization` header on every remote write request with the</span><br><span class="line">12 # configured username and password.</span><br><span class="line">13 # password and password_file are mutually exclusive.</span><br><span class="line">14 basic_auth:</span><br><span class="line">15   [ username: &lt;string&gt; ]</span><br><span class="line">16   [ password: &lt;string&gt; ]</span><br><span class="line">17   [ password_file: &lt;string&gt; ]</span><br><span class="line">18 </span><br><span class="line">19 # Sets the `Authorization` header on every remote write request with</span><br><span class="line">20 # the configured bearer token. It is mutually exclusive with `bearer_token_file`.</span><br><span class="line">21 [ bearer_token: &lt;string&gt; ]</span><br><span class="line">22 </span><br><span class="line">23 # Sets the `Authorization` header on every remote write request with the bearer token</span><br><span class="line">24 # read from the configured file. It is mutually exclusive with `bearer_token`.</span><br><span class="line">25 [ bearer_token_file: /path/to/bearer/token/file ]</span><br><span class="line">26 </span><br><span class="line">27 # Configures the remote write request&#x27;s TLS settings.</span><br><span class="line">28 tls_config:</span><br><span class="line">29   [ &lt;tls_config&gt; ]</span><br><span class="line">30 </span><br><span class="line">31 # Optional proxy URL.</span><br><span class="line">32 [ proxy_url: &lt;string&gt; ]</span><br><span class="line">33 </span><br><span class="line">34 # Configures the queue used to write to remote storage.</span><br><span class="line">35 queue_config:</span><br><span class="line">36   # Number of samples to buffer per shard before we block reading of more</span><br><span class="line">37   # samples from the WAL. It is recommended to have enough capacity in each</span><br><span class="line">38   # shard to buffer several requests to keep throughput up while processing</span><br><span class="line">39   # occasional slow remote requests.</span><br><span class="line">40   [ capacity: &lt;int&gt; | default = 500 ]</span><br><span class="line">41   # Maximum number of shards, i.e. amount of concurrency.</span><br><span class="line">42   [ max_shards: &lt;int&gt; | default = 1000 ]</span><br><span class="line">43   # Minimum number of shards, i.e. amount of concurrency.</span><br><span class="line">44   [ min_shards: &lt;int&gt; | default = 1 ]</span><br><span class="line">45   # Maximum number of samples per send.</span><br><span class="line">46   [ max_samples_per_send: &lt;int&gt; | default = 100]</span><br><span class="line">47   # Maximum time a sample will wait in buffer.</span><br><span class="line">48   [ batch_send_deadline: &lt;duration&gt; | default = 5s ]</span><br><span class="line">49   # Initial retry delay. Gets doubled for every retry.</span><br><span class="line">50   [ min_backoff: &lt;duration&gt; | default = 30ms ]</span><br><span class="line">51   # Maximum retry delay.</span><br><span class="line">52   [ max_backoff: &lt;duration&gt; | default = 100ms ]</span><br></pre></td></tr></table></figure>
+
+<p>二、远程写入特征</p>
+<p>我们本节主要探讨queue_config部分参数（其它参数比较简单，一看就知道什么意思，没有可优化的地方）。</p>
+<h3 id="2-1-整体结构"><a href="#2-1-整体结构" class="headerlink" title="2.1 整体结构"></a>2.1 整体结构</h3><p>每个远程写入目标都会启动一个内存写队列（shards），这个队列从WAL中缓存数据（关于WAL可以参考存储部分：<a target="_blank" rel="noopener" href="https://github.com/prometheus/prometheus/blob/master/docs/storage.md">https://github.com/prometheus/prometheus/blob/master/docs/storage.md</a>，原理类似于hbase中的WAL），通过队列去将指标数据写到有远程存储服务中,数据流如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1        |--&gt;  queue (shard_1)   --&gt; remote endpoint</span><br><span class="line">2  WAL --|--&gt;  queue (shard_...) --&gt; remote endpoint</span><br><span class="line">3        |--&gt;  queue (shard_n)   --&gt; remote endpoint</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-重试机制"><a href="#2-2-重试机制" class="headerlink" title="2.2 重试机制"></a>2.2 重试机制</h3><p>这需要注意的是，当一个分片备份并填满队列时，Prometheus将阻止从WAL中读取数据到任何分片。（关于这点就涉及到对以上参数优化，后面参数capacity部分讲解）</p>
+<p>远程端点写入失败会进行重试操作，并且保证数据不会丢失，除非远程端点保持关闭状态超过2小时，因为2小时后，WAL将被压缩，尚未发送的数据将丢失。重试时间见下面参数：min_backoff和max_backoff。</p>
+<h3 id="2-3-内存使用"><a href="#2-3-内存使用" class="headerlink" title="2.3 内存使用"></a>2.3 内存使用</h3><p>使用远程写入会增加Prometheus的内存占用量。大多数用户报告的内存使用量增加了约25％，但这取决于数据的形状。对于WAL中的每个系列，远程写代码都会缓存系列ID到标签值的映射，从而显着增加内存使用率。</p>
+<p>除了系列缓存之外，每个分片及其队列还会增加内存使用量。分片内存与<code>number of shards * (capacity + max_samples_per_send)成正比</code>。当进行优化调整时，请考虑减少<code>max_shards</code>增加的数量，同时提高<code>capacity</code>和<code>max_samples_per_send参数的大小从而</code>避免无意间耗尽内存。默认<code>capacity</code>和 <code>max_samples_per_send的取值</code>将使得每每个shard使用内存小于100kb。</p>
+<h2 id="三、参数"><a href="#三、参数" class="headerlink" title="三、参数"></a>三、参数</h2><h3 id="3-1-capacity"><a href="#3-1-capacity" class="headerlink" title="3.1 capacity"></a>3.1 capacity</h3><p>定义：每个内存队列（shard：分片）的容量。</p>
+<p>一旦WAL被阻塞（造成阻塞的原因请看2.1），就无法将样本附加到任何分片，并且所有吞吐量都将停止。所以在大多数情况下，单个队列容量应足够打以避免阻塞其他分片，但是太大的容量可能会导致过多的内存消耗，并导致重新分片期间清除队列的时间更长。</p>
+<p><strong>容量建议</strong>：将容量设置为3-10倍<code>max_samples_per_send</code>。</p>
+<h3 id="3-2-max-shards"><a href="#3-2-max-shards" class="headerlink" title="3.2 max_shards"></a>3.2 max_shards</h3><p>顾名思义，最大的分片数（即队列数），也可以理解为远程写的并行度。peometheus远程写的时候会使用所有的分片，只有在写队列落后于远程写的速度，使用的队列数会达到max_shards,目的在于提高远程写的吞吐量。</p>
+<p>PS：在操作过程中，Prometheus将根据传入的采样率，未发送的未处理样本数以及发送每个样本所花费的时间，连续计算要使用的最佳分片数。（<strong>实际的分片数是动态调整的</strong>）</p>
+<h3 id="3-3-min-shards"><a href="#3-3-min-shards" class="headerlink" title="3.3 min_shards"></a>3.3 min_shards</h3><p>最小分片配置Prometheus使用的最小分片数量，并且是远程写入开始时使用的分片数量。如果远程写入落后，Prometheus将自动扩大分片的数量，因此大多数用户不必调整此参数。但是，增加最小分片数将使Prometheus在计算所需分片数时避免在一开始就落后。</p>
+<h3 id="3-4-max-samples-per-send"><a href="#3-4-max-samples-per-send" class="headerlink" title="3.4 max_samples_per_send"></a>3.4 max_samples_per_send</h3><p>定义：每次远程写发送的最大指标数量，即批处理；</p>
+<p>这个值依赖于远程存储系统，对于一些系统而言，在没有显著增加延迟的情况下发送更多指标数据而运行良好，然而，对于另外一些系统而言，每次请求中发送大量指标数据可能导致其出现故障，使用的默认值是适用于绝大多数系统的。</p>
+<h3 id="3-5-batch-send-deadline"><a href="#3-5-batch-send-deadline" class="headerlink" title="3.5 batch_send_deadline"></a>3.5 batch_send_deadline</h3><h3 id="-1"><a href="#-1" class="headerlink" title=""></a><a target="_blank" rel="noopener" href="https://prometheus.io/docs/practices/remote_write/#batch_send_deadline"></a></h3><p><code>定义：单一分片批量发送指标数据的最大等待时间；</code></p>
+<p>即使排队的分片尚未达到max_samples_per_send，也会发送请求。 对于对延迟不敏感的小批量系统，可以增加批量发送的截止时间，以提高请求效率。</p>
+<h3 id="3-6-min-backoff"><a href="#3-6-min-backoff" class="headerlink" title="3.6 min_backoff"></a>3.6 min_backoff</h3><p>定义：远程写失败的最小等待时间；</p>
+<p>min_backoff是第一次的重试等待时间，第二次等待时间是其2倍，以此类推，直到max_backoff的值；</p>
+<h3 id="3-7-max-backoff"><a href="#3-7-max-backoff" class="headerlink" title="3.7 max_backoff"></a>3.7 max_backoff</h3><p>定义：远程写失败的最大等待时间；</p>
+<p>参考文档：<a target="_blank" rel="noopener" href="https://prometheus.io/docs/practices/remote_write/">https://prometheus.io/docs/practices/remote_write&#x2F;</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/14/Prometheus%E8%BF%9C%E7%A8%8B%E5%86%99%E5%8F%82%E6%95%B0%E9%85%8D%E7%BD%AE/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/14/Prometheus%E5%AD%98%E5%82%A8%E5%8E%9F%E7%90%86/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Prometheus存储原理
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/14/Prometheus%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus基本原理</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

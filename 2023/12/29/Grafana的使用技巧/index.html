@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana的使用技巧 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana的使用技巧"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana的使用技巧
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/29/Grafana%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" class="article-date">
+  <time datetime="2023-12-29T02:47:38.000Z" itemprop="datePublished">2023-12-29</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">12 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>Grafana 是一个开源的时序性统计和监控平台，支持例如 elasticsearch、graphite、influxdb 等众多的数据源，并以功能强大的界面编辑器著称。我们在前端监控方面引入 grafana 后取得了一些不错的反馈，但是很多用户由于之前没有接触过 Grafana 经常会来询问相关问题，因此希望本文对大家在 grafana 使用方面有所帮助。</p>
+<p>Grafana 的权限分为三个等级：Viewer、Editor 和 Admin，Viewer 只能查看 Grafana 已经存在的面板而不能编辑，Editor 可以编辑面板，Admin 则拥有全部权限例如添加数据源、添加插件、增加 API KEY。</p>
+<p>对于普通用户来说，Viewer 权限已经足够，本文接下来的内容主要和 Editor 权限有关。由于篇幅有限，本文作为范例的数据源为 graphite，同时也只介绍最常用的 Graph 图表的配置方法。</p>
+<h2 id="数值类型的常用指标含义"><a href="#数值类型的常用指标含义" class="headerlink" title="数值类型的常用指标含义"></a>数值类型的常用指标含义</h2><ul>
+<li><p>count_ps</p>
+</li>
+<li><p>每秒的数量</p>
+</li>
+<li><p>count</p>
+</li>
+<li><p>每十秒的数量</p>
+</li>
+<li><p>mean_90</p>
+</li>
+<li><p>去除最高10%的数据后的平均值</p>
+</li>
+<li><p>upper_90</p>
+</li>
+<li><p>去除最高10%的数据后的最高值</p>
+</li>
+</ul>
+<h2 id="总量误区"><a href="#总量误区" class="headerlink" title="总量误区"></a>总量误区</h2><p>这里有一个常见的 Grafana 误区，因为经常有用数值类型的 count_ps来顺便获取每秒打点数量的情况，注意在这种情况下，一段时间内的打点总量需要使用 count___ps 的 avg 平均值来乘以这段时间的秒数来计算，而不是通过界面上的 Total 直接读取。</p>
+<p>这是因为，在界面上一条曲线能够展示的点的数量是有限的，Grafana 会根据你的窗口宽度来决定返回的点数，因为像<code>一天</code>这样的时间段肯定没办法在界面上展示每一秒的点，毕竟总量为86400个点就算带鱼屏也不可能挤得下。对于无法展示的点，Grafana 默认是使用 avg 平均值的行为来修正返回点的值，举个栗子，如下图：</p>
+<p><img src="/assets/1703817654-da741bf9da37ec3cbfdb27ed2cbe6f11.webp"></p>
+<p>上图时间范围是一天，上部分为曲线面板的值，下部分为 面饼图表的值，并且上部分图标的曲线为 count 类型（十秒聚一次），可以看到 avg 平均值为 683，那么总量应该为 682 乘以 6 （如果是 count_ps 这里则是60） 乘以 60 （一小时60分钟）再乘以 24 （一天24小时）得到589万，与图片中下部分的582万相近，因此上部分 total 的117万是一个完完全全让人误解的值，可以认为它毫无意义进而直接无视掉。</p>
+<h2 id="误差"><a href="#误差" class="headerlink" title="误差"></a>误差</h2><p>上文中我们计算出来的589万和界面上的582万其实也有一点误差，不过这是可以接受的，因为 statsd 一般情况下是 UDP 的形式（它其实有 TCP 的形式），所以如果想要完全正确的数据，那么最好把打点相关的数据也入库，从数据库里后置查询出来的才是完全可靠。</p>
+<h2 id="模板变量"><a href="#模板变量" class="headerlink" title="模板变量"></a>模板变量</h2><p>模板变量能够动态地控制面板中的查询语句，是十分重要的功能。经常可以在面板的左上角发现它们，如下图：</p>
+<p><img src="/assets/1703817654-b2928bf6b280e8c770918193b7191e18.svg"></p>
+<h2 id="模板变量的写法"><a href="#模板变量的写法" class="headerlink" title="模板变量的写法"></a>模板变量的写法</h2><p>模板变量支持 <code>$name</code> 和 <code>[[name]]</code> 的写法，针对 graphite 数据源主要使用前者，例如：<code>stats.timers.fe.test.$key.count_ps</code></p>
+<h2 id="新建模板变量"><a href="#新建模板变量" class="headerlink" title="新建模板变量"></a>新建模板变量</h2><p>Grafana 界面上齿轮按钮 -&gt; Templating -&gt; 点击 New，即可出现类似如下的界面：</p>
+<p><img src="/assets/1703817654-ef7ea0c94b737a215402a7432df34bc9.svg"></p>
+<p>本段主要介绍 Query 类型的写法。</p>
+<ul>
+<li><p>Name</p>
+</li>
+<li><p>该变量的名称，不支持特殊字符例如$</p>
+</li>
+<li><p>Refresh</p>
+</li>
+<li><p>可选<code>Never</code>，<code>On Dashboard Load</code>和<code>On Time Range Change</code></p>
+</li>
+<li><p>如果该变量的值经常动态增加的话则选 <code>On Time Range Change</code>，否则 <code>On Dashboard Load</code> 就足够了，Query 类型千万不要选 Never，否则变量只会在你点进来编辑变量时才会更新</p>
+</li>
+<li><p>Query</p>
+</li>
+<li><p>查询语句，例如 stats.timers.fe.test.*</p>
+</li>
+<li><p>编写时 Grafana 不会触发请求，需要在输入框外面点击一下，查询到的值就会显示在下边了</p>
+</li>
+</ul>
+<p>模板变量中的 Query 其实也支持模板变量，例如<code>stats.timers.fe.test.$key.*</code> 这样的语句，会在 $key 变量变化时自动刷新值，是不是有一点 MVVM 的感觉。这个功能用来联动多个模板变量可以大幅度减少 Grafana 一次查询的时间。</p>
+<h2 id="模板变量的隐藏玩法"><a href="#模板变量的隐藏玩法" class="headerlink" title="模板变量的隐藏玩法"></a>模板变量的隐藏玩法</h2><p>模板变量甚至可以用在 Grafana 的跳转中，这个隐藏玩法带来了很多便利。在 <code>Link</code> 或者 <code>Dashboard</code> 里 URL 中任意位置填入 $name ，那么用户点击该链接跳转时 Grafana 同样会替换该变量来让你跳到正确的链接去。这和其他系统整合起来能够做到很不错的用户体验，例如跳转到 kibana 那边去查询日志。</p>
+<p>另外，Custom 类型的模板变量可以允许用户在变量下拉框中自行输入值，也是一个经常用到的类型，并且模板变量会和当前链接中的 querystring 部分的<code>var-$&#123;name&#125;</code> 同步，配合起来可以轻松地让第三方系统和 Grafana 互相精准地跳转</p>
+<h2 id="Grafana-面板编辑器"><a href="#Grafana-面板编辑器" class="headerlink" title="Grafana 面板编辑器"></a>Grafana 面板编辑器</h2><p>以 Editor 权限的账号进入到任意面板中，点击某个图表继而点击小弹窗中的 Edit 按钮，即可进入图表的编辑器界面。对于编辑器本文只介绍图表的重要配置，Metrics，Legend 和 Display</p>
+<h2 id="Metrcis"><a href="#Metrcis" class="headerlink" title="Metrcis"></a>Metrcis</h2><p><img src="/assets/1703817654-78c4f4f168e7ab1377b1235f4b3c89f6.svg"></p>
+<ul>
+<li><p>编辑模式</p>
+</li>
+<li><p>上图箭头指向的 <code>toggle editor mode</code> 可以控制编辑模式，关闭则需要手动输入查询语句，开启则是如上图的可以在界面上动态增删改的模式。</p>
+</li>
+<li><p>数据源</p>
+</li>
+<li><p><code>Panel data source</code> 一定要选对，否则查不到对应的路径，并且很有可能冒出来 Mock 数据让人一脸懵逼。</p>
+</li>
+</ul>
+<p><img src="/assets/1703817654-59dc1882427981465c6be535a1f9917c.svg"></p>
+<p>开启动态编辑模式时可以在点击上图中每个框框，这时 Grafana 会自动加载该位置在数据源中的值，并且你也可以在这里选择模板变量来动态控制。</p>
+<p><img src="/assets/1703817654-868cfe72bf63ff2338b11f2a156dec91.svg"></p>
+<p>点击尾巴上的加号，会冒出来对应数据源的函数，可以做一些高级的功能，这个也是本文下半部分的重点，稍后再做介绍。graphite 的函数比较多，其他数据源会少一些。</p>
+<h2 id="Legend"><a href="#Legend" class="headerlink" title="Legend"></a>Legend</h2><p>Legend 主要控制曲线的名称和值的展示，比较简单，这里列出一下他们的含义</p>
+<ul>
+<li><p>As Table</p>
+</li>
+<li><p>是否以表格形式展示</p>
+</li>
+<li><p>To the right</p>
+</li>
+<li><p>是展示在图表右边还是在下面</p>
+</li>
+<li><p>Width</p>
+</li>
+<li><p>面板时间段内的最小值否则强制限定宽度</p>
+</li>
+<li><p>Min</p>
+</li>
+<li><p>面板时间段内的最小值</p>
+</li>
+<li><p>Avg</p>
+</li>
+<li><p>面板时间段内的平均值</p>
+</li>
+<li><p>Total</p>
+</li>
+<li><p>面板时间段内的值的总量，如上文所说获取数值类型的总量时这个 Total 是一个很让人误解的参数</p>
+</li>
+<li><p>Max</p>
+</li>
+<li><p>面板时间段内的最大值</p>
+</li>
+<li><p>Current</p>
+</li>
+<li><p>面板时间段内的当前值</p>
+</li>
+</ul>
+<h2 id="Display"><a href="#Display" class="headerlink" title="Display"></a>Display</h2><p>Display 控制图表的点和线的展示，有一些比较重要的参数</p>
+<ul>
+<li><p>Draw Modes -&gt; Lines</p>
+</li>
+<li><p>是否绘制点之间的线段</p>
+</li>
+<li><p>Draw Modes -&gt; Points</p>
+</li>
+<li><p>是否绘制点</p>
+</li>
+<li><p>Hover info -&gt; Mode</p>
+</li>
+<li><p>悬浮面板上展示的方式，值为 <code>All serires</code>（展示该时间点的所有线段的值）和 <code>single</code>（只展示鼠标指着的那一条线段）</p>
+</li>
+<li><p>Hover info -&gt; Sort Order</p>
+</li>
+<li><p>悬浮面板上线条的排序，一般选择 Decreasing</p>
+</li>
+<li><p>Stacking &amp; Null value -&gt; Null value</p>
+</li>
+<li><p>这个比较重要，需要根据点的密度来动态决定，如果点少很容易让人误解两个点中间也存在点。</p>
+</li>
+<li><p>点多时，选择 connected</p>
+</li>
+<li><p>点少时，选择 null</p>
+</li>
+</ul>
+<h2 id="高级函数"><a href="#高级函数" class="headerlink" title="高级函数"></a>高级函数</h2><p>以 graphite 为例子，打点路径中的 KEY 只支持大小写字母、数字、中划线和下划线，这会导致前端的路径（经常包含 # 和 :path）存不下来，因此我们只能提前转译，例如将 # 转译为 ANCHOR，将 :path 转译为 PATH ，再将 &#x2F; 转译为 -，这样在变量模板中展示的就是比较怪异的前端路径，不过好在我们有函数，可以在界面上把它替换回来。</p>
+<p><img src="/assets/1703817654-07ee04e476f13473e8a5f95f57d72163.svg"></p>
+<p>点击编辑界面 Metrics 面板中编辑模式的加号，添加 <code>aliaSub</code> 函数，并依此填入上图的三种的替换规则，在界面上就可以看到如下图的正常路径了：</p>
+<p><img src="/assets/1703817654-42cb4786c1c5cbea296066067a49ec87.svg"></p>
+<p>aliaSub 只是其中一个简单的 alias 函数，用来处理曲线的名称，更多的函数是被用来处理单个查询的聚合、多条曲线的聚合、展示不同时间线、计算和过滤，本节会介绍其中一些经常用到的函数。</p>
+<h2 id="聚合单个查询的多条匹配曲线的总量-Combine-sumSeries"><a href="#聚合单个查询的多条匹配曲线的总量-Combine-sumSeries" class="headerlink" title="聚合单个查询的多条匹配曲线的总量 Combine -&gt; sumSeries"></a>聚合单个查询的多条匹配曲线的总量 Combine -&gt; sumSeries</h2><p>例如，假设 <code>stats_count.fe.test.*</code> 有几十个匹配值，那么这个查询就会在图表中展示几十条曲线，此时如何获取所有曲线的总值呢？</p>
+<p>不需要在打点时多打一份总量数据，直接使用 <code>sumSeries</code> 函数即可，<code>sumSeries(stats_count.fe.test.*)</code></p>
+<h2 id="时间线迁移-Transform-timeShift"><a href="#时间线迁移-Transform-timeShift" class="headerlink" title="时间线迁移 Transform -&gt; timeShift"></a>时间线迁移 Transform -&gt; timeShift</h2><p>想要在这个时间段内同时展示前一天的的曲线？<code>timeShift(Query, &#39;-1d&#39;)</code>即可</p>
+<h2 id="去除异常值-Filter-removeAboveValue"><a href="#去除异常值-Filter-removeAboveValue" class="headerlink" title="去除异常值 Filter -&gt; removeAboveValue"></a>去除异常值 Filter -&gt; removeAboveValue</h2><p>如果数值类型中出现了异常的值，例如平均为 1秒 的情况下出现了几百万秒的情况，那么就可以通过众多的过滤函数在界面上直接过滤掉而不是去修改打点代码，<code>removeAboveValue(Query, 10000)</code>即可</p>
+<h2 id="重命名函数"><a href="#重命名函数" class="headerlink" title="重命名函数"></a>重命名函数</h2><ul>
+<li><p>alias</p>
+</li>
+<li><p>直接重命名该曲线，参数为曲线名称</p>
+</li>
+<li><p>aliasByNode(4, 5, 6)</p>
+</li>
+<li><p>将曲线命名为原名称的第4、5、6段</p>
+</li>
+<li><p>aliasSub</p>
+</li>
+<li><p>正则替换名称中的某一段</p>
+</li>
+</ul>
+<h2 id="多条曲线数值的聚合-Special-groupByNode"><a href="#多条曲线数值的聚合-Special-groupByNode" class="headerlink" title="多条曲线数值的聚合 Special -&gt; groupByNode"></a>多条曲线数值的聚合 Special -&gt; groupByNode</h2><p>sumSeries 函数只能简单地将多条数据的最终值加起来，如果不是末尾位置的就不行了，而且也不支持除了 sum 外的功能，例如 avg 平均，使用 groupByNode 就可以动态地对指定位置的多个数值类型进行聚合了，如下图：</p>
+<p><img src="/assets/1703817654-76c82d41b168617077f427594b588591.svg"></p>
+<h2 id="计算多个-Query-组成的成功率-Calculate-asPercent"><a href="#计算多个-Query-组成的成功率-Calculate-asPercent" class="headerlink" title="计算多个 Query 组成的成功率 Calculate -&gt; asPercent"></a>计算多个 Query 组成的成功率 Calculate -&gt; asPercent</h2><p>假设我们有如下几条打点：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">stats.timers.fe.test.error1.count</span><br><span class="line">stats.timers.fe.test.error2.count</span><br><span class="line">stats.timers.fe.test.error3.count</span><br><span class="line">stats.timers.fe.test.success.count</span><br></pre></td></tr></table></figure>
+
+<p>此时想要计算 success 的成功比例，如何做呢？</p>
+<p>在这种相较复杂的情况下，就不能只靠一个 Query 来解决了，首先我们创建两个 Query，如下：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">stats.timers.fe.test.*.count （Query 序列号为 #A）</span><br><span class="line">stats.timers.fe.test.success.count （Query 序列号为 #B）</span><br></pre></td></tr></table></figure>
+
+<p>再创建第三个 Query，值为 <code>asPercent(#B, sumSeries(#A)</code>，顾名思义，首先将 #A 的查询聚合起来得到总值，再用 asPercent 来进行除法即可。</p>
+<p>通过如上的几个例子，可以看到函数强大的功能，即使是很复杂的在以前需要用后端代码来实现的部分，都可以通过多条Query和多个函数的互相嵌套来在界面上简单地实现。</p>
+<p>每个数据源都有对应的函数开发文档，例如 graphite。Grafana 正是凭借着对众多数据源以及函数的支持，才能在一个网页界面上完成这么多强大的功能。</p>
+<h2 id="其他"><a href="#其他" class="headerlink" title="其他"></a>其他</h2><h2 id="报警"><a href="#报警" class="headerlink" title="报警"></a>报警</h2><p>Grafana 在 4.0 版本后增加了报警功能，不过 Grafana 的报警属于数据源的后置查询，实时性不大能满足需求，我们公司有一个开源的 banshee ，就是为了解决这个问题。</p>
+<p>banshee 使用了三西格马定律，支持基于阈值和趋势的报警，同时提供开放的 API 和 webhook 并默认集成了 Slack。banshee 和数据源位于同一个位置（statsd 的后端），因此可以保证时效性，也因为报警的独立性质所以对 Grafana 版本没有任何要求。</p>
+<h2 id="statsd-打点的限制"><a href="#statsd-打点的限制" class="headerlink" title="statsd 打点的限制"></a>statsd 打点的限制</h2><p>Grafana 依赖的如果是时序性数据库，那么每一个 KEY 都会对应一个文件来存储数据，例如 <code>stats.timers.fe.test.*</code> 相当于 <code>stats/timers/fe/test</code> 文件夹下的所有文件，因此必须注意打点路径不要有过多的组合，比如将省份和市作为 KEY 时的组合很容易就能占到 1G 以上的数据导致磁盘爆掉。</p>
+<p>为了避免组合过多导致路径污染，请尽量保证每个 KEY 中格式化掉点，例如替换成下划线，另外打点路径可以尽量多加一点前缀，例如将<code>stats.timers.fe.test.*</code> 改为 <code>stats.timers.fe.test.v1.*</code> ，这样一旦污染后，清理数据时可以直接把 v1 整个文件夹删除而不是删除 test 这个根路径，用以保留你的历史正常的打点数据。</p>
+<h2 id="后端查询-Grafana-数据"><a href="#后端查询-Grafana-数据" class="headerlink" title="后端查询 Grafana 数据"></a>后端查询 Grafana 数据</h2><p>一般推荐使用 API KEY 来查询 Grafana 的数据，Admin 权限账号可以在界面中生成上文三种权限的 API KEY，不过 Grafana 默认会开启 Basic Auth，使用账号密码即可通过 Grafana 的鉴权，例如<code>http://$&#123;account&#125;:$&#123;password&#125;@$&#123;grafana_host&#125;/api/org</code>。</p>
+<p>当然，最好是拥有数据源的读权限来直接读取数据。</p>
+<h2 id="匿名模式"><a href="#匿名模式" class="headerlink" title="匿名模式"></a>匿名模式</h2><p>有时候用户确实没有 Grafana 的账号，但他就是想看面板，怎么办？此时就得 Grafana 的匿名模式出马了。</p>
+<p>Grafana 配置文件中有 <code>auth.anonymous</code> 配置段，<code>enabled</code> 控制开关，<code>org_name</code> 控制开启匿名模式的组织，<code>org_role</code> 控制匿名者的权限。组织开启匿名意味着非登录用户能够直接跳过 Grafana 无权限地查询数据源，因此请保证数据源的安全，例如限定内网访问。</p>
+<h2 id="最后"><a href="#最后" class="headerlink" title="最后"></a>最后</h2><p>本文介绍了 Grafana 相对高级的一些使用技巧，除了可以看到 Grafana 的强大功能以外，也应该注意到 Grafana 只是一个时序性很强的统计监控平台，一些非时序性质的功能例如报错的聚合和报错的日志等应该交给更专业的去做，例如 sentry 和 ELK。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/29/Grafana%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/29/%E7%9B%91%E6%8E%A7%E4%B8%8E%E5%8F%AF%E8%A7%82%E6%B5%8B-%E4%B8%80/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            监控与可观测[一]
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/28/PromQL%E8%BF%9B%E9%98%B6%E4%B8%8E%E8%BF%90%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">PromQL进阶与运用</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

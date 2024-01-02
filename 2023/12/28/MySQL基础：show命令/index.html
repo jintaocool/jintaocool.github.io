@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>MySQL基础：show命令 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Mysql-MySQL基础：show命令"
+  class="article article-type-Mysql"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  MySQL基础：show命令
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/28/MySQL%E5%9F%BA%E7%A1%80%EF%BC%9Ashow%E5%91%BD%E4%BB%A4/" class="article-date">
+  <time datetime="2023-12-28T02:18:58.000Z" itemprop="datePublished">2023-12-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Mysql/">Mysql</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">15 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="show命令"><a href="#show命令" class="headerlink" title="show命令"></a>show命令</h2><p><strong>show</strong>命令可以提供关于数据库、表、列，或关于服务器的状态信息。</p>
+<h3 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h3><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br></pre></td><td class="code"><pre><span class="line"># 显示二进制文件以及文件大小（需要开启二进制日志记录功能）</span><br><span class="line"><span class="keyword">SHOW</span> &#123;<span class="type">BINARY</span> <span class="operator">|</span> MASTER&#125; LOGS</span><br><span class="line"></span><br><span class="line"># 显示二进制文件的执行过程</span><br><span class="line"><span class="keyword">SHOW</span> BINLOG EVENTS [<span class="keyword">IN</span> <span class="string">&#x27;log_name&#x27;</span>] [<span class="keyword">FROM</span> pos] [LIMIT [<span class="keyword">offset</span>,] row_count]</span><br><span class="line"></span><br><span class="line"># 显示MySQL当前支持哪些字符集</span><br><span class="line"><span class="keyword">SHOW</span> <span class="type">CHARACTER</span> <span class="keyword">SET</span> [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示MySQL支持字符集的排序规则</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">COLLATION</span> [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示表的列信息（等同于<span class="keyword">DESC</span>，需要先创建表）</span><br><span class="line"><span class="keyword">SHOW</span> [<span class="keyword">FULL</span>] COLUMNS <span class="keyword">FROM</span> tbl_name [<span class="keyword">FROM</span> db_name] [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示已经创建的库，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> DATABASE db_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的事件，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> EVENT event_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的函数，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">FUNCTION</span> func_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的存储过程，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">PROCEDURE</span> proc_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的表，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> tbl_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的触发器，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">TRIGGER</span> trigger_name</span><br><span class="line"></span><br><span class="line"># 显示已经创建的视图，创建时的语句</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">VIEW</span> view_name</span><br><span class="line"></span><br><span class="line"># 显示mysql中所有数据库的名称</span><br><span class="line"><span class="keyword">SHOW</span> DATABASES [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示存储引擎的详细信息</span><br><span class="line"><span class="keyword">SHOW</span> ENGINE engine_name &#123;STATUS <span class="operator">|</span> MUTEX&#125;</span><br><span class="line"></span><br><span class="line"># 显示数据库支持的存储引擎和默认存储引擎</span><br><span class="line"><span class="keyword">SHOW</span> [STORAGE] ENGINES</span><br><span class="line"></span><br><span class="line"># 显示最后一个执行语句所产生的错误信息</span><br><span class="line"><span class="keyword">SHOW</span> ERRORS [LIMIT [<span class="keyword">offset</span>,] row_count]</span><br><span class="line"></span><br><span class="line"># 显示事件信息</span><br><span class="line"><span class="keyword">SHOW</span> EVENTS</span><br><span class="line"></span><br><span class="line"># 服务器内部调试，显示一个指定存储的内部实现的表示形式过程</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">FUNCTION</span> CODE func_name</span><br><span class="line"></span><br><span class="line"># 显示存储函数信息（需要先创建存储函数）</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">FUNCTION</span> STATUS [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示指定用户拥有的权限</span><br><span class="line"><span class="keyword">SHOW</span> GRANTS <span class="keyword">FOR</span> <span class="keyword">user</span></span><br><span class="line"></span><br><span class="line"># 显示表索引信息（需要先创建索引）</span><br><span class="line"><span class="keyword">SHOW</span> INDEX <span class="keyword">FROM</span> tbl_name [<span class="keyword">FROM</span> db_name]</span><br><span class="line"></span><br><span class="line"># 显示Master当前正在使用的二进制信息</span><br><span class="line"><span class="keyword">SHOW</span> MASTER STATUS</span><br><span class="line"></span><br><span class="line"># 列举在表缓存中当前被打开的非TEMPORARY表</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">OPEN</span> TABLES [<span class="keyword">FROM</span> db_name] [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示MySQL插件信息</span><br><span class="line"><span class="keyword">SHOW</span> PLUGINS</span><br><span class="line"></span><br><span class="line"># 服务器内部调试，显示一个指定存储的内部实现的表示形式过程</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">PROCEDURE</span> CODE proc_name</span><br><span class="line"></span><br><span class="line"># 显示存储过程信息（需要先创建存储过程）</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">PROCEDURE</span> STATUS [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示MySQL所支持的所有权限，及权限可操作的对象</span><br><span class="line"><span class="keyword">SHOW</span> PRIVILEGES</span><br><span class="line"></span><br><span class="line"># 显示系统中正在运行的所有进程，普通用户只能查看自己的进行信息</span><br><span class="line"><span class="keyword">SHOW</span> [<span class="keyword">FULL</span>] PROCESSLIST</span><br><span class="line"></span><br><span class="line"># 显示当前会话执行语句资源使用情况</span><br><span class="line"><span class="keyword">SHOW</span> PROFILE [types] [<span class="keyword">FOR</span> QUERY n] [<span class="keyword">OFFSET</span> n] [LIMIT n]</span><br><span class="line"></span><br><span class="line"># 显示当前会话执行语句资源使用情况</span><br><span class="line"><span class="keyword">SHOW</span> PROFILES</span><br><span class="line"></span><br><span class="line"># 显示relaylog事件信息（需要先做主从复制）</span><br><span class="line"><span class="keyword">SHOW</span> RELAYLOG EVENTS [<span class="keyword">IN</span> <span class="string">&#x27;log_name&#x27;</span>] [<span class="keyword">FROM</span> pos] [LIMIT [<span class="keyword">offset</span>,] row_count]</span><br><span class="line"></span><br><span class="line"># 显示Master主机上已注册的复制主机列表（需要先做主从复制）</span><br><span class="line"><span class="keyword">SHOW</span> SLAVE HOSTS</span><br><span class="line"></span><br><span class="line"># 显示Slave主机状态信息（需要先做主从复制）</span><br><span class="line"><span class="keyword">SHOW</span> SLAVE STATUS [<span class="keyword">FOR</span> CHANNEL channel]</span><br><span class="line"></span><br><span class="line"># 显示MySQL状态信息</span><br><span class="line"><span class="keyword">SHOW</span> [<span class="keyword">GLOBAL</span> <span class="operator">|</span> SESSION] STATUS [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示表属性信息</span><br><span class="line"><span class="keyword">SHOW</span> <span class="keyword">TABLE</span> STATUS [<span class="keyword">FROM</span> db_name] [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示当前数据库中所有表的名称</span><br><span class="line"><span class="keyword">SHOW</span> [<span class="keyword">FULL</span>] TABLES [<span class="keyword">FROM</span> db_name] [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示触发器信息（需要先创建触发器）</span><br><span class="line"><span class="keyword">SHOW</span> TRIGGERS [<span class="keyword">FROM</span> db_name] [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示MySQL变量信息</span><br><span class="line"><span class="keyword">SHOW</span> [<span class="keyword">GLOBAL</span> <span class="operator">|</span> SESSION] VARIABLES [like_or_where]</span><br><span class="line"></span><br><span class="line"># 显示最后一个执行语句所产生的警告信息</span><br><span class="line"><span class="keyword">SHOW</span> WARNINGS [LIMIT [<span class="keyword">offset</span>,] row_count]</span><br></pre></td></tr></table></figure>
+
+<h3 id="实例"><a href="#实例" class="headerlink" title="实例"></a>实例</h3><h4 id="显示建表建库语句"><a href="#显示建表建库语句" class="headerlink" title="显示建表建库语句"></a>显示建表建库语句</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> DATABASES;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> Database           <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="operator">|</span> information_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> performance_schema <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> pubmmrpg           <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> student            <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sys                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+</span></span><br><span class="line"><span class="number">6</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> <span class="keyword">CREATE</span> DATABASE MYSQL;</span><br><span class="line"><span class="operator">+</span><span class="comment">----------+----------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> Database <span class="operator">|</span> <span class="keyword">Create</span> Database                                                <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+----------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> MYSQL    <span class="operator">|</span> <span class="keyword">CREATE</span> DATABASE `MYSQL` <span class="comment">/*!40100 DEFAULT CHARACTER SET utf8 */</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+----------------------------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> USE mysql;</span><br><span class="line"></span><br><span class="line">Database changed</span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> TABLES;</span><br><span class="line"><span class="operator">+</span><span class="comment">---------------------------+</span></span><br><span class="line"><span class="operator">|</span> Tables_in_mysql           <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------------------------+</span></span><br><span class="line"><span class="operator">|</span> columns_priv              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> db                        <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> engine_cost               <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> event                     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> func                      <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> general_log               <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> gtid_executed             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> help_category             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> help_keyword              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> help_relation             <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> help_topic                <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> innodb_index_stats        <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> innodb_table_stats        <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ndb_binlog_index          <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> plugin                    <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> proc                      <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> procs_priv                <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> proxies_priv              <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> server_cost               <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> servers                   <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave_master_info         <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave_relay_log_info      <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave_worker_info         <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slow_log                  <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> tables_priv               <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> time_zone                 <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> time_zone_leap_second     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> time_zone_name            <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> time_zone_transition      <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> time_zone_transition_type <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> <span class="keyword">user</span>                      <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">---------------------------+</span></span><br><span class="line"><span class="number">31</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> mysql.user\G;</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">       <span class="keyword">Table</span>: <span class="keyword">user</span></span><br><span class="line"><span class="keyword">Create</span> <span class="keyword">Table</span>: <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> `<span class="keyword">user</span>` (</span><br><span class="line">  `Host` <span class="type">char</span>(<span class="number">60</span>) <span class="keyword">COLLATE</span> utf8_bin <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">  `<span class="keyword">User</span>` <span class="type">char</span>(<span class="number">32</span>) <span class="keyword">COLLATE</span> utf8_bin <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">  `Select_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Insert_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Update_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Delete_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Drop_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Reload_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Shutdown_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Process_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `File_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Grant_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `References_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Index_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Alter_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Show_db_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Super_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_tmp_table_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Lock_tables_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Execute_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Repl_slave_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Repl_client_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_view_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Show_view_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_routine_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Alter_routine_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_user_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Event_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Trigger_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `Create_tablespace_priv` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `ssl_type` enum(<span class="string">&#x27;&#x27;</span>,<span class="string">&#x27;ANY&#x27;</span>,<span class="string">&#x27;X509&#x27;</span>,<span class="string">&#x27;SPECIFIED&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;&#x27;</span>,</span><br><span class="line">  `ssl_cipher` <span class="type">blob</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  `x509_issuer` <span class="type">blob</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  `x509_subject` <span class="type">blob</span> <span class="keyword">NOT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  `max_questions` <span class="type">int</span>(<span class="number">11</span>) unsigned <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span>,</span><br><span class="line">  `max_updates` <span class="type">int</span>(<span class="number">11</span>) unsigned <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span>,</span><br><span class="line">  `max_connections` <span class="type">int</span>(<span class="number">11</span>) unsigned <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span>,</span><br><span class="line">  `max_user_connections` <span class="type">int</span>(<span class="number">11</span>) unsigned <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span>,</span><br><span class="line">  `plugin` <span class="type">char</span>(<span class="number">64</span>) <span class="keyword">COLLATE</span> utf8_bin <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;mysql_native_password&#x27;</span>,</span><br><span class="line">  `authentication_string` text <span class="keyword">COLLATE</span> utf8_bin,</span><br><span class="line">  `password_expired` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  `password_last_changed` <span class="type">timestamp</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  `password_lifetime` <span class="type">smallint</span>(<span class="number">5</span>) unsigned <span class="keyword">DEFAULT</span> <span class="keyword">NULL</span>,</span><br><span class="line">  `account_locked` enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>) <span class="type">CHARACTER</span> <span class="keyword">SET</span> utf8 <span class="keyword">NOT</span> <span class="keyword">NULL</span> <span class="keyword">DEFAULT</span> <span class="string">&#x27;N&#x27;</span>,</span><br><span class="line">  <span class="keyword">PRIMARY</span> KEY (`Host`,`<span class="keyword">User</span>`)</span><br><span class="line">) ENGINE<span class="operator">=</span>MyISAM <span class="keyword">DEFAULT</span> CHARSET<span class="operator">=</span>utf8 <span class="keyword">COLLATE</span><span class="operator">=</span>utf8_bin COMMENT<span class="operator">=</span><span class="string">&#x27;Users and global privileges&#x27;</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> COLUMNS <span class="keyword">FROM</span> <span class="keyword">user</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------------+-----------------------------------+------+-----+-----------------------+-------+</span></span><br><span class="line"><span class="operator">|</span> Field                  <span class="operator">|</span> Type                              <span class="operator">|</span> <span class="keyword">Null</span> <span class="operator">|</span> Key <span class="operator">|</span> <span class="keyword">Default</span>               <span class="operator">|</span> Extra <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------------+-----------------------------------+------+-----+-----------------------+-------+</span></span><br><span class="line"><span class="operator">|</span> Host                   <span class="operator">|</span> <span class="type">char</span>(<span class="number">60</span>)                          <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span> PRI <span class="operator">|</span>                       <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> <span class="keyword">User</span>                   <span class="operator">|</span> <span class="type">char</span>(<span class="number">32</span>)                          <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span> PRI <span class="operator">|</span>                       <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Select_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Insert_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Update_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Delete_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Drop_priv              <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Reload_priv            <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Shutdown_priv          <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Process_priv           <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> File_priv              <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Grant_priv             <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> References_priv        <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Index_priv             <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Alter_priv             <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Show_db_priv           <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Super_priv             <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_tmp_table_priv  <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Lock_tables_priv       <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Execute_priv           <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Repl_slave_priv        <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Repl_client_priv       <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_view_priv       <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Show_view_priv         <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_routine_priv    <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Alter_routine_priv     <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_user_priv       <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Event_priv             <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Trigger_priv           <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> Create_tablespace_priv <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ssl_type               <span class="operator">|</span> enum(<span class="string">&#x27;&#x27;</span>,<span class="string">&#x27;ANY&#x27;</span>,<span class="string">&#x27;X509&#x27;</span>,<span class="string">&#x27;SPECIFIED&#x27;</span>) <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span>                       <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ssl_cipher             <span class="operator">|</span> <span class="type">blob</span>                              <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> x509_issuer            <span class="operator">|</span> <span class="type">blob</span>                              <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> x509_subject           <span class="operator">|</span> <span class="type">blob</span>                              <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> max_questions          <span class="operator">|</span> <span class="type">int</span>(<span class="number">11</span>) unsigned                  <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="number">0</span>                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> max_updates            <span class="operator">|</span> <span class="type">int</span>(<span class="number">11</span>) unsigned                  <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="number">0</span>                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> max_connections        <span class="operator">|</span> <span class="type">int</span>(<span class="number">11</span>) unsigned                  <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="number">0</span>                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> max_user_connections   <span class="operator">|</span> <span class="type">int</span>(<span class="number">11</span>) unsigned                  <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> <span class="number">0</span>                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> plugin                 <span class="operator">|</span> <span class="type">char</span>(<span class="number">64</span>)                          <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> mysql_native_password <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> authentication_string  <span class="operator">|</span> text                              <span class="operator">|</span> YES  <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> password_expired       <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> password_last_changed  <span class="operator">|</span> <span class="type">timestamp</span>                         <span class="operator">|</span> YES  <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> password_lifetime      <span class="operator">|</span> <span class="type">smallint</span>(<span class="number">5</span>) unsigned              <span class="operator">|</span> YES  <span class="operator">|</span>     <span class="operator">|</span> <span class="keyword">NULL</span>                  <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> account_locked         <span class="operator">|</span> enum(<span class="string">&#x27;N&#x27;</span>,<span class="string">&#x27;Y&#x27;</span>)                     <span class="operator">|</span> <span class="keyword">NO</span>   <span class="operator">|</span>     <span class="operator">|</span> N                     <span class="operator">|</span>       <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------------+-----------------------------------+------+-----+-----------------------+-------+</span></span><br><span class="line"><span class="number">45</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h4 id="显示二进制文件相关"><a href="#显示二进制文件相关" class="headerlink" title="显示二进制文件相关"></a>显示二进制文件相关</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> MASTER LOGS;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="operator">|</span> Log_name         <span class="operator">|</span> File_size <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002022</span> <span class="operator">|</span>    <span class="number">817345</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002023</span> <span class="operator">|</span>    <span class="number">817932</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002024</span> <span class="operator">|</span>    <span class="number">816758</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002025</span> <span class="operator">|</span>    <span class="number">664678</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> <span class="type">BINARY</span> LOGS;</span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="operator">|</span> Log_name         <span class="operator">|</span> File_size <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002022</span> <span class="operator">|</span>    <span class="number">817345</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002023</span> <span class="operator">|</span>    <span class="number">817932</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002024</span> <span class="operator">|</span>    <span class="number">816758</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.002025</span> <span class="operator">|</span>    <span class="number">665265</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">------------------+-----------+</span></span><br><span class="line"><span class="number">4</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h4 id="显示主从相关"><a href="#显示主从相关" class="headerlink" title="显示主从相关"></a>显示主从相关</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> SLAVE HOSTS;</span><br><span class="line"><span class="keyword">Empty</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> SLAVE STATUS;</span><br><span class="line"><span class="keyword">Empty</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> RELAYLOG EVENTS limit <span class="number">10</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+-----+----------------+------------+-------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> Log_name           <span class="operator">|</span> Pos <span class="operator">|</span> Event_type     <span class="operator">|</span> Server_id  <span class="operator">|</span> End_log_pos <span class="operator">|</span> Info                                                                                                                                                                      <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+-----+----------------+------------+-------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span>   <span class="number">4</span> <span class="operator">|</span> Format_desc    <span class="operator">|</span> <span class="number">1339158577</span> <span class="operator">|</span>         <span class="number">123</span> <span class="operator">|</span> Server ver: <span class="number">5.7</span><span class="number">.20</span><span class="operator">-</span>log, Binlog ver: <span class="number">4</span>                                                                                                                                     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">123</span> <span class="operator">|</span> Previous_gtids <span class="operator">|</span> <span class="number">1339158577</span> <span class="operator">|</span>         <span class="number">194</span> <span class="operator">|</span> <span class="number">4941480</span>b<span class="operator">-</span>c2fa<span class="number">-11e8</span><span class="number">-850</span>c<span class="number">-506</span>b4bbe1cf4:<span class="number">1</span><span class="number">-3111622</span>                                                                                                                            <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">194</span> <span class="operator">|</span> Rotate         <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>           <span class="number">0</span> <span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.001063</span>;pos<span class="operator">=</span><span class="number">4</span>                                                                                                                                                    <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">241</span> <span class="operator">|</span> Format_desc    <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">123</span> <span class="operator">|</span> Server ver: <span class="number">5.7</span><span class="number">.20</span><span class="operator">-</span>log, Binlog ver: <span class="number">4</span>                                                                                                                                     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">360</span> <span class="operator">|</span> Rotate         <span class="operator">|</span>          <span class="number">0</span> <span class="operator">|</span>         <span class="number">407</span> <span class="operator">|</span> mysql<span class="operator">-</span>bin<span class="number">.001063</span>;pos<span class="operator">=</span><span class="number">234</span>                                                                                                                                                  <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">407</span> <span class="operator">|</span> Gtid           <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">299</span> <span class="operator">|</span> <span class="keyword">SET</span> @<span class="variable">@SESSION</span>.GTID_NEXT<span class="operator">=</span> <span class="string">&#x27;4941480b-c2fa-11e8-850c-506b4bbe1cf4:3111623&#x27;</span>                                                                                                   <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">472</span> <span class="operator">|</span> Query          <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">539</span> <span class="operator">|</span> <span class="comment">/* rds internal mark */</span> <span class="keyword">CREATE</span> <span class="keyword">TABLE</span> IF <span class="keyword">NOT</span> <span class="keyword">EXISTS</span> mysql.ha_health_check (</span><br><span class="line">  id   <span class="type">BIGINT</span>  <span class="keyword">DEFAULT</span> <span class="number">0</span>,</span><br><span class="line">  type <span class="type">CHAR</span>(<span class="number">1</span>) <span class="keyword">DEFAULT</span> <span class="string">&#x27;0&#x27;</span>,</span><br><span class="line">  <span class="keyword">PRIMARY</span> KEY (type)</span><br><span class="line">)</span><br><span class="line">  ENGINE <span class="operator">=</span> InnoDB <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">712</span> <span class="operator">|</span> Gtid           <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">604</span> <span class="operator">|</span> <span class="keyword">SET</span> @<span class="variable">@SESSION</span>.GTID_NEXT<span class="operator">=</span> <span class="string">&#x27;4941480b-c2fa-11e8-850c-506b4bbe1cf4:3111624&#x27;</span>                                                                                                   <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">777</span> <span class="operator">|</span> Query          <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">672</span> <span class="operator">|</span> <span class="keyword">BEGIN</span>                                                                                                                                                                     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> slave<span class="operator">-</span>relay<span class="number">.001351</span> <span class="operator">|</span> <span class="number">845</span> <span class="operator">|</span> Table_map      <span class="operator">|</span> <span class="number">2241191473</span> <span class="operator">|</span>         <span class="number">734</span> <span class="operator">|</span> table_id: <span class="number">81659</span> (mysql.ha_health_check)                                                                                                                                   <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------+-----+----------------+------------+-------------+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------+</span></span><br><span class="line"><span class="number">10</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> SLAVE STATUS\G;</span><br><span class="line"><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span> <span class="number">1.</span> <span class="type">row</span> <span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span><span class="operator">*</span></span><br><span class="line">               Slave_IO_State: Waiting <span class="keyword">for</span> master <span class="keyword">to</span> send event</span><br><span class="line">                  Master_Host: <span class="number">192.168</span><span class="number">.120</span><span class="number">.26</span></span><br><span class="line">                  Master_User: replicator</span><br><span class="line">                  Master_Port: <span class="number">3069</span></span><br><span class="line">                Connect_Retry: <span class="number">60</span></span><br><span class="line">              Master_Log_File: mysql<span class="operator">-</span>bin<span class="number">.001063</span></span><br><span class="line">          Read_Master_Log_Pos: <span class="number">3564725</span></span><br><span class="line">               Relay_Log_File: slave<span class="operator">-</span>relay<span class="number">.001352</span></span><br><span class="line">                Relay_Log_Pos: <span class="number">844419</span></span><br><span class="line">        Relay_Master_Log_File: mysql<span class="operator">-</span>bin<span class="number">.001063</span></span><br><span class="line">             Slave_IO_Running: Yes</span><br><span class="line">            Slave_SQL_Running: Yes</span><br><span class="line">              Replicate_Do_DB: </span><br><span class="line">          Replicate_Ignore_DB: </span><br><span class="line">           Replicate_Do_Table: </span><br><span class="line">       Replicate_Ignore_Table: </span><br><span class="line">      Replicate_Wild_Do_Table: </span><br><span class="line">  Replicate_Wild_Ignore_Table: </span><br><span class="line">                   Last_Errno: <span class="number">0</span></span><br><span class="line">                   Last_Error: </span><br><span class="line">                 Skip_Counter: <span class="number">0</span></span><br><span class="line">          Exec_Master_Log_Pos: <span class="number">3564725</span></span><br><span class="line">              Relay_Log_Space: <span class="number">3565260</span></span><br><span class="line">              Until_Condition: <span class="keyword">None</span></span><br><span class="line">               Until_Log_File: </span><br><span class="line">                Until_Log_Pos: <span class="number">0</span></span><br><span class="line">           Master_SSL_Allowed: <span class="keyword">No</span></span><br><span class="line">           Master_SSL_CA_File: </span><br><span class="line">           Master_SSL_CA_Path: </span><br><span class="line">              Master_SSL_Cert: </span><br><span class="line">            Master_SSL_Cipher: </span><br><span class="line">               Master_SSL_Key: </span><br><span class="line">        Seconds_Behind_Master: <span class="number">0</span></span><br><span class="line">Master_SSL_Verify_Server_Cert: <span class="keyword">No</span></span><br><span class="line">                Last_IO_Errno: <span class="number">0</span></span><br><span class="line">                Last_IO_Error: </span><br><span class="line">               Last_SQL_Errno: <span class="number">0</span></span><br><span class="line">               Last_SQL_Error: </span><br><span class="line">  Replicate_Ignore_Server_Ids: </span><br><span class="line">             Master_Server_Id: <span class="number">2241191473</span></span><br><span class="line">                  Master_UUID: <span class="number">4941480</span>b<span class="operator">-</span>c2fa<span class="number">-11e8</span><span class="number">-850</span>c<span class="number">-506</span>b4bbe1cf4</span><br><span class="line">             Master_Info_File: mysql.slave_master_info</span><br><span class="line">                    SQL_Delay: <span class="number">0</span></span><br><span class="line">          SQL_Remaining_Delay: <span class="keyword">NULL</span></span><br><span class="line">      Slave_SQL_Running_State: Slave has read <span class="keyword">all</span> relay log; waiting <span class="keyword">for</span> more updates</span><br><span class="line">           Master_Retry_Count: <span class="number">86400</span></span><br><span class="line">                  Master_Bind: </span><br><span class="line">      Last_IO_Error_Timestamp: </span><br><span class="line">     Last_SQL_Error_Timestamp: </span><br><span class="line">          Last_SQL_Error_Gtid: </span><br><span class="line">               Master_SSL_Crl: </span><br><span class="line">           Master_SSL_Crlpath: </span><br><span class="line">           Retrieved_Gtid_Set: <span class="number">4941480</span>b<span class="operator">-</span>c2fa<span class="number">-11e8</span><span class="number">-850</span>c<span class="number">-506</span>b4bbe1cf4:<span class="number">1</span><span class="number">-3119404</span></span><br><span class="line">            Executed_Gtid_Set: <span class="number">3</span>c09db04<span class="operator">-</span>c2fa<span class="number">-11e8</span><span class="operator">-</span>b5cc<span class="number">-506</span>b4bff2084:<span class="number">1</span><span class="number">-2275307</span>,</span><br><span class="line"><span class="number">4941480</span>b<span class="operator">-</span>c2fa<span class="number">-11e8</span><span class="number">-850</span>c<span class="number">-506</span>b4bbe1cf4:<span class="number">1</span><span class="number">-3119404</span></span><br><span class="line">                Auto_Position: <span class="number">1</span></span><br><span class="line">         Replicate_Rewrite_DB: </span><br><span class="line">                 Channel_Name: </span><br><span class="line">           Master_TLS_Version: </span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.01</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h4 id="显示字符集变量相关"><a href="#显示字符集变量相关" class="headerlink" title="显示字符集变量相关"></a>显示字符集变量相关</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> <span class="type">CHARACTER</span> <span class="keyword">SET</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------------------------------+---------------------+--------+</span></span><br><span class="line"><span class="operator">|</span> Charset  <span class="operator">|</span> Description                     <span class="operator">|</span> <span class="keyword">Default</span> <span class="keyword">collation</span>   <span class="operator">|</span> Maxlen <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------------------------------+---------------------+--------+</span></span><br><span class="line"><span class="operator">|</span> big5     <span class="operator">|</span> Big5 Traditional Chinese        <span class="operator">|</span> big5_chinese_ci     <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> dec8     <span class="operator">|</span> <span class="type">DEC</span> West European               <span class="operator">|</span> dec8_swedish_ci     <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp850    <span class="operator">|</span> DOS West European               <span class="operator">|</span> cp850_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> hp8      <span class="operator">|</span> HP West European                <span class="operator">|</span> hp8_english_ci      <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> koi8r    <span class="operator">|</span> KOI8<span class="operator">-</span>R Relcom Russian           <span class="operator">|</span> koi8r_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> latin1   <span class="operator">|</span> cp1252 West European            <span class="operator">|</span> latin1_swedish_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> latin2   <span class="operator">|</span> ISO <span class="number">8859</span><span class="number">-2</span> Central European     <span class="operator">|</span> latin2_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> swe7     <span class="operator">|</span> <span class="number">7</span>bit Swedish                    <span class="operator">|</span> swe7_swedish_ci     <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ascii    <span class="operator">|</span> US ASCII                        <span class="operator">|</span> ascii_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ujis     <span class="operator">|</span> EUC<span class="operator">-</span>JP Japanese                 <span class="operator">|</span> ujis_japanese_ci    <span class="operator">|</span>      <span class="number">3</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> sjis     <span class="operator">|</span> Shift<span class="operator">-</span>JIS Japanese              <span class="operator">|</span> sjis_japanese_ci    <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> hebrew   <span class="operator">|</span> ISO <span class="number">8859</span><span class="number">-8</span> Hebrew               <span class="operator">|</span> hebrew_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> tis620   <span class="operator">|</span> TIS620 Thai                     <span class="operator">|</span> tis620_thai_ci      <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> euckr    <span class="operator">|</span> EUC<span class="operator">-</span>KR Korean                   <span class="operator">|</span> euckr_korean_ci     <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> koi8u    <span class="operator">|</span> KOI8<span class="operator">-</span>U Ukrainian                <span class="operator">|</span> koi8u_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> gb2312   <span class="operator">|</span> GB2312 Simplified Chinese       <span class="operator">|</span> gb2312_chinese_ci   <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> greek    <span class="operator">|</span> ISO <span class="number">8859</span><span class="number">-7</span> Greek                <span class="operator">|</span> greek_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp1250   <span class="operator">|</span> Windows Central European        <span class="operator">|</span> cp1250_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> gbk      <span class="operator">|</span> GBK Simplified Chinese          <span class="operator">|</span> gbk_chinese_ci      <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> latin5   <span class="operator">|</span> ISO <span class="number">8859</span><span class="number">-9</span> Turkish              <span class="operator">|</span> latin5_turkish_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> armscii8 <span class="operator">|</span> ARMSCII<span class="number">-8</span> Armenian              <span class="operator">|</span> armscii8_general_ci <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> utf8     <span class="operator">|</span> UTF<span class="number">-8</span> Unicode                   <span class="operator">|</span> utf8_general_ci     <span class="operator">|</span>      <span class="number">3</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> ucs2     <span class="operator">|</span> UCS<span class="number">-2</span> Unicode                   <span class="operator">|</span> ucs2_general_ci     <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp866    <span class="operator">|</span> DOS Russian                     <span class="operator">|</span> cp866_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> keybcs2  <span class="operator">|</span> DOS Kamenicky Czech<span class="operator">-</span>Slovak      <span class="operator">|</span> keybcs2_general_ci  <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> macce    <span class="operator">|</span> Mac Central European            <span class="operator">|</span> macce_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> macroman <span class="operator">|</span> Mac West European               <span class="operator">|</span> macroman_general_ci <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp852    <span class="operator">|</span> DOS Central European            <span class="operator">|</span> cp852_general_ci    <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> latin7   <span class="operator">|</span> ISO <span class="number">8859</span><span class="number">-13</span> Baltic              <span class="operator">|</span> latin7_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> utf8mb4  <span class="operator">|</span> UTF<span class="number">-8</span> Unicode                   <span class="operator">|</span> utf8mb4_general_ci  <span class="operator">|</span>      <span class="number">4</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp1251   <span class="operator">|</span> Windows Cyrillic                <span class="operator">|</span> cp1251_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> utf16    <span class="operator">|</span> UTF<span class="number">-16</span> Unicode                  <span class="operator">|</span> utf16_general_ci    <span class="operator">|</span>      <span class="number">4</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> utf16le  <span class="operator">|</span> UTF<span class="number">-16</span>LE Unicode                <span class="operator">|</span> utf16le_general_ci  <span class="operator">|</span>      <span class="number">4</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp1256   <span class="operator">|</span> Windows Arabic                  <span class="operator">|</span> cp1256_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp1257   <span class="operator">|</span> Windows Baltic                  <span class="operator">|</span> cp1257_general_ci   <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> utf32    <span class="operator">|</span> UTF<span class="number">-32</span> Unicode                  <span class="operator">|</span> utf32_general_ci    <span class="operator">|</span>      <span class="number">4</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> <span class="type">binary</span>   <span class="operator">|</span> <span class="type">Binary</span> pseudo charset           <span class="operator">|</span> <span class="type">binary</span>              <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> geostd8  <span class="operator">|</span> GEOSTD8 Georgian                <span class="operator">|</span> geostd8_general_ci  <span class="operator">|</span>      <span class="number">1</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> cp932    <span class="operator">|</span> SJIS <span class="keyword">for</span> Windows Japanese       <span class="operator">|</span> cp932_japanese_ci   <span class="operator">|</span>      <span class="number">2</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> eucjpms  <span class="operator">|</span> UJIS <span class="keyword">for</span> Windows Japanese       <span class="operator">|</span> eucjpms_japanese_ci <span class="operator">|</span>      <span class="number">3</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> gb18030  <span class="operator">|</span> China <span class="type">National</span> Standard GB18030 <span class="operator">|</span> gb18030_chinese_ci  <span class="operator">|</span>      <span class="number">4</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----------+---------------------------------+---------------------+--------+</span></span><br><span class="line"><span class="number">41</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.02</span> sec)</span><br><span class="line"></span><br><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> <span class="keyword">GLOBAL</span> VARIABLES <span class="keyword">LIKE</span> <span class="string">&#x27;character%&#x27;</span>;</span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------------+----------------------------+</span></span><br><span class="line"><span class="operator">|</span> Variable_name            <span class="operator">|</span> <span class="keyword">Value</span>                      <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------------+----------------------------+</span></span><br><span class="line"><span class="operator">|</span> character_set_client     <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_connection <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_database   <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_filesystem <span class="operator">|</span> <span class="type">binary</span>                     <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_results    <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_server     <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_set_system     <span class="operator">|</span> utf8                       <span class="operator">|</span></span><br><span class="line"><span class="operator">|</span> character_sets_dir       <span class="operator">|</span> <span class="operator">/</span>usr<span class="operator">/</span>share<span class="operator">/</span>mysql<span class="operator">/</span>charsets<span class="operator">/</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">--------------------------+----------------------------+</span></span><br><span class="line"><span class="number">8</span> <span class="keyword">rows</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h4 id="显示用户权限相关"><a href="#显示用户权限相关" class="headerlink" title="显示用户权限相关"></a>显示用户权限相关</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> GRANTS <span class="keyword">FOR</span> test;</span><br><span class="line"><span class="operator">+</span><span class="comment">-------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> Grants <span class="keyword">for</span> test@<span class="operator">%</span>                         <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-------------------------------------------+</span></span><br><span class="line"><span class="operator">|</span> <span class="keyword">GRANT</span> <span class="keyword">ALL</span> PRIVILEGES <span class="keyword">ON</span> <span class="operator">*</span>.<span class="operator">*</span> <span class="keyword">TO</span> <span class="string">&#x27;test&#x27;</span>@<span class="string">&#x27;%&#x27;</span> <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">-------------------------------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+
+<h4 id="显示运行进程"><a href="#显示运行进程" class="headerlink" title="显示运行进程"></a>显示运行进程</h4><figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">mysql<span class="operator">&gt;</span> <span class="keyword">SHOW</span> PROCESSLIST;</span><br><span class="line"><span class="operator">+</span><span class="comment">----+------+-----------+-------+---------+------+----------+------------------+</span></span><br><span class="line"><span class="operator">|</span> Id <span class="operator">|</span> <span class="keyword">User</span> <span class="operator">|</span> Host      <span class="operator">|</span> db    <span class="operator">|</span> Command <span class="operator">|</span> <span class="type">Time</span> <span class="operator">|</span> State    <span class="operator">|</span> Info             <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+------+-----------+-------+---------+------+----------+------------------+</span></span><br><span class="line"><span class="operator">|</span>  <span class="number">6</span> <span class="operator">|</span> root <span class="operator">|</span> localhost <span class="operator">|</span> mysql <span class="operator">|</span> Query   <span class="operator">|</span>    <span class="number">0</span> <span class="operator">|</span> starting <span class="operator">|</span> <span class="keyword">SHOW</span> PROCESSLIST <span class="operator">|</span></span><br><span class="line"><span class="operator">+</span><span class="comment">----+------+-----------+-------+---------+------+----------+------------------+</span></span><br><span class="line"><span class="number">1</span> <span class="type">row</span> <span class="keyword">in</span> <span class="keyword">set</span> (<span class="number">0.00</span> sec)</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/28/MySQL%E5%9F%BA%E7%A1%80%EF%BC%9Ashow%E5%91%BD%E4%BB%A4/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Mysql/" rel="tag">Mysql</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/28/Skywalking%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Skywalking安装部署
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix优化建议[5.x]</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

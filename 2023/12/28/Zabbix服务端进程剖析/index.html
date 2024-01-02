@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Zabbix服务端进程剖析 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-Zabbix服务端进程剖析"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Zabbix服务端进程剖析
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/28/Zabbix%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%BF%9B%E7%A8%8B%E5%89%96%E6%9E%90/" class="article-date">
+  <time datetime="2023-12-28T03:35:22.000Z" itemprop="datePublished">2023-12-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.9k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">19 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <blockquote>
+<p>参考：《深入理解Zabbix监控系统》、<a target="_blank" rel="noopener" href="https://www.zabbix.com/documentation/5.0/en/manual">《Zabbix用户手册》</a></p>
+</blockquote>
+<p>Zabbix服务端进程被分为不同的种类，每一种进程负责相应的任务，包括收集原始监控数据、对原始监控数据进行预处理、将预处理后的监控数据同步到数据库、对监控数据进行计算以生成事件、计算和获取内部监控数据，以及对数据库中的数据进行清理等。</p>
+<h3 id="监控数据的收集进程"><a href="#监控数据的收集进程" class="headerlink" title="监控数据的收集进程"></a>监控数据的收集进程</h3><p>Zabbix服务器的重要任务之一就是被动接收由Zabbix代理和各种Zabbix客户端发送的监控数据，以及主动向Zabbix代理、Zabbix java gateway和Zabbix客户端等数据源请求数据，其中被动接收数据由<strong>trapper类进程</strong>实现，主动请求数据则由<strong>poller类</strong>进程实现。</p>
+<p>trapper类进程通过监听<strong>TCP套接字</strong>来捕获符合通信协议的原始监控数据，poller类进程则使用<code>ConfigCache</code>作为输入，根据缓存信息实现完善的任务调度。trapper类和poller类进程的下游是<strong>预处理进程</strong>，这两类进程需要将收集到的原始监控数据发送到预处理进程。trapper类进程和poller类进程都会在进程内部维护一个静态变量<code>cached_message</code>，用于暂存待发送的监控数据，并在各种必要的时机将该变量中的消息发送到预处理进程。</p>
+<h4 id="trapper类进程"><a href="#trapper类进程" class="headerlink" title="trapper类进程"></a>trapper类进程</h4><p>Zabbix服务器端的trapper进程负责接收来自Zabbix客户端、Zabbix代理、zabbix_sender及其他外部进程发来的请求并进行处理，按照Zabbix 5.0的通信协议规范，trapper进程只能接收JSON格式字符串的请求。</p>
+<p>trapper进程由配置文件中的<code>StartTrappers</code>参数决定其启动数量（允许启动0～1000个进程，默认为5个）。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep trapper</span></span><br><span class="line">zabbix    8740  8643  0 Feb21 ?        01:55:26 /usr/sbin/zabbix_server: trapper <span class="comment">#1 [processed data in 0.001288 sec, waiting for connection]</span></span><br><span class="line">zabbix    8741  8643  0 Feb21 ?        01:13:24 /usr/sbin/zabbix_server: trapper <span class="comment">#2 [processed data in 0.000863 sec, waiting for connection]</span></span><br><span class="line">zabbix    8742  8643  0 Feb21 ?        01:02:48 /usr/sbin/zabbix_server: trapper <span class="comment">#3 [processed data in 0.000664 sec, waiting for connection]</span></span><br><span class="line">zabbix    8743  8643  0 Feb21 ?        01:55:36 /usr/sbin/zabbix_server: trapper <span class="comment">#4 [processed data in 0.000788 sec, waiting for connection]</span></span><br><span class="line">zabbix    8744  8643  0 Feb21 ?        01:43:59 /usr/sbin/zabbix_server: trapper <span class="comment">#5 [processed data in 0.000802 sec, waiting for connection]</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>💡注意：至少要运行一个trapper进程用于在web前端展示服务器可用性和队列视图。</p>
+</blockquote>
+<p>总体而言，trapper进程所做的事情就是循环从TCP 套接字读取请求消息，然后根据消息类型调用不同的函数进行处理，处理完毕后关闭该套接字连接。即每个循环处理一个请求，每个请求的处理都是在新的连接中进行通信的。</p>
+<p>数据处理：</p>
+<ul>
+<li>处理agent data和sender data请求：两者处理过程类似，唯一区别是验证过程，agent data要求监控项属于主动客户端（active agent）类型，而发送者数据（sender data）要求监控项属于Zabbix trapper类型。请求的过程中，trapper进程的作用在于验证数据的有效性，包括监控项状态、监控项类型和主机状态等。</li>
+<li>处理proxy config请求：将Zabbix服务器的配置信息传输到Zabbix代理。可以由Zabbix代理发送到Zabbix服务器(主动模式，默认)，也可以由Zabbix服务器发送到Zabbix代理（被动模式）。</li>
+<li>处理proxy data请求：可能由Zabbix服务器或者被动模式下的Zabbix代理来处理。如果是Zabbix服务器，说明它接收了一批来自Zabbix代理的监控值，此时需要将数据写入缓存或者进行LLD(Low-level discovery，自动发现)处理；如果是被动代理，说明它接收了Zabbix服务器发送的数据请求，此时需要做的是将监控数据回复给Zabbix服务器。从Zabbix 5.0开始，Zabbix代理具有了预处理的能力，所以proxy data中的监控值其实是已经预处理过的，不需要在Zabbix服务器端再次预处理。</li>
+</ul>
+<h5 id="snmp-trapper进程"><a href="#snmp-trapper进程" class="headerlink" title="snmp trapper进程"></a>snmp trapper进程</h5><p>snmp trapper进程由配置参数<code>StartSNMPTrapper</code>决定其启动数量（允许0或1个进程），默认为0。该进程的工作方式是循环调用get_latest_data()和read_traps()函数，从trap文件（文件路径由SNMPTrapperFile配置参数决定）中读取数据，然后调用parse_traps()函数进行解析处理。</p>
+<h4 id="poller类进程"><a href="#poller类进程" class="headerlink" title="poller类进程"></a>poller类进程</h4><p>poller类进程是指以主动方式获取原始监控数据的进程，包括poller进程、unreachable poller进程、ipmi manager&#x2F;poller进程、icmp pinger进程、javapoller进程、proxy poller进程和http poller进程，一共有7种，它们各自负责采集不同类型的监控项数据。与trapper类进程不同的是，poller类进程需要自己执行监控数据采集逻辑，每一种监控项都需要调用不同的函数进行处理才能得到监控数据，而trapper类进程可以直接接收监控数据。从这个角度来说，<strong>对于同样数量的监控任务，使用poller工作方式要比使用trapper工作方式的负载更高</strong>。</p>
+<h5 id="工作机制"><a href="#工作机制" class="headerlink" title="工作机制"></a>工作机制</h5><p>poller类进程首先需要解决的问题是如何调度数据采集过程，以保证大量数据采集任务的执行顺序和间隔是正确且准确的。此外，每一种进程都并非唯一的，所以还要保证多进程之间的协调，避免冲突。Zabbix的解决方案是通过<code>ConfigCache</code>中定义的6个二叉堆结构来确定数据采集任务的执行顺序和间隔。</p>
+<p>多进程之间的冲突问题，解决方法是使用<strong>ConfigCache互斥锁</strong>，即在访问二叉堆之前加锁，在访问结束以后解锁，从而保证同一时间只有一个进程在访问。</p>
+<h5 id="poller进程"><a href="#poller进程" class="headerlink" title="poller进程"></a>poller进程</h5><p>poller进程能够处理除IPMI类型之外的所有监控项的数据采集，包括Zabbix客户端（Zabbix agent）监控项、简单检查（Simple check）监控项、SNMP客户端（SNMP agent）监控项、Zabbix内部（Zabbix internal）监控项、Zabbix聚合（Zabbix aggregate）监控项、外部检查（External check）监控项、数据库监视（Database monitor）监控项、HTTP客户端（HTTP agent）监控项、SSH客户端（SSH agent）监控项、TELNET客户端（TELNET agent）监控项、JMX客户端（JMX agent）监控项以及计算型（Calculated）监控项，共12种。</p>
+<h5 id="Zabbix客户端监控项处理"><a href="#Zabbix客户端监控项处理" class="headerlink" title="Zabbix客户端监控项处理"></a>Zabbix客户端监控项处理</h5><p>poller进程对Zabbix客户端（Zabbix agent）监控项进行处理的过程实际上就是以TCP套接字客户端的身份与作为服务器端的Zabbix客户端进行通信的过程。因此，当poller进程需要处理大量Zabbix客户端监控项时，会同时与很多Zabbix客户端建立TCP连接。（同一时刻每个进程最多建立一个连接，用后即关闭。）</p>
+<h5 id="unreachable-poller进程"><a href="#unreachable-poller进程" class="headerlink" title="unreachable poller进程"></a>unreachable poller进程</h5><p>在网络通信良好并且各方服务正常的情况下，poller进程所处理的Zabbix客户端和SNMP客户端监控项，以及IPMI进程处理的IPMI客户端（IPMIagent）监控项和java poller进程处理的JMX监控项，都能够成功执行并获取监控数据。但是，当出现agent服务故障时，如果继续由原来的poller类进程处理对应的监控项，大量的连接超时就有可能引起整体服务水平下降。unreachable poller进程就是对该问题的解决方案，<strong>当客户端（包括Zabbix客户端、SNMP客户端、IPMI客户端和JMX客户端）服务不可用时，对应的监控项会转移到unreachable poller队列中处理</strong>。当unreachable poller进程发现某个客户端已经恢复正常时，则将对应的监控项再转移回原始队列中。</p>
+<p>一般情况下，由于大部分客户端状态是良好的，因此unreachable poller进程的负载并不高。但是，一旦发生大面积网络故障，会有大量监控项转移到unreachablepoller进程的任务队列中，此时进程的负载会飙升。<strong>如果要降低负载，可以考虑增加UnavailableDelay参数值，或者增加unreachable poller进程的启动数量。</strong></p>
+<h4 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h4><p>Zabbix支持<strong>推</strong>和<strong>拉</strong>两种收集监控数据的模式，在Zabbix服务器端表现为同时存在trapper类进程和poller类进程。</p>
+<p>trapper类进程用于被动接收来自Zabbix客户端或者Zabbix代理的监控数据；poller类进程用于主动发起连接并向被监控对象请求监控数据。t<strong>rapper类进程包括纯trapper进程和snmp trapper进程，前者用于从Zabbix客户端和Zabbix代理接收监控数据，后者用于从snmp trap文件读取监控数据。</strong>当采用拉的工作模式时，由于每种监控项的具体拉取方式存在较大区别，因此poller类进程进一步划分为多种进程，包括纯poller进程、unreachable poller进程、ipmi manager与ipmi poller进程、icmp pinger进程、java poller进程、proxy poller进程和http poller进程。每一种poller进程负责拉取相应类型的监控数据。</p>
+<h3 id="预处理进程"><a href="#预处理进程" class="headerlink" title="预处理进程"></a>预处理进程</h3><p>预处理（preprocessing）进程是从Zabbix 3.4开始新增的一种进程类型，它用于对原始的监控数据进行各种形式的变换和计算，并通过共享内存，将输出结果传递到history syncer进程进行处理。在Zabbix的早期版本中，预处理进程只能运行在Zabbix服务器端，当数据量大时会给Zabbix服务器端造成较大的压力。因此从Zabbix 4.2版本开始，预处理进程可以同时运行在Zabbix服务器端和Zabbix代理端。在这种情况下，<strong>由Zabbix代理负责采集的监控数据在传输到Zabbix服务器端之前就已经完成了预处理，直接从Zabbix客户端传输到Zabbix服务器端的数据则需要由Zabbix服务器端完成预处理。</strong></p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep preprocessing</span></span><br><span class="line">zabbix    8652  8643  0 Feb21 ?        00:47:49 /usr/sbin/zabbix_server: preprocessing manager <span class="comment">#1 [queued 0, processed 716 values, idle 5.029540 sec during 5.035809 sec]</span></span><br><span class="line">zabbix    8653  8643  0 Feb21 ?        00:13:20 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#1 started</span></span><br><span class="line">zabbix    8654  8643  0 Feb21 ?        00:04:00 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#2 started</span></span><br><span class="line">zabbix    8655  8643  0 Feb21 ?        00:03:44 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#3 started</span></span><br><span class="line">zabbix    8656  8643  0 Feb21 ?        00:03:35 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#4 started</span></span><br><span class="line">zabbix    8657  8643  0 Feb21 ?        00:03:29 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#5 started</span></span><br><span class="line">zabbix    8658  8643  0 Feb21 ?        00:03:23 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#6 started</span></span><br><span class="line">zabbix    8659  8643  0 Feb21 ?        00:03:25 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#7 started</span></span><br><span class="line">zabbix    8660  8643  0 Feb21 ?        00:02:28 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#8 started</span></span><br><span class="line">zabbix    8661  8643  0 Feb21 ?        00:02:17 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#9 started</span></span><br><span class="line">zabbix    8662  8643  0 Feb21 ?        00:02:18 /usr/sbin/zabbix_server: preprocessing worker <span class="comment">#10 started</span></span><br></pre></td></tr></table></figure>
+
+<p>以上命令结果可知，preprocessing进程由1个preprocessing manager(管理者进程)和多个preprocessing worker(工作者进程)进程组成。</p>
+<p>processing manager进程负责监听预处理所使用的Unix域套接字并处理由poller &#x2F; trapper进程和preprocessing worker进程发送过来的消息。还会向lld manager进程发送消息，因为原始监控数据中同时包含LLD规则监控项数据，这些数据在预处理完毕以后还需要进行LLD处理（由lld manager和lld worker进程完成）</p>
+<p>预处理工作者（preprocessing worker）进程的数量由配置参数StartPreprocessors决定，允许1～1 000个进程。工作者进程负责读取管理者进程发送的进程间通信服务消息，并执行所获得的任务。</p>
+<h3 id="LLD进程"><a href="#LLD进程" class="headerlink" title="LLD进程"></a>LLD进程</h3><p>LLD进程是从Zabbix 5.0开始出现的专门负责LLD规则（LLD rule）监控数据处理的进程，由于底层发现（Low Level Discovery，LLD）得到越来越多的应用，因此这类数据的处理压力随之增加，将这些工作交给单独的进程来处理将有利于性能的提升和将来的进一步扩展。</p>
+<p>LLD进程包括lld manager进程和lld worker进程两种，其中管理者进程是唯一的，工作者进程可以启动多个。LLD进程只能运行在Zabbix服务器端，它们位于预处理进程的下游，接收预处理进程发送的消息作为输入，而输出则是对各项监控配置的更新操作。本质上，<strong>LLD就是通过解析LLD规则监控项（一种特殊类型的监控项，其配置信息存储在items表中，其监控值不用于存储，只用于更新监控配置）返回的特殊格式的字符串，创建、更新或者删除监控项、触发器、图表或主机，使之与返回结果保持一致。</strong>由于LLD规则监控值会按照设定的频率进行更新，因此Zabbix可以随着数据的更新而动态调整监控对象、监控指标和监控参数等。从Zabbix 4.2开始，LLD规则的监控值跟普通监控项一样可以进行预处理，在预处理结束以后，LLD进程再对数据进行解析并更新配置信息，这一方式赋予用户更多对LLD规则数据进行处理的能力，从而增强了底层发现的功能。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep lld</span></span><br><span class="line">zabbix    8663  8643  0 Feb21 ?        00:01:33 /usr/sbin/zabbix_server: lld manager <span class="comment">#1 [processed 15 LLD rules, idle 5.385801sec during 5.385996 sec]</span></span><br><span class="line">zabbix    8664  8643  0 Feb21 ?        00:29:15 /usr/sbin/zabbix_server: lld worker <span class="comment">#1 [processed 14 LLD rules, idle 6.001249 sec during 6.150509 sec]</span></span><br><span class="line">zabbix    8665  8643  0 Feb21 ?        00:29:28 /usr/sbin/zabbix_server: lld worker <span class="comment">#2 [processed 15 LLD rules, idle 8.471019 sec during 8.725697 sec]</span></span><br></pre></td></tr></table></figure>
+
+<p>lld manager进程虽然只有一个，但是其需要完成的任务有多种，包括注册lldworker进程、接收其他进程发送的消息、给lld worker进程分配任务、处理lldworker进程返回的结果以及响应队列长度请求等。</p>
+<p>lld worker进程负责处理lld manager进程分配的任务，即接收并处理通过进程间通信服务发送过来的code 1100消息。总体的处理过程包括解析消息，验证LLD规则有效性（通过ConfigCache），加载filter、LLD macros和overrides，解析LLD消息的JSON数组，进行配置信息更新，以及根据LLD规则监控项状态生成内部事件。lld worker进程的工作机制是被动模式，即发出注册消息以后，并不会主动向管理者进程请求任务，而是等待管理者进程分配任务。</p>
+<p><a target="_blank" rel="noopener" href="https://rohn-web.oss-cn-hangzhou.aliyuncs.com/img/blog/image-20220303143549989.png?x-oss-process=style/cnblog"><img src="/assets/1703734418-cdc903939eda71add522c8bd6397f37a.png"></a></p>
+<p><strong>预处理进程和LLD进程处于poller类进程和trapper类进程的下游</strong>，负责处理poller类进程和trapper类进程获取的原始监控数据。预处理进程按照用户设置的处理规则对数据进行变换和计算，处理之后的数据传递给history syncer进程处理。预处理进程通过进程间通信服务方式与上游进程通信。<strong>处理之后的数据写入共享内存，供下游进程使用</strong>。</p>
+<h3 id="history-syncer进程"><a href="#history-syncer进程" class="headerlink" title="history syncer进程"></a>history syncer进程</h3><p>history syncer进程是Zabbix服务器端最为核心的进程，它负责将监控数据（包括趋势数据）写入数据库和写入缓存、生成并处理事件，以及处理动作（action）并生成升级序列（escalation）等。<strong>如果没有history syncer进程，Zabbix服务器将什么也做不了：既不能处理监控数据，又不能生成事件，也不能进行告警。</strong>history syncer进程位于预处理进程的下游，它将预处理进程写入HistoryCache和HistoryIndexCache的数据作为输入。</p>
+<p>history syncer进程的启动数量由配置文件中的<code>StartDBSyncers</code>参数控制，允许1～100个进程。history syncer进程的作用是将HistoryCache和HistoryIndexCache中的监控值写入数据库中的history表和trends表，同时根据监控值计算触发器表达式，决定是否触发事件。该进程在Zabbix服务器端和Zabbix代理端都存在，但是有所不同，这一点体现在代码清单9-1所示的进程标题中。在Zabbix服务器端时，该进程既需要处理监控值（values），也需要处理触发器（triggers），在Zabbix代理端时，该进程只需要处理监控值，而不需要处理触发器，因为触发器表达式统一由Zabbix服务器端处理。本章讲述Zabbix服务器端的处理过程。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep history</span></span><br><span class="line">zabbix    8720  8643  0 Feb21 ?        00:30:13 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#1 [processed 10 values, 8 triggers in 0.004174 sec, idle 1 sec]</span></span><br><span class="line">zabbix    8721  8643  0 Feb21 ?        00:30:28 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#2 [processed 12 values, 5 triggers in 0.004013 sec, idle 1 sec]</span></span><br><span class="line">zabbix    8722  8643  0 Feb21 ?        00:30:38 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#3 [processed 24 values, 7 triggers in 0.006277 sec, idle 1 sec]</span></span><br><span class="line">zabbix    8723  8643  0 Feb21 ?        00:30:21 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#4 [processed 4 values, 3 triggers in 0.004239 sec, idle 1 sec]</span></span><br><span class="line">zabbix    8724  8643  0 Feb21 ?        00:30:30 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#5 [processed 236 values, 146 triggers in 0.058686 sec, idle 1 sec]</span></span><br><span class="line">zabbix    8725  8643  0 Feb21 ?        00:30:18 /usr/sbin/zabbix_server: <span class="built_in">history</span> syncer <span class="comment">#6 [processed 0 values, 0 triggers in 0.000022 sec, idle 1 sec]</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="处理动作相关进程"><a href="#处理动作相关进程" class="headerlink" title="处理动作相关进程"></a>处理动作相关进程</h3><p>escalator进程用于处理事件触发的整个动作序列，该进程读取escalations表中的数据并进行处理，并将生成的警报消息插入alerts表中，供alerter进程使用。所以，escalator进程并不实际发送警报消息，而只生成警报。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep escalator</span></span><br><span class="line">zabbix    8726  8643  0 Feb21 ?        00:00:32 /usr/sbin/zabbix_server: escalator <span class="comment">#1 [processed 0 escalations in 0.001072 sec, idle 3 sec]</span></span><br></pre></td></tr></table></figure>
+
+<p>alerter进程族用于实际发送警报，该进程族包括alert syncer进程、alert manger进程和alerter进程。alert syncer进程负责将数据库中的警报信息和媒体类型信息同步到alert manager进程，具体方法是从数据库读取数据，然后构造为进程间通信服务消息并发送到alert manager进程。alert manager进程负责向alerter进程分发警报处理任务，并接收alerter进程反馈的结果。alerter进程负责按照alertmanager分配的任务处理警报并反馈结果。task manager进程运行在Zabbix服务器端和Zabbix代理端，它负责处理存储在数据库task表中的远程命令（remote command）、立即检查（check now）、问题确认（problem acknowledge）和问题关闭（problem close）等任务。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@prod-zabbix-server ~]<span class="comment"># ps -ef|grep alert</span></span><br><span class="line">zabbix    8645  8643  0 Feb21 ?        00:00:44 /usr/sbin/zabbix_server: alert manager <span class="comment">#1 [sent 0, failed 0 alerts, idle 5.006731 sec during 5.006787 sec]</span></span><br><span class="line">zabbix    8646  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#1 [sent 0, failed 0 alerts, idle 657.095715 sec during 657.405902 sec]</span></span><br><span class="line">zabbix    8647  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#2 [sent 0, failed 0 alerts, idle 656.705429 sec during 657.122473 sec]</span></span><br><span class="line">zabbix    8648  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#3 [sent 0, failed 0 alerts, idle 656.675887 sec during 657.107786 sec]</span></span><br><span class="line">zabbix    8649  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#4 [sent 0, failed 0 alerts, idle 656.699989 sec during 657.124047 sec]</span></span><br><span class="line">zabbix    8650  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#5 [sent 0, failed 0 alerts, idle 656.677134 sec during 657.137743 sec]</span></span><br><span class="line">zabbix    8651  8643  0 Feb21 ?        00:00:00 /usr/sbin/zabbix_server: alerter <span class="comment">#6 [sent 0, failed 0 alerts, idle 658.772114 sec during 659.591568 sec]</span></span><br><span class="line">zabbix    8746  8643  0 Feb21 ?        00:01:29 /usr/sbin/zabbix_server: alert syncer [queued 0 alerts(s), flushed 0 result(s) <span class="keyword">in</span> 0.001063 sec, idle 1 sec]</span><br></pre></td></tr></table></figure>
+
+<h3 id="优化建议"><a href="#优化建议" class="headerlink" title="优化建议"></a>优化建议</h3><p>以4C8G配置、能够处理监控项5万个为例，相关进程优化项如下(仅供参考)：</p>
+<table>
+<thead>
+<tr>
+<th>配置</th>
+<th>默认值</th>
+<th>推荐值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>StartDBSyncers</td>
+<td>4</td>
+<td>8，不宜太高，默认值已能处理4000 NVPS</td>
+</tr>
+<tr>
+<td>StartAlerters</td>
+<td>3</td>
+<td>6</td>
+</tr>
+<tr>
+<td>StartDiscoverers</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td>StartPollers</td>
+<td>5</td>
+<td>12</td>
+</tr>
+<tr>
+<td>StartPreprocessors</td>
+<td>3</td>
+<td>6</td>
+</tr>
+<tr>
+<td>StartProxyPollers</td>
+<td>1</td>
+<td>3</td>
+</tr>
+<tr>
+<td>StartTrappers</td>
+<td>5</td>
+<td>12</td>
+</tr>
+<tr>
+<td>StartLLDProcessors</td>
+<td>2</td>
+<td>3</td>
+</tr>
+<tr>
+<td>StartEscalators</td>
+<td>1</td>
+<td>1</td>
+</tr>
+</tbody></table>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/28/Zabbix%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%BF%9B%E7%A8%8B%E5%89%96%E6%9E%90/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/28/Zabbix-6-0%EF%BC%9A%E5%8E%9F%E7%94%9F%E9%AB%98%E5%8F%AF%E7%94%A8-HA-%E6%96%B9%E6%A1%88%E9%83%A8%E7%BD%B2/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            Zabbix 6.0：原生高可用(HA)方案部署
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/28/Shell%EF%BC%9A%E5%B8%B8%E8%A7%81%E9%94%99%E8%AF%AF%E6%80%BB%E7%BB%93-%E4%BA%8C/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Shell：常见错误总结(二)</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

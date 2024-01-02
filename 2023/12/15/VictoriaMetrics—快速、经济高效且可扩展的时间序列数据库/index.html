@@ -1,0 +1,1212 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>VictoriaMetrics—快速、经济高效且可扩展的时间序列数据库 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-VictoriaMetrics—快速、经济高效且可扩展的时间序列数据库"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  VictoriaMetrics—快速、经济高效且可扩展的时间序列数据库
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2023/12/15/VictoriaMetrics%E2%80%94%E5%BF%AB%E9%80%9F%E3%80%81%E7%BB%8F%E6%B5%8E%E9%AB%98%E6%95%88%E4%B8%94%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E6%97%B6%E9%97%B4%E5%BA%8F%E5%88%97%E6%95%B0%E6%8D%AE%E5%BA%93/" class="article-date">
+  <time datetime="2023-12-15T07:05:42.000Z" itemprop="datePublished">2023-12-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">12k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">47 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="VictoriaMetrics"><a href="#VictoriaMetrics" class="headerlink" title="VictoriaMetrics"></a>VictoriaMetrics</h2><p>VictoriaMetrics是一个快速的cost-effective和可伸缩的time-series数据库。</p>
+<p>它可以在二进制版本、docker图像和源代码中使用。只需下载VictoriaMetrics并查看如何启动它。</p>
+<p>这里提供群集版本。</p>
+<p>更多文档请参见我们的Wiki。</p>
+<p>如果您需要VictoriaMetrics的付费企业支持，请与我们联系。请参阅企业客户可用的功能。</p>
+<h2 id="案例研究和会谈"><a href="#案例研究和会谈" class="headerlink" title="案例研究和会谈"></a>案例研究和会谈</h2><ul>
+<li><a href="javascript:">Adidas</a></li>
+<li><a href="javascript:">CERN</a></li>
+<li><a href="javascript:">COLOPL</a></li>
+<li><a href="javascript:">Zerodha</a></li>
+<li><a href="javascript:">Wix.com</a></li>
+<li><a href="javascript:">Wedos.com</a></li>
+<li><a href="javascript:">Synthesio</a></li>
+<li><a href="javascript:">MHI Vestas Offshore Wind</a></li>
+<li><a href="javascript:">Dreamteam</a></li>
+<li><a href="javascript:">Brandwatch</a></li>
+<li><a href="javascript:">Adsterra</a></li>
+<li><a href="javascript:">ARNES</a></li>
+</ul>
+<h2 id="Prominent-features"><a href="#Prominent-features" class="headerlink" title="Prominent features"></a>Prominent features</h2><ul>
+<li>VictoriaMetrics可作为long-term的存储器，供普罗米修斯或vmagent使用。有关详细信息，请参阅这些文档。</li>
+<li>支持Prometheus查询API，因此可以在Grafana中作为Prometheusdrop-in替换。VictoriaMetrics实现了MetricsQL查询语言，它的灵感来自PromQL。</li>
+<li>支持全局查询。多个普罗米修斯实例可能会将数据写入VictoriaMetrics。稍后，可以在单个查询中使用此数据。</li>
+<li>高性能和良好的可伸缩性的插入和选择。比InfluxDB和TimescaleDB高出20倍。</li>
+<li>在处理数百万个唯一的时间序列（也称为高基数）时，使用的RAM比InfluxDB少10倍。</li>
+<li>针对高流失率的时间序列进行了优化。考虑一下prometheus-operator中频繁部署的prometheus-operator度量。</li>
+<li>高数据压缩，因此与TimescaleDB相比，有限的存储中最多可以多出70倍的数据点。</li>
+<li>针对high-latencyIO和低IOPS（AWS中的HDD和网络存储，Google Cloud，Microsoft Azure等）的存储进行了优化。参见这些基准的图表。</li>
+<li>一个single-nodeVictoriaMetrics可以替代中等大小的集群，这些集群是由竞争解决方案构建的，如Thanos、M3DB、Cortex、InfluxDB或TimescaleDB。请参阅纵向可扩展性基准测试，将Thanos与VictoriaMetrics群集进行比较，并从PromCon 2019开始远程写入存储大战。</li>
+<li>操作简单：VictoriaMetrics由一个小的可执行文件组成，没有外部依赖性。所有配置都是通过显式的command-line标志和合理的默认值完成的。所有数据都存储在一个由<code>-storageDataPath</code>标志指向的目录中。使用vmbackup&#x2F;vmrestore从即时快照轻松快速地备份到S3或GCS。更多细节请参阅本文。</li>
+<li>由于存储体系结构，在不干净的关机（即OOM、硬件重置或<code>kill -9</code>）时，存储受到保护，不受损坏。</li>
+<li>通过以下协议支持度量的刮取、摄取和回填：来自Prometheus导出器的度量，比如node_exporter。有关详细信息，请参阅这些文档。通过HTTP、TCP和UDP的Prometheus远程写API InfluxDB-line协议。如果设置了<code>-graphiteListenAddr</code>，则使用带标记的Graphite明文协议。如果设置了<code>-opentsdbListenAddr</code>，则显示OpenTSDB put消息。HTTP OpenTSDB&#x2F;api&#x2F;put请求（如果设置了<code>-opentsdbHTTPListenAddr</code>）。&#x2F;api&#x2F;v1&#x2F;导入。普罗米修斯博览会格式。任意CSV数据。</li>
+<li>支持度量的重新标记。有关详细信息，请参阅这些文档。</li>
+<li>理想情况下可以处理来自Kubernetes的大量时间序列数据、物联网传感器、联网汽车、工业遥测、金融数据和各种企业工作负载。</li>
+<li>具有开放源代码群集版本。</li>
+<li>另请参阅有关VictoriaMetrics的技术文章。</li>
+</ul>
+<h2 id="Operation"><a href="#Operation" class="headerlink" title="Operation"></a>Operation</h2><h3 id="目录"><a href="#目录" class="headerlink" title="目录"></a>目录</h3><ul>
+<li>如何启动VictoriaMetrics环境变量</li>
+<li><a href="javascript:">Prometheus setup</a></li>
+<li><a href="javascript:">Grafana setup</a></li>
+<li>如何升级VictoriaMetrics</li>
+<li>如何将新配置应用到VictoriaMetrics</li>
+<li>像普罗米修斯这样的出口商</li>
+<li>如何从InfluxDB-compatible代理（如Telegraf）发送数据</li>
+<li>如何从Graphite-compatible代理（如StatsD）发送数据</li>
+<li>石墨数据查询</li>
+<li>如何从OpenTSDB-compatible代理发送数据</li>
+<li>如何导入Prometheus exposition格式的数据</li>
+<li>如何导入CSV数据</li>
+<li>Prometheus查询API用法Prometheus查询API增强</li>
+<li>Graphite Metrics API用法</li>
+<li>如何从源代码构建开发构建生产构建ARM构建纯Go构建(CGO_ENABLED&#x3D;0）构建docker图像</li>
+<li>从docker-compose开始</li>
+<li>设置服务</li>
+<li>如何使用快照</li>
+<li>如何删除时间序列</li>
+<li><a href="javascript:">Forced merge</a></li>
+<li>如何导出时间序列</li>
+<li>如何导入时间序列数据</li>
+<li><a href="javascript:">Relabeling</a></li>
+<li><a href="javascript:">Federation</a></li>
+<li><a href="javascript:">Capacity planning</a></li>
+<li><a href="javascript:">High availability</a></li>
+<li><a href="javascript:">Deduplication</a></li>
+<li><a href="javascript:">Retention</a></li>
+<li><a href="javascript:">Multiple retentions</a></li>
+<li><a href="javascript:">Downsampling</a></li>
+<li><a href="javascript:">Multi-tenancy</a></li>
+<li>可扩展性和群集版本</li>
+<li><a href="javascript:">Alerting</a></li>
+<li><a href="javascript:">Security</a></li>
+<li><a href="javascript:">Tuning</a></li>
+<li><a href="javascript:">Monitoring</a></li>
+<li><a href="javascript:">Troubleshooting</a></li>
+<li><a href="javascript:">Backfilling</a></li>
+<li><a href="javascript:">Data updates</a></li>
+<li><a href="javascript:">Replication</a></li>
+<li><a href="javascript:">Backups</a></li>
+<li><a href="javascript:">Profiling</a></li>
+<li><a href="javascript:">Integrations</a></li>
+<li><a href="javascript:">Third-party contributions</a></li>
+<li><a href="javascript:">Contacts</a></li>
+<li>社区与贡献</li>
+<li><a href="javascript:">Reporting bugs</a></li>
+<li>Victoria Metrics徽标使用指南字体使用调色板，敬请咨询</li>
+</ul>
+<h3 id="如何启动VictoriaMetrics"><a href="#如何启动VictoriaMetrics" class="headerlink" title="如何启动VictoriaMetrics"></a>如何启动VictoriaMetrics</h3><p>只需使用所需的command-line标志启动VictoriaMetrics可执行文件或docker映像。</p>
+<p>以下command-line标志使用最多：</p>
+<ul>
+<li><code>-storageDataPath</code>-数据目录的路径。VictoriaMetrics将所有数据存储在该目录中。默认路径是当前工作目录中的<code>victoria-metrics-data</code>。</li>
+<li><code>-retentionPeriod</code>-数据的保留期（以月为单位）。旧数据将自动删除。默认为1个月。</li>
+</ul>
+<p>其他标志有足够好的默认值，所以只有在您确实需要时才设置它们。默认情况下，VictoriaMetrics在端口<code>8428</code>上接受Prometheus查询API请求。</p>
+<p>通过<code>-help</code>查看所有可用的带有说明和默认值的标志。</p>
+<p>建议为VictoriaMetrics设置监控。</p>
+<h4 id="Environment-variables"><a href="#Environment-variables" class="headerlink" title="Environment variables"></a>Environment variables</h4><p>通过以下规则，可以通过环境变量设置每个标志值：</p>
+<ul>
+<li>必须设置<code>-envflag.enable</code>标志</li>
+<li>标志名中的每个<code>.</code>必须由<code>_</code>代替（例如<code>-insert.maxQueueDuration &lt;duration&gt;</code>将转换为<code>insert_maxQueueDuration=&lt;duration&gt;</code>）</li>
+<li>对于重复标志，可以使用另一种语法，通过使用<code>,</code>作为分隔符将不同的值合并为一个值（例如<code>-storageNode &lt;nodeA&gt; -storageNode &lt;nodeB&gt;</code>将转换为<code>storageNode=&lt;nodeA&gt;,&lt;nodeB&gt;</code>）</li>
+<li>可以使用<code>-envflag.prefix</code>为环境变量设置前缀。例如，如果<code>-envflag.prefix=VM_</code>，那么env vars必须以<code>VM_</code>开头</li>
+</ul>
+<h3 id="Prometheus-setup"><a href="#Prometheus-setup" class="headerlink" title="Prometheus setup"></a>Prometheus setup</h3><p>普罗米修斯必须配置remote_write才能将数据发送到维多利亚时代。在Prometheus配置文件中添加以下行（它通常位于<code>/etc/prometheus/prometheus.yml</code>）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">remote_write:</span><br><span class="line">  - url: http://&lt;victoriametrics-addr&gt;:8428/api/v1/write</span><br></pre></td></tr></table></figure>
+
+<p>将<code>&lt;victoriametrics-addr&gt;</code>替换为VictoriaMetrics的主机名或IP地址。然后通过以下命令应用新的配置：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">kill</span> -HUP <span class="string">`pidof prometheus`</span></span><br></pre></td></tr></table></figure>
+
+<p>普罗米修斯将传入的数据写入本地存储并并行复制到远程存储。这意味着即使远程存储不可用，数据仍在本地存储中可用<code>--storage.tsdb.retention.time</code>。</p>
+<p>如果您计划从多个Prometheus实例向VictoriaMetrics发送数据，那么将以下行添加到Prometheus config的<code>global</code>部分：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">global:</span><br><span class="line">  external_labels:</span><br><span class="line">    datacenter: dc-123</span><br></pre></td></tr></table></figure>
+
+<p>这指示普罗米修斯在发送到远程存储器的每个时间序列上添加<code>datacenter=dc-123</code>标签。标签名可以是任意的<code>datacenter</code>只是一个例子。标签值在普罗米修斯实例中必须是唯一的，因此这些时间序列可以被这个标签过滤和分组。</p>
+<p>对于高负载的普罗米修斯实例（每秒400k+个样本），可以应用以下调整：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">remote_write:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">http://&lt;victoriametrics-addr&gt;:8428/api/v1/write</span></span><br><span class="line">    <span class="attr">queue_config:</span></span><br><span class="line">      <span class="attr">max_samples_per_send:</span> <span class="number">10000</span></span><br><span class="line">      <span class="attr">capacity:</span> <span class="number">20000</span></span><br><span class="line">      <span class="attr">max_shards:</span> <span class="number">30</span></span><br></pre></td></tr></table></figure>
+
+<p>使用远程写操作可以使普罗米修斯的内存使用率增加25%，这取决于数据的形状。如果遇到内存消耗过高的问题，请尝试降低<code>max_samples_per_send</code>和<code>capacity</code>参数（请记住这两个参数是紧密相连的）。在这里阅读有关为普罗米修斯调谐远程写入的更多信息。</p>
+<p>建议将普罗米修斯升级到v2.12.0或更新版本，因为以前的版本可能与<code>remote_write</code>有关。</p>
+<p>再看看vmagent，在某些情况下，它可以作为Prometheus更快、更少的resource-hungry替代品。</p>
+<h3 id="Grafana-setup"><a href="#Grafana-setup" class="headerlink" title="Grafana setup"></a>Grafana setup</h3><p>使用以下Url在Grafana中创建普罗米修斯数据源：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://&lt;victoriametrics-addr&gt;:8428</span><br></pre></td></tr></table></figure>
+
+<p>将<code>&lt;victoriametrics-addr&gt;</code>替换为VictoriaMetrics的主机名或IP地址。</p>
+<p>然后使用Prometheus查询语言用创建的数据源构建图形。VictoriaMetrics支持原生PromQL，并使用有用的特性对其进行了扩展。</p>
+<h3 id="如何升级VictoriaMetrics"><a href="#如何升级VictoriaMetrics" class="headerlink" title="如何升级VictoriaMetrics"></a>如何升级VictoriaMetrics</h3><p>除非发行说明中另有说明，否则将VictoriaMetrics升级到新版本是安全的。除非发行说明中另有说明，否则在升级过程中跳过多个版本是安全的。建议定期升级到最新版本，因为它可能包含重要的错误修复、性能优化或新功能。</p>
+<p>它也可以安全地降级到以前的版本，除非发行说明中另有说明。</p>
+<p>升级&#x2F;降级期间必须执行以下步骤：</p>
+<ol>
+<li>向VictoriaMetrics进程发送<code>SIGINT</code>信号，以便优雅地停止它。</li>
+<li>等待进程停止。这可能需要几秒钟。</li>
+<li>启动升级的VictoriaMetrics。</li>
+</ol>
+<p>在VictoriaMetrics重启期间，普罗米修斯不会删除数据。有关详细信息，请参阅本文。</p>
+<h3 id="如何将新配置应用到VictoriaMetrics"><a href="#如何将新配置应用到VictoriaMetrics" class="headerlink" title="如何将新配置应用到VictoriaMetrics"></a>如何将新配置应用到VictoriaMetrics</h3><p>必须重新启动VictoriaMetrics才能应用新配置：</p>
+<ol>
+<li>向VictoriaMetrics进程发送<code>SIGINT</code>信号，以便优雅地停止它。</li>
+<li>等待进程停止。这可能需要几秒钟。</li>
+<li>使用新配置启动VictoriaMetrics。</li>
+</ol>
+<p>在VictoriaMetrics重启期间，普罗米修斯不会删除数据。有关详细信息，请参阅本文。</p>
+<h3 id="如何讨价还价普罗米修斯出口商，如node-exporter"><a href="#如何讨价还价普罗米修斯出口商，如node-exporter" class="headerlink" title="如何讨价还价普罗米修斯出口商，如node-exporter"></a>如何讨价还价普罗米修斯出口商，如node-exporter</h3><p>根据规范，VictoriaMetrics可以作为drop-in替代普罗米修斯，用于抓取<code>prometheus.yml</code>配置文件中配置的目标。只需将<code>-promscrape.config</code>command-line标志设置为<code>prometheus.yml</code>配置的路径，VictoriaMetrics应该开始抓取配置的目标。目前支持以下scrape_config类型：</p>
+<ul>
+<li><a href="javascript:">static_config</a></li>
+<li><a href="javascript:">file_sd_config</a></li>
+<li><a href="javascript:">kubernetes_sd_config</a></li>
+<li><a href="javascript:">ec2_sd_config</a></li>
+<li><a href="javascript:">gce_sd_config</a></li>
+<li><a href="javascript:">consul_sd_config</a></li>
+<li><a href="javascript:">dns_sd_config</a></li>
+</ul>
+<p>将来将支持其他<code>*_sd_config</code>类型。</p>
+<p><code>-promscrape.config</code>指向的文件可能包含<code>%&#123;ENV_VAR&#125;</code>占位符，这些占位符由相应的<code>ENV_VAR</code>环境变量值替换。</p>
+<p>维多利亚时代还支持导入普罗米修斯博览会格式的数据。</p>
+<p>另请参阅vmagent，它可以作为drop-in替代普罗米修斯。</p>
+<h3 id="如何从InfluxDB-compatible代理（如Telegraf）发送数据"><a href="#如何从InfluxDB-compatible代理（如Telegraf）发送数据" class="headerlink" title="如何从InfluxDB-compatible代理（如Telegraf）发送数据"></a>如何从InfluxDB-compatible代理（如Telegraf）发送数据</h3><p>只需在代理的配置中使用<code>http://&lt;victoriametric-addr&gt;:8428</code>url而不是InfluxDB url。例如，将以下行放入<code>Telegraf</code>config中，这样它将数据发送到VictoriaMetrics而不是InfluxDB：</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">[[outputs.influxdb]]</span></span><br><span class="line">  urls = [<span class="string">&quot;http://&lt;victoriametrics-addr&gt;:8428&quot;</span>]</span><br></pre></td></tr></table></figure>
+
+<p>别忘了用运行VictoriaMetrics的实际地址替换<code>&lt;victoriametrics-addr&gt;</code>。</p>
+<p>另一个选项是通过<code>-influxListenAddr</code>command-line标志为流入线协议启用TCP和UDP接收器，并将普通流入线协议数据流传输到配置的TCP和&#x2F;或UDP地址。</p>
+<p>VictoriaMetrics使用以下规则绘制流入数据：</p>
+<ul>
+<li><code>db</code>查询参数映射到<code>db</code>标签值，除非流入行中存在<code>db</code>标记。</li>
+<li>字段名映射到以<code>&#123;measurement&#125;&#123;separator&#125;</code>值为前缀的时间序列名称，其中<code>&#123;separator&#125;</code>默认等于<code>_</code>。它可以用<code>-influxMeasurementFieldSeparator</code>command-line标志进行更改。另请参见<code>-influxSkipSingleField</code>command-line标志。如果<code>&#123;measurement&#125;</code>为空或设置了<code>-influxSkipMeasurement</code>command-line标志，则时间序列名称与字段名称相对应。</li>
+<li>字段值映射到时间序列值。</li>
+<li>标签被映射到普罗米修斯标签as-is。</li>
+</ul>
+<p>例如，以下流入管线：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">foo,tag1=value1,tag2=value2 field1=12,field2=40</span><br></pre></td></tr></table></figure>
+
+<p>转换为以下普罗米修斯数据点：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">foo_field1&#123;tag1=&quot;value1&quot;, tag2=&quot;value2&quot;&#125; 12</span><br><span class="line">foo_field2&#123;tag1=&quot;value1&quot;, tag2=&quot;value2&quot;&#125; 40</span><br></pre></td></tr></table></figure>
+
+<p>使用<code>curl</code>将带有流入线协议的数据写入本地VictoriaMetrics的示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -d &#x27;measurement,tag1=value1,tag2=value2 field1=123,field2=1.23&#x27; -X POST &#x27;http://localhost:8428/write&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>在单个请求中可以发送由’\n’（又名newline char）分隔的任意数量的行。之后，可以通过&#x2F;api&#x2F;v1&#x2F;export端点读取数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match=&#123;__name__=~&quot;measurement_.*&quot;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<p><code>/api/v1/export</code>终结点应返回以下响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;measurement_field1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag1&quot;</span><span class="punctuation">:</span><span class="string">&quot;value1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag2&quot;</span><span class="punctuation">:</span><span class="string">&quot;value2&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">123</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1560272508147</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;measurement_field2&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag1&quot;</span><span class="punctuation">:</span><span class="string">&quot;value1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag2&quot;</span><span class="punctuation">:</span><span class="string">&quot;value2&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1.23</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1560272508147</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>注意，默认情况下，流入线协议要求时间戳以纳秒为单位，而VictoriaMetrics则以毫秒精度存储时间戳。</p>
+<h3 id="如何从Graphite-compatible代理（如StatsD）发送数据"><a href="#如何从Graphite-compatible代理（如StatsD）发送数据" class="headerlink" title="如何从Graphite-compatible代理（如StatsD）发送数据"></a>如何从Graphite-compatible代理（如StatsD）发送数据</h3><ol>
+<li>通过设置<code>-graphiteListenAddr</code>命令行标志，在VictoriaMetrics中启用Graphite接收器。例如，下面的命令将在TCP和UDP端口<code>2003</code>上启用VictoriaMetrics中的Graphite receiver：</li>
+</ol>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/<span class="built_in">path</span>/to/victoria-metrics-prod -graphiteListenAddr=:<span class="number">2003</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>使用Graphite-compatible代理中配置的地址。例如，在<code>StatsD</code>configs中将<code>graphiteHost</code>设置为VictoriaMetrics主机。</li>
+</ol>
+<p>使用<code>nc</code>将Graphite明文协议的数据写入本地VictoriaMetrics的示例：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;foo.bar.baz;tag1=value1;tag2=value2 123 `date +%s`&quot;</span> | nc -N localhost 2003</span><br></pre></td></tr></table></figure>
+
+<p>如果省略了时间戳，VictoriaMetrics将设置当前时间。可以一次性发送由<code>\n</code>（又名newline char）分隔的任意数量的行。之后，可以通过&#x2F;api&#x2F;v1&#x2F;export端点读取数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match=foo.bar.baz&#x27;</span><br></pre></td></tr></table></figure>
+
+<p><code>/api/v1/export</code>终结点应返回以下响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;foo.bar.baz&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag1&quot;</span><span class="punctuation">:</span><span class="string">&quot;value1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag2&quot;</span><span class="punctuation">:</span><span class="string">&quot;value2&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">123</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1560277406000</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="石墨数据查询"><a href="#石墨数据查询" class="headerlink" title="石墨数据查询"></a>石墨数据查询</h3><p>通过<code>Graphite plaintext protocol</code>发送到VictoriaMetrics的数据可以通过以下API读取：</p>
+<ul>
+<li>普罗米修斯查询API</li>
+<li>度量名称可以通过Graphite metrics API进行探索</li>
+<li><a href="javascript:">go-graphite&#x2F;carbonapi</a></li>
+</ul>
+<h3 id="如何从OpenTSDB-compatible代理发送数据"><a href="#如何从OpenTSDB-compatible代理发送数据" class="headerlink" title="如何从OpenTSDB-compatible代理发送数据"></a>如何从OpenTSDB-compatible代理发送数据</h3><p>VictoriaMetrics支持telnet put协议和HTTP&#x2F;api&#x2F;put请求来接收OpenTSDB数据。在KairosDB中摄取数据也使用相同的协议。</p>
+<h4 id="通过telnet-put协议发送数据"><a href="#通过telnet-put协议发送数据" class="headerlink" title="通过telnet put协议发送数据"></a>通过<code>telnet put</code>协议发送数据</h4><ol>
+<li>通过设置<code>-opentsdbListenAddr</code>命令行标志，在VictoriaMetrics中启用OpenTSDB receiver。例如，下面的命令在TCP和UDP端口<code>4242</code>上启用VictoriaMetrics中的OpenTSDB receiver：</li>
+</ol>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/<span class="built_in">path</span>/to/victoria-metrics-prod -opentsdbListenAddr=:<span class="number">4242</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>将数据从OpenTSDB-compatible代理发送到给定地址。</li>
+</ol>
+<p>使用<code>nc</code>将OpenTSDB协议的数据写入本地VictoriaMetrics的示例：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">echo</span> <span class="string">&quot;put foo.bar.baz `date +%s` 123 tag1=value1 tag2=value2&quot;</span> | nc -N localhost 4242</span><br></pre></td></tr></table></figure>
+
+<p>可以一次性发送由<code>\n</code>（又名newline char）分隔的任意数量的行。之后，可以通过&#x2F;api&#x2F;v1&#x2F;export端点读取数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match=foo.bar.baz&#x27;</span><br></pre></td></tr></table></figure>
+
+<p><code>/api/v1/export</code>终结点应返回以下响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;foo.bar.baz&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag1&quot;</span><span class="punctuation">:</span><span class="string">&quot;value1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;tag2&quot;</span><span class="punctuation">:</span><span class="string">&quot;value2&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">123</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1560277292000</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="通过HTTP-api-put请求发送OpenTSDB数据"><a href="#通过HTTP-api-put请求发送OpenTSDB数据" class="headerlink" title="通过HTTP/api/put请求发送OpenTSDB数据"></a>通过HTTP<code>/api/put</code>请求发送OpenTSDB数据</h4><ol>
+<li>通过设置<code>-opentsdbHTTPListenAddr</code>命令行标志，为OpenTSDB<code>/api/put</code>请求启用HTTP服务器。例如，下面的命令在端口<code>4242</code>上启用OpenTSDB HTTP服务器：</li>
+</ol>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/<span class="built_in">path</span>/to/victoria-metrics-prod -opentsdbHTTPListenAddr=:<span class="number">4242</span></span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>将数据从OpenTSDB-compatible代理发送到给定地址。</li>
+</ol>
+<p>写入单个数据点的示例：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -H <span class="symbol">&#x27;Content</span>-Type: application/json&#x27; -d &#x27;&#123;<span class="string">&quot;metric&quot;</span>:<span class="string">&quot;x.y.z&quot;</span>,<span class="string">&quot;value&quot;</span>:<span class="number">45.34</span>,<span class="string">&quot;tags&quot;</span>:&#123;<span class="string">&quot;t1&quot;</span>:<span class="string">&quot;v1&quot;</span>,<span class="string">&quot;t2&quot;</span>:<span class="string">&quot;v2&quot;</span>&#125;&#125;&#x27; http:<span class="comment">//localhost:4242/api/put</span></span><br></pre></td></tr></table></figure>
+
+<p>在单个请求中写入多个数据点的示例：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -H <span class="symbol">&#x27;Content</span>-Type: application/json&#x27; -d &#x27;[&#123;<span class="string">&quot;metric&quot;</span>:<span class="string">&quot;foo&quot;</span>,<span class="string">&quot;value&quot;</span>:<span class="number">45.34</span>&#125;,&#123;<span class="string">&quot;metric&quot;</span>:<span class="string">&quot;bar&quot;</span>,<span class="string">&quot;value&quot;</span>:<span class="number">43</span>&#125;]&#x27; http:<span class="comment">//localhost:4242/api/put</span></span><br></pre></td></tr></table></figure>
+
+<p>之后，可以通过&#x2F;api&#x2F;v1&#x2F;export端点读取数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match[]=x.y.z&#x27; -d &#x27;match[]=foo&#x27; -d &#x27;match[]=bar&#x27;</span><br></pre></td></tr></table></figure>
+
+<p><code>/api/v1/export</code>端点应返回以下响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;foo&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">45.34</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1566464846000</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;bar&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">43</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1566464846000</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;x.y.z&quot;</span><span class="punctuation">,</span><span class="attr">&quot;t1&quot;</span><span class="punctuation">:</span><span class="string">&quot;v1&quot;</span><span class="punctuation">,</span><span class="attr">&quot;t2&quot;</span><span class="punctuation">:</span><span class="string">&quot;v2&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">45.34</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1566464763000</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="如何导入CSV数据"><a href="#如何导入CSV数据" class="headerlink" title="如何导入CSV数据"></a>如何导入CSV数据</h3><p>可以通过<code>/api/v1/import/csv</code>导入任意CSV数据。CSV数据根据提供的<code>format</code>查询参数导入。<code>format</code>查询参数必须包含comma-separatedCSV字段的解析规则列表。每个规则由冒号分隔的三个部分组成：</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;column_pos&gt;<span class="symbol">:&lt;type&gt;</span><span class="symbol">:&lt;context&gt;</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><code>&lt;column_pos&gt;</code>是CSV列（字段）的位置。列编号从1开始。解析规则的顺序可以是任意的。</li>
+<li><code>&lt;type&gt;</code>描述列类型。支持的类型有：<code>metric</code>-<code>&lt;column_pos&gt;</code>处对应的CSV列包含度量值，该值必须是整数或floating-point数字。度量名称从<code>&lt;context&gt;</code>读取。CSV行必须至少有一个度量字段。每个CSV行有多个度量字段是可以的。<code>label</code>-<code>&lt;column_pos&gt;</code>对应的CSV列包含标签值。标签名称从<code>&lt;context&gt;</code>读取。CSV行可以有任意数量的标签字段。所有这些标签都附加到所有配置的度量上。<code>time</code>-<code>&lt;column_pos&gt;</code>处对应的CSV列包含度量时间。CSV行可以包含一列或零列。如果CSV行没有时间，则使用当前时间。时间将应用于所有配置的度量。时间的格式是通过<code>&lt;context&gt;</code>配置的。支持的时间格式是：<code>unix_s</code>-unix时间戳（秒）。<code>unix_ms</code>-unix时间戳（毫秒）。<code>unix_ns</code>-unix时间戳（以纳秒为单位）。请注意，VictoriaMetrics将时间戳舍入为毫秒。<code>rfc3339</code>-RFC3339格式的时间戳，即<code>2006-01-02T15:04:05Z</code>。<code>custom:&lt;layout&gt;</code>-时间戳的自定义布局。根据Go中的time.Parse规则，<code>&lt;layout&gt;</code>可以包含任意时间布局。</li>
+</ul>
+<p>对<code>/api/v1/import/csv</code>的每个请求可以包含任意数量的CSV行。</p>
+<p>通过<code>/api/v1/import/csv</code>导入CSV数据的示例：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">curl -d <span class="string">&quot;GOOG,1.23,4.56,NYSE&quot;</span> <span class="symbol">&#x27;http</span>:<span class="comment">//localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market&#x27;</span></span><br><span class="line">curl -d <span class="string">&quot;MSFT,3.21,1.67,NASDAQ&quot;</span> <span class="symbol">&#x27;http</span>:<span class="comment">//localhost:8428/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>之后，可以通过&#x2F;api&#x2F;v1&#x2F;export端点读取数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match[]=&#123;ticker!=&quot;&quot;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>应返回以下响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;bid&quot;</span><span class="punctuation">,</span><span class="attr">&quot;market&quot;</span><span class="punctuation">:</span><span class="string">&quot;NASDAQ&quot;</span><span class="punctuation">,</span><span class="attr">&quot;ticker&quot;</span><span class="punctuation">:</span><span class="string">&quot;MSFT&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1.67</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1583865146520</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;bid&quot;</span><span class="punctuation">,</span><span class="attr">&quot;market&quot;</span><span class="punctuation">:</span><span class="string">&quot;NYSE&quot;</span><span class="punctuation">,</span><span class="attr">&quot;ticker&quot;</span><span class="punctuation">:</span><span class="string">&quot;GOOG&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">4.56</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1583865146495</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;ask&quot;</span><span class="punctuation">,</span><span class="attr">&quot;market&quot;</span><span class="punctuation">:</span><span class="string">&quot;NASDAQ&quot;</span><span class="punctuation">,</span><span class="attr">&quot;ticker&quot;</span><span class="punctuation">:</span><span class="string">&quot;MSFT&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">3.21</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1583865146520</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;ask&quot;</span><span class="punctuation">,</span><span class="attr">&quot;market&quot;</span><span class="punctuation">:</span><span class="string">&quot;NYSE&quot;</span><span class="punctuation">,</span><span class="attr">&quot;ticker&quot;</span><span class="punctuation">:</span><span class="string">&quot;GOOG&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1.23</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1583865146495</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>通过传递<code>extra_label=name=value</code>查询参数，可以将额外的标签添加到所有导入的行中。例如，<code>/api/v1/import/csv?extra_label=foo=bar</code>将向所有导入的行添加<code>&quot;foo&quot;:&quot;bar&quot;</code>标签。</p>
+<p>请注意，导入历史数据后可能需要刷新响应缓存。有关详细信息，请参阅这些文档。</p>
+<h3 id="如何导入Prometheus-exposition格式的数据"><a href="#如何导入Prometheus-exposition格式的数据" class="headerlink" title="如何导入Prometheus exposition格式的数据"></a>如何导入Prometheus exposition格式的数据</h3><p>VictoriaMetrics通过<code>/api/v1/import/prometheus</code>路径接受普罗米修斯博览会格式的数据。例如，以下行将一行普罗米修斯博览会格式的单行导入到VictoriaMetrics中：</p>
+<figure class="highlight rust"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -d <span class="symbol">&#x27;foo</span>&#123;bar=<span class="string">&quot;baz&quot;</span>&#125; <span class="number">123</span>&#x27; -X POST <span class="symbol">&#x27;http</span>:<span class="comment">//localhost:8428/api/v1/import/prometheus&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<p>以下命令可用于验证导入的数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -G &#x27;http://localhost:8428/api/v1/export&#x27; -d &#x27;match=&#123;__name__=~&quot;foo&quot;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>它应该返回如下内容：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;foo&quot;</span><span class="punctuation">,</span><span class="attr">&quot;bar&quot;</span><span class="punctuation">:</span><span class="string">&quot;baz&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">123</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1594370496905</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>通过传递<code>extra_label=name=value</code>查询参数，可以将额外的标签添加到所有导入的度量中。例如，<code>/api/v1/import/prometheus?extra_label=foo=bar</code>会将<code>&#123;foo=&quot;bar&quot;&#125;</code>标签添加到所有导入的度量中。</p>
+<p>如果<code>&lt;metric&gt; &lt;value&gt; &lt;timestamp&gt;</code>Prometheus exposition格式行中缺少时间戳，则在数据摄取过程中使用当前时间戳。可以通过<code>timestamp</code>查询参数以毫秒为单位传递unix时间戳来覆盖它。例如，<code>/api/v1/import/prometheus?timestamp=1594370496905</code>。</p>
+<p>VictoriaMetrics在对<code>/api/v1/import/prometheus</code>的单个请求中接受任意数量的行，即支持数据流。</p>
+<p>维多利亚时代也可能会刮伤普罗米修斯的目标-见这些文件。</p>
+<h3 id="Prometheus查询API使用情况"><a href="#Prometheus查询API使用情况" class="headerlink" title="Prometheus查询API使用情况"></a>Prometheus查询API使用情况</h3><p>VictoriaMetrics支持Prometheus查询API中的以下处理程序：</p>
+<ul>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;query</a></li>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;query_range</a></li>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;series</a></li>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;labels</a></li>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;label&#x2F;…&#x2F;values</a></li>
+<li><a href="javascript:">&#x2F;api&#x2F;v1&#x2F;status&#x2F;tsdb</a></li>
+</ul>
+<p>这些处理程序可以从Prometheus-compatible客户机（如Grafana或curl）查询。</p>
+<h4 id="Prometheus查询API增强"><a href="#Prometheus查询API增强" class="headerlink" title="Prometheus查询API增强"></a>Prometheus查询API增强</h4><p>除了unix时间戳和rfc339victorametrics还接受<code>time</code>、<code>start</code>和<code>end</code>查询参数中的相对时间。例如，下面的查询将返回最近30分钟的数据：<code>/api/v1/query_range?start=-30m&amp;query=...</code>。</p>
+<p>默认情况下，VictoriaMetrics从&#x2F;api&#x2F;v1&#x2F;series返回最近5分钟的时间序列，而Prometheus api默认为all time。使用<code>start</code>和<code>end</code>选择不同的时间范围。</p>
+<p>VictoriaMetrics接受<code>/api/v1/labels</code>和<code>/api/v1/label/.../values</code>处理程序的附加参数。有关详细信息，请参阅此功能请求：</p>
+<ul>
+<li>任何数量的时间序列选择器通过<code>match[]</code>查询参数。</li>
+<li>可选的<code>start</code>和<code>end</code>查询参数，用于限制选定标签或标签值的时间范围。</li>
+</ul>
+<p>此外，VictoriaMetrics还提供以下处理程序：</p>
+<ul>
+<li><code>/api/v1/series/count</code>-它返回数据库中时间序列的总数。注意事项：处理程序会扫描所有的倒排索引，因此如果数据库中包含数千万个时间序列，则速度会很慢；由于内部实现限制，处理程序可能会将删除的时间序列计数到正常时间序列之外；</li>
+<li><code>/api/v1/labels/count</code>-返回<code>label: values_count</code>条目的列表。它可用于确定具有最大值数的标签。</li>
+<li><code>/api/v1/status/active_queries</code>-它返回当前正在运行的查询的列表。</li>
+</ul>
+<h3 id="Graphite-Metrics-API用法"><a href="#Graphite-Metrics-API用法" class="headerlink" title="Graphite Metrics API用法"></a>Graphite Metrics API用法</h3><p>VictoriaMetrics支持Graphite Metrics API中的以下处理程序：</p>
+<ul>
+<li><a href="javascript:">&#x2F;metrics&#x2F;find</a></li>
+<li><a href="javascript:">&#x2F;metrics&#x2F;expand</a></li>
+<li><a href="javascript:">&#x2F;metrics&#x2F;index.json</a></li>
+</ul>
+<p>VictoriaMetrics在<code>/metrics/find</code>和<code>/metrics/expand</code>接受以下附加查询参数：</p>
+<ul>
+<li><code>label</code>-用于选择任意标签值。默认情况下<code>label=__name__</code>，即选择度量名称。</li>
+<li><code>delimiter</code>-用于在度量名称层次结构中使用不同的分隔符。例如，<code>/metrics/find?delimiter=_&amp;query=node_*</code>将返回所有以<code>node_</code>开头的度量名称前缀。默认情况下<code>delimiter=.</code>。</li>
+</ul>
+<h3 id="如何从源代码构建"><a href="#如何从源代码构建" class="headerlink" title="如何从源代码构建"></a>如何从源代码构建</h3><p>我们建议使用二进制版本或docker映像，而不是从源代码构建VictoriaMetrics。当开发特定于您需要的附加特性或测试错误修复时，从源代码构建是合理的。</p>
+<h4 id="Development-build"><a href="#Development-build" class="headerlink" title="Development build"></a>Development build</h4><ol>
+<li>安装Go。支持的最低版本是Go 1.13。</li>
+<li>从存储库的根文件夹运行<code>make victoria-metrics</code>。它构建<code>victoria-metrics</code>二进制文件并将其放入<code>bin</code>文件夹中。</li>
+</ol>
+<h4 id="Production-build"><a href="#Production-build" class="headerlink" title="Production build"></a>Production build</h4><ol>
+<li><a href="javascript:">Install docker</a>.</li>
+<li>从存储库的根文件夹运行<code>make victoria-metrics-prod</code>。它构建<code>victoria-metrics-prod</code>二进制文件并将其放入<code>bin</code>文件夹中。</li>
+</ol>
+<h4 id="ARM-build"><a href="#ARM-build" class="headerlink" title="ARM build"></a>ARM build</h4><p>ARM构建可以在Raspberry Pi或energy-efficientARM服务器上运行。</p>
+<h4 id="开发臂构建"><a href="#开发臂构建" class="headerlink" title="开发臂构建"></a>开发臂构建</h4><ol>
+<li>安装Go。支持的最低版本是Go 1.13。</li>
+<li>从存储库的根文件夹运行<code>make victoria-metrics-arm</code>或<code>make victoria-metrics-arm64</code>。它分别构建<code>victoria-metrics-arm</code>或<code>victoria-metrics-arm64</code>二进制文件，并将其放入<code>bin</code>文件夹中。</li>
+</ol>
+<h4 id="生产臂构建"><a href="#生产臂构建" class="headerlink" title="生产臂构建"></a>生产臂构建</h4><ol>
+<li><a href="javascript:">Install docker</a>.</li>
+<li>从存储库的根文件夹运行<code>make victoria-metrics-arm-prod</code>或<code>make victoria-metrics-arm64-prod</code>。它分别构建<code>victoria-metrics-arm-prod</code>或<code>victoria-metrics-arm64-prod</code>二进制文件，并将其放入<code>bin</code>文件夹中。</li>
+</ol>
+<h4 id="纯Go构建-CGO-ENABLED-0）"><a href="#纯Go构建-CGO-ENABLED-0）" class="headerlink" title="纯Go构建(CGO_ENABLED&#x3D;0）"></a>纯Go构建(CGO_ENABLED&#x3D;0）</h4><p><code>Pure Go</code>模式只生成没有cgo依赖项的Go代码。这是一种实验模式，可能会导致较低的压缩比和较慢的解压缩性能。小心使用！</p>
+<ol>
+<li>安装Go。支持的最低版本是Go 1.13。</li>
+<li>从存储库的根文件夹运行<code>make victoria-metrics-pure</code>。它构建<code>victoria-metrics-pure</code>二进制文件并将其放入<code>bin</code>文件夹中。</li>
+</ol>
+<h4 id="建筑docker图像"><a href="#建筑docker图像" class="headerlink" title="建筑docker图像"></a>建筑docker图像</h4><p>运行<code>make package-victoria-metrics</code>。它在本地构建<code>victoriametrics/victoria-metrics:&lt;PKG_TAG&gt;</code>docker映像。<code>&lt;PKG_TAG&gt;</code>是auto-generated图像标记，它取决于存储库中的源代码。<code>&lt;PKG_TAG&gt;</code>可以通过<code>PKG_TAG=foobar make package-victoria-metrics</code>手动设置。</p>
+<p>默认情况下，图像构建在alpine图像之上，以提高可调试性。通过<code>&lt;ROOT_IMAGE&gt;</code>环境变量设置，可以在任何其他基本映像之上构建包。例如，以下命令在草稿图像上生成图像：</p>
+<figure class="highlight go"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ROOT_IMAGE=scratch <span class="built_in">make</span> <span class="keyword">package</span>-victoria-metrics</span><br></pre></td></tr></table></figure>
+
+<h3 id="从docker-compose开始"><a href="#从docker-compose开始" class="headerlink" title="从docker-compose开始"></a>从docker-compose开始</h3><p>Docker-compose用一个命令帮助启动VictoriaMetrics、vmagent和Grafana。更多的细节可以在这里找到。</p>
+<h3 id="设置服务"><a href="#设置服务" class="headerlink" title="设置服务"></a>设置服务</h3><p>请阅读以下说明，了解如何在操作系统中将VictoriaMetrics设置为服务。</p>
+<h3 id="如何使用快照"><a href="#如何使用快照" class="headerlink" title="如何使用快照"></a>如何使用快照</h3><p>VictoriaMetrics可以为存储在<code>-storageDataPath</code>目录下的所有数据创建即时快照。导航到<code>http://&lt;victoriametrics-addr&gt;:8428/snapshot/create</code>以创建即时快照。页面将返回以下JSON响应：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;status&quot;</span><span class="punctuation">:</span><span class="string">&quot;ok&quot;</span><span class="punctuation">,</span><span class="attr">&quot;snapshot&quot;</span><span class="punctuation">:</span><span class="string">&quot;&lt;snapshot-name&gt;&quot;</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>快照是在<code>&lt;-storageDataPath&gt;/snapshots</code>目录下创建的，其中<code>&lt;-storageDataPath&gt;</code>是command-line标志值。使用vmbackup可以随时将快照归档到备份存储。</p>
+<p><code>http://&lt;victoriametrics-addr&gt;:8428/snapshot/list</code>页面包含可用快照的列表。</p>
+<p>导航到<code>http://&lt;victoriametrics-addr&gt;:8428/snapshot/delete?snapshot=&lt;snapshot-name&gt;</code>以删除<code>&lt;snapshot-name&gt;</code>快照。</p>
+<p>导航到<code>http://&lt;victoriametrics-addr&gt;:8428/snapshot/delete_all</code>以删除所有快照。</p>
+<p>从快照恢复的步骤：</p>
+<ol>
+<li>用<code>kill -INT</code>停止维多利亚时代。</li>
+<li>使用vmrestore将快照内容从备份还原到<code>-storageDataPath</code>指向的目录。</li>
+<li>Start VictoriaMetrics.</li>
+</ol>
+<h3 id="如何删除时间序列"><a href="#如何删除时间序列" class="headerlink" title="如何删除时间序列"></a>如何删除时间序列</h3><p>向<code>http://&lt;victoriametrics-addr&gt;:8428/api/v1/admin/tsdb/delete_series?match[]=&lt;timeseries_selector_for_delete&gt;</code>发送请求，其中<code>&lt;timeseries_selector_for_delete&gt;</code>可以包含任何要删除的度量的时间序列选择器。之后，所有与给定选择器匹配的时间序列都将被删除。删除的时间序列的存储空间不是立即释放的，而是在随后的数据文件后台合并过程中释放的。请注意，前几个月的数据可能永远不会进行后台合并，因此不会为历史数据释放存储空间。在这种情况下，强制合并可能有助于释放存储空间。</p>
+<p>建议在实际删除度量之前，通过调用<code>http://&lt;victoria-metrics-addr&gt;:8428/api/v1/series?match[]=&lt;timeseries_selector_for_delete&gt;</code>验证哪些度量将被删除。默认情况下，此查询只扫描过去5分钟内的活动序列，因此您可能需要将<code>start</code>和<code>end</code>调整到合适的范围，以实现匹配命中。</p>
+<p>如果设置了<code>-deleteAuthKey</code>command-line标志，<code>/api/v1/admin/tsdb/delete_series</code>处理程序可能受到<code>authKey</code>的保护。</p>
+<p>delete API主要用于以下情况：</p>
+<ul>
+<li>One-off删除意外写入的无效（或不需要的）时间序列。</li>
+<li>One-off由于GDPR而删除用户数据。</li>
+</ul>
+<p>对于以下情况，不建议使用delete API，因为它会带来non-zero开销：</p>
+<ul>
+<li>定期清理不需要的数据。只需防止将不需要的数据写入VictoriaMetrics即可。这可以通过重新标记来完成。有关详细信息，请参阅本文。</li>
+<li>通过删除不需要的时间序列来减少磁盘空间的使用。这并不像预期的那样工作，因为删除的时间序列会占用磁盘空间，直到下一次合并操作，删除太旧的数据时永远不会发生这种情况。强制合并可用于释放旧数据占用的磁盘空间。</li>
+</ul>
+<p>最好使用<code>-retentionPeriod</code>command-line标志来高效地修剪旧数据。</p>
+<h3 id="Forced-merge"><a href="#Forced-merge" class="headerlink" title="Forced merge"></a>Forced merge</h3><p>VictoriaMetrics在后台执行数据兼容，以便在接受新数据时保持良好的性能特性。这些压缩（合并）是在per-month分区上独立执行的。这意味着，如果没有新数据被摄取到per-month分区中，那么压缩将停止。有时有必要触发旧分区的压缩。例如，为了释放被删除的时间序列占用的磁盘空间。在这种情况下，通过向<code>/internal/force_merge?partition_prefix=YYYY_MM</code>发送请求，可以在指定的per-month分区上启动强制压缩，其中<code>YYYY_MM</code>是per-month分区名。例如，<code>http://victoriametrics:8428/internal/force_merge?partition_prefix=2020_08</code>将为2020年8月的分区启动强制合并。对<code>/internal/force_merge</code>的调用立即返回，而相应的强制合并将继续在后台运行。</p>
+<p>强制合并可能需要额外的CPU、磁盘IO和存储空间资源。在正常情况下不必运行强制合并，因为当新数据被摄取到其中时，VictoriaMetrics会自动在后台执行最佳合并。</p>
+<h3 id="如何导出时间序列"><a href="#如何导出时间序列" class="headerlink" title="如何导出时间序列"></a>如何导出时间序列</h3><p>向<code>http://&lt;victoriametrics-addr&gt;:8428/api/v1/export?match[]=&lt;timeseries_selector_for_export&gt;</code>发送一个请求，其中<code>&lt;timeseries_selector_for_export&gt;</code>可以包含要导出的度量的任何时间序列选择器。使用<code>&#123;__name__!=&quot;&quot;&#125;</code>选择器获取所有时间序列。响应将以JSON流格式包含所选时间序列的所有数据。每个JSON行将包含单个时间序列的数据。输出示例：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;up&quot;</span><span class="punctuation">,</span><span class="attr">&quot;job&quot;</span><span class="punctuation">:</span><span class="string">&quot;node_exporter&quot;</span><span class="punctuation">,</span><span class="attr">&quot;instance&quot;</span><span class="punctuation">:</span><span class="string">&quot;localhost:9100&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">0</span><span class="punctuation">,</span><span class="number">0</span><span class="punctuation">,</span><span class="number">0</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1549891472010</span><span class="punctuation">,</span><span class="number">1549891487724</span><span class="punctuation">,</span><span class="number">1549891503438</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span><span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span><span class="string">&quot;up&quot;</span><span class="punctuation">,</span><span class="attr">&quot;job&quot;</span><span class="punctuation">:</span><span class="string">&quot;prometheus&quot;</span><span class="punctuation">,</span><span class="attr">&quot;instance&quot;</span><span class="punctuation">:</span><span class="string">&quot;localhost:9090&quot;</span><span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;values&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1</span><span class="punctuation">,</span><span class="number">1</span><span class="punctuation">,</span><span class="number">1</span><span class="punctuation">]</span><span class="punctuation">,</span><span class="attr">&quot;timestamps&quot;</span><span class="punctuation">:</span><span class="punctuation">[</span><span class="number">1549891461511</span><span class="punctuation">,</span><span class="number">1549891476511</span><span class="punctuation">,</span><span class="number">1549891491511</span><span class="punctuation">]</span><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>可选的<code>start</code>和<code>end</code>参数可以添加到请求中，以限制导出数据的时间范围。这些参数可以包含以秒为单位的unix时间戳或rfc339值。</p>
+<p>可选的<code>max_rows_per_line</code>参数可以添加到请求中，以限制每个JSON行导出的最大行数。默认情况下，每个JSON行包含单个时间序列的所有行。</p>
+<p>将请求中的<code>Accept-Encoding: gzip</code>HTTP头传递给<code>/api/v1/export</code>，以便在展开大量时间序列数据时减少网络带宽。这将为导出的数据启用gzip压缩。导出gzip压缩数据的示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -H &#x27;Accept-Encoding: gzip&#x27; http://localhost:8428/api/v1/export -d &#x27;match[]=&#123;__name__!=&quot;&quot;&#125;&#x27; &gt; data.jsonl.gz</span><br></pre></td></tr></table></figure>
+
+<p>对<code>/api/v1/export</code>的每个请求的最大持续时间受<code>-search.maxExportDuration</code>command-line标志的限制。</p>
+<p>导出的数据可以通过POST’ing到&#x2F;api&#x2F;v1&#x2F;import导入。</p>
+<h3 id="如何导入时间序列数据"><a href="#如何导入时间序列数据" class="headerlink" title="如何导入时间序列数据"></a>如何导入时间序列数据</h3><p>时间序列数据可以通过任何支持的摄取协议导入：</p>
+<ul>
+<li>普罗米修斯remote_writeAPI</li>
+<li>流入线协议</li>
+<li>石墨明文协议</li>
+<li>OpenTSDB telnet put协议</li>
+<li>OpenTSDB http&#x2F;api&#x2F;put</li>
+<li>{32接受来自http&#x2F;POST}的数据。</li>
+<li><code>/api/v1/import/csv</code>httppost处理程序，它接受CSV数据。有关详细信息，请参阅这些文档。</li>
+<li><code>/api/v1/import/prometheus</code>httppost处理程序，它接受Prometheus exposition格式的数据。有关详细信息，请参阅这些文档。</li>
+</ul>
+<p>将数据导入到VictoriaMetrics的最有效的协议是<code>/api/v1/import</code>。导入通过<code>/api/v1/export</code>获得的数据的示例：</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Export the data from &lt;source-victoriametrics&gt;:</span></span><br><span class="line">curl <span class="symbol">http:</span>/<span class="regexp">/source-victoriametrics:8428/api</span><span class="regexp">/v1/export</span> -d <span class="string">&#x27;match=&#123;__name__!=&quot;&quot;&#125;&#x27;</span> &gt; exported_data.jsonl</span><br><span class="line"></span><br><span class="line"><span class="comment"># Import the data to &lt;destination-victoriametrics&gt;:</span></span><br><span class="line">curl -X <span class="variable constant_">POST</span> <span class="symbol">http:</span>/<span class="regexp">/destination-victoriametrics:8428/api</span><span class="regexp">/v1/import</span> -T exported_data.jsonl</span><br></pre></td></tr></table></figure>
+
+<p>将<code>Content-Encoding: gzip</code>HTTP请求头传递给<code>/api/v1/import</code>，以导入gzip数据：</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Export gzipped data from &lt;source-victoriametrics&gt;:</span></span><br><span class="line">curl -H <span class="string">&#x27;Accept-Encoding: gzip&#x27;</span> <span class="symbol">http:</span>/<span class="regexp">/source-victoriametrics:8428/api</span><span class="regexp">/v1/export</span> -d <span class="string">&#x27;match=&#123;__name__!=&quot;&quot;&#125;&#x27;</span> &gt; exported_data.jsonl.gz</span><br><span class="line"></span><br><span class="line"><span class="comment"># Import gzipped data to &lt;destination-victoriametrics&gt;:</span></span><br><span class="line">curl -X <span class="variable constant_">POST</span> -H <span class="string">&#x27;Content-Encoding: gzip&#x27;</span> <span class="symbol">http:</span>/<span class="regexp">/destination-victoriametrics:8428/api</span><span class="regexp">/v1/import</span> -T exported_data.jsonl.gz</span><br></pre></td></tr></table></figure>
+
+<p>通过传递<code>extra_label=name=value</code>查询参数，可以将额外的标签添加到所有导入的时间序列中。例如，<code>/api/v1/import?extra_label=foo=bar</code>会将<code>&quot;foo&quot;:&quot;bar&quot;</code>标签添加到所有导入的时间序列中。</p>
+<p>请注意，导入历史数据后可能需要刷新响应缓存。有关详细信息，请参阅这些文档。</p>
+<p>对<code>/api/v1/import</code>的每个请求最多可在VictoriaMetrics上加载一个vCPU内核。通过将原始文件拆分为较小的部分并同时导入，可以提高导入速度。请注意，原始文件必须在换行符上拆分。</p>
+<h3 id="Relabeling"><a href="#Relabeling" class="headerlink" title="Relabeling"></a>Relabeling</h3><p>如果<code>-relabelConfig</code>command-line标志指向包含relabel_config条目的文件，则VictoriaMetrics支持对所有摄取的度量进行Prometheus-compatible重新标记。</p>
+<p>VictoriaMetrics为重新标记规则提供了以下额外操作：</p>
+<ul>
+<li><code>replace_all</code>：将<code>source_labels</code>值中出现的<code>regex</code>替换为<code>replacement</code>，并将结果存储到<code>target_label</code>。</li>
+<li><code>labelmap_all</code>：将所有标签名称中出现的<code>regex</code>替换为<code>replacement</code>。</li>
+<li><code>keep_if_equal</code>：如果<code>source_labels</code>中的所有标签值都相等，则保留该条目。</li>
+<li><code>drop_if_equal</code>：如果<code>source_labels</code>中的所有标签值都相等，则删除该条目。</li>
+</ul>
+<p>另请参见vmagent中的重新标记。</p>
+<h3 id="Federation"><a href="#Federation" class="headerlink" title="Federation"></a>Federation</h3><p>VictoriaMetrics将Prometheus-compatible联邦数据导出到<code>http://&lt;victoriametrics-addr&gt;:8428/federate?match[]=&lt;timeseries_selector_for_federation&gt;</code>。</p>
+<p>可选的<code>start</code>和<code>end</code>参数可以添加到请求中，以便在<code>[start ... end]</code>间隔上为每个选定的时间序列刮取最后一个点。<code>start</code>和<code>end</code>可能包含以秒为单位的unix时间戳或rfc339值。默认情况下，为每个时间序列刮取间隔<code>[now - max_lookback ... now]</code>上的最后一个点。<code>max_lookback</code>的默认值是<code>5m</code>（5分钟），但是可以重写它。例如，<code>/federate?match[]=up&amp;max_lookback=1h</code>将返回<code>[now - 1h ... now]</code>间隔上的最后一个点。这对于刮取间隔超过<code>5m</code>的时间序列联合可能很有用。</p>
+<h3 id="Capacity-planning"><a href="#Capacity-planning" class="headerlink" title="Capacity planning"></a>Capacity planning</h3><p>对摄取路径所需资源的粗略估计：</p>
+<ul>
+<li>RAM大小：每个活动时间序列小于1KB。因此，1M活动时间序列需要~1GB的RAM。如果最近向时间序列添加了新的数据点，或者最近对其进行了查询，则将其视为活动的。活动时间序列的数量可以从在<code>/metrics</code>页面上导出的<code>vm_cache_entries&#123;type=&quot;storage/hour_metric_ids&quot;&#125;</code>度量中获得。VictoriaMetrics在RAM中存储各种缓存。这些缓存的内存大小可能会受到<code>-memory.allowedPercent</code>或<code>-memory.allowedBytes</code>标志的限制。</li>
+<li>CPU核心：每秒每300K插入数据点一个CPU核心。因此，每秒处理1M数据点的插入流需要~4个CPU内核。对于高基数数据或具有大量标签的时间序列，摄取率可能较低。有关详细信息，请参阅本文。如果每个CPU核心的数量较低，则很可能活动时间序列信息不适合缓存，因此需要更多RAM来降低CPU使用率。</li>
+<li>存储空间：平均每个数据点少于一个字节。因此，存储每秒100K个数据点的month-long插入流需要~260GB。实际的存储大小很大程度上取决于数据的随机性（熵）。更高的随机性意味着更高的存储大小要求。阅读本文了解详细信息。</li>
+<li>网络使用：出站流量可以忽略不计。通过Prometheusremote_writeAPI，每个摄取数据点的入口流量约为100字节。标签的平均使用量取决于每个入口的平均标签大小和大小。更多的per-metric标签和更长的标签值意味着更高的入口带宽。</li>
+</ul>
+<p>查询路径所需的资源：</p>
+<ul>
+<li>RAM大小：取决于每个查询中要扫描的时间序列的数量以及传递给&#x2F;api&#x2F;v1&#x2F;query_range的<code>step</code>参数。扫描时间序列的数量越大，<code>step</code>参数越小，RAM使用率越高。</li>
+<li>CPU核心：每秒3000万扫描数据点的CPU核心。这意味着，涉及大量时间序列（超过10K）和&#x2F;或大量数据点（超过100M）的重查询通常比那些涉及少量时间序列且数据点较少的小查询需要更多的CPU资源。</li>
+<li>网络使用情况：取决于传入请求的频率和类型。典型的Grafana仪表板通常需要可忽略的网络带宽。</li>
+</ul>
+<h3 id="High-availability"><a href="#High-availability" class="headerlink" title="High availability"></a>High availability</h3><ol>
+<li>在不同的数据中心（可用区域）安装多个VictoriaMetrics实例。</li>
+<li>通过<code>-remoteWrite.url</code>command-line标志将这些实例的地址传递给vmagent：</li>
+</ol>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/path/to/vmagent -remoteWrite.url=<span class="symbol">http:</span>/<span class="regexp">/&lt;victoriametrics-addr-1&gt;:8428/api</span><span class="regexp">/v1/write</span> -remoteWrite.url=<span class="symbol">http:</span>/<span class="regexp">/&lt;victoriametrics-addr-2&gt;:8428/api</span><span class="regexp">/v1/write</span></span><br></pre></td></tr></table></figure>
+
+<p>或者，可以将这些地址传递到Prometheus config中的<code>remote_write</code>部分：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">remote_write:</span><br><span class="line">  - url: http://&lt;victoriametrics-addr-1&gt;:8428/api/v1/write</span><br><span class="line">    queue_config:</span><br><span class="line">      max_samples_per_send: 10000</span><br><span class="line">  # ...</span><br><span class="line">  - url: http://&lt;victoriametrics-addr-N&gt;:8428/api/v1/write</span><br><span class="line">    queue_config:</span><br><span class="line">      max_samples_per_send: 10000</span><br></pre></td></tr></table></figure>
+
+<ol start="3">
+<li>应用更新的配置：</li>
+</ol>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">kill</span> -HUP <span class="string">`pidof prometheus`</span></span><br></pre></td></tr></table></figure>
+
+<p>对于高负载设置，建议使用vmagent而不是Prometheus。</p>
+<ol start="4">
+<li>现在普罗米修斯应该并行地将数据写入所有配置的<code>remote_write</code>url中。</li>
+<li>在所有维多利亚时代的复制品前设置Promxy。</li>
+<li>在Grafana中设置指向proxy的Prometheus数据源。</li>
+</ol>
+<p>如果您的Prometheus HA对在每对中都有副本<code>r1</code>和<code>r2</code>，那么将每个<code>r1</code>配置为向<code>victoriametrics-addr-1</code>写入数据，而每个<code>r2</code>应该向<code>victoriametrics-addr-2</code>写入数据。</p>
+<p>另一个选择是同时将数据从Prometheus HA pair写入一对启用了de-duplication的VictoriaMetrics实例。有关详细信息，请参阅本节。</p>
+<h3 id="Deduplication"><a href="#Deduplication" class="headerlink" title="Deduplication"></a>Deduplication</h3><p>如果<code>-dedup.minScrapeInterval</code>command-line标志设置为正持续时间，则VictoriaMetricsde-duplicates数据点。例如，<code>-dedup.minScrapeInterval=60s</code>将de-duplicate数据点放在同一时间序列中，如果它们属于同一个离散的60s桶中。将保留最早的数据点。在时间戳相等的情况下，将保留任意数据点。</p>
+<p>如果HA对中多个配置相同的Prometheus实例向同一个VictoriaMetrics实例写入数据，de-duplication可以减少磁盘空间的使用。请注意，这些Prometheus实例的配置中必须有相同的<code>external_labels</code>部分，因此它们将数据写入同一时间序列。</p>
+<h3 id="Retention"><a href="#Retention" class="headerlink" title="Retention"></a>Retention</h3><p>保留被配置为<code>-retentionPeriod</code>command-line标志。例如，<code>-retentionPeriod=3</code>表示数据将存储3个月，然后删除。数据被拆分到<code>&lt;-storageDataPath&gt;/data/small</code>和<code>&lt;-storageDataPath&gt;/data/big</code>文件夹中的per-month子目录中。在配置的保留期之外数月的目录将在新月份的第一天删除。为了按照<code>-retentionPeriod</code>保存数据，最大磁盘空间使用量将是<code>-retentionPeriod</code>+1个月。例如，如果<code>-retentionPeriod</code>设置为1，则1月份的数据将在3月1日删除。如果<code>-retentionPeriod</code>被设置为比之前更低的值，那么配置期间之外的数据最终将被删除。</p>
+<h3 id="Multiple-retentions"><a href="#Multiple-retentions" class="headerlink" title="Multiple retentions"></a>Multiple retentions</h3><p>只需为以下标志使用不同的值启动多个VictoriaMetrics实例：</p>
+<ul>
+<li><code>-retentionPeriod</code></li>
+<li><code>-storageDataPath</code>，因此每个保留期的数据都保存在一个单独的目录中</li>
+<li><code>-httpListenAddr</code>，因此客户机可以通过适当的保留来访问VictoriaMetrics实例</li>
+</ul>
+<p>然后在VictoriaMetrics实例前面设置vmauth，这样它就可以将请求从特定用户路由到VictoriaMetrics，并保留所需的时间。同样的方案可以在VictoriaMetrics集群中为多个租户实现。</p>
+<h3 id="Downsampling"><a href="#Downsampling" class="headerlink" title="Downsampling"></a>Downsampling</h3><p>目前没有降采样支持，但是：</p>
+<ul>
+<li>VictoriaMetrics针对查询大量原始数据进行了优化。请参阅本文中有关大量查询的基准测试结果。</li>
+<li>VictoriaMetrics对on-disk数据有很好的压缩能力。有关详细信息，请参阅本文。</li>
+</ul>
+<p>这些特性减少了下采样的需要。我们计划在未来实施降采样。详见本期。</p>
+<p>可以（ab）使用-dedup.minScrapeInterval进行基本下采样。例如，如果摄取的数据点之间的间隔是15s，那么<code>-dedup.minScrapeInterval=5m</code>将只在每个5m间隔的20个初始数据点中留下一个数据点。</p>
+<h3 id="Multi-tenancy"><a href="#Multi-tenancy" class="headerlink" title="Multi-tenancy"></a>Multi-tenancy</h3><p>Single-nodeVictoriaMetrics不支持multi-tenancy。请改用群集版本。</p>
+<h3 id="可扩展性和群集版本"><a href="#可扩展性和群集版本" class="headerlink" title="可扩展性和群集版本"></a>可扩展性和群集版本</h3><p>尽管single-nodeVictoriaMetrics不能扩展到多个节点，但它针对资源使用进行了优化—存储大小&#x2F;带宽&#x2F;IOPS、RAM、CPU。这意味着single-nodeVictoriaMetrics可以垂直扩展，并用竞争解决方案（如Thanos、Uber M3、InfloxDB或TimescaleDB）替代中等规模的集群。请参阅垂直可伸缩性基准。</p>
+<p>因此，如果您仍然需要水平可伸缩的long-term远程存储来进行大规模的Prometheus部署，请首先尝试使用single-nodeVictoriaMetrics，然后切换到集群版本。联系我们获得有偿支持。</p>
+<h3 id="Alerting"><a href="#Alerting" class="headerlink" title="Alerting"></a>Alerting</h3><p>建议使用vmalert进行警报。</p>
+<p>此外，可以使用以下工具设置警报：</p>
+<ul>
+<li>关于普罗米修斯-见相应的文件。</li>
+<li>使用Promxy-请参阅相应的文档。</li>
+<li>关于Grafana-参见相应的文档。</li>
+</ul>
+<h3 id="Security"><a href="#Security" class="headerlink" title="Security"></a>Security</h3><p>当VictoriaMetrics暴露在不可信的网络（如internet）中时，不要忘记保护敏感端点。考虑设置以下command-line标志：</p>
+<ul>
+<li><code>-tls</code>、<code>-tlsCertFile</code>和<code>-tlsKeyFile</code>，用于从HTTP切换到HTTPS。</li>
+<li><code>-httpAuth.username</code>和<code>-httpAuth.password</code>，用于通过HTTP基本身份验证保护所有HTTP端点。</li>
+<li><code>-deleteAuthKey</code>用于保护<code>/api/v1/admin/tsdb/delete_series</code>端点。请参阅如何删除时间序列。</li>
+<li><code>-snapshotAuthKey</code>用于保护<code>/snapshot*</code>端点。了解如何使用快照。</li>
+<li><code>-forceMergeAuthKey</code>用于保护<code>/internal/force_merge</code>端点。请参见强制合并文档。</li>
+<li><code>-search.resetCacheAuthKey</code>用于保护<code>/internal/resetRollupResultCache</code>端点。详见回填。</li>
+</ul>
+<p>显式地为TCP和UDP端口设置内部网络接口，以便使用Graphite和OpenTSDB格式接收数据。例如，将<code>-graphiteListenAddr=:2003</code>替换为<code>-graphiteListenAddr=&lt;internal_iface_ip&gt;:2003</code>。</p>
+<p>最好使用vmauth或类似的身份验证代理来授权来自不受信任网络的所有传入请求。</p>
+<h3 id="Tuning"><a href="#Tuning" class="headerlink" title="Tuning"></a>Tuning</h3><ul>
+<li>没有必要对VictoriaMetrics进行调优，因为它对command-line标志使用了合理的默认值，这些标志会根据可用的CPU和RAM资源自动进行调整。</li>
+<li>由于VictoriaMetrics针对默认操作系统设置进行了优化，因此不需要对操作系统进行调优。唯一的选择是增加对操作系统中打开文件数量的限制，这样普罗米修斯实例就可以建立更多与维多利亚时代的连接。</li>
+<li>建议的文件系统是<code>ext4</code>，建议的持久存储是GCP上的持久HDD-based磁盘，因为它通过内部复制来防止硬件故障，并且可以动态调整大小。如果计划在<code>ext4</code>分区上存储1TB以上的数据，或者计划将其扩展到16TB以上，则建议将以下选项传递给<code>mkfs.ext4</code>：</li>
+</ul>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mkfs<span class="selector-class">.ext4</span> ... -O <span class="number">64</span>bit,huge_file,extent -T huge</span><br></pre></td></tr></table></figure>
+
+<h3 id="Monitoring"><a href="#Monitoring" class="headerlink" title="Monitoring"></a>Monitoring</h3><p>VictoriaMetrics在<code>/metrics</code>页面以普罗米修斯格式导出内部指标。vmagent或Prometheus可以通过添加相应的scrape config来收集这些度量。或者，它们可以是self-scraped，方法是将<code>-selfScrapeInterval</code>command-line标志设置为持续时间大于0。例如，<code>-selfScrapeInterval=10s</code>将以10秒的间隔启用<code>/metrics</code>页的self-scraping。</p>
+<p>有single-nodeVictoriaMetrics和集群VictoriaMetrics的Grafana仪表盘。对于集群式VictoriaMetrics，也有一个可供选择的仪表板。</p>
+<p>最有趣的指标是：</p>
+<ul>
+<li><code>vm_cache_entries&#123;type=&quot;storage/hour_metric_ids&quot;&#125;</code>-最近一小时内具有新数据点的时间序列的数量，也称为活动时间序列。</li>
+<li><code>increase(vm_new_timeseries_created_total[1h])</code>-前一小时的时间序列流失率。</li>
+<li><code>sum(vm_rows&#123;type=~&quot;storage/.*&quot;&#125;)</code>-数据库中<code>(timestamp, value)</code>个数据点的总数。</li>
+<li><code>sum(rate(vm_rows_inserted_total[5m]))</code>-摄取率，即每秒在数据库中插入多少个样本。</li>
+<li><code>vm_free_disk_space_bytes</code>-在<code>-storageDataPath</code>处还有可用空间。</li>
+<li><code>sum(vm_data_size_bytes)</code>-磁盘上数据的总大小。</li>
+<li><code>increase(vm_slow_row_inserts_total[5m])</code>-过去5分钟内缓慢插入的次数。如果这个数字在长时间内保持较高，那么可能需要更多的RAM来优化处理当前数量的活动时间序列。</li>
+<li><code>increase(vm_slow_metric_name_loads_total[5m])</code>-在过去5分钟内缓慢加载度量名称的次数。如果这个数字在长时间内保持较高，那么可能需要更多的RAM来优化处理当前数量的活动时间序列。</li>
+</ul>
+<p>{719次显示当前正在运行的查询@trics}。</p>
+<h3 id="Troubleshooting"><a href="#Troubleshooting" class="headerlink" title="Troubleshooting"></a>Troubleshooting</h3><ul>
+<li>建议使用默认的command-line标志值（即不要显式地设置它们），直到需要调整这些标志值为止。</li>
+<li>建议从此页升级到可用的最新版本，因为遇到的问题可能已经在那里修复。</li>
+<li>建议在故障排除期间检查日志，因为它们可能包含有用的信息。</li>
+<li>如果VictoriaMetrics工作缓慢，并且每100K次摄取的数据点每秒消耗超过一个CPU内核，那么对于当前的RAM量来说，可能有太多的活动时间序列。VictoriaMetrics公开了<code>vm_slow_*</code>度量，可以将其用作RAM数量低的指标。在这种情况下，建议使用VictoriaMetrics增加节点上的RAM量，以提高接收和查询性能。另一个选择是增加<code>-memory.allowedPercent</code>command-line标志值。注意这个选项，因为<code>-memory.allowedPercent</code>的值太大可能会导致高I&#x2F;O使用率。</li>
+<li>VictoriaMetrics优先考虑数据摄取而不是数据查询。因此，如果它没有足够的资源用于数据摄取，那么数据查询可能会显著减慢速度。</li>
+<li>VictoriaMetrics需要可用的磁盘空间将数据文件合并到更大的文件中。当没有足够的空闲空间时，它可能会减速。所以确保<code>-storageDataPath</code>目录的可用空间至少是磁盘大小的20%。剩余的可用空间量可以通过<code>vm_free_disk_space_bytes</code>度量来监视。存储在磁盘上的数据的总大小可以通过<code>vm_data_size_bytes</code>度量的总和来监视。</li>
+<li>如果由于磁盘错误导致某些部分损坏而导致VictoriaMetrics无法工作，那么只需删除包含损坏部分的目录。这将以存储在损坏部件中的数据丢失为代价恢复VictoriaMetrics。将来，将创建<code>vmrecover</code>工具来自动从这些错误中恢复。</li>
+<li>如果在图上看到空白，请尝试通过向<code>/internal/resetRollupResultCache</code>发送请求来重置缓存。如果这消除了图上的空白，那么时间戳早于<code>-search.cacheTimestampOffset</code>的数据很可能被摄取到VictoriaMetrics中。确保数据源与VictoriaMetrics同步时间。如果间隙与样本之间的不规则间隔有关，则尝试调整<code>-search.minStalenessInterval</code>command-line标志，使其值接近样本之间的最大间隔。</li>
+<li>如果您正在从InfluxDB或TimescaleDB切换，那么看看<code>-search.maxStalenessInterval</code>command-line标志。为了抑制VictoriaMetrics使用的默认间隙填充算法，可能需要使用该算法——默认情况下，它假设每个时间序列都是连续的，而不是离散的，因此它以规则的间隔填充实际样本之间的间隙。</li>
+<li>{75可确定为高翻页率或高翻页率的标签。有关详细信息，请参阅这些文档。VictoriaMetrics在此页面上接受可选的<code>date=YYYY-MM-DD</code>和<code>topN=42</code>参数。默认情况下，<code>date</code>等于当前日期，而<code>topN</code>等于10。</li>
+<li>VictoriaMetrics使用<code>-maxLabelsPerTimeseries</code>command-line标志限制每个度量的标签数量。这可以防止摄取标签过多的度量。建议监视<code>vm_metrics_with_dropped_labels_total</code>度量，以确定<code>-maxLabelsPerTimeseries</code>是否必须根据工作负载进行调整。</li>
+<li>在数据摄取过程中，VictoriaMetrics忽略<code>NaN</code>和<code>Inf</code>值。详见本期。</li>
+</ul>
+<h3 id="Backfilling"><a href="#Backfilling" class="headerlink" title="Backfilling"></a>Backfilling</h3><p>VictoriaMetrics通过任何支持的摄取方法以任意时间顺序接受历史数据。确保配置的<code>-retentionPeriod</code>覆盖了回填数据的时间戳。</p>
+<p>当使用过去的时间戳写入历史数据时，建议禁用带有<code>-search.disableCache</code>command-line标志的查询缓存，因为缓存假定数据是用当前时间戳写入的。回填完成后可以启用查询缓存。</p>
+<p>另一种解决方案是在回填完成后查询<code>/internal/resetRollupResultCache</code>url。这将重置查询缓存，其中可能包含回填期间缓存的不完整数据。</p>
+<p>另一个解决方案是增加<code>-search.cacheTimestampOffset</code>标志值，以便对时间戳接近当前时间的数据禁用缓存。</p>
+<h3 id="Data-updates"><a href="#Data-updates" class="headerlink" title="Data updates"></a>Data updates</h3><p>VictoriaMetrics不支持将现有的样本值更新为新的样本值。它用相同的时间戳存储同一时间序列的所有摄取数据点。虽然可以通过删除旧的时间序列然后编写新的时间序列来替换旧的时间序列，但是这种方法应该只用于one-off更新。它不应该用于频繁的更新，因为non-zero与数据删除相关的开销。</p>
+<h3 id="Replication"><a href="#Replication" class="headerlink" title="Replication"></a>Replication</h3><p>Single-nodeVictoriaMetrics不支持application-level复制。请改用群集版本。有关详细信息，请参阅这些文档。</p>
+<p>Storage-level复制可能被卸载到持久的持久存储中，比如Google Cloud磁盘。</p>
+<p>另请参阅高可用性文档和备份文档。</p>
+<h3 id="Backups"><a href="#Backups" class="headerlink" title="Backups"></a>Backups</h3><p>VictoriaMetrics支持通过vmbackup和vmrestore工具进行备份。我们还为付费企业用户提供<code>vmbackuper</code>工具-详情请参阅本期。</p>
+<h3 id="Profiling"><a href="#Profiling" class="headerlink" title="Profiling"></a>Profiling</h3><p>VictoriaMetrics提供了用于收集以下Go配置文件的处理程序：</p>
+<ul>
+<li>内存配置文件。可以使用以下命令收集：</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -s http://&lt;victoria-metrics-host&gt;:8428/debug/pprof/heap &gt; mem.pprof</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>CPU配置文件。可以使用以下命令收集：</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -s http://&lt;victoria-metrics-host&gt;:8428/debug/pprof/profile &gt; cpu.pprof</span><br></pre></td></tr></table></figure>
+
+<p>收集CPU配置文件的命令等待30秒后返回。</p>
+<p>可以使用go工具pprof分析收集的外形。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2023/12/15/VictoriaMetrics%E2%80%94%E5%BF%AB%E9%80%9F%E3%80%81%E7%BB%8F%E6%B5%8E%E9%AB%98%E6%95%88%E4%B8%94%E5%8F%AF%E6%89%A9%E5%B1%95%E7%9A%84%E6%97%B6%E9%97%B4%E5%BA%8F%E5%88%97%E6%95%B0%E6%8D%AE%E5%BA%93/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2023/12/18/pmm-server%E6%9C%8D%E5%8A%A1%E9%83%A8%E7%BD%B2%E8%BF%87%E7%A8%8B%E8%AF%A6%E8%A7%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            pmm-server服务部署过程详解
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2023/12/15/VictoriaMetrics%E5%90%AF%E5%8A%A8%E5%8F%82%E6%95%B0%E8%AF%A6%E8%A7%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">VictoriaMetrics启动参数详解</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
