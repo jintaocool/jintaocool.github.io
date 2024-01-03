@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Elasticsearch集群配置解析-master节点配置组合 |  Lijintao&#39;s Blog</title>
+      <title>Elasticsearch究竟要设置多少分片数 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,7 +69,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="Elasticsearch-Elasticsearch集群配置解析-master节点配置组合"
+  id="Elasticsearch-Elasticsearch究竟要设置多少分片数"
   class="article article-type-Elasticsearch"
   itemscope
   itemprop="blogPost"
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Elasticsearch集群配置解析-master节点配置组合
+  Elasticsearch究竟要设置多少分片数
 </h1>
  
 
@@ -88,8 +88,8 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/01/03/Elasticsearch%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90-master%E8%8A%82%E7%82%B9%E9%85%8D%E7%BD%AE%E7%BB%84%E5%90%88/" class="article-date">
-  <time datetime="2024-01-03T03:29:42.000Z" itemprop="datePublished">2024-01-03</time>
+      <a href="/2024/01/03/Elasticsearch%E7%A9%B6%E7%AB%9F%E8%A6%81%E8%AE%BE%E7%BD%AE%E5%A4%9A%E5%B0%91%E5%88%86%E7%89%87%E6%95%B0/" class="article-date">
+  <time datetime="2024-01-03T05:18:40.000Z" itemprop="datePublished">2024-01-03</time>
 </a> 
   <div class="article-category">
     <a class="article-category-link" href="/categories/Elasticsearch/">Elasticsearch</a>
@@ -124,56 +124,54 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h3 id="ES各种节点的分工"><a href="#ES各种节点的分工" class="headerlink" title="ES各种节点的分工"></a>ES各种节点的分工</h3><p><strong>1. 客户端节点</strong><br>　　当主节点和数据节点配置都设置为false的时候，该节点只能处理路由请求，处理搜索，分发索引操作等，从本质上来说该客户节点表现为智能负载平衡器。独立的客户端节点在一个比较大的集群中是非常有用的，他协调主节点和数据节点，客户端节点加入集群可以得到集群的状态，根据集群的状态可以直接路由请求。</p>
-<p><strong>2. 数据节点</strong><br>　　数据节点主要是存储索引数据的节点，主要对文档进行增删改查操作，聚合操作等。数据节点对cpu，内存，io要求较高， 在优化的时候需要监控数据节点的状态，当资源不够的时候，需要在集群中添加新的节点。</p>
-<p><strong>3. 主节点</strong><br>　 主资格节点的主要职责是和集群操作相关的内容，如创建或删除索引，跟踪哪些节点是群集的一部分，并决定哪些分片分配给相关的节点。稳定的主节点对集群的健康是非常重要的，默认情况下任何一个集群中的节点都有可能被选为主节点，索引数据和搜索查询等操作会占用大量的cpu，内存，io资源，为了确保一个集群的稳定，分离主节点和数据节点是一个比较好的选择。</p>
-<p><strong>4.建议</strong><br>　　在一个生产集群中我们可以对这些节点的职责进行划分，建议集群中设置3台以上的节点作为master节点，这些节点只负责成为主节点，维护整个集群的状态。再根据数据量设置一批data节点，这些节点只负责存储数据，后期提供建立索引和查询索引的服务，这样的话如果用户请求比较频繁，这些节点的压力也会比较大，所以在集群中建议再设置一批client节点(node.master: false node.data: false)，这些节点只负责处理用户请求，实现请求转发，负载均衡等功能。<br>在生产环境下，如果不修改elasticsearch节点的角色信息，在高数据量，高并发的场景下集群容易出现脑裂等问题。<br>默认情况下，elasticsearch 集群中每个节点都有成为主节点的资格，也都存储数据，还可以提供查询服务。这些功能是由两个属性控制的。</p>
-<p>二、如何实现分布式</p>
-<p>1、分片</p>
-<p>Elasticsearch 也是会对数据进行切分，同时每一个分片会保存多个副本，其原因是为了保证分布式环境下的高可用，同时也扩大了存储空间。es也是master-slave架构，在 es 中，节点是对等的，节点间会通过自己的一些规则选取集群的 Master，Master 会负责集群状态信息的改变，并同步给其他节点。值得注意的是，只有建立索引和类型需要经过 Master，数据的写入有一个简单的 Routing 规则，可以 Route 到集群中的任意节点，所以数据写入压力是分散在整个集群的。</p>
-<p>具体就是你先建立一个索引，这个索引可以拆分成多个 shard，每个 shard 存储部分数据。这个shard 的数据实际是有多个备份，就是说每个 shard 都有一个 primary shard，负责写入数据，但是还有几个 replica shard。primary shard 写入数据之后，会将数据同步到其他几个 replica shard 上去。</p>
-<p><img src="/images/1704252501-c001a28963e19d1e9619d08abd9c919b.png" alt="在这里插入图片描述"><br>通过这个 replica 的方案，每个 shard 的数据都有多个备份，如果某个机器宕机了，没关系啊，还有别的数据副本在别的机器上呢。高可用了吧。</p>
-<p>es 集群多个节点，会自动选举一个节点为 master 节点，这个 master 节点其实就是干一些管理的工作的，比如维护索引元数据、负责切换 primary shard 和 replica shard 身份等。要是 master 节点宕机了，那么会重新选举一个节点为 master 节点。如果是非 master节点宕机了，那么会由 master 节点，让那个宕机节点上的 primary shard 的身份转移到其他机器上的 replica shard。接着你要是修复了那个宕机机器，重启了之后，master 节点会控制将缺失的 replica shard 分配过去，同步后续修改的数据之类的，让集群恢复正常。说得更简单一点，就是说如果某个非 master 节点宕机了。那么此节点上的 primary shard 不就没了。那好，master 会让 primary shard 对应的 replica shard（在其他机器上）切换为 primary shard。如果宕机的机器修复了，修复后的节点也不再是 primary shard，而是 replica shard。</p>
-<p>其实上述就是 ElasticSearch 作为分布式搜索引擎最基本的一个架构设计。</p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="number">1</span><span class="string">.</span> <span class="string">node.master</span></span><br><span class="line"><span class="number">2</span><span class="string">.</span> <span class="string">node.data</span></span><br><span class="line"><span class="string">默认情况下这两个属性的值都是true</span></span><br></pre></td></tr></table></figure>
-
-<p>node.master：这个属性表示节点是否具有成为主节点的资格,注意：此属性的值为true，并不意味着这个节点就是主节点。因为真正的主节点，是由多个具有主节点资格的节点进行选举产生的。所以，这个属性只是代表这个节点是不是具有主节点选举资格</p>
-<p>node.data：这个属性表示节点是否存储数据。</p>
-<h3 id="五种组合"><a href="#五种组合" class="headerlink" title="五种组合"></a>五种组合</h3><p><strong>组合1.</strong></p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">node.master:</span> <span class="literal">true</span> </span><br><span class="line"><span class="attr">node.data:</span> <span class="literal">true</span> </span><br><span class="line"><span class="attr">node.ingest:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
-
-<p>这种组合表示这个节点既有成为主节点的资格，又可以存储数据，还可以作为预处理节点，这个时候如果某个节点被选举成为了真正的主节点，那么他还要存储数据，这样对于这个节点的压力就比较大了。<br>elasticsearch 默认是：每个节点都是这样的配置，在测试环境下这样做没问题。实际工作中建议不要这样设置，这样相当于 主节点 和 数据节点 的角色混合到一块了。</p>
-<p><strong>组合2.</strong></p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">node.master:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.data:</span> <span class="literal">true</span> </span><br><span class="line"><span class="attr">node.ingest:</span> <span class="literal">false</span></span><br></pre></td></tr></table></figure>
-
-<p>这种组合表示这个节点没有成为主节点的资格，也就不参与选举，只会存储数据。这个节点我们称为 data(数据)节点。在集群中需要单独设置几个这样的节点负责存储数据。后期提供存储和查询服务</p>
-<p><strong>组合3.</strong></p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">node.master:</span> <span class="literal">true</span> </span><br><span class="line"><span class="attr">node.data:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.ingest:</span> <span class="literal">false</span></span><br></pre></td></tr></table></figure>
-
-<p>这种组合表示这个节点不会存储数据，有成为主节点的资格，可以参与选举，有可能成为真正的主节点。这个节点我们称为master节点</p>
-<p><strong>组合4.</strong></p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">node.master:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.data:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.ingest:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
-
-<p>这种组合表示这个节点即不会成为主节点，也不会存储数据，这个节点的意义是作为一个 client(客户端)节点，主要是针对海量请求的时候可以进行负载均衡。在新版 ElasticSearch5.x 之后该节点称之为：coordinate 节点，其中还增加了一个叫：ingest 节点，用于预处理数据（索引和搜索阶段都可以用到），当然，作为一般应用是不需要这个预处理节点做什么额外的预处理过程，那么这个节点和我们称之为 client 节点之间可以看做是等同的，我们在代码中配置访问节点就都可以配置这些 ingest 节点即可</p>
-<p><strong>组合5.</strong></p>
-<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">node.master:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.data:</span> <span class="literal">false</span> </span><br><span class="line"><span class="attr">node.ingest:</span> <span class="literal">false</span> </span><br></pre></td></tr></table></figure>
-
-<p>这种配置为纯查询模式，节点只可以接受查询，对于查询数据量比较大的集群，配置这种节点可以有效的保护数据节点，防止datanode内存溢出。这种模式比模式四更节省资源，为纯查询模式！</p>
-<p>总结<br>　　默认情况下，每个节点都有成为主节点的资格，也会存储数据，还会处理客户端的请求。在一个生产集群中我们可以对这些节点的职责进行划分。</p>
-<p>建议集群中设置 3台 以上的节点作为 master 节点【node.master: true node.data: false node.ingest:false】，这些节点只负责成为主节点，维护整个集群的状态。</p>
-<p>再根据数据量设置一批 data节点【node.master: false node.data: true node.ingest:false】，这些节点只负责存储数据，后期提供建立索引和查询索引的服务，这样的话如果用户请求比较频繁，这些节点的压力也会比较大<br>　　<br>所以在集群中建议再设置一批 ingest 节点也称之为 client 节点<br>【<br>node.master: false<br>node.data: false<br>node.ingest:true<br>】<br>或者<br>【<br>node.master: false<br>node.data: false<br>node.ingest:false<br>】<br>这些节点只负责处理用户请求，实现请求转发，负载均衡等功能。</p>
-<p>master节点：普通服务器即可(CPU 内存 消耗一般)<br>data 节点：主要消耗磁盘，内存<br>client | ingest 节点：普通服务器即可(如果要进行分组聚合操作的话，建议这个节点内存也分配多一点)</p>
-<p>配置文件中配置的注释事项<br>脑裂：</p>
-<p>如果网络的故障导致一个集群被划分成两片，每片都有多个node，以及一个master。因为master是维护集群状态，以及shard的分配。如果出现了两个master，可能导致数据破损。</p>
-<p>discovery.zen.minimum_master_nodes的作用是只有足够的master候选节点时，才可以选举出一个master。该参数必须设置为集群中master候选节点的quorum数量。</p>
-<p>quorum的算法&#x3D;master候选节点数量&#x2F;2+1 也就是至少有（master候选节点数量&#x2F;2+1 ）参与投票选举</p>
-<p>举例：</p>
-<p>1、如果有10个节点，都是data node，也是master的候选节点。则quorum&#x3D;10&#x2F;2+1&#x3D;6</p>
-<p>2、如果有3个master候选节点，100个数据节点。则quorum&#x3D;3&#x2F;2+1&#x3D;2</p>
-<p>3、如果有2个节点，都是data node，也是master的候选节点。则quorum&#x3D;2&#x2F;2+1&#x3D;2（有问题）</p>
-<p>如果其中一个节点挂了，那么master的候选节点只有一个，无法满足quorum数量。即无法选举出master。此时只能将quorum设置成1，但是设置为1有可能出现脑裂。</p>
-<p>总结：一般es集群的节点至少要有3个，quorum设置为2</p>
-<p>注意：在安装elk的时候es的版本要跟kibana的版本一致，否则会出现问题。</p>
+  <h1 id="0、引言"><a href="#0、引言" class="headerlink" title="0、引言"></a><strong>0、引言</strong></h1><p>本文翻译自Elasticsearch20170918热乎的官方博客，原作者：Christian Dahlqvist。 在构建Elasticsearch集群的初期如果集群分片设置不合理，可能在项目的中后期就会出现性能问题。</p>
+<p>Elasticsearch是一个非常通用的平台，支持各种各样的用例，并且为数据组织和复制策略提供了巨大灵活性。这种灵活性使得作为ELK新手的你将数据组织成索引和分片变得困难。虽然不一定会在首次启动时出现问题，但由于数据量随时间的推移，可能会导致性能问题。集群所拥有的数据越多，纠正问题就越困难，甚至有时可能需要重新索引大量数据。</p>
+<p>当我们遇到遭遇性能问题的用户时，可以追溯到关于数据索引的数据和群集数量的问题并不罕见。 对于涉及multi-tenancy或使用基于时间的索引的用户尤其如此。 在与用户讨论这个问题时（会议、论坛形式），引申出的一些最常见的问题是：</p>
+<blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">1）“我应该有多少个分片？”</span><br><span class="line">2）“我的分片应该有多大”？</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p>这篇博客文章旨在帮助您回答这些问题，并为使用基于时间的索引的使用案例（ 日志记录或安全分析 ）提供实用的指导。</p>
+<h1 id="1、什么是分片？"><a href="#1、什么是分片？" class="headerlink" title="1、什么是分片？"></a><strong>1、什么是分片？</strong></h1><p>在开始之前，让我们约定文章中用到的一些概念和术语。 </p>
+<p>Elasticsearch中的数据组织成索引。每一个索引由一个或多个分片组成。每个分片是Luncene索引的一个实例，你可以把实例理解成自管理的搜索引擎，用于在Elasticsearch集群中对一部分数据进行索引和处理查询。</p>
+<p>【刷新】当数据写入分片时，它会定期地发布到磁盘上的新的不可变的Lucene段中，此时它可用于查询。——这被称为刷新。更详细的解读请参考： <a target="_blank" rel="noopener" href="http://t.cn/R05e3YR">http://t.cn/R05e3YR</a></p>
+<p>【合并】随着分段数（segment）的增长，这些segment被定期地整合到较大的segments。 这个过程被称为合并（merging）。</p>
+<p>由于所有段都是不可变的， 因为新的合并段需要创建，旧的分段将被删除 ，这意味着所使用的磁盘空间通常在索引时会波动。 合并可能资源相当密集，特别是在磁盘I&#x2F;O方面。</p>
+<p>分片是Elasticsearch在集群周围分发数据的单位。 Elasticsearch在重新平衡数据时 （例如 发生故障后） 移动分片的速度 取决于分片的大小和数量以及网络和磁盘性能。</p>
+<p>提示：避免有非常大的分片，因为大的分片可能会对集群从故障中恢复的能力产生负面影响。 对于多大的分片没有固定的限制，但是分片大小为50GB通常被界定为适用于各种用例的限制。</p>
+<p><strong>2、索引有效期（ retention period ）</strong></p>
+<p>由于段是不可变的，更新文档需要Elasticsearch首先查找现有文档，然后将其标记为已删除，并添加更新的版本。删除文档还需要找到文档并将其标记为已删除。因此，删除的文档将继续占据磁盘空间和一些系统资源，直到它们被合并，这将消耗大量的系统资源。</p>
+<p>Elasticsearch允许从文件系统直接删除完整索引，而不必明确地必须单独删除所有记录。这是迄今为止从Elasticsearch删除数据的最有效的方式。</p>
+<p><strong><em>提示：</em><strong>尽可能使用基于时间的索引来管理数据。根据保留期（retention period，可以理解成有效期）将数据分组。基于时间的索引还可以轻松地随时间改变主分片和副本分片的数量（以为要生成的下一个索引进行更改）。这简化了适应不断变化的数据量和需求。</strong>3、索引和分片不是空闲的？</strong></p>
+<p>【集群状态】对于每个Elasticsearch索引，其映射和状态的信息都存储在集群状态。 这些集群状态信息保存在内存中以便快速访问。 因此，如果在集群中拥有大量索引，可能导致大的集群状态（特别是如果映射较大）。 所有更新集群状态操作为了在集群中保证一致性，需要通过单个线程完成，因此更新速度将变慢。</p>
+<p>**<em>提示</em>**：为了减少索引数量并避免大的乃至非常庞大的映射，请考虑将相同索引结构的数据存储在相同的索引中，而不是基于数据的来源将数据分割成独立的索引。 在每个索引的索引数量和映射大小之间找到一个很好的平衡很重要。**</p>
+<p>每个分片都有数据需要保存在内存中并使用堆空间。 这包括在分片级别保存信息的数据结构，也包括在段级别的数据结构，以便定义数据驻留在磁盘上的位置。 这些数据结构的大小不是固定的，并且将根据用例而有所不同。</p>
+<p>然而，段相关开销的一个重要特征是它与分段的大小不成正比。 这意味着与较小的段相比，较大的段的每个数据量具有较少的开销，且这种差异很大。</p>
+<p>【堆内存的重要性】为了能够每个节点存储尽可能多的数据，重要的是尽可能多地管理堆内存使用量并减少其开销。 节点拥有的堆空间越多，它可以处理的数据和分片越多。</p>
+<p>因此，索引和分片从集群的角度看待不是空闲的，因为每个索引和分片都有一定程度的资源开销。</p>
+<p>**<em>提示1</em>**：小分片会导致小分段(segment)，从而增加开销。目的是保持平均分片大小在几GB和几十GB之间。对于具有基于时间的数据的用例，通常看到大小在20GB和40GB之间的分片。</p>
+<p>**<em>提示2</em>**：由于每个分片的开销取决于分段数和大小，通过强制操作迫使较小的段合并成较大的段可以减少开销并提高查询性能。一旦没有更多的数据被写入索引，这应该是理想的。请注意，这是一个消耗资源的（昂贵的）操作，较为理想的处理时段应该在非高峰时段执行。</p>
+<p>**<em>提示3</em>**：您可以在集群节点上保存的分片数量与您可用的堆内存大小成正比，但这在Elasticsearch中没有的固定限制。 一个很好的经验法则是：确保每个节点的分片数量保持在低于每1GB堆内存对应集群的分片在20-25之间。 因此，具有30GB堆内存的节点最多可以有600-750个分片，但是进一步低于此限制，您可以保持更好。 这通常会帮助群体保持处于健康状态。</p>
+<p><strong>4、分片的大小如何影响性能？</strong></p>
+<p>在Elasticsearch中，每个查询在每个分片的单个线程中执行。然而，可以并行处理多个分片，并可以在相同分片上执行多个查询和聚合。</p>
+<p>【小分片的利弊】这意味着，在不涉及高速缓存时，最小查询延迟将取决于数据、查询的类型、分片的大小。查询大量小分片将使得每个分片的处理速度更快，但是随着更多的任务需要按顺序排队和处理，它不一定要比查询较小数量的更大的分片更快。如果有多个并发查询，则有很多小碎片也会降低查询吞吐量。</p>
+<p>提示：从查询性能角度确定最大分片大小的最佳方法是使用逼真的数据和查询进行基准测试（真实数据而非模拟数据）。 始终使用查询和索引负载进行基准测试，代表节点在生产中需要处理的内容，因为单个查询的优化可能会产生误导性的结果。</p>
+<p><strong>5、如何管理分片大小？</strong></p>
+<p>当使用基于时间的索引时，每个索引传统上都与固定的时间段相关联。 每日索引非常普遍，经常用于持有时间区间短或每日量大的数据。 这些允许数据期限期间以良好的粒度进行管理，并且可以方便地对每天更换调整volumes。</p>
+<p>时间周期长的数据，特别是如果每日不保存每天的索引数据，则通常会使用每周或每月的保存的碎片大小的增加。 这减少了随着时间的流逝需要存储在群集中的索引和碎片数量大小（直译有点费劲此处）。</p>
+<p>提示：如果使用固定期限的时间索引数据，可以<strong>根据时间周期</strong>和<strong>预期数据量</strong>调整所涵盖的时间范围，以达到目标分片大小。</p>
+<p>【均匀更新&amp;快速变化的索引数据对比】具有固定时间间隔的基于时间的索引在数据量合理预测并且变化缓慢的情况下工作良好。 如果索引率可以快速变化，则很难保持均匀的目标分片大小。</p>
+<p>为了能够更好地处理这种情况，推出了<strong>Rollover</strong>和<strong>Shrink API。</strong> 这些增加了如何管理索引和分片的灵活性，尤其适用于基于时间的索引。</p>
+<p>此处省略了 Rollover和Shrink API的介绍。（建议查询官网补齐概念再深入）</p>
+<p><strong>6、结论</strong></p>
+<p>这篇博客文章提供了有关如何在Elasticsearch中最好地管理数据的提示和实用指南。 如果您有兴趣了解更多，推荐阅读Google搜索 “Elasticsearch: the definitive guide” （有点旧，值得阅读）。</p>
+<p>然而，关于如何最好地在索引和分片上分发数据的许多决策将取决于用例细节，有时可能难以确定如何最佳地应用可用的建议。</p>
+<p>文章提及的几个核心建议清单如下，以回答文章开头的提问。</p>
+<blockquote>
+<p>1） “我应该有多少个分片？</p>
+<p>” 答： 每个节点的分片数量保持在低于每1GB堆内存对应集群的分片在20-25之间。</p>
+<p> 2） “我的分片应该有多大”？ </p>
+<p>答：分片大小为50GB通常被界定为适用于各种用例的限制。</p>
+</blockquote>
  
       <!-- reward -->
       
@@ -244,7 +242,7 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/03/Elasticsearch%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90-master%E8%8A%82%E7%82%B9%E9%85%8D%E7%BD%AE%E7%BB%84%E5%90%88/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/03/Elasticsearch%E7%A9%B6%E7%AB%9F%E8%A6%81%E8%AE%BE%E7%BD%AE%E5%A4%9A%E5%B0%91%E5%88%86%E7%89%87%E6%95%B0/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -257,19 +255,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/01/03/Elasticsearch%E7%A9%B6%E7%AB%9F%E8%A6%81%E8%AE%BE%E7%BD%AE%E5%A4%9A%E5%B0%91%E5%88%86%E7%89%87%E6%95%B0/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            Elasticsearch究竟要设置多少分片数
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/01/03/Skywalking-%E5%8D%83%E4%BA%BF%E7%BA%A7%E7%9A%84%E6%95%B0%E6%8D%AE%E5%82%A8%E8%83%BD%E3%80%81%E6%AF%AB%E7%A7%92%E7%BA%A7%E7%9A%84%E6%9F%A5%E8%AF%A2%E8%80%97%E6%97%B6/" class="article-nav-link">
+      <a href="/2024/01/03/Elasticsearch%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE%E8%A7%A3%E6%9E%90-master%E8%8A%82%E7%82%B9%E9%85%8D%E7%BD%AE%E7%BB%84%E5%90%88/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">Skywalking-千亿级的数据储能、毫秒级的查询耗时</div>
+        <div class="article-nav-title">Elasticsearch集群配置解析-master节点配置组合</div>
       </a>
     
   </nav>
