@@ -1,0 +1,1008 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Skywalking-千亿级的数据储能、毫秒级的查询耗时 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-Skywalking-千亿级的数据储能、毫秒级的查询耗时"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Skywalking-千亿级的数据储能、毫秒级的查询耗时
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/03/Skywalking-%E5%8D%83%E4%BA%BF%E7%BA%A7%E7%9A%84%E6%95%B0%E6%8D%AE%E5%82%A8%E8%83%BD%E3%80%81%E6%AF%AB%E7%A7%92%E7%BA%A7%E7%9A%84%E6%9F%A5%E8%AF%A2%E8%80%97%E6%97%B6/" class="article-date">
+  <time datetime="2024-01-03T01:10:28.000Z" itemprop="datePublished">2024-01-03</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">6.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">22 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="1、开篇"><a href="#1、开篇" class="headerlink" title="1、开篇"></a>1、开篇</h3><p>自从Skywaling开始在公司推广，时不时会在排查问题的人群中听到这样的话：“你咋还没接Skywalking？接入后，一眼就看出是哪儿的问题了…”，正如同事所说的，在许多情况下，Skywalking就是这么秀。作为实践者，我非常感谢Skywalking，因为这款国产全链路监控产品给公司的伙伴们带来了实实在在的帮助；也特别感谢公司的领导和同事们，正因为他们的支持和帮助，才让这套Skywalking系统从起初的有用进化到现在的好用；<strong>从几十亿的Segment储能上限、</strong>几十秒的查询耗时<strong>，优化到千亿级的Segment储能、毫秒级的查询耗时</strong>。</p>
+<p>小提示：</p>
+<ul>
+<li>我们使用的是V8.5.0，根据最新社区通告，V8系列即将下线，进入全新的V9时代，新版本，功能、性能都会更好。</li>
+<li>Segment是Skywalking中提出的概念，表示一次请求在某个服务内的执行链路片段的合集，一个请求在多个服务中先后产生的Segment串起来构成一个完整的Trace，如下图所示：<img src="/images/1704244102-d910af76f04bd1caed730297c70be362.webp" alt="图片"></li>
+</ul>
+<p>Skywalking的这次实践，截止到现在有一年多的时间，回顾总结一下这段历程中的些许积累和收获，愿能反哺社区，给有需求的道友提供个案例借鉴；也希望能收获到专家们的指导建议，把项目做得更好。因为某某约束吧，把有些内容先和谐掉，但也努力把这段历程中那些<strong>靓丽的风景，</strong> 尽可能完整的呈现给大家。</p>
+<h3 id="2、为什么需要全链路监控"><a href="#2、为什么需要全链路监控" class="headerlink" title="2、为什么需要全链路监控"></a>2、为什么需要全链路监控</h3><p>随着微服务架构的演进，单体应用按照服务维度进行拆分，组织架构也随之演进以横向、纵向维度拆分；一个业务请求的执行轨迹，也从单体应用时期一个应用实例内一个接口，变成多个服务实例的多个接口；对应到组织架构，可能跨越多个BU、多个Owner。虽然微服务架构高内聚低耦合的优势是不言而喻的，但是低耦合也有明显的副作用，它在现实中给跨部门沟通、协作带来额外的不可控的开销；因此开发者尤其是终端业务侧的架构师、管理者，特别需要一些可以帮助理解系统拓扑和用于分析性能问题的工具，便于在架构调整、性能检测和发生故障时，缩减沟通协作方面的精力和时间耗费，快速定位并解决问题。</p>
+<p>我所在公司是微服务架构的深度实践者，为了进一步降低机器成本、提高服务质量、提升问题响应效率，部门在21年结合自身的一些情况，决定对现行的全链路监控系统进行升级，目的与以下网络中常见的描述基本一致：</p>
+<ul>
+<li>快速发现问题</li>
+<li>判断故障影响范围</li>
+<li>梳理服务依赖并判断依赖的合理性</li>
+<li>分析链路性能并实施容量规划</li>
+</ul>
+<h3 id="3、为什么选择Skywalking"><a href="#3、为什么选择Skywalking" class="headerlink" title="3、为什么选择Skywalking"></a>3、为什么选择Skywalking</h3><p>在做技术选型时，网络中搜集的资料显示，谷歌的 Dapper系统，算是链路追踪领域的始祖。受其公开论文中提出的概念和理念的影响，一些优秀的企业、个人先后做出不少非常nice的产品，有些还在社区开源共建，如：韩国的Pinpoint，Twitter的Zipkin，Uber的Jaeger及中国的Skywalking 等，我司选型立项的过程中综合考虑的因素较多，这里只归纳一下Skywalking吸引我们的2个优势：</p>
+<ol>
+<li>产品的完善度高：</li>
+</ol>
+<ul>
+<li>java生态，功能丰富</li>
+<li>社区活跃，迭代迅速</li>
+</ul>
+<ol start="2">
+<li>链路追踪、拓扑分析的能力强：</li>
+</ol>
+<ul>
+<li>插件丰富，探针无侵入。</li>
+<li>先进的<strong>流式拓扑分析</strong></li>
+</ul>
+<p>“好东西不需要多说,实际行动告诉你“，这句话我个人非常喜欢，关于Skywalking的众多的优点，网络上可以找到很多，此处先不逐一比较、赘述了。</p>
+<h3 id="4、预研阶段"><a href="#4、预研阶段" class="headerlink" title="4、预研阶段"></a>4、预研阶段</h3><p>当时最新版本8.5.0，梳理分析8.x的发布记录后，评估此版本的核心功能是蛮稳定的，于是基于此版本开始了Skywalking的探索之旅。当时的认知是有限的，串行思维模型驱使我将关注的问题聚焦在<strong>架构原理是怎样</strong>、<strong>有什么副作用</strong>这两个方面：</p>
+<ol>
+<li>架构和原理：</li>
+<li><ul>
+<li>agent端 主要关注 Java Agent的机制、Skywalking Agent端的配置、插件的工作机制、数据采集及上报的机制。</li>
+<li>服务端 主要关注 角色和职责、模块和配置、数据接收的机制、指标构建的机制、指标聚合的机制及指标存储的机制。</li>
+<li>存储端 主要关注 数据量，存储架构要求以及资源评估。</li>
+</ul>
+</li>
+<li>副作用：</li>
+<li><ul>
+<li>功能干扰</li>
+<li>性能损耗</li>
+</ul>
+</li>
+</ol>
+<h5 id="4-1-架构和原理"><a href="#4-1-架构和原理" class="headerlink" title="4.1 架构和原理"></a>4.1 架构和原理</h5><p>Skywalking社区很棒，官网文档和官方出版的书籍有较系统化的讲解，因为自己在APM系统以及Java Agent方面有一些相关的经验沉淀，通过在这两个渠道的学习，对Agent端和OAP(服务端)很快便有了较系统化的认知。在做系统架构选型时，评估数据量会比较大（成千上万的JVM实例数，每天采集的Segment数量可能是50-100亿的级别），所以传输通道选择Kafka、存储选择Elasticsearch，如此简易版的架构以及数据流转如下图所示：</p>
+<p><img src="/images/1704244102-9e995c2b666ff7ebc25a07eb5431d55f.webp" alt="图片"></p>
+<p>Mixed角色模式的数据流转.png</p>
+<p>这里有几处要解释一下：</p>
+<ol>
+<li>Agent上报数据给OAP端，有grpc通道和kafka通道，当时就盲猜grpc通道可能撑不住，所以选择kafka通道来削峰；kafka通道是在8.x里加入的。</li>
+<li>千亿级的数据用ES来做存储肯定是可以的（毕竟前东家中通科技的ES日志集群算是PB级的，最近换成clickhouse后也是6的飞起）。</li>
+<li>图中L1聚合的意思是：Skywalking OAP服务端 接收数据后，构建metric并完成metric 的Level-1聚合，这里简称L1聚合。</li>
+<li>图中L2聚合的意思是：服务端 基于metric的Level-1聚合结果，再做一次聚合，即Level-2聚合，这里简称L2聚合。后续把纯Mixed角色的集群拆成了两个集群。</li>
+</ol>
+<h5 id="4-2-副作用"><a href="#4-2-副作用" class="headerlink" title="4.2 副作用"></a>4.2 副作用</h5><p>对于质量团队和接入方来说，他们最关注的问题是，接入Skywalking后：</p>
+<ul>
+<li>是否对应用有功能性干扰</li>
+<li>在运行期能带来哪些性能损耗</li>
+</ul>
+<p>这两个问题从3个维度来得到答案：</p>
+<ol>
+<li>网络资料显示：</li>
+<li><ul>
+<li>Agent带来的性能损耗在5%以内</li>
+<li>未搜到功能性干扰相关的资料（盲猜没有这方面问题）</li>
+</ul>
+</li>
+<li>实现机制评估：</li>
+<li><ul>
+<li>字节码增强机制是JVM提供的机制，Skywalking使用的字节码操控框架ByteBuddy也是成熟稳定的；通过自定义ClassLoader来加载管理插件类，不会产生冲突和污染。</li>
+<li>Agent内插件开发所使用的AOP机制是基于模板方法模式实现的，风控很到位，即使插件的实现逻辑有异常也不影响用户逻辑的执行；</li>
+<li>插件采集数据跟上报逻辑之间用了一个<strong>轻量级的无锁环形队列</strong>进行解耦，算是一种保护机制；这个队列在MPSC场景下性能还不错；队列采用满时丢弃的策略，不会有积压阻塞和OOM。</li>
+</ul>
+</li>
+<li>性能测试验证</li>
+<li><ul>
+<li>测试的老师针对dubbo、http 这两种常规RPC通信场景，进行压力测试和稳定性测试，结果与网络资料描述一致，符合预期。</li>
+</ul>
+</li>
+</ol>
+<h3 id="5、POC阶段"><a href="#5、POC阶段" class="headerlink" title="5、POC阶段"></a>5、POC阶段</h3><p>在POC阶段，接入几十个种子应用，在非生产环境试点观察，同时完善插件补全链路，对接公司的配置中心，对接发布系统，完善自监控…全面准备达到推广就绪状态。</p>
+<h5 id="5-1-对接发布系统"><a href="#5-1-对接发布系统" class="headerlink" title="5.1 对接发布系统"></a>5.1 对接发布系统</h5><p>为了对接公司的发布系统，方便系统的发布，将Skywalking应用拆分为4个子应用：</p>
+<table>
+<thead>
+<tr>
+<th>应用</th>
+<th>介绍</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Webapp</td>
+<td>Skywalking的web端</td>
+</tr>
+<tr>
+<td>Agent</td>
+<td>Skywalking的Agent端</td>
+</tr>
+<tr>
+<td>OAP-Receiver</td>
+<td>skywakling的服务端，角色是Mixed或Receiver</td>
+</tr>
+<tr>
+<td>OAP-Aggregator</td>
+<td>skywalking的服务端，角色是Aggregator</td>
+</tr>
+</tbody></table>
+<p>这里有个考虑，暂定先使用纯Mixed角色的单集群，不够用的话就试试 Receiver+Aggregator双角色集群模式，最终选哪种视效果而定。</p>
+<p>Skywalking Agent端是基于Java Agent机制实现的，采用的是启动挂载模式；启动挂载需在启动脚本里加入挂载Java Agent的逻辑，发布系统实现这个功能需要注意2点：</p>
+<ol>
+<li>启动脚本挂载Skywalking Agent的环节，尽量让用户无感知。</li>
+<li>发布系统在挂载Agent的时候，给Agent指定应用名称和所属分组信息。</li>
+</ol>
+<p>Skywalking Agent的发布和升级也由发布系统来负责；Agent的升级采用了灰度管控的方案，控制的粒度是应用级和实例级两种：</p>
+<ol>
+<li>按照应用灰度，可给应用指定使用什么版本的Agent</li>
+<li>按照应用的实例灰度，可给应用指定其若干实例使用什么版本的Agent</li>
+</ol>
+<h5 id="5-2-完善插件补全链路"><a href="#5-2-完善插件补全链路" class="headerlink" title="5.2 完善插件补全链路"></a>5.2 完善插件补全链路</h5><p>针对公司OLTP技术栈，量身定制了插件套，其中大部分在开源社区的插件库中有，缺失的部分通过自研快速补齐。</p>
+<p>这些插件给各组件的核心环节埋点，采集数据上报给Skywalking后，Webapp端的【追踪】页面就能勾勒出丰满完美的请求执行链路；这对架构师理解真实架构，测试同学验证逻辑变更和分析性能损耗，开发同学精准定位问题都非常的有帮助。这里借官方在线Demo的截图一用（抱歉后端程序员，五毛特效都没做出来，丰满画面还请自行脑补）<img src="/images/1704244102-625bfe39f0aa99836aeb3beab71dd2b4.webp" alt="图片"></p>
+<p><strong>友情小提示</strong>：移除不用的插件对程序编译打包和减少应用启动耗时很有帮助。</p>
+<h5 id="5-3压测稳测"><a href="#5-3压测稳测" class="headerlink" title="5.3压测稳测"></a>5.3压测稳测</h5><p>测试的老师，针对Skywalking Agent端的插件套，设计了丰富的用例，压力测试和稳定性测试的结果都符合预期；每家公司的标准不尽一致，此处不再赘述。</p>
+<h5 id="5-4-对接自研的配置中心"><a href="#5-4-对接自研的配置中心" class="headerlink" title="5.4 对接自研的配置中心"></a>5.4 对接自研的配置中心</h5><p>把应用中繁杂的配置交给配置中心来管理是非常必要的，配置中心既能提供启动时的静态配置，又能管理运行期的动态配置，而且外部化配置的机制特别容易满足容器场景下应用的无状态化要求。啰嗦一下，举2个例子：</p>
+<ol>
+<li>调优时，修改参数的值不用来一遍开发到测试再到生产的发布。</li>
+<li>观测系统状态，修改日志配置后不需要来一遍开发到测试再到生产的发布。</li>
+</ol>
+<p>Skywaling在外接配置中心这块儿，适配了市面中主流的配置中心产品，其中有个人偏爱的Apollo。而公司的配置中心是自研的，需要对接一下，得益于Skywalking提供的模块化管理机制，只用扩展一个模块即可。</p>
+<p>在POC阶段，梳理服务端各模块的功能，能感受到其配置化做的不错，配置项很丰富，管控的粒度也很细；在POC阶段几乎没有变动，除了对Webapp模块的外部化配置稍作改造，与配置中心打通以便在配置中心管理 Webapp模块中Ribbon和Hystrix的相关配置。</p>
+<h5 id="5-5完善自监控"><a href="#5-5完善自监控" class="headerlink" title="5.5完善自监控"></a>5.5完善自监控</h5><p>自监控是说监控Skywalking系统内各模块的运转情况：</p>
+<table>
+<thead>
+<tr>
+<th>组件</th>
+<th>监控方案</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>kafka</td>
+<td>kafka-manager</td>
+<td>它俩是老搭档了</td>
+</tr>
+<tr>
+<td>Agent端</td>
+<td>Skywalking</td>
+<td>Agent端会发心跳信息给服务端，可在Web中看到Agent的信息</td>
+</tr>
+<tr>
+<td>OAP集群</td>
+<td>prometheus</td>
+<td>指标还算丰富，感觉缺的可以自己补充</td>
+</tr>
+<tr>
+<td>ES集群</td>
+<td>prometheus</td>
+<td>指标还算丰富</td>
+</tr>
+</tbody></table>
+<p>完善自监控后的架构如下图所示：</p>
+<p><img src="/images/1704244102-bd2706367969deb46a69bf254f9f5570.webp" alt="图片"></p>
+<p>自监控.png</p>
+<h5 id="5-6-自研Native端SDK"><a href="#5-6-自研Native端SDK" class="headerlink" title="5.6 自研Native端SDK"></a>5.6 自研Native端SDK</h5><p>公司移动端的应用很核心，也要使用链路追踪的功能，社区缺了这块，于是基于Skywalking的协议，移动端的伙伴们自研了一套SDK，弥补了Native端链路数据的缺失，也在后来的秒开页面指标统计中发挥了作用。随着口口相传，不断有团队提出需求、加入建设，所以也在持续迭代中；内容很多，这里先不展开。</p>
+<h5 id="5-7-小结"><a href="#5-7-小结" class="headerlink" title="5.7 小结"></a>5.7 小结</h5><p>POC阶段数据量不大，主要是发现系统的各种功能性问题，查缺补漏。</p>
+<h3 id="6、推广和优化阶段"><a href="#6、推广和优化阶段" class="headerlink" title="6、推广和优化阶段"></a>6、推广和优化阶段</h3><p>Skywalking的正式推广采用的是城市包围农村的策略；公司的核心应用作为第一批次接入，这个策略有几个好处：</p>
+<ol>
+<li>核心应用的监管是重中之重，优先级默认最高。</li>
+<li>核心应用的上下游应用，会随着大家对Skywalking依赖的加深，而逐步自主接入。</li>
+</ol>
+<p>当然安全是第一位的，无论新系统多好、多厉害，其引入都需遵守安全稳定的前提要求。既要安全又要快速还要方便，兴总提出了解决方案，在之前的Agent灰度接入的能力之上，发布系统增加了应用Owner<strong>自助式灰度接入和快速卸载</strong>Skywalking Agent的能力，即应用负责人可自主选择哪个应用接入，接入几个实例，倘若遇到问题仅通过重启即可完成快速卸载；这个能力在推广的前期发挥了巨大的作用；毕竟安全第一，信任也需逐步建立。</p>
+<p>随着应用的接入、使用，我们也逐渐遇到了一些问题，这里按照时间递增的顺序将问题和优化效果快速的介绍给大家，更多的细节计划在【Skywalking(v8.5.0)优化系列汇总】补充。开始之前有几个事项要说明：</p>
+<ol>
+<li>下文中提到的数字仅代表我司的情况，标注的Segment数量是处理这个问题的那段时间的情况，并不是说达到这个数量才开始出现这个现象。</li>
+<li>这些数值以及当时的现象，受到宿主机配置、Segment数据的大小、存储处理能力等多种因素的影响；请关注调整的过程和效果，无需把数字和现象对号入座哈。</li>
+</ol>
+<h4 id="6-1-启动耗时："><a href="#6-1-启动耗时：" class="headerlink" title="6.1 启动耗时："></a>6.1 启动耗时：</h4><h6 id="问题："><a href="#问题：" class="headerlink" title="问题："></a>问题：</h6><p>有同事反馈应用启动变慢，排查发现容器中多数应用启动的总耗时，在接入Skywalking前是2秒，接入后变成了16秒以上，公司很多核心应用的实例数很多，这样的启动损耗对它们的发布影响太大。</p>
+<h6 id="优化："><a href="#优化：" class="headerlink" title="优化："></a>优化：</h6><ol>
+<li>记录启动耗时并随着其他启动数据上报到服务端，方便查看对比。</li>
+<li>优化Kafka Reporter的启动过程，将启动耗时减少了3-4秒。</li>
+<li>优化类匹配和增强环节（重点）后，容器中的应用启动总耗时从之前16秒以上降低到了3秒内。</li>
+<li>梳理Kafka 启动和上报的过程中，顺带调整了Agent端的数据上报到kafka的分区选择策略，将一个JVM实例中的数据全部发送到同一个的分区中，如此在L1层的聚合就完成了JVM实例级的Metric聚合，需注意调整Kafka分片数来保证负载均衡。</li>
+</ol>
+<h4 id="6-2-kafka积压-6亿segment-天"><a href="#6-2-kafka积压-6亿segment-天" class="headerlink" title="6.2 kafka积压-6亿segment&#x2F;天"></a>6.2 kafka积压-6亿segment&#x2F;天</h4><h6 id="问题：-1"><a href="#问题：-1" class="headerlink" title="问题："></a>问题：</h6><p>Skywalking OAP端消费慢，导致Kafka中Segment积压。未能达到能用的目标。</p>
+<h6 id="优化：-1"><a href="#优化：-1" class="headerlink" title="优化："></a>优化：</h6><p>从Skywalking OAP端的监控指标中没有定位出哪个环节的问题，把服务端单集群拆为双集群，即把 Mixed角色的集群 ，修改为 Receiver 角色（接收和L1聚合）的集群 ，并加入 Aggregation角色（L2聚合）的集群，调整成了双集群模式，数据流传如下图所示：</p>
+<p><img src="/images/1704244102-726063b70716295d47168d61f1e856bd.webp" alt="图片"></p>
+<p>Receiver角色+Aggregation角色模式的数据流转.png</p>
+<h4 id="6-3-kafka积压-8亿segment-天"><a href="#6-3-kafka积压-8亿segment-天" class="headerlink" title="6.3 kafka积压-8亿segment&#x2F;天"></a>6.3 kafka积压-8亿segment&#x2F;天</h4><h6 id="问题：-2"><a href="#问题：-2" class="headerlink" title="问题："></a>问题：</h6><p>Skywalking OAP端消费慢，导致Kafka中Segment积压，监控指标能看出是在ES存储环节慢，未能达到能用的目标。</p>
+<h6 id="优化：-2"><a href="#优化：-2" class="headerlink" title="优化："></a>优化：</h6><ol>
+<li>优化segment保存到ES的批处理过程，调整BulkProcessor的线程数和批处理大小。</li>
+<li>优化metrics保存到ES的批处理过程，调整批处理的时间间隔、线程数、批处理大小以及刷盘时间。</li>
+</ol>
+<h4 id="6-4-kafka积压-20亿segment-天"><a href="#6-4-kafka积压-20亿segment-天" class="headerlink" title="6.4 kafka积压-20亿segment&#x2F;天"></a>6.4 kafka积压-20亿segment&#x2F;天</h4><h6 id="问题：-3"><a href="#问题：-3" class="headerlink" title="问题："></a>问题：</h6><p>Aggregation集群的实例持续Full GC，Receiver集群通过grpc 给Aggregation集群发送metric失败。未能达到能用的目标。</p>
+<h6 id="优化：-3"><a href="#优化：-3" class="headerlink" title="优化："></a>优化：</h6><ol>
+<li><p>增加ES节点、分片，效果不明显。</p>
+</li>
+<li><p>ES集群有压力，但无法精准定位出是什么数据的什么操作引发的。采用分治策略，尝试将数据拆分，从OAP服务端读写逻辑调整，将ES单集群拆分为 trace集群 和 metric集群；之后，ES的监控指标明确看出是metric集群读写压力太大。</p>
+</li>
+<li><p>优化Receiver集群metric的L1聚合，完成1分钟的数据聚合后，再提交给Aggregation集群做L2聚合。</p>
+</li>
+<li><p>Aggregation集群metric的L2 聚合是基于db实现的，会有 空读-写-再读-累加-更新写 这样的逻辑，每次写都会有读，调整逻辑是：提升读的性能，优化缓存机制减少读的触发；调整间隔，避免触发累加和更新。</p>
+</li>
+<li><p>将metric批量写ES操作调整成BulkProcessor。</p>
+</li>
+<li><p>ES的metric集群 使用SSD存储，增加节点数和分片数。</p>
+</li>
+</ol>
+<p>这一次的持续优化具有里程碑式的意义，Kafka消费很快，OAP各机器的Full GC没了，ES的各方面指标也很稳定；接下来开始优化查询，提升易用性。</p>
+<h4 id="6-5-trace查询慢-25亿segment-天"><a href="#6-5-trace查询慢-25亿segment-天" class="headerlink" title="6.5 trace查询慢-25亿segment&#x2F;天"></a>6.5 trace查询慢-25亿segment&#x2F;天</h4><h6 id="问题：-4"><a href="#问题：-4" class="headerlink" title="问题："></a>问题：</h6><p>Webapp的【追踪】页中查询都很慢，保存了15天的数据，按照traceId查询耗时要20多秒，按照条件查询trace列表的耗时更糟糕；这给人的感受就是“一肚子墨水倒不出来”，未能达到好用的目标。</p>
+<h6 id="优化：-4"><a href="#优化：-4" class="headerlink" title="优化："></a>优化：</h6><p>ES查询优化方面的信息挺多，但通过百度筛选出解决此问题的有效方案，就要看咱家爱犬的品种了；当时搜集整理了并尝试了N多优化条款，可惜没有跟好运偶遇，结论是颜值不可靠。言归正传，影响读写性能的基本要素有3个：读写频率，数据规模，硬件性能；trace的情况从这三个维度来套一套模板：</p>
+<table>
+<thead>
+<tr>
+<th>要素</th>
+<th>trace的情况</th>
+<th>备注</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>读写频率</td>
+<td>宏观来看是写多读少的状况</td>
+<td></td>
+</tr>
+<tr>
+<td>数据规模</td>
+<td>按照每天50亿个segment来算，半个月是750亿，1个月是1500亿。</td>
+<td></td>
+</tr>
+<tr>
+<td>硬件性能</td>
+<td>普通硬盘速度一般</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>这个分析没有得出具有指导意义的结论，读写频率这里粒度太粗，用户的使用情况跟时间也有紧密的关系，情况大概是：</p>
+<ol>
+<li>当天的数据是读多写多（当天不断有新数据写入，基于紧急响应的需求，问题出现时可能是近实时的排查处理）。</li>
+<li>前一天的数据是读多写少（一般也会有问题隔天密集上报的情况，0点后会有前一天数据延迟到达的情况）。</li>
+<li>再早的话无新数据写入，数据越早被读的概率也越小。</li>
+</ol>
+<p>基于以上分析，增加时间维度并细化更多的参考因素后，分析模型变成了这样：</p>
+<table>
+<thead>
+<tr>
+<th>要素</th>
+<th>当天</th>
+<th>当天-1</th>
+<th>当天-2 ~ 当天-N</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>写频率</td>
+<td>多</td>
+<td>少</td>
+<td>无</td>
+</tr>
+<tr>
+<td>读（查询）频率</td>
+<td>多</td>
+<td>多</td>
+<td>少</td>
+</tr>
+<tr>
+<td>读响应速度要求</td>
+<td>快</td>
+<td>快</td>
+<td>慢点也行</td>
+</tr>
+<tr>
+<td>数据规模</td>
+<td>50亿</td>
+<td>50亿</td>
+<td>50亿* (N-2)</td>
+</tr>
+<tr>
+<td>宿主机性能要求</td>
+<td>高</td>
+<td>高</td>
+<td>次高</td>
+</tr>
+<tr>
+<td>硬盘速度要求</td>
+<td>高(SSD)</td>
+<td>高(SSD)</td>
+<td>次高(机械)</td>
+</tr>
+<tr>
+<td>硬件成本</td>
+<td>高</td>
+<td>高</td>
+<td>次高</td>
+</tr>
+<tr>
+<td>期望成本</td>
+<td>低</td>
+<td>低</td>
+<td>低</td>
+</tr>
+</tbody></table>
+<p>从上表可以看出，整体呈现出hot-warm数据架构的需求之势，近1-2天为hot数据，之前的为warm数据；恰好ES7提供了hot-warm架构支持，按照hot-warm改造后架构如下图所示：</p>
+<p><img src="/images/1704244102-59de10b2791e8c2c93d814b2dfef3276.webp" alt="图片"></p>
+<p>hot-warm架构.png</p>
+<ol>
+<li><p>对 trace集群进行hot-warm架构调整，查询耗时从20多秒变成了2-3秒，效果是非常明显的。</p>
+</li>
+<li><p>ES启用公司出品的ZSTD压缩算法，空间压缩效果不错。</p>
+</li>
+<li><p>从查询逻辑进一步调整，充分利用ES的数据分片、路由机制，把全量检索调整为精准检索，即降低检索时需要扫描的数据量，把2-3秒优化到毫秒。</p>
+</li>
+</ol>
+<p>这里要炫一个5毛特效，这套机制下，Segment数据即使是保留半年的，按照TraceId查询的耗时也是毫秒。</p>
+<p>至此完成了<strong>查询千亿级Trace数据只要毫秒级耗时</strong>的阶段性优化。</p>
+<h4 id="6-6-仪表盘和拓扑查询慢"><a href="#6-6-仪表盘和拓扑查询慢" class="headerlink" title="6.6 仪表盘和拓扑查询慢"></a>6.6 仪表盘和拓扑查询慢</h4><h6 id="问题：-5"><a href="#问题：-5" class="headerlink" title="问题："></a>问题：</h6><p>Webapp中的【拓扑】页，在开始只有几十个应用的时候，虽然很慢，但还是能看到数据，随着应用增多后，【拓扑】页面数据请求一直是超时(配置的60s超时)的，精力有限，先通过功能降级把这个页面隐藏了；【仪表盘】的指标查询也非常的慢，未能达到好用的目标。</p>
+<h6 id="优化：-5"><a href="#优化：-5" class="headerlink" title="优化："></a>优化：</h6><p>Webapp中的【仪表盘】页和【拓扑】页是对Skywalking里metric数据的展现，metric数据同trace数据一样满足hot-warm的特征。</p>
+<ol>
+<li>metric集群采用hot-warm架构调整，之后仪表盘中的查询耗时也都减小为毫秒级。</li>
+<li>【拓扑】页接口依然是超时(60s)，对拓扑这里做了几个针对性的调整：</li>
+</ol>
+<ul>
+<li><p>把内部的循环调用合并，压缩调用次数。</p>
+</li>
+<li><p>去除非必要的查询。</p>
+</li>
+<li><p>拆分隔离通用索引中的数据，避免互相干扰。</p>
+</li>
+<li><p>全量检索调整为精准检索，即降低检索时需要扫描的数据量。</p>
+</li>
+</ul>
+<p>至此完成了 <strong>【拓扑】页数据查询毫秒级耗时</strong>的阶段性优化。</p>
+<h4 id="6-7-小结"><a href="#6-7-小结" class="headerlink" title="6.7 小结"></a>6.7 小结</h4><p>Skywalking调优这个阶段，恰逢上海疫情封城，既要为生存抢菜，又要翻阅学习着各种ES原理、调优的文档资料，一行一行反复的品味思考Skywalking相关的源码，尝试各种方案去优化它，梦中都在努力提升它的性能。疫情让很多人变得焦虑烦躁，但以我的感受来看在系统的性能压力下疫情不值一提。<strong>凡事贵在坚持</strong>，时间搞定了诸多困难，调优的效果是很显著的。</p>
+<p>可能在在_业务价值驱动_的价值观中这些技术优化不产生直接业务价值，顶多是五毛特效，但从其他维度来看它价值显著：</p>
+<ul>
+<li>对个人来说，技术有提升。</li>
+<li>对团队来说，练兵加强配合，协作加深友情；尤其要感谢科科老师这段时间的鼎力支持！</li>
+<li>对公司来说，易用性的提升将充分发挥Skywalking的价值，在问题发生时，给到同事们切实、高效的帮助，使得问题可以被快速响应。须知战争拼的是保障。</li>
+</ul>
+<p>上一段让我回想起上海疫情那段缺吃少喝、压力很大的时光，确实是有点上头式的真情流露，保留下来就当对上海封城的见证吧。这期间其实也是有考虑过其他的2个方案的：</p>
+<ol>
+<li>使用降低采样率的兜底方案；但为了得到更准确的指标数据，以及后续其他的规划而坚持了全采样。</li>
+<li>采用ClickHouse优化存储；因为公司有定制优化的ES版本，所以就继续在ES上做存储优化，刚好借此机会验证一下。后续【全链路结构化日志】的存储会使用ClickHouse。</li>
+</ol>
+<p>这个章节将内容聚焦在落地推广时期技术层面的准备和调优，未描述团队协调、推广等方面的情况；因每个公司情况不同，所以并未提及；但其实对多数公司来说，有时项目的推广比技术本身可能难度更大，这个项目也遇到过一些困难，推广是既靠能力又靠颜值，比如咱家的PM-中英老师的脸都快刷秃噜皮儿了<img src="/images/1704244102-ede14cfbe0c5d5eb6a3155e0b57f7f45.webp" alt="图片">…  以后有机会再跟大家探讨吧。</p>
+<h3 id="7、Skywalking的后续规划"><a href="#7、Skywalking的后续规划" class="headerlink" title="7、Skywalking的后续规划"></a>7、Skywalking的后续规划</h3><p>H5、Native以及后端应用还在持续接入中，相应的SDK也在持续的迭代；目前正在设计规划【全链路业务状态追踪】和【全链路结构化日志追踪】，感兴趣的同学可以关注加好友讨论。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/03/Skywalking-%E5%8D%83%E4%BA%BF%E7%BA%A7%E7%9A%84%E6%95%B0%E6%8D%AE%E5%82%A8%E8%83%BD%E3%80%81%E6%AF%AB%E7%A7%92%E7%BA%A7%E7%9A%84%E6%9F%A5%E8%AF%A2%E8%80%97%E6%97%B6/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/02/%E4%BD%BF%E7%94%A8Keepalived%E6%9E%84%E5%BB%BALVS%E9%AB%98%E5%8F%AF%E7%94%A8%E9%9B%86%E7%BE%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">使用Keepalived构建LVS高可用集群</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
