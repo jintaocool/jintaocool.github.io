@@ -6273,4 +6273,130 @@
         <tag>Elasticsearch</tag>
       </tags>
   </entry>
+  <entry>
+    <title>ES节点角色详解</title>
+    <url>/2024/01/04/ES%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E8%AF%A6%E8%A7%A3/</url>
+    <content><![CDATA[<h2 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h2><p>ES如果采用单节点部署，不用考虑什么节点角色，默认就好。但是在大规模的ES集群中，一定要根据服务器配置，数据冷热，并发情况等合理配置节点的角色，才能让ES集群节点更好的协调合作，对外提供稳定的服务。</p>
+<hr>
+<h2 id="一、ES节点有哪些角色？"><a href="#一、ES节点有哪些角色？" class="headerlink" title="一、ES节点有哪些角色？"></a>一、ES节点有哪些角色？</h2><p>ES节点有如下角色：</p>
+<ul>
+<li>​<code>​master​</code>​ 主节点</li>
+<li>​<code>​data​</code>​ 数据节点</li>
+<li>​<code>​data_content​</code>​ 内容数据节点</li>
+<li>​<code>​data_hot​</code>​ 热点数据节点</li>
+<li>​<code>​data_warm​</code>​ 暖数据节点</li>
+<li>​<code>​data_cold​</code>​ 冷数据节点</li>
+<li>​<code>​data_frozen​</code>​ 冻结数据节点</li>
+<li>​<code>​ingest​</code>​ 摄取节点</li>
+<li>​<code>​ml​</code>​ 机器学习节点</li>
+<li>​<code>​remote_cluster_client​</code>​ 远程集群客户端节点</li>
+<li>​<code>​transform​</code>​ 转换节点</li>
+<li>​<code>​voting_only​</code>​ 仅投票节点</li>
+<li>​<code>​coordinating​</code>​ 仅协调节点</li>
+</ul>
+<p>注意⚠️：<br>1、如果你设置了 node.roles，则节点只会分配你指定的角色。 如果不设置 node.roles，节点将被分配以上所有角色（除了voting_only 和coordinating角色例外）。<br>2、节点不等同于服务器，一个服务器上可以部署多个节点。<br>3、启动一个Elasticsearch 实例时，都在启动一个节点。 连接节点的集合称为集群。<br>4、集群中的每个节点都可以处理 HTTP 和传输流量。 传输层专门用于节点之间的通信； HTTP 层由 REST 客户端使用。<br>5、所有节点都知道集群中的所有其他节点，并且可以将客户端请求转发到适当的节点。</p>
+<h2 id="二、怎么设置节点的角色"><a href="#二、怎么设置节点的角色" class="headerlink" title="二、怎么设置节点的角色"></a>二、怎么设置节点的角色</h2><p>只需要在elasticsearch.yml通过node.roles属性设置即可</p>
+<p>可以同时指定多个角色</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data, master, voting_only ]</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意⚠️：</strong><br>一个ES集群中，必须有以下角色：</p>
+<ul>
+<li>master</li>
+<li>data_content and data_hot<br>OR<br>data</li>
+</ul>
+<h2 id="三、节点角色介绍"><a href="#三、节点角色介绍" class="headerlink" title="三、节点角色介绍"></a>三、节点角色介绍</h2><h3 id="1、master-主节点"><a href="#1、master-主节点" class="headerlink" title="1、master 主节点"></a>1、master 主节点</h3><p><strong>功能说明：</strong><br>主节点负责轻量级集群范围的操作，例如创建或删除索引、跟踪哪些节点是集群的一部分<br>以及决定将哪些分片分配给哪些节点。</p>
+<p>任何不是仅投票节点的主合格节点都可以通过主选举过程选举成为主节点。</p>
+<p>主节点必须有一个path.data目录，其内容在重启后仍然存在，就像数据节点一样，因为这是<br>存储集群元数据的地方。集群元数据描述了如何读取存储在数据节点上的数据，因此如果丢失，<br>则无法读取存储在数据节点上的数据。</p>
+<p>如果小型或轻负载集群的主节点具有其他角色和职责，则其可能运行良好，但是一旦您的集群包含多个节点，使用专用的主节点通常是有意义的。</p>
+<p><strong>角色配置：</strong><br>要创建一个专用的主节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ master ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="2、voting-only-仅投票节点"><a href="#2、voting-only-仅投票节点" class="headerlink" title="2、voting_only 仅投票节点"></a>2、voting_only 仅投票节点</h3><p><strong>功能说明：</strong><br>只能参与主节点的投票选举环节，但是自己不能被选举为master。</p>
+<p>高可用性 (HA) 集群需要至少三个符合主节点的节点，其中至少两个不是仅投票节点。这样即使其中一个节点发生故障，集群也能够选举出一个主节点。<br>所有符合主节点的节点，包括仅投票节点，都需要相当快的持久存储以及与集群其余部分的可靠且低延迟的网络连接，因为它们处于发布集群状态更新的关键路径上 。</p>
+<p><strong>角色配置：</strong><br>要创建仅投票节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ master, voting_only ]</span><br></pre></td></tr></table></figure>
+
+<p>即是数据节点，也是仅投票节点。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data, master, voting_only ]</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意⚠️：</strong><br>只有具有master角色的节点才能被标记为具有 voting_only角色。</p>
+<h3 id="3、data-数据节点"><a href="#3、data-数据节点" class="headerlink" title="3、data 数据节点"></a>3、data 数据节点</h3><p><strong>功能说明：</strong><br>数据节点保存包含已编入索引的文档的分片。数据节点处理数据相关操作，如 CRUD、搜索和聚合。<br>这些操作是 I&#x2F;O 密集型、内存密集型和 CPU 密集型的。监控这些资源并在它们过载时添加更多数据节点非常重要。<br>拥有专用数据节点的主要好处是主角色和数据角色的分离。</p>
+<p>在多层部署架构，您可以使用专门的数据角色分配数据节点到指定等级：<br><strong>data_content，data_hot，data_warm， data_cold，或data_frozen。</strong><br>一个节点可以属于多个层，但具有其中一个专用数据角色的节点不能具有通用data角色。</p>
+<p>作用：<br>1、保存索引数据<br>2、处理数据相关操作，如 CRUD、搜索和聚合。</p>
+<p><strong>角色配置：</strong><br>要创建专用数据节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="4、data-content-内容数据节点"><a href="#4、data-content-内容数据节点" class="headerlink" title="4、data_content 内容数据节点"></a>4、data_content 内容数据节点</h3><p>内容数据节点容纳用户创建的内容。它们支持 CRUD、搜索和聚合等操作。<br>要创建专用内容节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data_content ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="5、data-hot-热点数据节点"><a href="#5、data-hot-热点数据节点" class="headerlink" title="5、data_hot 热点数据节点"></a>5、data_hot 热点数据节点</h3><p>热数据节点在进入 Elasticsearch 时存储时间序列数据。热层必须快速读取和写入，并且需要更多的硬件资源（例如 SSD 驱动器）。<br>要创建专用热节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data_hot ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="6、data-warm-暖数据节点"><a href="#6、data-warm-暖数据节点" class="headerlink" title="6、data_warm 暖数据节点"></a>6、data_warm 暖数据节点</h3><p>暖数据节点存储不再定期更新但仍在查询的索引。查询量的频率通常低于索引处于热层时的频率。性能较低的硬件通常可用于此层中的节点。</p>
+<p>要创建专用的暖节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data_warm]</span><br></pre></td></tr></table></figure>
+
+<h3 id="7、data-cold-冷数据节点"><a href="#7、data-cold-冷数据节点" class="headerlink" title="7、data_cold 冷数据节点"></a>7、data_cold 冷数据节点</h3><p>冷数据节点存储访问频率较低的只读索引。此层使用性能较低的硬件，并且可以利用可搜索的快照索引来最小化所需的资源。</p>
+<p>要创建专用冷节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data_cold]</span><br></pre></td></tr></table></figure>
+
+<h3 id="8、data-frozen-冻结数据节点"><a href="#8、data-frozen-冻结数据节点" class="headerlink" title="8、data_frozen 冻结数据节点"></a>8、data_frozen 冻结数据节点</h3><p>冻结层 专门存储部分安装的索引。我们建议您在冻结层中使用专用节点。<br>要创建专用的冻结节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ data_frozen]</span><br></pre></td></tr></table></figure>
+
+<h3 id="9、ingest-摄取节点"><a href="#9、ingest-摄取节点" class="headerlink" title="9、ingest 摄取节点"></a>9、ingest 摄取节点</h3><p>摄取节点可以执行由一个或多个摄取处理器组成的预处理管道。根据摄取处理器执行的操作类型和所需资源，拥有仅执行此特定任务的专用摄取节点可能是有意义的。</p>
+<p>要创建专用摄取节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ingest]</span><br></pre></td></tr></table></figure>
+
+<h3 id="10、coordinating-仅协调节点"><a href="#10、coordinating-仅协调节点" class="headerlink" title="10、coordinating 仅协调节点"></a>10、coordinating 仅协调节点</h3><p>如果您取消了处理主职责、保存数据和预处理文档的能力，那么您就剩下一个只能路由请求、处理搜索减少阶段和分发批量索引的协调节点。<br>本质上，<strong>仅协调节点的行为就像智能负载均衡器。</strong><br>通过从数据和符合主节点的节点卸载协调节点角色，仅协调节点可以使大型集群受益。他们加入集群并接收完整的集群状态，就像其他每个节点一样，他们使用集群状态将请求直接路由到适当的地方。</p>
+<p>要创建专用协调节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles:[ ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="11、remote-远程集群客户端节点"><a href="#11、remote-远程集群客户端节点" class="headerlink" title="11、remote 远程集群客户端节点"></a>11、remote 远程集群客户端节点</h3><p>远程集群客户端节点充当跨集群客户端并连接到 远程集群。连接后，您可以使用跨集群搜索来搜索远程集群。您还可以使用跨集群复制在集群之间同步数据。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles:[ remote_cluster_client ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="12、ml-机器学习节点"><a href="#12、ml-机器学习节点" class="headerlink" title="12、ml 机器学习节点"></a>12、ml 机器学习节点</h3><p>机器学习节点运行作业并处理机器学习 API 请求。</p>
+<p>要创建专用机器学习节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles:[ml，remote_cluster_client]</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意⚠️：</strong><br>一般开启ml角色的节点，推荐同时开启remote_cluster_client角色。</p>
+<h3 id="13、transform-转换节点"><a href="#13、transform-转换节点" class="headerlink" title="13、transform 转换节点"></a>13、transform 转换节点</h3><p>转换节点运行转换并处理转换 API 请求。</p>
+<p>要创建专用变换节点，请设置：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node.roles: [ transform, remote_cluster_client ]</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意⚠️：</strong><br>一般开启transform角色的节点，推荐同时开启remote_cluster_client角色。</p>
+<p><strong>小结：</strong><br>重点理解master节点和data节点即可。<br>master节点负责轻量级集群范围的操作，比如创建或删除索引，跟踪集群中节点位置以及分片分配。<br>data节点负责存储数据，并处理数据相关操作，如 CRUD、搜索和聚合。</p>
+<h2 id="四、改变节点角色"><a href="#四、改变节点角色" class="headerlink" title="四、改变节点角色"></a>四、改变节点角色</h2><h3 id="存储数据说明"><a href="#存储数据说明" class="headerlink" title="存储数据说明"></a>存储数据说明</h3><p>1、data数据节点</p>
+<ul>
+<li>分配给该节点的每个分片的分片数据</li>
+<li>分配给该节点的每个分片对应的索引元数据</li>
+<li>集群范围的元数据，例如设置和索引模板</li>
+</ul>
+<p>2、master主节点</p>
+<ul>
+<li>集群中每个索引的索引元数据</li>
+<li>集群范围的元数据，例如设置和索引模板</li>
+</ul>
+<h3 id="数据检查机制"><a href="#数据检查机制" class="headerlink" title="数据检查机制"></a>数据检查机制</h3><p>每个节点在启动时会检查其数据路径的内容。如果它发现意外数据，它将拒绝启动。这是为了避免导入可能导致红色集群运行状况的不需要的悬空索引。更准确地说，没有data角色的节点在启动时如果在磁盘上找到任何分片数据将拒绝启动，而没有角色master和data角色的节点如果在启动时在磁盘上有任何索引元数据将拒绝启动。</p>
+<h3 id="更改节点角色"><a href="#更改节点角色" class="headerlink" title="更改节点角色"></a>更改节点角色</h3><p>可以通过调整其elasticsearch.yml文件并重新启动它来更改节点的角色 。这称为重新调整节点的用途。为了满足上述对意外数据的检查，您必须执行一些额外的步骤来准备节点，以便在没有data或master角色的情况下启动节点时重新调整用途。<br>如果您想通过删除data角色来重新调整数据节点的用途，那么您应该首先使用分配过滤器将所有分片数据安全地迁移到集群中的其他节点上。<br>如果您想重新调整节点的用途，使其既没有data也没有master角色，那么最简单的方法是启动一个带有空数据路径和所需角色的全新节点。您可能会发现<strong>首先使用分配过滤器将分片数据迁移到集群中的其他位置是最安全的 。</strong><br>如果无法执行这些额外步骤，那么您可以使用该elasticsearch-node repurpose工具删除任何阻止节点启动的多余数据。</p>
+<h2 id="五、节点数据路径设置"><a href="#五、节点数据路径设置" class="headerlink" title="五、节点数据路径设置"></a>五、节点数据路径设置</h2><p>每个数据和主节点都需要配置数据存储目录，其中存储分片、索引和集群元数据的path.data默认为​<code>​$ES_HOME/data​</code>​​，用户可以在elasticsearch.yml中自己配置。<br>配置文件中指定：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">path.data:  /var/elasticsearch/data</span><br></pre></td></tr></table></figure>
+
+<p>启动命令中指定：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">./bin/elasticsearch -Epath.data=/var/elasticsearch/data</span><br></pre></td></tr></table></figure>
+
+<p><strong>说明：</strong><br>更推荐在配置文件中指定的方式。</p>
+<hr>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>本节主要是对ES集群中的节点角色进行了说明。<br>1、一个可用的ES集群中，必须具备master节点和data节点。<br>2、详细说明了各个节点角色的作用以及配置方法<br>3、介绍了master节点和data节点负责的功能：</p>
+<ul>
+<li>master节点负责轻量级集群范围的操作，比如创建或删除索引，跟踪集群中节点位置以及分片分配。</li>
+<li>data节点负责存储数据，并处理数据相关操作，如 CRUD、搜索和聚合。</li>
+</ul>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>Elasticsearch</tag>
+      </tags>
+  </entry>
 </search>
