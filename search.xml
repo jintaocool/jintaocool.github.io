@@ -6587,4 +6587,85 @@
         <tag>技术咖</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Prometheus实践经验分享[转]</title>
+    <url>/2024/01/04/Prometheus%E5%AE%9E%E8%B7%B5%E7%BB%8F%E9%AA%8C%E5%88%86%E4%BA%AB-%E8%BD%AC/</url>
+    <content><![CDATA[<p>这是 2017 年的 promcon 的分享，原文地址在<a href="https://promcon.io/2017-munich/slides/best-practices-and-beastly-pitfalls.pdf">这里</a>，作者 Julius Volz。</p>
+<h2 id="埋点方面"><a href="#埋点方面" class="headerlink" title="埋点方面"></a>埋点方面</h2><h4 id="1-所有模块都要埋点"><a href="#1-所有模块都要埋点" class="headerlink" title="1. 所有模块都要埋点"></a>1. 所有模块都要埋点</h4><p>我印象中 Google 有个规范，所有的服务模块，都需要通过 HTTP <code>/varz</code> 接口暴露监控指标，即便是一个纯后端的 RPC 服务，也要暴露一个这样的 HTTP 接口。当然，实操的话，应该是通过框架来统一埋点，但是统一埋点只能埋入一些通用的指标，如果涉及一些自身业务逻辑相关的，还是需要自行埋点。</p>
+<h4 id="2-借鉴-USE-方法论"><a href="#2-借鉴-USE-方法论" class="headerlink" title="2. 借鉴 USE 方法论"></a>2. 借鉴 USE 方法论</h4><p>USE 方法论，即 Utilization、Saturation、Errors 三个维度，即资源的使用率、饱和度、错误。这三个维度，可以用来衡量一个资源是否健康，如果有一个维度不健康，就需要考虑扩容或者优化。USE 方法论提出者是著名大神 <a href="https://www.brendangregg.com/usemethod.html">Brendan Gregg</a>，他的博客里有很多关于性能优化的文章，非常值得一读。</p>
+<h4 id="3-借鉴-RED-方法论"><a href="#3-借鉴-RED-方法论" class="headerlink" title="3. 借鉴 RED 方法论"></a>3. 借鉴 RED 方法论</h4><p>RED 方法论，即 Request rate、Error rate、Duration，托生自 Google 的四个黄金指标，主要用来衡量微服务的健康度，RED 方法论的原文在 <a href="https://www.slideshare.net/weaveworks/monitoring-microservices">这里</a>。</p>
+<h4 id="4-指标命名要有规范"><a href="#4-指标命名要有规范" class="headerlink" title="4. 指标命名要有规范"></a>4. 指标命名要有规范</h4><p>Prometheus 的指标命名，其实是没有约束的，也没有单位的概念，但通常会有一些约定，要尽量遵守，比如：</p>
+<ul>
+<li><code>_seconds</code> <code>_milliseconds</code> 等作为时间指标的后缀</li>
+<li><code>_total</code> 作为 counter 类型指标的后缀</li>
+<li>更多的约定可以参考 <a href="https://prometheus.io/docs/practices/naming/">https://prometheus.io/docs/practices/naming/</a></li>
+</ul>
+<h4 id="5-注意标签基数爆炸"><a href="#5-注意标签基数爆炸" class="headerlink" title="5. 注意标签基数爆炸"></a>5. 注意标签基数爆炸</h4><p>在 Prometheus 生态里，一个时间线的唯一标识是一个 labelset，即多个标签的组合（指标名称其实也是一个特殊标签，标签 Key 是 <code>__name__</code>）。比如 <code>disk_free&#123;host=&quot;10.1.2.3&quot;, fstype=&quot;ext4&quot;, path=&quot;/data&quot;&#125;</code> 唯一标识了一个时间线。其中 <code>disk_free</code> 是指标名称，实际底层处理的时候，会处理成：<code>&#123;__name__=&quot;disk_free&quot;, host=&quot;10.1.2.3&quot;, fstype=&quot;ext4&quot;, path=&quot;/data&quot;&#125;</code>，所以说标签集合是唯一标识一个时间线的。如果任一标签变化，就会当成一个新的时间线。一些高基数的信息，就不适合作为标签，比如：</p>
+<ul>
+<li>用户访问的来源 IP</li>
+<li>用户的 ID</li>
+<li>用户请求的 TraceID</li>
+</ul>
+<h4 id="6-统计失败-总量而不要统计失败-成功量"><a href="#6-统计失败-总量而不要统计失败-成功量" class="headerlink" title="6. 统计失败+总量而不要统计失败+成功量"></a>6. 统计失败+总量而不要统计失败+成功量</h4><p>考虑下面两个 counter 指标：</p>
+<ul>
+<li>failures_total</li>
+<li>successes_total</li>
+</ul>
+<p>如果要计算失败率，可以这么写：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">rate(failures_total[5m])</span><br><span class="line">/</span><br><span class="line">(rate(successes_total[5m]) + rate(failures_total[5m]))</span><br></pre></td></tr></table></figure>
+
+<p>写起来相对复杂一些，如果我们统计失败+总量：</p>
+<ul>
+<li>failures_total</li>
+<li>requests_total</li>
+</ul>
+<p>失败率的计算就会变简单：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">rate(failures_total[5m]) / rate(requests_total[5m])</span><br></pre></td></tr></table></figure>
+
+<h4 id="7-使用默认值提前初始化指标"><a href="#7-使用默认值提前初始化指标" class="headerlink" title="7. 使用默认值提前初始化指标"></a>7. 使用默认值提前初始化指标</h4><p>假设有这么一个指标：<code>ops_total&#123;optype=&quot;&lt;type&gt;&quot;&#125;</code>，显然，这是想统计不同类型的操作的次数，但是如果某个类型的操作一次都没有发生，那么这个指标就不会出现在 Prometheus 的时间序列里，但你可能在 Grafana 图表和相关告警规则中用到了这样的语句：<code>sum(rate(ops_total&#123;optype=&quot;create&quot;&#125;[5m]))</code>，如果 create 一次都没有发生，那就没法工作了。一般我们建议，代码埋点的时候要做初始化，比如下面的 Go 语言例子，把已知的操作类型都初始化一下：</p>
+<figure class="highlight go"><table><tr><td class="code"><pre><span class="line"><span class="keyword">for</span> _, val := <span class="keyword">range</span> opLabelValues &#123;</span><br><span class="line"> <span class="comment">// Note: No &quot;.Inc()&quot; at the end.</span></span><br><span class="line"> ops.WithLabelValues(val)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当然，填充默认值的这种方式并非总能奏效。比如 <code>http_requests_total&#123;status=&quot;&lt;status&gt;&quot;&#125;</code> 这样的指标，<code>status=~&quot;5..&quot;</code> 过滤器查不到数据时会破坏整个 promql，此时有个比较 tricky 的方法是使用 or 语法：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;expression&gt; or up&#123;job=&quot;myjob&quot;&#125; * 0</span><br></pre></td></tr></table></figure>
+
+<p>更多信息可参考<a href="https://www.robustperception.io/existential-issues-with-metrics/">这个文章</a>。</p>
+<h4 id="8-避免使用无法识别的额外信息标签"><a href="#8-避免使用无法识别的额外信息标签" class="headerlink" title="8. 避免使用无法识别的额外信息标签"></a>8. 避免使用无法识别的额外信息标签</h4><p>比如机器的指标，<code>disk_usage_bytes</code>，如果某个机器部署了服务A，你可能会想这么打标签：<code>disk_usage_bytes&#123;service=&quot;a&quot;&#125;</code>，但是如果后面这个机器改变了用途，不再部署服务A，而是部署服务B，这个磁盘使用的指标就会变成 <code>disk_usage_bytes&#123;service=&quot;b&quot;&#125;</code>，而这，由于标签变化，就会导致 Prometheus 会认为这是一个新的时间线，而不是原来的时间线，导致时间线数据不连续。</p>
+<p>那怎么办？可以使用 group_left 附加额外标签的方式，具体可以参考这个<a href="https://www.robustperception.io/how-to-have-labels-for-machine-roles/">文章</a>。</p>
+<h2 id="关于告警"><a href="#关于告警" class="headerlink" title="关于告警"></a>关于告警</h2><p>Rob Ewaschuk 有一篇广为流传的文章：<a href="https://docs.google.com/document/d/199PqyG3UsyXlwieHaqbGiWVa8eMWi8zzAn0YfcApr8Q/edit">My Philosophy on Alerting</a>，推荐大家 Google 一下阅读一下。</p>
+<h4 id="9-告警症状而非原因"><a href="#9-告警症状而非原因" class="headerlink" title="9. 告警症状而非原因"></a>9. 告警症状而非原因</h4><p>原因类指标可以放到仪表盘上用于后续问题根因排查，症状类指标，通常反映的是上层用户的感受，啥是症状类指标？比如：</p>
+<ul>
+<li>某个关键服务延迟高，或错误率高</li>
+<li>某个磁盘即将在未来 4h 内写满</li>
+</ul>
+<h4 id="10-注意-target-缺失告警"><a href="#10-注意-target-缺失告警" class="headerlink" title="10. 注意 target 缺失告警"></a>10. 注意 target 缺失告警</h4><p>比如下面这个告警规则：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ALERT HighErrorRate</span><br><span class="line"> IF rate(errors_total&#123;job=&quot;myjob&quot;&#125;[5m]) &gt; 10</span><br><span class="line"> FOR 5m</span><br></pre></td></tr></table></figure>
+
+<p>看起来挺好的，但是如果你的 target down 掉了或者压根没有被 Prometheus 发现，上面的表达式查不到数据，自然就不会告警。建议，对于关键指标，要一并配置 up 和 absent：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ALERT MyJobInstanceDown</span><br><span class="line"> IF up&#123;job=&quot;myjob&quot;&#125; == 0</span><br><span class="line"> FOR 5m</span><br><span class="line"></span><br><span class="line">ALERT MyJobAbsent</span><br><span class="line"> IF absent(up&#123;job=&quot;myjob&quot;&#125;)</span><br><span class="line"> FOR 5m</span><br></pre></td></tr></table></figure>
+
+<h4 id="11-告警规则通常要配置持续时长"><a href="#11-告警规则通常要配置持续时长" class="headerlink" title="11. 告警规则通常要配置持续时长"></a>11. 告警规则通常要配置持续时长</h4><p>比如下面的告警规则，没有配置持续时长：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ALERT InstanceDown</span><br><span class="line"> IF up == 0</span><br></pre></td></tr></table></figure>
+
+<p>如果有一次抓取失败，就会告警，但实际上可能是网络抖动，实际的 target 是健康的，所以建议配置持续时长：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">ALERT InstanceDown</span><br><span class="line"> IF up == 0</span><br><span class="line"> FOR 5m</span><br></pre></td></tr></table></figure>
+
+<h4 id="12-注意保留关键标签"><a href="#12-注意保留关键标签" class="headerlink" title="12. 注意保留关键标签"></a>12. 注意保留关键标签</h4><p>举例：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Don&#x27;t:</span><br><span class="line"></span><br><span class="line">ALERT HighErrorRate</span><br><span class="line"> IF sum(rate(...)) &gt; x</span><br><span class="line"></span><br><span class="line">Do (at least):</span><br><span class="line"></span><br><span class="line">ALERT HighErrorRate</span><br><span class="line"> IF sum by(job) (rate(...)) &gt; x</span><br></pre></td></tr></table></figure>
+
+<p>读者可以在即时查询里体验一下，sum 之后，如果不加 by 的逻辑，所有便签就都没了，告警事件发出来信息太少，所以一般建议把关键标签放到 by 后面分组统计。</p>
+<h2 id="关于查询"><a href="#关于查询" class="headerlink" title="关于查询"></a>关于查询</h2><h4 id="13-查询表达式通常要过滤到job颗粒度"><a href="#13-查询表达式通常要过滤到job颗粒度" class="headerlink" title="13. 查询表达式通常要过滤到job颗粒度"></a>13. 查询表达式通常要过滤到job颗粒度</h4><p>不同的 job 可能有相同的指标名字，为了避免冲突，尽量把 job 作为过滤条件：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">Don&#x27;t: rate(http_request_errors_total[5m])</span><br><span class="line">Do: rate(http_request_errors_total&#123;job=&quot;api&quot;&#125;[5m])</span><br></pre></td></tr></table></figure>
+
+<h4 id="14-注意-rate-和-sum-的顺序"><a href="#14-注意-rate-和-sum-的顺序" class="headerlink" title="14. 注意 rate() 和 sum() 的顺序"></a>14. 注意 <code>rate()</code> 和 <code>sum()</code> 的顺序</h4><p>对于 counter 类型的指标，如果服务重启，指标会被重置，从 0 开始重新上报，<code>rate()</code> 函数可以修正这种情况，比如：</p>
+<p><img src="/images/1704348321-01b5a034b08499b637f76dbf5c65b918.png" alt="20231115190514"></p>
+<p>正常来讲，应该先求 <code>rate()</code>，再求 <code>sum()</code>，如果弄反了，就麻烦了，比如下面的例子：</p>
+<p><img src="/images/1704348321-d1282e362c3ebef50979a7314b82fa5f.png" alt="20231115190738"></p>
+]]></content>
+      <categories>
+        <category>Prometheus</category>
+      </categories>
+      <tags>
+        <tag>Prometheus</tag>
+      </tags>
+  </entry>
 </search>
