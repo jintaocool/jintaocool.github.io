@@ -1,0 +1,782 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>可观测性与传统监控的区别和联系 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="技术咖-可观测性与传统监控的区别和联系"
+  class="article article-type-技术咖"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  可观测性与传统监控的区别和联系
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/04/%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E4%B8%8E%E4%BC%A0%E7%BB%9F%E7%9B%91%E6%8E%A7%E7%9A%84%E5%8C%BA%E5%88%AB%E5%92%8C%E8%81%94%E7%B3%BB/" class="article-date">
+  <time datetime="2024-01-04T05:54:49.000Z" itemprop="datePublished">2024-01-04</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF%E5%92%96/">技术咖</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.9k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">16 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="什么是可观测性？"><a href="#什么是可观测性？" class="headerlink" title="什么是可观测性？"></a>什么是可观测性？</h2><p>可观测性（Observability）是一种软件开发和系统构建的哲学，是对系统内部状态及行为的度量和推断能力，通常包括日志、指标、链路追踪等多个度量维度。也就是说，在软件开发和运维领域中，可观测性是指对于一个复杂的系统，能够通过监控、日志、指标、追踪等手段，快速地发现、诊断、解决问题的能力。</p>
+<p>Observability 最早是起源于控制论的一个概念：</p>
+<blockquote>
+<p>In 1960, Kálmán introduced a characterization he called observability to describe mathematical control systems in his paper. In control theory, observability is defined as a measure of how well internal states of a system can be inferred from knowledge of its external outputs.</p>
+</blockquote>
+<h2 id="传统监控的局限"><a href="#传统监控的局限" class="headerlink" title="传统监控的局限"></a>传统监控的局限</h2><p>从核心出发点来讲，传统的监控和可观测性，背后解决的是同样的问题，就是及时、准确的掌握系统的运行状况，提升对系统运行的控制能力。因此常有人讲可观测性之于监控是“<strong>新瓶装旧酒</strong>”，换汤不换药。实则不然，随着技术架构的演进，传统监控的局限愈发突出：</p>
+<blockquote>
+<p><strong>侧重于依赖“经验主义”，应对“已知问题”</strong></p>
+</blockquote>
+<p>传统监控，要预先知晓采集哪些指标，添加什么样的告警策略，定制什么样的仪表盘，以便发现某种类型的故障后，采用什么样的 Runbook 来应对。比如技术团队根据过往经验，知道一台服务器上打开的文件句柄数量不能太多，超过某个上限就会影响到网络通信以及文件读写，因此我们会采集一个 <code>node_filefd_allocated</code> 的指标，然后配置一个告警策略：当 <code>node_filefd_allocated &gt; 1000k</code> 则触发告警，同时我们会提前制作一个 Linux 主机 Dashboard，其中包含有 <code>node_filefd_allocated</code> 的趋势图。准备好这些工作之后，接下来就是守株待兔，等待告警的触发，值班的技术团队就可以按照 Runbook 中载明的排查步骤，检查是否有进程泄露文件句柄，或者是否有大量的网络链接建立等等。</p>
+<p><strong>经验主义，总是有限的，无法预知可能发生的各种未知的故障</strong>。因此在实际情况中，告警策略的完善往往靠“故障复盘”来驱动，每次故障复盘后，必定会有的一个改进项：继续完善监控、加更多的告警。技术团队总会处于一种对未知故障缺乏掌控的不安全的状态中，产生焦虑感，反过来又会促使技术团队添加更多的监控，久而久之，告警会越加越多，却又永远不够，告警风暴就这样产生了。</p>
+<blockquote>
+<p><strong>告警驱动的传统监控，缺乏对故障的全局感知</strong></p>
+</blockquote>
+<p>在传统监控中，告警充当着举足轻重的作用。当使用传统监控方式，发出某个告警之后，值班的技术团队看到的只是一个孤立的”技术问题“，这个技术问题的影响面有多大，重要程度如何，是否需要立即处理，是否需要上升和协同，很难快速的做出判断。某个”技术问题“是否重要，是否紧急，不取决于该技术问题本身的难易程度，也不取决于所涉及的服务器规模多寡，唯一的衡量标准是”对用户体验产生的影响有多大“。<strong>使用传统监控无法快速的评估某个告警事件和用户体验之间的必然联系</strong>，导致无法投入准确的应急处置资源，无法确定合理的应急响应时效，也无法和其他资源产生有效的联动协同，最终使得稳定性保障工作效率低下。</p>
+<blockquote>
+<p><strong>传统监控认为，系统的开发者和系统的维护者，职责是相对分割的，导致监控以外挂形式为主</strong></p>
+</blockquote>
+<p>系统在设计之初，开发者的重心在于完成必备的业务逻辑，对于自身运行状态的暴露，并没有考虑的很完善甚至有时候都没有考虑。大家可能会经常遇到，做的好的开发者可能还会打印较为详细的日志，做的不好的，连日志也打的不全，更不必说提供主动暴露系统状态的 Metrics 接口或者为实现 Tracing 进行埋点了。一旦系统到了上线运行阶段，维护人员接手后，往往只能开启“外挂”模式，通过写各种各样的脚本，去探测进程是否存在、去分析匹配日志中是否有关键的错误字段。如果要进一步统计系统的访问量、访问延迟、资源消耗等等，就会更加被动。<strong>“外挂”往往是传统监控数据采集的特征</strong>。</p>
+<blockquote>
+<p><strong>传统监控面向的通常是基础设施，Metrics是传统监控的基础</strong></p>
+</blockquote>
+<p>传统监控面向基础设施，基础设施的变化较慢，且变化带来的结果相对可预测。Metrics 类型的监控指标，具有采集存储成本低、简单直观、易于聚合计算的特点，因此在过去的二三十年里，基于 Metrics 为基础，出现了各种各样的采集器、时序数据库、可视化工具、告警工具等，基于前面提到的”经验主义“，尚能应付面向基础设施的稳定性保障工作。</p>
+<h2 id="传统监控工具发展的三个阶段"><a href="#传统监控工具发展的三个阶段" class="headerlink" title="传统监控工具发展的三个阶段"></a>传统监控工具发展的三个阶段</h2><h3 id="阶段1：Metrics监控之-互联网大流行前"><a href="#阶段1：Metrics监控之-互联网大流行前" class="headerlink" title="阶段1：Metrics监控之_互联网大流行前_"></a>阶段1：Metrics监控之_互联网大流行前_</h3><blockquote>
+<p><strong>互联网大流行前，擅长于局部场景，部分工具到现在仍然被广泛使用</strong></p>
+</blockquote>
+<p><img src="/images/1704347653-ce45a2c9d3b21fea8a7687dcf8681b68.png"></p>
+<blockquote>
+<ul>
+<li>Cacti：最悠久的监控系统之一，2001年9月，一个名叫Lan Berry的高中生，当时他还在为一家小的ISP厂商工作，为了更好地监控网络质量，开发了Cacti的第一个版本，基于RRDtool，提供更友好的使用体验。</li>
+<li>Nagios：Nagios可谓是早期告警方向事实上的工业标准，可以用来监控主机和网络基础设施，以及各种应用服务。在监控对象出现问题时，及时发送邮件或者短信通知相关人员；当问题解决后，发送恢复信息。一段时间的主流，后来以难用闻名。</li>
+<li>Ganglia： UC Berkeley发起的一个开源集群监视项目，设计用于测量数以千计的节点。主要是用来监控系统性能，如：cpu 、mem、硬盘利用率， I&#x2F;O负载、网络流量情况等，至今仍然在Hadoop监控领域流行。</li>
+<li>RRDtool：在时间序列数据（time-series data）的存储、展示方面，其独创的round-robin database数据存储格式，曾经是事实上的时序数据存储工业标准。包括Cacti、MRTG、Collectd、Ganglia、Zenoss等系统，都是采用RRDtool的格式来存储数据，以及使用RRDtool的Graph工具来绘图。</li>
+<li>Collectd：定位是收集和传输数据。在告警方面不是Collectd的设计初衷，不过它也支持一些简单的阈值判定，并发送告警信息。要支持更高级的一些告警需求，Collectd可以和Nagios配合使用。</li>
+<li>StatsD：最早是 2008 年 Flickr 公司用 Perl 写的，StatsD 其实就是一个监听UDP（默认）或者TCP的守护程序，根据简单的协议收集statsd客户端发送来的数据，聚合之后，定时推送给后端，如graphite和influxdb等，再通过grafana等展示。</li>
+<li>Graphite：一个开源实时的、显示时间序列度量数据的图形系统。Graphite并不收集度量数据本身，而是像一个数据库，通过其后端接收度量数据，然后以实时方式查询、转换、组合这些度量数据。Graphite支持内建的Web界面，它允许用户浏览度量数据和图。</li>
+</ul>
+</blockquote>
+<h3 id="阶段2：Metrics监控之-互联网快速发展期"><a href="#阶段2：Metrics监控之-互联网快速发展期" class="headerlink" title="阶段2：Metrics监控之_互联网快速发展期_"></a>阶段2：Metrics监控之_互联网快速发展期_</h3><blockquote>
+<p><strong>互联网快速发展的时代，监控往一体化方向发展，注重体验的提升</strong></p>
+</blockquote>
+<h4 id="Zabbix"><a href="#Zabbix" class="headerlink" title="Zabbix"></a>Zabbix</h4><p>作为一款企业级分布式监控系统，功能齐全，用户体验良好，文档完善，API强大，存储可以对接主要的SQL接口数据库，适合于中小规模的公司或者团队使用。Zabbix 由 Alexei Vladishev (阿列克谢.弗拉迪谢夫、拉脱维亚人）创建，目前由其成立的公司 —— Zabbix SIA（一家总部位于拉脱维亚里加的软件公司） 积极的持续开发更新维护， 并为用户提供技术支持服务。</p>
+<h4 id="Open-Falcon"><a href="#Open-Falcon" class="headerlink" title="Open-Falcon"></a>Open-Falcon</h4><p>小米技术团队于2015年开源的一款互联网企业级监控系统，重在解决日益增长的监控数据量和监控系统的容量限制之间的矛盾。Open-Falcon在架构设计上，一个最关键的考量点就是“_如何做到水平扩展_”，底层存储采用的是RRDtool标准。</p>
+<p>在Zabbix被广泛使用的时期，Open-Falcon为何能够在中国获得重要影响力：</p>
+<ul>
+<li>Open-Falcon的初衷就是解决zabbix在大数据量情况下无法扩展伸缩的问题；</li>
+<li>Open-Falcon引入了标签概念，该特性让监控数据的分析变得非常灵活而强大，是下一代监控主要特点之一；</li>
+<li>Zabbix的用户体验在当时不太符合中国工程师的习惯；</li>
+<li>Open-Falcon借助小米在互联网公司的影响获得快速推广；</li>
+<li>Zabbix基于C语言开发，而Open-Falcon基于Go语言开发，在二开上更为友好；</li>
+<li>Open-Falcon的中文文档和支持能力；</li>
+</ul>
+<h3 id="阶段3：Metrics监控之-云原生时代"><a href="#阶段3：Metrics监控之-云原生时代" class="headerlink" title="阶段3：Metrics监控之_云原生时代_"></a>阶段3：Metrics监控之_云原生时代_</h3><blockquote>
+<p><strong>Prometheus 成为时代的王者</strong></p>
+</blockquote>
+<h4 id="Prometheus"><a href="#Prometheus" class="headerlink" title="Prometheus"></a>Prometheus</h4><p>由前 Google 工程师从 2012 年开始在 Soundcloud 以开源软件的形式进行研发的系统监控和告警工具包，产品设计源于Google的Borgmon。Prometheus 的开发者和用户社区非常活跃，Prometheus 于 2016 年 5 月加入 CNCF 基金会，成为继 Kubernetes 之后的第二个 CNCF 托管项目。</p>
+<h4 id="Nightingale"><a href="#Nightingale" class="headerlink" title="Nightingale"></a>Nightingale</h4><p>夜莺 (Nightingale) 是一款开源云原生监控工具，是中国计算机学会接受捐赠并托管的第一个开源项目，在GitHub上有8000颗星，有数千家企业用户使用。夜莺集合了 Prometheus 和 Grafana 的优点，你可以在 UI 上管理和配置告警策略，也可以对分布在多个 Region 的指标、日志、链路追踪数据进行统一的可视化和分析。</p>
+<h4 id="高性能时序数据库代表"><a href="#高性能时序数据库代表" class="headerlink" title="高性能时序数据库代表"></a>高性能时序数据库代表</h4><ul>
+<li>Prometheus：Prometheus自带的高性能单机存储数据库；</li>
+<li>InfluxDB：支持按标签存储查询，该领域最著名的时序数据库之一；</li>
+<li>TDengine：国内最著名的开源时序数据存储之一，面向IoT领域，表结构存储，支持SQL查询；</li>
+<li>TimescaleDB：表结构存储的代表，支持SQL查询；</li>
+<li>VictoriaMetrics：被广泛应用的标签存储时序数据库，和prometheus做了无缝兼容；</li>
+<li>M3DB：Uber开发开源，高性能可扩展时序数据库，支持按标签存储查询，兼容prometheus，扩展性比VictoriaMetrics好，但运维更复杂；</li>
+<li>Mimir：Grafana于2022年3月30日发布的时序数据存储，完全兼容prometheus生态；</li>
+</ul>
+<h2 id="可观测性的特点"><a href="#可观测性的特点" class="headerlink" title="可观测性的特点"></a>可观测性的特点</h2><p>可观测性认为，你的应用是如何运行的以及是否在正确的运行，应该主动地、默认地通过 Metrics、Logging、Tracing、Events 等多种数据维度实时的暴露出来，然后通过工具进行可视化、告警、分析和数据洞察。对应用内部状态和行为的暴露，是系统设计之初就要考虑的重要组成，是系统功能不可分割的一部分。在可观测体系下，“埋点”是一种文化，应用的开发者承担着主体责任，系统的维护者反而作为数据的使用方存在。</p>
+<p><img src="/images/1704347653-f5390651506ea86f28a1586c32981ee0.png"></p>
+<p>以终端用户发起对服务端的一次请求为例，在该请求的整个生命周期内，尽可能多的细节都应该被记录下来，以便在未来的某个时刻用于 troubleshooting，这些细节数据可能包括：请求ID（request_id）、请求头（headers）、请求参数（parameters）、请求执行的时间（duration_time）、对下游的rpc调用（rpc_calls)、执行rpc调用的耗时、rpc调用的结果、环境变量、元信息（metadata）等等。在可观测体系下，这些数据都应该被实时的记录下来，并以结构化的形式存储。</p>
+<p>相较于传统监控关注基础设施，可观测性强调面向”Application“。随着云原生架构和微服务模型的普及，现代化的应用出现了一些新的特点：</p>
+<blockquote>
+<ol>
+<li>相比单体应用，技术团队面临着更多的服务需要管理；</li>
+<li>很多服务之间都是松耦合，而且像云数据库、云存储、第三方API等服务，都不处于你的掌控之下；</li>
+<li>代码的发布和变更，频率越来越高，持续集成、持续发布成为主流；</li>
+<li>基础设施动态化，容量也在动态的弹性伸缩；</li>
+<li>现代化的系统架构下，可能出现故障的点位越来越多，”长尾问题“出现的频率也越来越高，难以定位和分析；</li>
+<li>研发工程师更多的参与到系统的运行维护工作中来；</li>
+</ol>
+</blockquote>
+<h3 id="OpenTelemetry"><a href="#OpenTelemetry" class="headerlink" title="OpenTelemetry"></a>OpenTelemetry</h3><p>也被称为 OTel。是一个供应商无关的开源可观测性框架，用于测量、生产、收集、导出可观测数据。可观测数据主要包含traces 链路、metrics 度量和 logs 日志。使用OpenTelemetry后，可观测的三要素日志、链路追踪、指标，将从过去的相互独立，变的关联性更强，方便我们进行更快速的问题定位：</p>
+<p><img src="/images/1704347653-8b0c339b39c596e793d3865799c24b78.png" alt="OTel"></p>
+<h2 id="最易被忽视的-OnCall"><a href="#最易被忽视的-OnCall" class="headerlink" title="最易被忽视的_OnCall_"></a>最易被忽视的_OnCall_</h2><p><strong>在传统监控领域，OnCall是最容易被技术团队忽视的一个概念，运维和研发人员往往面临以下典型的困扰：</strong></p>
+<blockquote>
+<ul>
+<li>技术团队每天接收到大量的告警。</li>
+<li>很多告警长时间无响应，长期无人问津。</li>
+<li>告警与告警之间缺乏关联性，处理效率低下。</li>
+<li>告警处理缺乏协同，处理过程不透明，信息难以共享，知识难以沉淀。</li>
+<li>很多告警并未准确反应实际情况，无谓的消耗技术团队精力。</li>
+<li>客户&#x2F;用户往往先于技术团队发现故障，客户满意度持续走低。</li>
+<li>无法量化的衡量应急响应的现状和效率，无法制定出改进和优化路线。</li>
+</ul>
+</blockquote>
+<p><img src="/images/1704347653-2d8fe47957e22a06422c78bc438e22c3.png" alt="OnCall"></p>
+<p><strong>一个好的 OnCall 工具，能够大幅提升运维和研发人员的效率和幸福感：</strong></p>
+<blockquote>
+<ol>
+<li><strong>告警聚合收敛</strong>：解决告警风暴问题，按照业界的实践，压缩率为70%~80%。</li>
+<li><strong>告警全生命周期管理</strong>：告警认领、转派、升级，解决告警不能及时处理、告警漏处理、告警散落在各个监控系统的问题。</li>
+<li><strong>告警排班</strong>：引入值班表，以排班的形式高效的OnCall，减少疏忽和失误，减少告警对非值班team的打扰，让团队可持续发展。</li>
+<li><strong>故障管理</strong>：相关的告警聚合为故障，基于故障的告警处理协作模式，解决跨团队协同不畅的问题。</li>
+<li><strong>ChatOps交互</strong>：在电话、短信之外，通过各种IM触达通知技术团队，在IM中交互式的响应和处理告警。</li>
+</ol>
+</blockquote>
+<p><strong>没有度量就没有改进</strong>，在实际工作中，运维负责人表面看到的是告警太多、团队成员疲于奔命，但苦于看不清告警处理的工作量，没法规划协调补充人力，更严重的是看不清优化告警的方向，导致情况持续恶化，最终团队散了，故障频发。所以在告警处理的领域，尤其需要“可观测”，推荐关注下面 5 个关键的OnCall度量指标：</p>
+<blockquote>
+<ol>
+<li><strong>降噪比</strong>：即告警的压缩比，通过算法、规则将众多相关的告警聚合后，再通知到值班人员。告警聚合能有效降低告警风暴，减少值班人员的工作量，提高信息处理的效率（<code>该指标越高越好</code>）。</li>
+<li><strong>响应比</strong>：被认领的告警占所有告警的比例。在告警管理领域，需要响应或者认领的告警，才是有用的告警，因此通过统计和观察“响应比“，能整体的评估告警是否足够有效和有用，并持续的推动提升告警”响应比“（<code>该指标越高越好</code>）。</li>
+<li><strong>告警总量</strong>：一段时间窗口内产生的告警数量。过高的告警总量，意味着值班的压力越大，对技术团队注意力的干扰越多，潜在的意味着告警的噪音可能也过大，因此过多的告警，会让整个系统处于不可运维的状态，应该该尽力的降低告警总量，譬如采用基于SLO的告警，就可以答复降低该指标（<code>该指标越低越好</code>）。</li>
+<li><strong>MTTA（平均响应或认领用时）</strong>：从告警发生到值班人员响应或者认领的时间间隔。越快的 MTTA，标志着越高的告警处理效率，潜在的代表着越高的服务稳定性。通过MTTA我们可以有效的度量团队的工作压力，以便决策合适的资源投入，确保团队始终处于可持续发展的状态（<code>该指标合适就好</code>）。</li>
+<li><strong>MTTR（平均恢复或解决用时）</strong>：从告警发生到问题解决的时间间隔。越快的 MTTR，往往意味着团队拥有更先进的观测技术、更强大的基础设施平台、更熟练的工作技能、以及对业务系统有更深入的理解（<code>该指标越快越好</code>）。</li>
+</ol>
+</blockquote>
+<h2 id="可观测性的技术趋势"><a href="#可观测性的技术趋势" class="headerlink" title="可观测性的技术趋势"></a>可观测性的技术趋势</h2><p>在可观测性三大支柱在外，Continuous Profiling作为一种持续性能分析技术，应用也越来越广泛。Continuous Profiling 用于实时监测和分析应用程序的性能特征。它通过不间断地采集应用程序的性能数据，例如函数调用、内存使用情况、CPU利用率等，以实现对应用程序性能的全面了解。</p>
+<p>eBPF（Extended Berkeley Packet Filter）是Linux内核的扩展功能，用于在内核层面执行安全、性能和观测等任务。eBPF技术允许用户在不修改内核代码的情况下，通过安全的、可编程的虚拟机在内核中注入代码。它能够捕获和处理系统的事件，例如网络数据包、系统调用、文件访问等，并进行实时分析或转发，从而实现更高级的网络分析、安全监控和性能优化等功能。</p>
+<p>在可观测性领域，Continuous Profiling和eBPF技术都为开发人员和运维团队提供了更加全面、实时和深入的监控能力。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/04/%E5%8F%AF%E8%A7%82%E6%B5%8B%E6%80%A7%E4%B8%8E%E4%BC%A0%E7%BB%9F%E7%9B%91%E6%8E%A7%E7%9A%84%E5%8C%BA%E5%88%AB%E5%92%8C%E8%81%94%E7%B3%BB/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%8A%80%E6%9C%AF%E5%92%96/" rel="tag">技术咖</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/04/%E5%A6%82%E4%BD%95%E5%9C%A8VictoriaMetrics%E4%B8%AD%E5%88%A0%E9%99%A4%E6%88%96%E4%BF%AE%E6%94%B9%E6%8C%87%E6%A0%87/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">如何在VictoriaMetrics中删除或修改指标</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
