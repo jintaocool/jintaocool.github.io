@@ -6886,7 +6886,6 @@
 <p>它可以理解成一个远程连接数据库的工具，可以用它来连接sql server&#x2F;mysql 等等数据库，并以SQL查询方式采集SQL查询结果。</p>
 <p>SQL_Exporter 是中心化的，可以把对不同实例的agent链接，都放在一台linux服务器上，以便管理、修改。你想想看，如果你更新了采集指标，只需要在该台中心化服务器重启sql_exporter agent采集客户端即可生效。</p>
 <p>不像其他 mysql&#x2F;linux&#x2F;windows采集器，他们是部署在实际被采集的服务器上的，如果你想要更新采集器（虽然它做的很好了，不需要更新。除此之外就是无法加入自定义的采集指标或者采集项），那么需要到那么多台被采集的客户端机器上去覆盖更新，很痛苦的。</p>
-<p><a href="#_labelTop">回到顶部</a></p>
 <h2 id="【1】安装配置-sql-exporter"><a href="#【1】安装配置-sql-exporter" class="headerlink" title="【1】安装配置 sql_exporter"></a>【1】安装配置 sql_exporter</h2><h3 id="【1-1】下载解压-sql-exporter"><a href="#【1-1】下载解压-sql-exporter" class="headerlink" title="【1.1】下载解压 sql_exporter"></a>【1.1】下载解压 sql_exporter</h3><p>下载：<a href="https://github.com/free/sql_exporter/releases">https://github.com/free/sql_exporter&#x2F;releases</a></p>
 <p>#wget <a href="https://github.com/free/sql/_exporter/releases/download/0.5/sql/_exporter-0.5.linux-amd64.tar.gz">https://github.com/free/sql\_exporter/releases/download/0.5/sql\_exporter-0.5.linux-amd64.tar.gz</a></p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">mkdir  /soft</span><br><span class="line">cd /soft</span><br><span class="line">wget https://github.com/free/sql_exporter/releases/download/0.5/sql_exporter-0.5.linux-amd64.tar.gz</span><br><span class="line">tar -zxf sql_exporter-0.5.linux-amd64.tar.gz </span><br><span class="line">ln -s sql_exporter-0.5.linux-amd64 sql_exporter</span><br><span class="line">cd sql_exporter</span><br></pre></td></tr></table></figure>
@@ -6910,7 +6909,6 @@
 
 <h3 id="【1-3】自带的sql-server监控采集器"><a href="#【1-3】自带的sql-server监控采集器" class="headerlink" title="【1.3】自带的sql server监控采集器"></a>【1.3】自带的sql server监控采集器</h3><p>　　<img src="/images/1704769981-b40ce2a4ec2f49df9c16ba90e41f86cb.png"></p>
 <p> 这里我们配置文件中 已经引用了 配置文件相同目录下的 “*.collector.yml”，所以该文件也被包含进来了。</p>
-<p><a href="#_labelTop">回到顶部</a></p>
 <h2 id="【2】整合-prometheus-sql-exporter"><a href="#【2】整合-prometheus-sql-exporter" class="headerlink" title="【2】整合 prometheus + sql_exporter"></a>【2】整合 prometheus + sql_exporter</h2><p>那么这个东西其实是一个采集器啊，但是为什么不能放到windows上呢…….好吧，不管了好像没什么很好的windows采集器，自己也不会做，先用着吧</p>
 <h3 id="【2-1】修改prometheus-yml配置文件"><a href="#【2-1】修改prometheus-yml配置文件" class="headerlink" title="【2.1】修改prometheus.yml配置文件"></a>【2.1】修改prometheus.yml配置文件</h3><p>　　<img src="/images/1704769981-e039e3161168236874b311463edf607c.png"></p>
 <h3 id="【2-2】启动-sql-exporter"><a href="#【2-2】启动-sql-exporter" class="headerlink" title="【2.2】启动 sql_exporter"></a>【2.2】启动 sql_exporter</h3><p>（1）封装成系统服务</p>
@@ -6924,7 +6922,6 @@
 <h3 id="【2-3】核验"><a href="#【2-3】核验" class="headerlink" title="【2.3】核验"></a>【2.3】核验</h3><p><a href="http://192.168.175.131:9399/metrics">http://192.168.175.131:9399/metrics</a></p>
 <p>如下图，这就成功了啊</p>
 <p>　　<img src="/images/1704769981-a92b03332a9df677ee301e2db612edab.png"></p>
-<p><a href="#_labelTop">回到顶部</a></p>
 <h2 id="【3】结合-grafana-显示"><a href="#【3】结合-grafana-显示" class="headerlink" title="【3】结合 grafana 显示"></a>【3】结合 grafana 显示</h2><h3 id="【3-1】导入MSSQL模板"><a href="#【3-1】导入MSSQL模板" class="headerlink" title="【3.1】导入MSSQL模板"></a>【3.1】导入MSSQL模板</h3><p><a href="https://grafana.com/grafana/dashboards?dataSource=prometheus&search=mssql">https://grafana.com/grafana/dashboards?dataSource=prometheus&search=mssql</a></p>
 <p> 　　<img src="/images/1704769981-a1720f0d4e75d4b255bb7da21a64c076.png"></p>
 <p>　　<img src="/images/1704769981-0ffdcb285622237c50f58660bba5f127.png"></p>
@@ -6932,7 +6929,6 @@
 <p>　　<img src="/images/1704769981-687b9788e1f63c10a568256c1f7c3c15.png"></p>
 <h3 id="【3-2】查看仪表盘"><a href="#【3-2】查看仪表盘" class="headerlink" title="【3.2】查看仪表盘"></a>【3.2】查看仪表盘</h3><p>最后结果：好像还行，但很多图表no data ，这个模板和采集器不是很配，有空可以自己配置修改一下</p>
 <p>　　<img src="/images/1704769981-cc91182082aebc4998812c91c6f9041d.png"></p>
-<p><a href="#_labelTop">回到顶部</a></p>
 <h2 id="【4】自定义MSSQL"><a href="#【4】自定义MSSQL" class="headerlink" title="【4】自定义MSSQL"></a>【4】自定义MSSQL</h2><h3 id="【4-0】MSSQL权限与监控账户"><a href="#【4-0】MSSQL权限与监控账户" class="headerlink" title="【4.0】MSSQL权限与监控账户"></a>【4.0】MSSQL权限与监控账户</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">DECLARE @sql VARCHAR(max)</span><br><span class="line">SET @sql=CAST(&#x27;use master;CREATE LOGIN [sql_exporter] WITH PASSWORD=N&#x27;&#x27;qICJEasdqwDiOSrdT96&#x27;&#x27;, DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF; GRANT VIEW SERVER STATE TO [sql_exporter];</span><br><span class="line">GRANT VIEW ANY DEFINITION TO [sql_exporter];&#x27; AS VARCHAR(max))</span><br><span class="line"></span><br><span class="line">select @sql=@sql+CAST(&#x27;use &#x27;+name+&#x27;;CREATE USER [sql_exporter] FOR LOGIN [sql_exporter];</span><br><span class="line">EXEC sp_addrolemember N&#x27;&#x27;db_datareader&#x27;&#x27;, N&#x27;&#x27;sql_exporter&#x27;&#x27;;&#x27;+CHAR(10) AS VARCHAR(max)) </span><br><span class="line">from master.sys.databases  and state=0</span><br><span class="line">EXEC(@sql)</span><br></pre></td></tr></table></figure>
 
 <p>防火墙什么的就不用我说了吧？</p>
@@ -6958,7 +6954,7 @@
 <p>企业微信</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&#123;&#123; define &quot;wechat.default.message&quot; &#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Firing) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">------------------------------------</span><br><span class="line">------------------------------------</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Resolved) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">Resolved</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">恢复时间:  &#123;&#123; (.EndsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">------------------------------------</span><br><span class="line">------------------------------------</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- end &#125;&#125;</span><br></pre></td></tr></table></figure>
 
-<p><a href="#_labelTop">回到顶部</a></p>
+
 <h2 id="【最佳实践】安装采集器、配置sql-server权限"><a href="#【最佳实践】安装采集器、配置sql-server权限" class="headerlink" title="【最佳实践】安装采集器、配置sql server权限"></a>【最佳实践】安装采集器、配置sql server权限</h2><h3 id="（1）-windows采集器文件"><a href="#（1）-windows采集器文件" class="headerlink" title="（1） windows采集器文件"></a>（1） windows采集器文件</h3><p>【1.1】上传文件 windows_exporter 采集器文件</p>
 <p>【1.2】双击运行</p>
 <p>可能有东西出来，也可能一闪而过，也可能一点反应都没有。</p>
@@ -6985,7 +6981,7 @@
 <p> crontab</p>
 <figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">* * * * * /bin/bash /data/mssql/autostart_sqlexporter.sh start &gt;&gt;/data/mssql/log_autostart_sqlexporter.log 2&gt;&amp;1</span><br></pre></td></tr></table></figure>
 
-<p><a href="#_labelTop">回到顶部</a></p>
+
 <h2 id="【参考文档】"><a href="#【参考文档】" class="headerlink" title="【参考文档】"></a>【参考文档】</h2><p>参考：<a href="https://www.bilibili.com/read/cv7134580/">https://www.bilibili.com/read/cv7134580/</a></p>
 <p>官网：<a href="https://github.com/free/sql_exporter">https://github.com/free/sql_exporter</a></p>
 <h3 id="【附录】"><a href="#【附录】" class="headerlink" title="【附录】"></a>【附录】</h3><p>由于在url中特殊符号都有特殊意义或者被认为是不安全的字符，所以在拼接url时应当替换出url中的特殊字符</p>
@@ -9041,7 +9037,6 @@
 </tr>
 </tbody></table>
 <hr>
-<p><a href="#_labelTop">回到顶部</a></p>
 <h2 id="URL-Encoding-Reference"><a href="#URL-Encoding-Reference" class="headerlink" title="URL Encoding Reference"></a>URL Encoding Reference</h2><p>The ASCII control characters %00-%1F were originally designed to control hardware devices.</p>
 <p>Control characters have nothing to do inside a URL.</p>
 <table>
