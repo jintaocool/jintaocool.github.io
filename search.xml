@@ -9366,4 +9366,90 @@
         <tag>Prometheus</tag>
       </tags>
   </entry>
+  <entry>
+    <title>sql对时间的查询</title>
+    <url>/2024/01/09/sql%E5%AF%B9%E6%97%B6%E9%97%B4%E7%9A%84%E6%9F%A5%E8%AF%A2/</url>
+    <content><![CDATA[<ul>
+<li>某个时间范围</li>
+</ul>
+<p><code>sql select * from 表名 where 时间字段 BETWEEN &#39;开始时间&#39; AND &#39;结束时间&#39;;</code></p>
+<ul>
+<li>今天</li>
+</ul>
+<p><code>sql select * from 表名 where to_days(时间字段名) = to_days(now());</code></p>
+<ul>
+<li>昨天</li>
+</ul>
+<p><code>sql SELECT * FROM 表名 WHERE TO_DAYS( NOW( ) ) - TO_DAYS( 时间字段名) = 1;</code></p>
+<ul>
+<li>一周（7天）</li>
+</ul>
+<p><code>sql SELECT * FROM 表名 where DATE_SUB(CURDATE(), INTERVAL 7 DAY) &lt;= date(时间字段名);</code></p>
+<ul>
+<li>一月（30天）</li>
+</ul>
+<p><code>sql SELECT * FROM 表名 where DATE_SUB(CURDATE(), INTERVAL 30 DAY) &lt;= date(时间字段名);</code></p>
+<ul>
+<li>本月</li>
+</ul>
+<p><code>sql SELECT * FROM 表名 WHERE DATE_FORMAT( 时间字段名, &#39;%Y%m&#39; ) = DATE_FORMAT( CURDATE( ) , &#39;%Y%m&#39; );</code></p>
+<ul>
+<li>上个月</li>
+</ul>
+<p><code>sql SELECT * FROM 表名 WHERE PERIOD_DIFF( date_format( now( ) , &#39;%Y%m&#39; ) , date_format( 时间字段名, &#39;%Y%m&#39; ) ) =1;</code></p>
+<ul>
+<li>查询本季度数据</li>
+</ul>
+<p><code>sql select * from 表名 where QUARTER(create_date)=QUARTER(now());</code></p>
+<ul>
+<li>查询上季度数据</li>
+</ul>
+<p><code>sql select * from 表名 where QUARTER(create_date)=QUARTER(DATE_SUB(now(),interval 1 QUARTER));</code></p>
+<ul>
+<li>查询本年数据</li>
+</ul>
+<p><code>sql select * from 表名 where YEAR(create_date)=YEAR(NOW());</code></p>
+<ul>
+<li>查询上年数据</li>
+</ul>
+<p><code>sql select * from 表名 where year(create_date)=year(date_sub(now(),interval 1 year));</code></p>
+<ul>
+<li>查询当前这周的数据</li>
+</ul>
+<p><code>SELECT name,submittime FROM 表名 WHERE YEARWEEK(date_format(submittime,&#39;%Y-%m-%d&#39;)) = YEARWEEK(now());</code></p>
+<ul>
+<li>查询上周数据</li>
+</ul>
+<p><code>sql SELECT name,submittime FROM 表名 WHERE YEARWEEK(date_format(submittime,&#39;%Y-%m-%d&#39;)) = YEARWEEK(now())-1;</code></p>
+<ul>
+<li>查询上个月数据</li>
+</ul>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="operator">-</span>     <span class="keyword">select</span> name,submittime <span class="keyword">from</span> 表名 <span class="keyword">where</span> date_format(submittime,<span class="string">&#x27;%Y-%m&#x27;</span>)<span class="operator">=</span>date_format(DATE_SUB(curdate(), <span class="type">INTERVAL</span> <span class="number">1</span> <span class="keyword">MONTH</span>),<span class="string">&#x27;%Y-%m&#x27;</span>);</span><br><span class="line"><span class="operator">-</span>     <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> 表名 <span class="keyword">where</span> DATE_FORMAT(pudate,<span class="string">&#x27;%Y%m&#x27;</span>) <span class="operator">=</span> DATE_FORMAT(CURDATE(),<span class="string">&#x27;%Y%m&#x27;</span>) ; </span><br><span class="line"><span class="operator">-</span>     <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> 表名 <span class="keyword">where</span> WEEKOFYEAR(FROM_UNIXTIME(pudate,<span class="string">&#x27;%y-%m-%d&#x27;</span>)) <span class="operator">=</span> WEEKOFYEAR(now());</span><br><span class="line"><span class="operator">-</span>     <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> 表名 <span class="keyword">where</span> <span class="keyword">MONTH</span>(FROM_UNIXTIME(pudate,<span class="string">&#x27;%y-%m-%d&#x27;</span>)) <span class="operator">=</span> <span class="keyword">MONTH</span>(now()); </span><br><span class="line"><span class="operator">-</span>     <span class="keyword">MONTH</span>(FROM_UNIXTIME(pudate,<span class="string">&#x27;%y-%m-%d&#x27;</span>)) <span class="operator">=</span> <span class="keyword">MONTH</span>(now()); </span><br><span class="line"><span class="operator">-</span>     <span class="keyword">select</span> <span class="operator">*</span> <span class="keyword">from</span> 表名 <span class="keyword">where</span> pudate <span class="keyword">between</span>  上月最后一天  <span class="keyword">and</span> 下月第一天; </span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>查询当前月份的数据</li>
+</ul>
+<p><code>sql select name,submittime from 表名 where date_format(submittime,&#39;%Y-%m&#39;)=date_format(now(),&#39;%Y-%m&#39;);</code></p>
+<ul>
+<li>查询距离当前现在6个月的数据</li>
+</ul>
+<p><code>sql select name,submittime from 表名 where submittime between date_sub(now(),interval 6 month) and now()</code></p>
+<p><strong>ORACLE:</strong></p>
+<p><strong>ORACLE没有提供直接获取年、周的函数，提供了一些函数，需要进行计算</strong></p>
+<p><strong>to_char()和to_date基本等价于JAVA中的SimpleDateFormat函数</strong></p>
+<p><strong>trunc()函数为指定元素而截去的日期值。</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">trunc（sysdate,&#x27;yyyy&#x27;） --返回当年第一天。</span><br><span class="line">trunc（sysdate,&#x27;mm&#x27;） --返回当月第一天。</span><br><span class="line">trunc（sysdate,&#x27;d&#x27;） --返回当前星期的第一天。</span><br><span class="line">trunc（sysdate,&#x27;dd&#x27;）--返回当前年月日</span><br></pre></td></tr></table></figure>
+
+<p>trunc()也可以对数字精度进行操作，trunc(number,length),number用于完整取精度的数字，length代表精度长度，默认为0；trunc()取精度时不进行四舍五入</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">select trunc(123.458,0) from dual --123</span><br><span class="line">select trunc(123.458,1) from dual --123.4</span><br><span class="line">select trunc(123.458,-1) from dual --120</span><br><span class="line">select trunc(123.458,-4) from dual --0</span><br><span class="line">select trunc(123.458,4) from dual --123.4580</span><br></pre></td></tr></table></figure>
+
+<p><code>add_months(times,months)</code>表示在time时间之上进行月份操作，months为正整数表示之后，正负数表示之前</p>
+]]></content>
+      <categories>
+        <category>SQL</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
 </search>
