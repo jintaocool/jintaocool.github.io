@@ -1,0 +1,3149 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus监控sqlserver |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus监控sqlserver"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus监控sqlserver
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/09/Prometheus%E7%9B%91%E6%8E%A7sqlserver/" class="article-date">
+  <time datetime="2024-01-09T03:14:31.000Z" itemprop="datePublished">2024-01-09</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">22 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="【0】核心参考"><a href="#【0】核心参考" class="headerlink" title="【0】核心参考"></a>【0】核心参考</h2><p>sql_exporter使用、采集器源码： <a target="_blank" rel="noopener" href="https://github.com/free/sql_exporter">https://github.com/free/sql_exporter</a> </p>
+<p>MSSQL简略仪表盘：<a target="_blank" rel="noopener" href="https://grafana.com/grafana/dashboards/9336">https://grafana.com/grafana/dashboards/9336</a></p>
+<p>更多、更高级的sql server采集指标：<a target="_blank" rel="noopener" href="https://github.com/influxdata/telegraf/tree/master/plugins/inputs/sqlserver?tdsourcetag=s_pctim_aiomsg">https://github.com/influxdata/telegraf/tree/master/plugins/inputs/sqlserver?tdsourcetag=s_pctim_aiomsg</a></p>
+<p>sql server 对象监控 参考：<a target="_blank" rel="noopener" href="https://docs.microsoft.com/zh-cn/sql/relational-databases/performance-monitor/use-sql-server-objects?view=sql-server-ver15">https://docs.microsoft.com/zh-cn/sql/relational-databases/performance-monitor/use-sql-server-objects?view=sql-server-ver15</a></p>
+<h3 id="【简述】"><a href="#【简述】" class="headerlink" title="【简述】"></a>【简述】</h3><p>MSSQL的监控，官网没有提供采集器，所以只能用其他程序来监控，本文就用了 sql-exporter。</p>
+<p>它可以理解成一个远程连接数据库的工具，可以用它来连接sql server&#x2F;mysql 等等数据库，并以SQL查询方式采集SQL查询结果。</p>
+<p>SQL_Exporter 是中心化的，可以把对不同实例的agent链接，都放在一台linux服务器上，以便管理、修改。你想想看，如果你更新了采集指标，只需要在该台中心化服务器重启sql_exporter agent采集客户端即可生效。</p>
+<p>不像其他 mysql&#x2F;linux&#x2F;windows采集器，他们是部署在实际被采集的服务器上的，如果你想要更新采集器（虽然它做的很好了，不需要更新。除此之外就是无法加入自定义的采集指标或者采集项），那么需要到那么多台被采集的客户端机器上去覆盖更新，很痛苦的。</p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【1】安装配置-sql-exporter"><a href="#【1】安装配置-sql-exporter" class="headerlink" title="【1】安装配置 sql_exporter"></a>【1】安装配置 sql_exporter</h2><h3 id="【1-1】下载解压-sql-exporter"><a href="#【1-1】下载解压-sql-exporter" class="headerlink" title="【1.1】下载解压 sql_exporter"></a>【1.1】下载解压 sql_exporter</h3><p>下载：<a target="_blank" rel="noopener" href="https://github.com/free/sql_exporter/releases">https://github.com/free/sql_exporter&#x2F;releases</a></p>
+<p>#wget <a target="_blank" rel="noopener" href="https://github.com/free/sql/_exporter/releases/download/0.5/sql/_exporter-0.5.linux-amd64.tar.gz">https://github.com/free/sql\_exporter/releases/download/0.5/sql\_exporter-0.5.linux-amd64.tar.gz</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">mkdir  /soft</span><br><span class="line">cd /soft</span><br><span class="line">wget https://github.com/free/sql_exporter/releases/download/0.5/sql_exporter-0.5.linux-amd64.tar.gz</span><br><span class="line">tar -zxf sql_exporter-0.5.linux-amd64.tar.gz </span><br><span class="line">ln -s sql_exporter-0.5.linux-amd64 sql_exporter</span><br><span class="line">cd sql_exporter</span><br></pre></td></tr></table></figure>
+
+<h3 id="【1-2】修改配置文件"><a href="#【1-2】修改配置文件" class="headerlink" title="【1.2】修改配置文件"></a>【1.2】修改配置文件</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"># Global defaults.</span><br><span class="line">global:</span><br><span class="line">  # Subtracted from Prometheus&#x27; scrape_timeout to give us some headroom and prevent Prometheus from timing out first.</span><br><span class="line">  scrape_timeout_offset: 500ms</span><br><span class="line">  # Minimum interval between collector runs: by default (0s) collectors are executed on every scrape.</span><br><span class="line">  min_interval: 0s</span><br><span class="line">  # Maximum number of open connections to any one target. Metric queries will run concurrently on multiple connections,</span><br><span class="line">  # as will concurrent scrapes.</span><br><span class="line">  max_connections: 10</span><br><span class="line">  # Maximum number of idle connections to any one target. Unless you use very long collection intervals, this should</span><br><span class="line">  # always be the same as max_connections.</span><br><span class="line">  max_idle_connections: 5</span><br><span class="line"></span><br><span class="line"># The target to monitor and the collectors to execute on it.</span><br><span class="line">target:</span><br><span class="line">  # Data source name always has a URI schema that matches the driver name. In some cases (e.g. MySQL)</span><br><span class="line">  # the schema gets dropped or replaced to match the driver expected DSN format.</span><br><span class="line">  # data_source_name: &#x27;sqlserver://sql_exporter:a123456!@192.168.191.81:1433/?encrypt=disable&#x27;</span><br><span class="line">  data_source_name: &#x27;sqlserver://sa:a123456!@192.168.191.81:1433&#x27;</span><br><span class="line">   </span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  # Collectors (referenced by name) to execute on the target.</span><br><span class="line">  collectors: [mssql_standard]</span><br><span class="line"></span><br><span class="line"># Collector files specifies a list of globs. One collector definition is read from each matching file.</span><br><span class="line">collector_files:</span><br><span class="line">  - &quot;*.collector.yml&quot;</span><br></pre></td></tr></table></figure>
+
+<p>解析：</p>
+<p>（1）global</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">收集器中允许最慢的SQL执行超时时间，注意该超时时间应小于prometheus中的 scrape_time</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">scrape_timeout_offset: 500ms #用于从 prometheus的 scrape_timeout 中减去一个偏移时间，防止 prometheus 先超时，如果设置了 scrape_timeout,scrapemin_interval: 0s  #收集器每隔0运行一次（默认情况下）收集器每隔0运行一次。max_connections:</span><br><span class="line">10 #到任何一个目标的最大打开连接数。采集器信息查询将在多个连接上并发运行，</span><br><span class="line">max_idle_connections:</span><br><span class="line">5 #到任何一个目标的最大空闲连接数。除非使用很长的收集间隔，否则应该</span><br></pre></td></tr></table></figure>
+
+<p>（2）target</p>
+<p>#数据源</p>
+<p>data_source_name: ‘sqlserver:&#x2F;&#x2F;sa:a123456!@192.168.191.81:1433’</p>
+<p>（3）collector</p>
+<p>#引用收集器文件</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">collector_files:</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">- &quot;*.collector.yml&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="【1-3】自带的sql-server监控采集器"><a href="#【1-3】自带的sql-server监控采集器" class="headerlink" title="【1.3】自带的sql server监控采集器"></a>【1.3】自带的sql server监控采集器</h3><p>　　<img src="/images/1704769981-b40ce2a4ec2f49df9c16ba90e41f86cb.png"></p>
+<p> 这里我们配置文件中 已经引用了 配置文件相同目录下的 “*.collector.yml”，所以该文件也被包含进来了。</p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【2】整合-prometheus-sql-exporter"><a href="#【2】整合-prometheus-sql-exporter" class="headerlink" title="【2】整合 prometheus + sql_exporter"></a>【2】整合 prometheus + sql_exporter</h2><p>那么这个东西其实是一个采集器啊，但是为什么不能放到windows上呢…….好吧，不管了好像没什么很好的windows采集器，自己也不会做，先用着吧</p>
+<h3 id="【2-1】修改prometheus-yml配置文件"><a href="#【2-1】修改prometheus-yml配置文件" class="headerlink" title="【2.1】修改prometheus.yml配置文件"></a>【2.1】修改prometheus.yml配置文件</h3><p>　　<img src="/images/1704769981-e039e3161168236874b311463edf607c.png"></p>
+<h3 id="【2-2】启动-sql-exporter"><a href="#【2-2】启动-sql-exporter" class="headerlink" title="【2.2】启动 sql_exporter"></a>【2.2】启动 sql_exporter</h3><p>（1）封装成系统服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[Unit]</span><br><span class="line">Description=sql_exporter</span><br><span class="line"></span><br><span class="line">[Service]</span><br><span class="line">Type=simple</span><br><span class="line">ExecStart=/soft/sql_exporter/sql_exporter -config.file /soft/sql_exporter/sql_exporter.yml</span><br><span class="line">Restart=on-failure</span><br><span class="line"></span><br><span class="line">[Install]</span><br><span class="line">WantedBy=multi-user.target</span><br></pre></td></tr></table></figure>
+
+<p>（2）启动、查看</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">systemctl daemon-reload</span><br><span class="line">systemctl start sql_exporter</span><br><span class="line">systemctl status sql_exporter -l</span><br></pre></td></tr></table></figure>
+
+<p>启动成功，并且 默认端口是 9399</p>
+<p>　　<img src="/images/1704769981-38dd3674d016f4320df0950bc3333d51.png"></p>
+<h3 id="【2-3】核验"><a href="#【2-3】核验" class="headerlink" title="【2.3】核验"></a>【2.3】核验</h3><p><a target="_blank" rel="noopener" href="http://192.168.175.131:9399/metrics">http://192.168.175.131:9399/metrics</a></p>
+<p>如下图，这就成功了啊</p>
+<p>　　<img src="/images/1704769981-a92b03332a9df677ee301e2db612edab.png"></p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【3】结合-grafana-显示"><a href="#【3】结合-grafana-显示" class="headerlink" title="【3】结合 grafana 显示"></a>【3】结合 grafana 显示</h2><h3 id="【3-1】导入MSSQL模板"><a href="#【3-1】导入MSSQL模板" class="headerlink" title="【3.1】导入MSSQL模板"></a>【3.1】导入MSSQL模板</h3><p><a target="_blank" rel="noopener" href="https://grafana.com/grafana/dashboards?dataSource=prometheus&search=mssql">https://grafana.com/grafana/dashboards?dataSource=prometheus&search=mssql</a></p>
+<p> 　　<img src="/images/1704769981-a1720f0d4e75d4b255bb7da21a64c076.png"></p>
+<p>　　<img src="/images/1704769981-0ffdcb285622237c50f58660bba5f127.png"></p>
+<p> 导入这个 9336 模板</p>
+<p>　　<img src="/images/1704769981-687b9788e1f63c10a568256c1f7c3c15.png"></p>
+<h3 id="【3-2】查看仪表盘"><a href="#【3-2】查看仪表盘" class="headerlink" title="【3.2】查看仪表盘"></a>【3.2】查看仪表盘</h3><p>最后结果：好像还行，但很多图表no data ，这个模板和采集器不是很配，有空可以自己配置修改一下</p>
+<p>　　<img src="/images/1704769981-cc91182082aebc4998812c91c6f9041d.png"></p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【4】自定义MSSQL"><a href="#【4】自定义MSSQL" class="headerlink" title="【4】自定义MSSQL"></a>【4】自定义MSSQL</h2><h3 id="【4-0】MSSQL权限与监控账户"><a href="#【4-0】MSSQL权限与监控账户" class="headerlink" title="【4.0】MSSQL权限与监控账户"></a>【4.0】MSSQL权限与监控账户</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">DECLARE @sql VARCHAR(max)</span><br><span class="line">SET @sql=CAST(&#x27;use master;CREATE LOGIN [sql_exporter] WITH PASSWORD=N&#x27;&#x27;qICJEasdqwDiOSrdT96&#x27;&#x27;, DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF; GRANT VIEW SERVER STATE TO [sql_exporter];</span><br><span class="line">GRANT VIEW ANY DEFINITION TO [sql_exporter];&#x27; AS VARCHAR(max))</span><br><span class="line"></span><br><span class="line">select @sql=@sql+CAST(&#x27;use &#x27;+name+&#x27;;CREATE USER [sql_exporter] FOR LOGIN [sql_exporter];</span><br><span class="line">EXEC sp_addrolemember N&#x27;&#x27;db_datareader&#x27;&#x27;, N&#x27;&#x27;sql_exporter&#x27;&#x27;;&#x27;+CHAR(10) AS VARCHAR(max)) </span><br><span class="line">from master.sys.databases  and state=0</span><br><span class="line">EXEC(@sql)</span><br></pre></td></tr></table></figure>
+
+<p>防火墙什么的就不用我说了吧？</p>
+<h3 id="【4-1】自定义采集器"><a href="#【4-1】自定义采集器" class="headerlink" title="【4.1】自定义采集器"></a>【4.1】自定义采集器</h3><h3 id="【4-2】采集器启动"><a href="#【4-2】采集器启动" class="headerlink" title="【4.2】采集器启动"></a>【4.2】采集器启动</h3><p>布置在linux 中间节点，也可以直接布置在prometheus节点上</p>
+<p><strong>如果密码有特殊字符，在URL上使用报错，则参见附录，用特殊字符替换</strong></p>
+<p><strong>比如密码： !@#$%^qwe123   转移成 %21%40%23%24%25%5Eqwe123</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">nohup /data/mssql/sql_exporter -config.data-source-name=sqlserver://sql_exporter:qICJEasdqwDiOSrdT96@10.112.5.106:1433/?encrypt=disable -config.file=/data/mssql/sql_exporter.yml -web.listen-address=127.0.0.1:9400 -log_dir=/data/mssql_log &amp;</span><br><span class="line"></span><br><span class="line">nohup /data/mssql/sql_exporter -config.data-source-name=sqlserver://sql_exporter:qICJEasdqwDiOSrdT96@10.112.5.105:1433/?encrypt=disable -config.file=/data/mssql/sql_exporter.yml -web.listen-address=127.0.0.1:9401 -log_dir=/data/mssql_log &amp;</span><br></pre></td></tr></table></figure>
+
+<h3 id="【4-3】prometheus配置"><a href="#【4-3】prometheus配置" class="headerlink" title="【4.3】prometheus配置"></a>【4.3】prometheus配置</h3><p>因为是自定义，所以在job name中特地加了 mssql 关键字，以便【4.4】中的变量好获取到所有mssql 的job，以供筛选</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;大连娱网_mssql&#x27;</span><br><span class="line">    static_configs:</span><br><span class="line">    - targets: [&#x27;127.0.0.1:9400&#x27;]</span><br><span class="line">      labels:</span><br><span class="line">        name: &#x27;我是第一台机器DB[10.112.5.106]&#x27; </span><br><span class="line">　　- targets: [&#x27;127.0.0.1:9401&#x27;] </span><br><span class="line">　　　　labels: </span><br><span class="line">　　　　name: &#x27;我是第二台机器DB[10.112.5.10]&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>这里的配置，要和【4.2】的相互对应，否则会采集出问题。</p>
+<p>这里的name 为什么会写上IP呢，这是因为为了辨识是哪台机器，也是为了【4.4】中的大盘 仪表盘上可以显示出机器IP来，因为我们这个是自定义的，无法像官网提供的一样。其实我们这个有点类似于pushgateway</p>
+<h3 id="【4-4】自定义仪表盘"><a href="#【4-4】自定义仪表盘" class="headerlink" title="【4.4】自定义仪表盘"></a>【4.4】自定义仪表盘</h3><p> 核心变量</p>
+<p>　　<img src="/images/1704769981-a26f4e1d7ba75d1a22d4e81b478ff42f.png"></p>
+<p> 骚气界面预览</p>
+<p>　　<img src="/images/1704769981-2725dd9870241032ce6aec78b3544e5a.png"></p>
+<h3 id="【4-5】报警规则"><a href="#【4-5】报警规则" class="headerlink" title="【4.5】报警规则"></a>【4.5】报警规则</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br></pre></td><td class="code"><pre><span class="line">groups:</span><br><span class="line">- name: MSSQL告警规则</span><br><span class="line">  rules:</span><br><span class="line"></span><br><span class="line">  - alert: mssql引擎服务宕机</span><br><span class="line">    expr:  windows_service_state&#123;state=&quot;running&quot;,exported_name=&quot;mssqlserver&quot;&#125;!=1</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line"></span><br><span class="line">   </span><br><span class="line">  - alert: mssql代理服务宕机</span><br><span class="line">    expr:  windows_service_state&#123;exported_name=&quot;sqlserveragent&quot;,state=&quot;running&quot;&#125;!=1                                                     </span><br><span class="line">    for: 1m         </span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line"></span><br><span class="line">  - alert: mssql引擎服务重启</span><br><span class="line">    expr: mssql_db_uptime &lt; 3600</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;mssql引擎服务1小时内有过重启，现已重启&#123;&#123; $value &#125;&#125; 秒&quot;</span><br><span class="line"></span><br><span class="line">  - alert: mssql数据库不可用/不可访问</span><br><span class="line">    expr: mssql_current_state_dbState !=0</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;db:&#123;&#123; $labels.db &#125;&#125;\n value:&#123;&#123; $labels.value &#125;&#125;=&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line"></span><br><span class="line">  - alert: mssql阻塞</span><br><span class="line">    expr: sum(mssql_current_state_blocking)&gt;5</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;mssql请求阻塞数&gt;5，当前：&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line"></span><br><span class="line">  - alert: mssql请求过多</span><br><span class="line">    expr: sum(mssql_current_state_requests)&gt;100</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;mssql请求数&gt;100，当前：&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  - alert: mssql死锁产生</span><br><span class="line">    expr: increase(mssql_counter&#123;type_object=&quot;SQLServer:Locks&quot;,type_counter=&quot;Number of Deadlocks/sec&quot;,type_instance=&quot;_Total&quot;&#125;[5m])&gt;0</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;mssql 5分钟内死锁产生次数：&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  - alert: mssql作业执行错误</span><br><span class="line">    expr: increase(mssql_job_state_today[5m])&gt;0</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;mssql 今天作业运行错误次数：&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">  - alert: mssql镜像状态变化</span><br><span class="line">    expr: increase(mssql_mirror_sync&#123;value=&quot;status&quot;&#125; [5m])!=0</span><br><span class="line">    for: 1m</span><br><span class="line">    labels:</span><br><span class="line">      severity: warning</span><br><span class="line">    annotations:</span><br><span class="line">      summary: &quot;详细: &#123;&#123; $labels &#125;&#125;&quot;</span><br><span class="line">      description: &quot;db:&#123;&#123; $labels.db &#125;&#125;\n value:&#123;&#123; $labels.value &#125;&#125;=&#123;&#123; $value &#125;&#125; &quot;</span><br><span class="line">  </span><br></pre></td></tr></table></figure>
+
+<h3 id="【4-6】报警模板"><a href="#【4-6】报警模板" class="headerlink" title="【4.6】报警模板"></a>【4.6】报警模板</h3><p>email</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#123;&#123; define &quot;email.html&quot; &#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Firing) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125; &lt;br&gt;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125; &lt;br&gt;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;  &lt;br&gt;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125; &lt;br&gt;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;  &lt;br&gt;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;&lt;br&gt;</span><br><span class="line">++++++++++++++++++++++++++++++++++++&lt;br&gt;</span><br><span class="line">+++++++++++++++++++++++++++++++++++++&lt;br&gt;</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Resolved) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">Resolved&lt;br&gt;</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125; &lt;br&gt;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125; &lt;br&gt;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;  &lt;br&gt;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125; &lt;br&gt;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;  &lt;br&gt;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;&lt;br&gt;</span><br><span class="line">恢复时间:  &#123;&#123; (.EndsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;&lt;br&gt;</span><br><span class="line">++++++++++++++++++++++++++++++++++++&lt;br&gt;</span><br><span class="line">+++++++++++++++++++++++++++++++++++++&lt;br&gt;</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- end &#125;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>企业微信</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line">&#123;&#123; define &quot;wechat.default.message&quot; &#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Firing) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">------------------------------------</span><br><span class="line">------------------------------------</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- if gt (len .Alerts.Resolved) 0 -&#125;&#125;&#123;&#123; range.Alerts &#125;&#125;</span><br><span class="line">Resolved</span><br><span class="line">告警项: &#123;&#123; .Labels.alertname &#125;&#125;</span><br><span class="line">项目组:&#123;&#123; .Labels.job &#125;&#125;</span><br><span class="line">实例名:&#123;&#123; .Labels.name &#125;&#125;-&#123;&#123; .Labels.instance &#125;&#125;</span><br><span class="line">详情:  &#123;&#123; .Annotations.description &#125;&#125;</span><br><span class="line">级别:  &#123;&#123; .Labels.severity &#125;&#125;</span><br><span class="line">开始时间:  &#123;&#123; (.StartsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">恢复时间:  &#123;&#123; (.EndsAt.Add 28800e9).Format &quot;2006-01-02 15:04:05&quot; &#125;&#125;</span><br><span class="line">------------------------------------</span><br><span class="line">------------------------------------</span><br><span class="line">&#123;&#123; end &#125;&#125;&#123;&#123; end -&#125;&#125;</span><br><span class="line">&#123;&#123;- end &#125;&#125;</span><br></pre></td></tr></table></figure>
+
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【最佳实践】安装采集器、配置sql-server权限"><a href="#【最佳实践】安装采集器、配置sql-server权限" class="headerlink" title="【最佳实践】安装采集器、配置sql server权限"></a>【最佳实践】安装采集器、配置sql server权限</h2><h3 id="（1）-windows采集器文件"><a href="#（1）-windows采集器文件" class="headerlink" title="（1） windows采集器文件"></a>（1） windows采集器文件</h3><p>【1.1】上传文件 windows_exporter 采集器文件</p>
+<p>【1.2】双击运行</p>
+<p>可能有东西出来，也可能一闪而过，也可能一点反应都没有。</p>
+<p>【1.3】核验</p>
+<p>Win+R 运行  &#x3D;》Services.msc</p>
+<p>查看服务， windows_exporter，这就表示部署好了。</p>
+<h3 id="（2）mssql-访问配置"><a href="#（2）mssql-访问配置" class="headerlink" title="（2）mssql 访问配置"></a>（2）mssql 访问配置</h3><h4 id="【2-1】防火墙配置-MSSQL权限配置（打开cmd，在dos命令窗口下执行）"><a href="#【2-1】防火墙配置-MSSQL权限配置（打开cmd，在dos命令窗口下执行）" class="headerlink" title="【2.1】防火墙配置&#x2F;MSSQL权限配置（打开cmd，在dos命令窗口下执行）"></a>【2.1】防火墙配置&#x2F;MSSQL权限配置（打开cmd，在dos命令窗口下执行）</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">netsh advfirewall firewall add rule name=&quot;prometheus_monitor&quot; dir=in action=allow remoteip=&quot;192.168.1.1,192.168.1.2&quot; protocol=TCP localport=&quot;1433,9182&quot;</span><br><span class="line"> </span><br><span class="line">net stop wuauserv</span><br><span class="line">sc config wuauserv start= disabled</span><br><span class="line">sc config TrustedInstaller start= disabled</span><br><span class="line">sc config windows_exporter start= delayed-auto</span><br><span class="line">sc config MSSQLSERVER start= delayed-auto</span><br><span class="line">sc config SQLSERVERAGENT start= delayed-auto</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">sqlcmd -E</span><br><span class="line">USE [master]</span><br><span class="line">GO</span><br><span class="line"></span><br><span class="line">CREATE LOGIN [sql_exporter] WITH PASSWORD=N&#x27;qwer1234qwer&#x27;, DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF</span><br><span class="line">GO</span><br><span class="line"></span><br><span class="line">ALTER SERVER ROLE [sysadmin] ADD MEMBER [sql_exporter]</span><br><span class="line">GO</span><br></pre></td></tr></table></figure>
+
+<p>-————下面的不要运行，只是参考！——–</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">参考：</span><br><span class="line"></span><br><span class="line">DECLARE @sql VARCHAR(max)</span><br><span class="line">SET @sql=CAST(&#x27;use master;CREATE LOGIN [sql_exporter] WITH PASSWORD=N&#x27;&#x27;qwer1234qwer&#x27;&#x27;, DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF; GRANT VIEW SERVER STATE TO [sql_exporter];</span><br><span class="line">GRANT VIEW ANY DEFINITION TO [sql_exporter];&#x27; AS VARCHAR(max))</span><br><span class="line">select @sql=@sql+CAST(&#x27;use &#x27;+name+&#x27;;CREATE USER [sql_exporter] FOR LOGIN [sql_exporter];</span><br><span class="line"></span><br><span class="line">EXEC sp_addrolemember N&#x27;&#x27;db_datareader&#x27;&#x27;, N&#x27;&#x27;sql_exporter&#x27;&#x27;;&#x27;+CHAR(10) AS VARCHAR(max))</span><br><span class="line">from master.sys.databases where state=0 and is_read_only=0</span><br><span class="line">EXEC(@sql)</span><br><span class="line"></span><br><span class="line">Go</span><br><span class="line"></span><br><span class="line">ALTER SERVER ROLE [sysadmin] ADD MEMBER [sql_exporter]</span><br><span class="line"></span><br><span class="line">GO</span><br></pre></td></tr></table></figure>
+
+<p>参考：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">Declare @login varchar(200),@role varchar(200), @login_pwd varchar(200)</span><br><span class="line"></span><br><span class="line">Set @login=&#x27;business_query&#x27;</span><br><span class="line">Set @login_pwd=&#x27;qwer1234qwer&#x27;</span><br><span class="line">SET @role=&#x27;db_datareader&#x27;</span><br><span class="line"></span><br><span class="line">DECLARE @sql VARCHAR(max)</span><br><span class="line"></span><br><span class="line">SET @sql=CAST(&#x27;use master;CREATE LOGIN &#x27;+@login+&#x27; WITH PASSWORD=N&#x27;&#x27;&#x27;+@login_pwd +&#x27;&#x27;&#x27;, DEFAULT_DATABASE=[master], CHECK_EXPIRATION=OFF, CHECK_POLICY=OFF; GRANT VIEW SERVER STATE TO &#x27;+@login+&#x27;;</span><br><span class="line">GRANT VIEW ANY DEFINITION TO &#x27;+@login+&#x27;;&#x27; AS VARCHAR(max))</span><br><span class="line">select @sql=@sql+CAST(&#x27;use &#x27;+name+&#x27;;CREATE USER &#x27;+@login+&#x27; FOR LOGIN &#x27;+@login+&#x27;;</span><br><span class="line">EXEC sp_addrolemember N&#x27;&#x27;&#x27;+@role+&#x27;&#x27;&#x27;, N&#x27;&#x27;business_query&#x27;&#x27;;&#x27;+CHAR(10) AS VARCHAR(max))</span><br><span class="line">from master.sys.databases where state=0 and is_read_only=0</span><br><span class="line">EXEC(@sql)</span><br><span class="line"></span><br><span class="line">Go</span><br></pre></td></tr></table></figure>
+
+<h3 id="（3）采集器服务器配置参考"><a href="#（3）采集器服务器配置参考" class="headerlink" title="（3）采集器服务器配置参考"></a>（3）采集器服务器配置参考</h3><p>进入 115.230.30.138——10.20.53.12</p>
+<p>cd &#x2F;data&#x2F;mssql&#x2F;</p>
+<p>修改 mssql_agent.sh</p>
+<p>也要修改prometheus的配置文件；参考： 每一个建议空一行</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">nohup /data/mssql/sql_exporter -config.data-source-name=sqlserver://sql_exporter:qwer1234qwer@10.20.54.59:1433/?encrypt=disable \</span><br><span class="line">-config.file=/data/mssql/sql_exporter.yml -web.listen-address=127.0.0.1:9402  -log_dir=/data/mssql_log &amp;</span><br></pre></td></tr></table></figure>
+
+<h3 id="（4）守护进程"><a href="#（4）守护进程" class="headerlink" title="（4）守护进程"></a>（4）守护进程</h3><p>autostart_sqlexporter.sh</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/bash</span><br><span class="line"></span><br><span class="line">dir=`dirname $0`</span><br><span class="line">filename=&#x27;mssql_agent.sh&#x27;</span><br><span class="line"></span><br><span class="line">usage()&#123;</span><br><span class="line">    filename=$0</span><br><span class="line">    echo &quot;Usage:sh $&#123;filename&#125; [start|stop|status|restart]&quot;</span><br><span class="line">        exit 1</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">is_ok()&#123;</span><br><span class="line">    config_count=`cat $&#123;dir&#125;/mssql_agent.sh |grep -v &#x27;^#&#x27;|grep -v &quot;^$&quot;|wc -l`</span><br><span class="line">    running_count=`ps -ef|grep sql_exporter|grep -v &quot;grep&quot;|wc -l`</span><br><span class="line">    if [ &quot;$&#123;config_count&#125;&quot; -eq &quot;$&#123;running_count&#125;&quot;  ];then</span><br><span class="line">         return 0</span><br><span class="line">        else</span><br><span class="line">         return 1</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">start()&#123;</span><br><span class="line">    is_ok</span><br><span class="line">        if [ $? -eq &quot;1&quot; ];then</span><br><span class="line">          echo &quot;sh $&#123;dir&#125;/$&#123;filename&#125;&quot;</span><br><span class="line">      sh $&#123;dir&#125;/$&#123;filename&#125;</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">stop()&#123;</span><br><span class="line">    is_ok</span><br><span class="line">        if [ $running_count -eq &quot;0&quot; ];then</span><br><span class="line">          echo &#x27;all config sql_exporter already is closed!&#x27;</span><br><span class="line">        else</span><br><span class="line">           pkill sql_exporter</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">restart()&#123;</span><br><span class="line">    stop</span><br><span class="line">    start</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">status()&#123;</span><br><span class="line">        is_ok</span><br><span class="line">         if [ $? -eq &quot;0&quot; ];then</span><br><span class="line">          echo &#x27;sql_exporter ok!&#x27;</span><br><span class="line">        else</span><br><span class="line">          echo &quot;sql_exporter error!config_count=$&#123;config_count&#125;,running_count=$&#123;running_count&#125;&#x27;&quot;</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">case &quot;$1&quot; in </span><br><span class="line">&quot;start&quot;)</span><br><span class="line">start</span><br><span class="line">;;</span><br><span class="line">&quot;stop&quot;)</span><br><span class="line">stop</span><br><span class="line">;;</span><br><span class="line">&quot;status&quot;)</span><br><span class="line">status</span><br><span class="line">;;</span><br><span class="line">&quot;restart&quot;)</span><br><span class="line">restart;;</span><br><span class="line">*)</span><br><span class="line">usage</span><br><span class="line">;;</span><br><span class="line">esac</span><br></pre></td></tr></table></figure>
+
+<p> crontab</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">* * * * * /bin/bash /data/mssql/autostart_sqlexporter.sh start &gt;&gt;/data/mssql/log_autostart_sqlexporter.log 2&gt;&amp;1</span><br></pre></td></tr></table></figure>
+
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【参考文档】"><a href="#【参考文档】" class="headerlink" title="【参考文档】"></a>【参考文档】</h2><p>参考：<a target="_blank" rel="noopener" href="https://www.bilibili.com/read/cv7134580/">https://www.bilibili.com/read/cv7134580/</a></p>
+<p>官网：<a target="_blank" rel="noopener" href="https://github.com/free/sql_exporter">https://github.com/free/sql_exporter</a></p>
+<h3 id="【附录】"><a href="#【附录】" class="headerlink" title="【附录】"></a>【附录】</h3><p>由于在url中特殊符号都有特殊意义或者被认为是不安全的字符，所以在拼接url时应当替换出url中的特殊字符</p>
+<p>例如 </p>
+<p>var x &#x3D; “2# 前缘肋”</p>
+<p>var rp&#x3D; x.replace(‘#’,’%23’); &#x2F;&#x2F; %23是#的URL编码 要用他来替换原有的#</p>
+<p>w3schools网站上列出了此类编码参考</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Character</td>
+<td>From Windows-1252</td>
+<td>From UTF-8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>space</td>
+<td>%20</td>
+<td>%20</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>!</td>
+<td>%21</td>
+<td>%21</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>“</td>
+<td>%22</td>
+<td>%22</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>#</td>
+<td>%23</td>
+<td>%23</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>$</td>
+<td>%24</td>
+<td>%24</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>%</td>
+<td>%25</td>
+<td>%25</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&amp;</td>
+<td>%26</td>
+<td>%26</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‘</td>
+<td>%27</td>
+<td>%27</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>(</td>
+<td>%28</td>
+<td>%28</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>)</td>
+<td>%29</td>
+<td>%29</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>*</td>
+<td>%2A</td>
+<td>%2A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>+</td>
+<td>%2B</td>
+<td>%2B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>,</td>
+<td>%2C</td>
+<td>%2C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>-</td>
+<td>%2D</td>
+<td>%2D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>.</td>
+<td>%2E</td>
+<td>%2E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&#x2F;</td>
+<td>%2F</td>
+<td>%2F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>0</td>
+<td>%30</td>
+<td>%30</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>1</td>
+<td>%31</td>
+<td>%31</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>2</td>
+<td>%32</td>
+<td>%32</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>3</td>
+<td>%33</td>
+<td>%33</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>4</td>
+<td>%34</td>
+<td>%34</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>5</td>
+<td>%35</td>
+<td>%35</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>6</td>
+<td>%36</td>
+<td>%36</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>7</td>
+<td>%37</td>
+<td>%37</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>8</td>
+<td>%38</td>
+<td>%38</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>9</td>
+<td>%39</td>
+<td>%39</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>:</td>
+<td>%3A</td>
+<td>%3A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>;</td>
+<td>%3B</td>
+<td>%3B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&lt;</td>
+<td>%3C</td>
+<td>%3C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>=</td>
+<td>%3D</td>
+<td>%3D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>&gt;</td>
+<td>%3E</td>
+<td>%3E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>?</td>
+<td>%3F</td>
+<td>%3F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>@</td>
+<td>%40</td>
+<td>%40</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>A</td>
+<td>%41</td>
+<td>%41</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>B</td>
+<td>%42</td>
+<td>%42</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>C</td>
+<td>%43</td>
+<td>%43</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>D</td>
+<td>%44</td>
+<td>%44</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>E</td>
+<td>%45</td>
+<td>%45</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>F</td>
+<td>%46</td>
+<td>%46</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>G</td>
+<td>%47</td>
+<td>%47</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>H</td>
+<td>%48</td>
+<td>%48</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>I</td>
+<td>%49</td>
+<td>%49</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>J</td>
+<td>%4A</td>
+<td>%4A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>K</td>
+<td>%4B</td>
+<td>%4B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>L</td>
+<td>%4C</td>
+<td>%4C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>M</td>
+<td>%4D</td>
+<td>%4D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>N</td>
+<td>%4E</td>
+<td>%4E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>O</td>
+<td>%4F</td>
+<td>%4F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>P</td>
+<td>%50</td>
+<td>%50</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Q</td>
+<td>%51</td>
+<td>%51</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>R</td>
+<td>%52</td>
+<td>%52</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>S</td>
+<td>%53</td>
+<td>%53</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>T</td>
+<td>%54</td>
+<td>%54</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>U</td>
+<td>%55</td>
+<td>%55</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>V</td>
+<td>%56</td>
+<td>%56</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>W</td>
+<td>%57</td>
+<td>%57</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>X</td>
+<td>%58</td>
+<td>%58</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Y</td>
+<td>%59</td>
+<td>%59</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Z</td>
+<td>%5A</td>
+<td>%5A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[</td>
+<td>%5B</td>
+<td>%5B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>\</td>
+<td>%5C</td>
+<td>%5C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>]</td>
+<td>%5D</td>
+<td>%5D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>^</td>
+<td>%5E</td>
+<td>%5E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>_</td>
+<td>%5F</td>
+<td>%5F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>`</td>
+<td>%60</td>
+<td>%60</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>a</td>
+<td>%61</td>
+<td>%61</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>b</td>
+<td>%62</td>
+<td>%62</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>c</td>
+<td>%63</td>
+<td>%63</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>d</td>
+<td>%64</td>
+<td>%64</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>e</td>
+<td>%65</td>
+<td>%65</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>f</td>
+<td>%66</td>
+<td>%66</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>g</td>
+<td>%67</td>
+<td>%67</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>h</td>
+<td>%68</td>
+<td>%68</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>i</td>
+<td>%69</td>
+<td>%69</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>j</td>
+<td>%6A</td>
+<td>%6A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>k</td>
+<td>%6B</td>
+<td>%6B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>l</td>
+<td>%6C</td>
+<td>%6C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>m</td>
+<td>%6D</td>
+<td>%6D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>n</td>
+<td>%6E</td>
+<td>%6E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>o</td>
+<td>%6F</td>
+<td>%6F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>p</td>
+<td>%70</td>
+<td>%70</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>q</td>
+<td>%71</td>
+<td>%71</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>r</td>
+<td>%72</td>
+<td>%72</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>s</td>
+<td>%73</td>
+<td>%73</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>t</td>
+<td>%74</td>
+<td>%74</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>u</td>
+<td>%75</td>
+<td>%75</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>v</td>
+<td>%76</td>
+<td>%76</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>w</td>
+<td>%77</td>
+<td>%77</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>x</td>
+<td>%78</td>
+<td>%78</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>y</td>
+<td>%79</td>
+<td>%79</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>z</td>
+<td>%7A</td>
+<td>%7A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>{</td>
+<td>%7B</td>
+<td>%7B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>|</td>
+<td>%7C</td>
+<td>%7C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>}</td>
+<td>%7D</td>
+<td>%7D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>~</td>
+<td>%7E</td>
+<td>%7E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%7F</td>
+<td>%7F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>`</td>
+<td>%80</td>
+<td>%E2%82%AC</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%81</td>
+<td>%81</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‚</td>
+<td>%82</td>
+<td>%E2%80%9A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ƒ</td>
+<td>%83</td>
+<td>%C6%92</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>„</td>
+<td>%84</td>
+<td>%E2%80%9E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>…</td>
+<td>%85</td>
+<td>%E2%80%A6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>†</td>
+<td>%86</td>
+<td>%E2%80%A0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‡</td>
+<td>%87</td>
+<td>%E2%80%A1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ˆ</td>
+<td>%88</td>
+<td>%CB%86</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‰</td>
+<td>%89</td>
+<td>%E2%80%B0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Š</td>
+<td>%8A</td>
+<td>%C5%A0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‹</td>
+<td>%8B</td>
+<td>%E2%80%B9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Œ</td>
+<td>%8C</td>
+<td>%C5%92</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%8D</td>
+<td>%C5%8D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ž</td>
+<td>%8E</td>
+<td>%C5%BD</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%8F</td>
+<td>%8F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%90</td>
+<td>%C2%90</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>‘</td>
+<td>%91</td>
+<td>%E2%80%98</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>’</td>
+<td>%92</td>
+<td>%E2%80%99</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>“</td>
+<td>%93</td>
+<td>%E2%80%9C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>”</td>
+<td>%94</td>
+<td>%E2%80%9D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>•</td>
+<td>%95</td>
+<td>%E2%80%A2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>–</td>
+<td>%96</td>
+<td>%E2%80%93</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>—</td>
+<td>%97</td>
+<td>%E2%80%94</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>˜</td>
+<td>%98</td>
+<td>%CB%9C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>™</td>
+<td>%99</td>
+<td>%E2%84</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>š</td>
+<td>%9A</td>
+<td>%C5%A1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>›</td>
+<td>%9B</td>
+<td>%E2%80</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>œ</td>
+<td>%9C</td>
+<td>%C5%93</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%9D</td>
+<td>%9D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ž</td>
+<td>%9E</td>
+<td>%C5%BE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ÿ</td>
+<td>%9F</td>
+<td>%C5%B8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%A0</td>
+<td>%C2%A0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¡</td>
+<td>%A1</td>
+<td>%C2%A1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¢</td>
+<td>%A2</td>
+<td>%C2%A2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>£</td>
+<td>%A3</td>
+<td>%C2%A3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¤</td>
+<td>%A4</td>
+<td>%C2%A4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¥</td>
+<td>%A5</td>
+<td>%C2%A5</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¦</td>
+<td>%A6</td>
+<td>%C2%A6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>§</td>
+<td>%A7</td>
+<td>%C2%A7</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¨</td>
+<td>%A8</td>
+<td>%C2%A8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>©</td>
+<td>%A9</td>
+<td>%C2%A9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ª</td>
+<td>%AA</td>
+<td>%C2%AA</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>«</td>
+<td>%AB</td>
+<td>%C2%AB</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¬</td>
+<td>%AC</td>
+<td>%C2%AC</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td>%AD</td>
+<td>%C2%AD</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>®</td>
+<td>%AE</td>
+<td>%C2%AE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¯</td>
+<td>%AF</td>
+<td>%C2%AF</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>°</td>
+<td>%B0</td>
+<td>%C2%B0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>±</td>
+<td>%B1</td>
+<td>%C2%B1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>²</td>
+<td>%B2</td>
+<td>%C2%B2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>³</td>
+<td>%B3</td>
+<td>%C2%B3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>´</td>
+<td>%B4</td>
+<td>%C2%B4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>µ</td>
+<td>%B5</td>
+<td>%C2%B5</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¶</td>
+<td>%B6</td>
+<td>%C2%B6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>·</td>
+<td>%B7</td>
+<td>%C2%B7</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¸</td>
+<td>%B8</td>
+<td>%C2%B8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¹</td>
+<td>%B9</td>
+<td>%C2%B9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>º</td>
+<td>%BA</td>
+<td>%C2%BA</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>»</td>
+<td>%BB</td>
+<td>%C2%BB</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¼</td>
+<td>%BC</td>
+<td>%C2%BC</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>½</td>
+<td>%BD</td>
+<td>%C2%BD</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¾</td>
+<td>%BE</td>
+<td>%C2%BE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>¿</td>
+<td>%BF</td>
+<td>%C2%BF</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>À</td>
+<td>%C0</td>
+<td>%C3%80</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Á</td>
+<td>%C1</td>
+<td>%C3%81</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Â</td>
+<td>%C2</td>
+<td>%C3%82</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ã</td>
+<td>%C3</td>
+<td>%C3%83</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ä</td>
+<td>%C4</td>
+<td>%C3%84</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Å</td>
+<td>%C5</td>
+<td>%C3%85</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Æ</td>
+<td>%C6</td>
+<td>%C3%86</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ç</td>
+<td>%C7</td>
+<td>%C3%87</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>È</td>
+<td>%C8</td>
+<td>%C3%88</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>É</td>
+<td>%C9</td>
+<td>%C3%89</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ê</td>
+<td>%CA</td>
+<td>%C3%8A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ë</td>
+<td>%CB</td>
+<td>%C3%8B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ì</td>
+<td>%CC</td>
+<td>%C3%8C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Í</td>
+<td>%CD</td>
+<td>%C3%8D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Î</td>
+<td>%CE</td>
+<td>%C3%8E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ï</td>
+<td>%CF</td>
+<td>%C3%8F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ð</td>
+<td>%D0</td>
+<td>%C3%90</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ñ</td>
+<td>%D1</td>
+<td>%C3%91</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ò</td>
+<td>%D2</td>
+<td>%C3%92</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ó</td>
+<td>%D3</td>
+<td>%C3%93</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ô</td>
+<td>%D4</td>
+<td>%C3%94</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Õ</td>
+<td>%D5</td>
+<td>%C3%95</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ö</td>
+<td>%D6</td>
+<td>%C3%96</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>×</td>
+<td>%D7</td>
+<td>%C3%97</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ø</td>
+<td>%D8</td>
+<td>%C3%98</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ù</td>
+<td>%D9</td>
+<td>%C3%99</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ú</td>
+<td>%DA</td>
+<td>%C3%9A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Û</td>
+<td>%DB</td>
+<td>%C3%9B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ü</td>
+<td>%DC</td>
+<td>%C3%9C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Ý</td>
+<td>%DD</td>
+<td>%C3%9D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Þ</td>
+<td>%DE</td>
+<td>%C3%9E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ß</td>
+<td>%DF</td>
+<td>%C3%9F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>à</td>
+<td>%E0</td>
+<td>%C3%A0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>á</td>
+<td>%E1</td>
+<td>%C3%A1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>â</td>
+<td>%E2</td>
+<td>%C3%A2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ã</td>
+<td>%E3</td>
+<td>%C3%A3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ä</td>
+<td>%E4</td>
+<td>%C3%A4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>å</td>
+<td>%E5</td>
+<td>%C3%A5</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>æ</td>
+<td>%E6</td>
+<td>%C3%A6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ç</td>
+<td>%E7</td>
+<td>%C3%A7</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>è</td>
+<td>%E8</td>
+<td>%C3%A8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>é</td>
+<td>%E9</td>
+<td>%C3%A9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ê</td>
+<td>%EA</td>
+<td>%C3%AA</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ë</td>
+<td>%EB</td>
+<td>%C3%AB</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ì</td>
+<td>%EC</td>
+<td>%C3%AC</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>í</td>
+<td>%ED</td>
+<td>%C3%AD</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>î</td>
+<td>%EE</td>
+<td>%C3%AE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ï</td>
+<td>%EF</td>
+<td>%C3%AF</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ð</td>
+<td>%F0</td>
+<td>%C3%B0</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ñ</td>
+<td>%F1</td>
+<td>%C3%B1</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ò</td>
+<td>%F2</td>
+<td>%C3%B2</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ó</td>
+<td>%F3</td>
+<td>%C3%B3</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ô</td>
+<td>%F4</td>
+<td>%C3%B4</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>õ</td>
+<td>%F5</td>
+<td>%C3%B5</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ö</td>
+<td>%F6</td>
+<td>%C3%B6</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>÷</td>
+<td>%F7</td>
+<td>%C3%B7</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ø</td>
+<td>%F8</td>
+<td>%C3%B8</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ù</td>
+<td>%F9</td>
+<td>%C3%B9</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ú</td>
+<td>%FA</td>
+<td>%C3%BA</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>û</td>
+<td>%FB</td>
+<td>%C3%BB</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ü</td>
+<td>%FC</td>
+<td>%C3%BC</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ý</td>
+<td>%FD</td>
+<td>%C3%BD</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>þ</td>
+<td>%FE</td>
+<td>%C3%BE</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ÿ</td>
+<td>%FF</td>
+<td>%C3%BF</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<hr>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="URL-Encoding-Reference"><a href="#URL-Encoding-Reference" class="headerlink" title="URL Encoding Reference"></a>URL Encoding Reference</h2><p>The ASCII control characters %00-%1F were originally designed to control hardware devices.</p>
+<p>Control characters have nothing to do inside a URL.</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ASCII Character</td>
+<td>Description</td>
+<td>URL-encoding</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td>NUL</td>
+<td>null character</td>
+<td>%00</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SOH</td>
+<td>start of header</td>
+<td>%01</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>STX</td>
+<td>start of text</td>
+<td>%02</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ETX</td>
+<td>end of text</td>
+<td>%03</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>EOT</td>
+<td>end of transmission</td>
+<td>%04</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ENQ</td>
+<td>enquiry</td>
+<td>%05</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ACK</td>
+<td>acknowledge</td>
+<td>%06</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>BEL</td>
+<td>bell (ring)</td>
+<td>%07</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>BS</td>
+<td>backspace</td>
+<td>%08</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>HT</td>
+<td>horizontal tab</td>
+<td>%09</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>LF</td>
+<td>line feed</td>
+<td>%0A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>VT</td>
+<td>vertical tab</td>
+<td>%0B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>FF</td>
+<td>form feed</td>
+<td>%0C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>CR</td>
+<td>carriage return</td>
+<td>%0D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SO</td>
+<td>shift out</td>
+<td>%0E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SI</td>
+<td>shift in</td>
+<td>%0F</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>DLE</td>
+<td>data link escape</td>
+<td>%10</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>DC1</td>
+<td>device control 1</td>
+<td>%11</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>DC2</td>
+<td>device control 2</td>
+<td>%12</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>DC3</td>
+<td>device control 3</td>
+<td>%13</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>DC4</td>
+<td>device control 4</td>
+<td>%14</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>NAK</td>
+<td>negative acknowledge</td>
+<td>%15</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SYN</td>
+<td>synchronize</td>
+<td>%16</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ETB</td>
+<td>end transmission block</td>
+<td>%17</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>CAN</td>
+<td>cancel</td>
+<td>%18</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>EM</td>
+<td>end of medium</td>
+<td>%19</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>SUB</td>
+<td>substitute</td>
+<td>%1A</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>ESC</td>
+<td>escape</td>
+<td>%1B</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>FS</td>
+<td>file separator</td>
+<td>%1C</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>GS</td>
+<td>group separator</td>
+<td>%1D</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>RS</td>
+<td>record separator</td>
+<td>%1E</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>US</td>
+<td>unit separator</td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/09/Prometheus%E7%9B%91%E6%8E%A7sqlserver/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/05/MySQL%E5%8F%8C%E4%B8%BB%E5%88%87%E6%8D%A2%E4%B8%BB%E4%BB%8E/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">MySQL双主切换主从</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
