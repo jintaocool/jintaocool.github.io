@@ -9513,4 +9513,22 @@
         <tag>VictoriaMetrics</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Prometheus集成consul[被监控对象开启basic认证]</title>
+    <url>/2024/01/10/Prometheus%E9%9B%86%E6%88%90consul-%E8%A2%AB%E7%9B%91%E6%8E%A7%E5%AF%B9%E8%B1%A1%E5%BC%80%E5%90%AFbasic%E8%AE%A4%E8%AF%81/</url>
+    <content><![CDATA[<h4 id="1，被监控对象开启basic认证"><a href="#1，被监控对象开启basic认证" class="headerlink" title="1，被监控对象开启basic认证"></a>1，被监控对象开启basic认证</h4><p>        具体操作这里不再详细细讲。</p>
+<h4 id="2，将被监控对象注册到consul"><a href="#2，将被监控对象注册到consul" class="headerlink" title="2，将被监控对象注册到consul"></a>2，将被监控对象注册到consul</h4><p>        由于被监控对象开启了basic认证，注册到consul后显示：401 Unauthorized Output: Unauthorized，不能够正常健康检查。</p>
+<p><img src="/images/1704849243-36efee9e231aa904e87a1af7f7433046.png"></p>
+<h4 id="3，配置prometheus，发现consul上的目标"><a href="#3，配置prometheus，发现consul上的目标" class="headerlink" title="3，配置prometheus，发现consul上的目标"></a>3，配置prometheus，发现consul上的目标</h4><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;testnet&#x27;</span></span><br><span class="line">  basic_auth:</span><br><span class="line">    username: hrintercli      <span class="comment">#认证账号</span></span><br><span class="line">    password: xnFBOl6Jlku5    <span class="comment">#认证密码</span></span><br><span class="line">  consul_sd_configs:</span><br><span class="line">    - server: <span class="string">&#x27;10.10.10.30:8500&#x27;</span>    <span class="comment">#consul地址</span></span><br><span class="line">      token: 848b1dc9-aab0-40a7-8e3e-7e8b869a97ac   <span class="comment">#登录consul的token</span></span><br><span class="line">      services: []</span><br><span class="line">  relabel_configs:</span><br><span class="line">    - source_labels: [__meta_consul_tags]</span><br><span class="line">      regex: .*wl.*    <span class="comment">#正则匹配目标</span></span><br><span class="line">      action: keep</span><br><span class="line">    - regex: __meta_consul_service_metadata_(.+)</span><br><span class="line">      action: labelmap</span><br></pre></td></tr></table></figure>
+
+<h4 id="4，热加载prometheus，发现被监控对象数据收集上来"><a href="#4，热加载prometheus，发现被监控对象数据收集上来" class="headerlink" title="4，热加载prometheus，发现被监控对象数据收集上来"></a>4，热加载prometheus，发现被监控对象数据收集上来</h4><p><img src="/images/1704849243-73ba4f26d20f0222f5cb83959cbf000e.png"></p>
+<p><img src="/images/1704849243-adfcf63a882f600540dd5fd55b619dde.png"></p>
+]]></content>
+      <categories>
+        <category>Prometheus</category>
+      </categories>
+      <tags>
+        <tag>Prometheus</tag>
+      </tags>
+  </entry>
 </search>
