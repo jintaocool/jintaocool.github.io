@@ -9492,4 +9492,25 @@
         <tag>VictoriaMetrics</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Nginx代理victoriametrics集群配置</title>
+    <url>/2024/01/10/Nginx%E4%BB%A3%E7%90%86victoriametrics%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE/</url>
+    <content><![CDATA[<h6 id="1，首先安装nginx"><a href="#1，首先安装nginx" class="headerlink" title="1，首先安装nginx"></a>1，首先安装nginx</h6><p>        yum install -y nginx</p>
+<h6 id="2，生成密钥文件"><a href="#2，生成密钥文件" class="headerlink" title="2，生成密钥文件"></a>2，生成密钥文件</h6><p>        安装htpasswd工具</p>
+<p>        yum install -y httpd-tools</p>
+<p>        生成密钥文件，prometheus为用户名</p>
+<p>        htpasswd -c &#x2F;etc&#x2F;nginx&#x2F;conf.d&#x2F;passwd prometheus</p>
+<p><img src="/images/1704848852-66c8edda17d852a3731d091c61dad6e0.png"></p>
+<h6 id="3，修改nginx配置文件nginx-conf，增加如下内容"><a href="#3，修改nginx配置文件nginx-conf，增加如下内容" class="headerlink" title="3，修改nginx配置文件nginx.conf，增加如下内容"></a>3，修改nginx配置文件nginx.conf，增加如下内容</h6><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">upstream  vmselect &#123;</span><br><span class="line">    server  10.250.5.74:8901 weight=5 ;</span><br><span class="line">    server  10.250.5.75:8902 weight=5 ;</span><br><span class="line">    server  10.250.5.76:8903 weight=5 ;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 8900;</span><br><span class="line">    server_name _;</span><br><span class="line">    auth_basic <span class="string">&quot;authentication&quot;</span>;                <span class="comment"># 开启基本认证</span></span><br><span class="line">    auth_basic_user_file /etc/nginx/conf.d/passwd;      <span class="comment"># 密码文件</span></span><br><span class="line">    location / &#123;</span><br><span class="line">        proxy_pass http://vmselect/select/0/prometheus/;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">upstream vminsert &#123;</span><br><span class="line">    server  10.250.5.74:8801 weight=5 ;</span><br><span class="line">    server  10.250.5.75:8802 weight=5 ;</span><br><span class="line">    server  10.250.5.76:8803 weight=5 ;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 8800;</span><br><span class="line">    server_name _;</span><br><span class="line">    auth_basic <span class="string">&quot;authentication&quot;</span>;                <span class="comment"># 开启基本认证</span></span><br><span class="line">    auth_basic_user_file /etc/nginx/conf.d/passwd;      <span class="comment"># 密码文件</span></span><br><span class="line">    location / &#123;</span><br><span class="line">        proxy_pass http://vminsert/insert/0/prometheus/;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h6 id="4，重启nginx"><a href="#4，重启nginx" class="headerlink" title="4，重启nginx"></a>4，重启nginx</h6><p>        systemctl restart nginx</p>
+<h6 id="5，查询"><a href="#5，查询" class="headerlink" title="5，查询"></a>5，查询</h6><p>         <a href="http://ngip:8900/api/v1/query?query=%E6%9F%A5%E8%AF%A2%E8%A1%A8%E8%BE%BE%E5%BC%8F" title="http://ngip:8900/api/v1/query?query=查询表达式">http://ngip:8900/api/v1/query?query=查询表达式</a></p>
+]]></content>
+      <categories>
+        <category>VictoriaMetrics</category>
+      </categories>
+      <tags>
+        <tag>VictoriaMetrics</tag>
+      </tags>
+  </entry>
 </search>
