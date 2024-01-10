@@ -9452,4 +9452,44 @@
         <tag>SQL</tag>
       </tags>
   </entry>
+  <entry>
+    <title>victoriametrics集群部署【拆分三台服务器进行部署】</title>
+    <url>/2024/01/10/victoriametrics%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2%E3%80%90%E6%8B%86%E5%88%86%E4%B8%89%E5%8F%B0%E6%9C%8D%E5%8A%A1%E5%99%A8%E8%BF%9B%E8%A1%8C%E9%83%A8%E7%BD%B2%E3%80%91/</url>
+    <content><![CDATA[<p><strong>#安装docker</strong><br>yum install -y yum-utils<br>yum-config-manager –add-repo <a href="https://download.docker.com/linux/centos/docker-ce.repo">https://download.docker.com/linux/centos/docker-ce.repo</a><br>yum install -y docker-ce docker-ce-cli containerd.io<br>yum install -y docker-compose lrzsz</p>
+<p><strong>#配置docker加速器</strong><br>mkdir -p &#x2F;etc&#x2F;docker<br>cat &gt;&#x2F;etc&#x2F;docker&#x2F;daemon.json &lt;&lt;EOF<br>{<br>“live-restore”: true,<br>“data-root”: “&#x2F;data&#x2F;docker”,<br>“registry-mirrors”: [<br>    “<a href="https://s8t67zyu.mirror.aliyuncs.com/">https://s8t67zyu.mirror.aliyuncs.com</a>“<br>]<br>}<br>EOF</p>
+<p><strong>#启动docker</strong><br>systemctl enable docker<br>systemctl start docker</p>
+<p><strong>#集群IP地址如下</strong><br>10.10.10.11<br>10.10.10.12<br>10.10.10.13</p>
+<h3 id=""><a href="#" class="headerlink" title=""></a></h3><p>【一】节点1部署安装</p>
+<p><strong>1，#创建存储目录</strong><br>mkdir -p &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s1</p>
+<p><strong>2，#创建docker-compose.yml文件</strong></p>
+<p>version:  “3”<br>services:</p>
+<p>  vmstorage360d60s1:<br>    image: victoriametrics&#x2F;vmstorage:v1.86.1-cluster<br>    restart: always<br>    ports:<br>      - 8501:8501<br>      - 8601:8601<br>      - 8701:8701<br>    volumes:<br>      - &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s1:&#x2F;storage<br>    command:<br>      - ‘–storageDataPath&#x3D;&#x2F;storage’<br>      - ‘–retentionPeriod&#x3D;360d’<br>    #  - ‘–dedup.minScrapeInterval&#x3D;60s’ # 如果时序数据之间的时间差比该配置小，则剔除。当多个Prometheus同时写入一个VictoriaMetric时，这对减少开销很有帮助。当设置为0时，不生效。默认为1ms，建议不设置<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–vminsertAddr&#x3D;0.0.0.0:8601’<br>      - ‘–vmselectAddr&#x3D;0.0.0.0:8701’<br>      - ‘–httpListenAddr&#x3D;0.0.0.0:8501’</p>
+<p>  vminsert360d60s1:<br>    image: victoriametrics&#x2F;vminsert:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–storageNode&#x3D;10.10.10.11:8601’<br>      - ‘–storageNode&#x3D;10.10.10.12:8602’<br>      - ‘–storageNode&#x3D;10.10.10.13:8603’<br>    ports:<br>      - 8801:8480</p>
+<p>  vmselect360d60s1:<br>    image: victoriametrics&#x2F;vmselect:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–storageNode&#x3D;10.10.10.11:8701’<br>      - ‘–storageNode&#x3D;10.10.10.12:8702’<br>      - ‘–storageNode&#x3D;10.10.10.13:8703’<br>    ports:<br>      - 8901:8481</p>
+<h3 id="-1"><a href="#-1" class="headerlink" title=""></a></h3><p>【二】节点2部署安装</p>
+<p><strong>1，#创建存储目录</strong><br>mkdir -p &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s2</p>
+<p><strong>2，#创建docker-compose.yml文件</strong></p>
+<p>version:  “3”<br>services:</p>
+<p>  vmstorage360d60s2:<br>    image: victoriametrics&#x2F;vmstorage:v1.86.1-cluster<br>    restart: always<br>    ports:<br>      - 8502:8502<br>      - 8602:8602<br>      - 8702:8702<br>    volumes:<br>      - &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s2:&#x2F;storage<br>    command:<br>      - ‘–storageDataPath&#x3D;&#x2F;storage’<br>      - ‘–retentionPeriod&#x3D;360d’<br>     # - ‘–dedup.minScrapeInterval&#x3D;60s’   # 如果时序数据之间的时间差比该配置小，则剔除。当多个Prometheus同时写入一个VictoriaMetric时，这对减少开销很有帮助。当设置为0时，不生效。默认为1ms，建议不设置<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–vminsertAddr&#x3D;0.0.0.0:8602’<br>      - ‘–vmselectAddr&#x3D;0.0.0.0:8702’<br>      - ‘–httpListenAddr&#x3D;0.0.0.0:8502’</p>
+<p>  vminsert360d60s2:<br>    image: victoriametrics&#x2F;vminsert:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–storageNode&#x3D;10.10.10.11:8601’<br>      - ‘–storageNode&#x3D;10.10.10.12:8602’<br>      - ‘–storageNode&#x3D;10.10.10.13:8603’<br>    ports:<br>      - 8802:8480</p>
+<p>  vmselect360d60s2:<br>    image: victoriametrics&#x2F;vmselect:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–storageNode&#x3D;10.10.10.11:8701’<br>      - ‘–storageNode&#x3D;10.10.10.12:8702’<br>      - ‘–storageNode&#x3D;10.10.10.13:8703’<br>    ports:<br>      - 8902:8481</p>
+<h3 id="-2"><a href="#-2" class="headerlink" title=""></a></h3><p>【三】节点3部署安装</p>
+<p><strong>1，#创建存储目录</strong><br>mkdir -p &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s3</p>
+<p><strong>2，#创建docker-compose.yml文件</strong></p>
+<p>version:  “3”<br>services:</p>
+<p>  vmstorage360d60s3:<br>    image: victoriametrics&#x2F;vmstorage:v1.86.1-cluster<br>    restart: always<br>    ports:<br>      - 8503:8503<br>      - 8603:8603<br>      - 8703:8703<br>    volumes:<br>      - &#x2F;data&#x2F;vmstorage&#x2F;vmstorage360d60s3:&#x2F;storage<br>    command:<br>      - ‘–storageDataPath&#x3D;&#x2F;storage’<br>      - ‘–retentionPeriod&#x3D;360d’<br>    #  - ‘–dedup.minScrapeInterval&#x3D;60s’ # 如果时序数据之间的时间差比该配置小，则剔除。当多个Prometheus同时写入一个VictoriaMetric时，这对减少开销很有帮助。当设置为0时，不生效。默认为1ms，建议不设置<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–vminsertAddr&#x3D;0.0.0.0:8603’<br>      - ‘–vmselectAddr&#x3D;0.0.0.0:8703’<br>      - ‘–httpListenAddr&#x3D;0.0.0.0:8503’</p>
+<p>  vminsert360d60s3:<br>    image: victoriametrics&#x2F;vminsert:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–storageNode&#x3D;10.10.10.11:8601’<br>      - ‘–storageNode&#x3D;10.10.10.12:8602’<br>      - ‘–storageNode&#x3D;10.10.10.13:8603’<br>    ports:<br>      - 8803:8480</p>
+<p>  vmselect360d60s3:<br>    image: victoriametrics&#x2F;vmselect:v1.86.1-cluster<br>    restart: always<br>    command:<br>      - ‘–search.maxUniqueTimeseries&#x3D;3000000’<br>      - ‘–storageNode&#x3D;10.10.10.11:8701’<br>      - ‘–storageNode&#x3D;10.10.10.12:8702’<br>      - ‘–storageNode&#x3D;10.10.10.13:8703’<br>    ports:<br>      - 8903:8481</p>
+<p><strong>#创建容器并启动</strong><br>docker-compose -f docker-compose.yml up -d</p>
+<p><strong>#安装成功后VMUI如下</strong></p>
+<p><a href="http://10.10.10.11:8901/select/0/vmui">http://10.10.10.11:8901/select/0/vmui</a><br><a href="http://10.10.10.12:8902/select/0/vmui">http://10.10.10.12:8902/select/0/vmui</a><br><a href="http://10.10.10.13:8903/select/0/vmui">http://10.10.10.13:8903/select/0/vmui</a></p>
+<p><img src="/images/1704848026-b613c0cb2581e17cc2aa83030b13d600.png"></p>
+]]></content>
+      <categories>
+        <category>VictoriaMetrics</category>
+      </categories>
+      <tags>
+        <tag>VictoriaMetrics</tag>
+      </tags>
+  </entry>
 </search>
