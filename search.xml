@@ -9646,4 +9646,30 @@
         <tag>exporter</tag>
       </tags>
   </entry>
+  <entry>
+    <title>部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized</title>
+    <url>/2024/01/12/%E9%83%A8%E7%BD%B2%E8%87%AA%E7%AD%BE%E8%AF%81%E4%B9%A6%E6%8A%A5%E9%94%99%EF%BC%9Acurl-60-Peer%E2%80%98s-certificate-issuer-is-not-recognized/</url>
+    <content><![CDATA[<h1 id="部署自签证书报错：curl-60-Peer‘s-certificate-issuer-is-not-recognized"><a href="#部署自签证书报错：curl-60-Peer‘s-certificate-issuer-is-not-recognized" class="headerlink" title="部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized"></a>部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized</h1><h2 id="一、事件背景"><a href="#一、事件背景" class="headerlink" title="一、事件背景"></a>一、事件背景</h2><p>        公司是有一个OA系统，因国家等保要求，现在需要对安全进行整改，于是我就将OA网站部署上了https，实现网站传输加密。</p>
+<h2 id="二、事件错误"><a href="#二、事件错误" class="headerlink" title="二、事件错误"></a>二、事件错误</h2><p>        部署完成后，浏览器一切访问正常。但是我的接口调用修改成https后，发现用不了，于是用curl查看发现了以下错误。</p>
+<p>        报错信息：curl: (60) Peer’s certificate issuer is not recognized</p>
+<p><img src="/images/1705026966-095dbd164468e01e2fbadea9b59f88fb.png"></p>
+<h2 id="三、事件解决"><a href="#三、事件解决" class="headerlink" title="三、事件解决"></a>三、事件解决</h2><p>        经过资料查找，确定了是SSL证书不信任的问题。网上说更新CA证书库、安装CA库等都不适用，这种一般只适用知名网站，自己部署的只能自己导入证书。</p>
+<p>        以下是导入过程：</p>
+<h3 id="1、获取网站的pem证书"><a href="#1、获取网站的pem证书" class="headerlink" title="1、获取网站的pem证书"></a>1、获取网站的pem证书</h3><p>（1） 首先打开网站，链接左边有一个小锁。依次点击安全连接—&gt;更多信息。</p>
+<p><img src="/images/1705026966-90baa8c5a48795089fa6244a8a167b89.png"></p>
+<p>（2） 点击查看证书。</p>
+<p><img src="/images/1705026966-4341bb9b1d8907e9e67f3dd8361fa845.png"></p>
+<p>（3） 在第一个标签处往下翻，找到“PEM（证书链）”，点击下载后传到Linux。</p>
+<p><img src="/images/1705026966-58303edf243cad6a2a61be77c6ad1794.png"></p>
+<p><img src="/images/1705026966-22aad5f68548ba2454e7405a35d769e5.png"> </p>
+<p>（4） 随后网站所在的Linux服务器上面，执行以下命令即可。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment">#将pem文件放到对应文件夹，并更新后缀为crt</span></span><br><span class="line"><span class="built_in">mv</span> jd-com-chain.pem /etc/pki/ca-trust/source/anchors/jd-com-chain.crt</span><br><span class="line"></span><br><span class="line"><span class="comment">#更新本地CA库</span></span><br><span class="line">update-ca-trust extract</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>证书</category>
+      </categories>
+      <tags>
+        <tag>证书</tag>
+      </tags>
+  </entry>
 </search>
