@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized |  Lijintao&#39;s Blog</title>
+      <title>DNS域名详细解析过程 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,8 +69,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="证书-部署自签证书报错：curl-60-Peer‘s-certificate-issuer-is-not-recognized"
-  class="article article-type-证书"
+  id="DNS-DNS域名详细解析过程"
+  class="article article-type-DNS"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized
+  DNS域名详细解析过程
 </h1>
  
 
@@ -88,11 +88,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/01/12/%E9%83%A8%E7%BD%B2%E8%87%AA%E7%AD%BE%E8%AF%81%E4%B9%A6%E6%8A%A5%E9%94%99%EF%BC%9Acurl-60-Peer%E2%80%98s-certificate-issuer-is-not-recognized/" class="article-date">
-  <time datetime="2024-01-12T02:32:40.000Z" itemprop="datePublished">2024-01-12</time>
+      <a href="/2024/01/15/DNS%E5%9F%9F%E5%90%8D%E8%AF%A6%E7%BB%86%E8%A7%A3%E6%9E%90%E8%BF%87%E7%A8%8B/" class="article-date">
+  <time datetime="2024-01-15T05:36:58.000Z" itemprop="datePublished">2024-01-15</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/%E8%AF%81%E4%B9%A6/">证书</a>
+    <a class="article-category-link" href="/categories/DNS/">DNS</a>
   </div>
   
 <div class="word_count">
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">339</span>
+            <span class="post-count">2.3k</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">1 分钟</span>
+            <span class="post-count">8 分钟</span>
         </span>
     </span>
 </div>
@@ -124,21 +124,57 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h1 id="部署自签证书报错：curl-60-Peer‘s-certificate-issuer-is-not-recognized"><a href="#部署自签证书报错：curl-60-Peer‘s-certificate-issuer-is-not-recognized" class="headerlink" title="部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized"></a>部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized</h1><h2 id="一、事件背景"><a href="#一、事件背景" class="headerlink" title="一、事件背景"></a>一、事件背景</h2><p>        公司是有一个OA系统，因国家等保要求，现在需要对安全进行整改，于是我就将OA网站部署上了https，实现网站传输加密。</p>
-<h2 id="二、事件错误"><a href="#二、事件错误" class="headerlink" title="二、事件错误"></a>二、事件错误</h2><p>        部署完成后，浏览器一切访问正常。但是我的接口调用修改成https后，发现用不了，于是用curl查看发现了以下错误。</p>
-<p>        报错信息：curl: (60) Peer’s certificate issuer is not recognized</p>
-<p><img src="/images/1705026966-095dbd164468e01e2fbadea9b59f88fb.png"></p>
-<h2 id="三、事件解决"><a href="#三、事件解决" class="headerlink" title="三、事件解决"></a>三、事件解决</h2><p>        经过资料查找，确定了是SSL证书不信任的问题。网上说更新CA证书库、安装CA库等都不适用，这种一般只适用知名网站，自己部署的只能自己导入证书。</p>
-<p>        以下是导入过程：</p>
-<h3 id="1、获取网站的pem证书"><a href="#1、获取网站的pem证书" class="headerlink" title="1、获取网站的pem证书"></a>1、获取网站的pem证书</h3><p>（1） 首先打开网站，链接左边有一个小锁。依次点击安全连接—&gt;更多信息。</p>
-<p><img src="/images/1705026966-90baa8c5a48795089fa6244a8a167b89.png"></p>
-<p>（2） 点击查看证书。</p>
-<p><img src="/images/1705026966-4341bb9b1d8907e9e67f3dd8361fa845.png"></p>
-<p>（3） 在第一个标签处往下翻，找到“PEM（证书链）”，点击下载后传到Linux。</p>
-<p><img src="/images/1705026966-58303edf243cad6a2a61be77c6ad1794.png"></p>
-<p><img src="/images/1705026966-22aad5f68548ba2454e7405a35d769e5.png"> </p>
-<p>（4） 随后网站所在的Linux服务器上面，执行以下命令即可。</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#将pem文件放到对应文件夹，并更新后缀为crt</span></span><br><span class="line"><span class="built_in">mv</span> jd-com-chain.pem /etc/pki/ca-trust/source/anchors/jd-com-chain.crt</span><br><span class="line"></span><br><span class="line"><span class="comment">#更新本地CA库</span></span><br><span class="line">update-ca-trust extract</span><br></pre></td></tr></table></figure>
+  <h2 id="什么是DNS-域名解析"><a href="#什么是DNS-域名解析" class="headerlink" title="什么是DNS****域名解析"></a><strong>什么是DNS****域名解析</strong></h2><p>       我们首先要了解域名和IP地址的区别。IP地址是互联网上计算机唯一的逻辑地址，通过IP地址实现不同计算机之间的相互通信，每台联网计算机都需要通过IP地址来互相联系和分别。</p>
+<p>      但由于IP地址是由一串容易混淆的数字串构成，人们很难记忆所有计算机的IP地址，这样对于我们日常工作生活访问不同网站是很困难的。基于这种背景，人们在IP地址的基础上又发展出了一种更易识别的符号化标识，这种标识由人们自行选择的字母和数字构成，相比IP地址更易被识别和记忆，逐渐代替IP地址成为互联网用户进行访问互联的主要入口。这种符号化标识就是域名。</p>
+<p>       域名虽然更易被用户所接受和使用，但计算机只能识别纯数字构成的IP地址，不能直接读取域名。因此要想达到访问效果，就需要将域名翻译成IP地址。而DNS域名解析承担的就是这种翻译效果。</p>
+<h2 id="DNS-域名解析过程"><a href="#DNS-域名解析过程" class="headerlink" title="DNS****域名解析过程"></a><strong>DNS****域名解析过程</strong></h2><p>       当我们在浏览器地址栏中输入<a href="http://www.baidu.com时，DNS解析将会有将近10个步骤，这个过程大体大体由一张图可以表示：">www.baidu.com时，DNS解析将会有将近10个步骤，这个过程大体大体由一张图可以表示：</a></p>
+<p><img src="/images/1705296943-5abeecf86e12344267a23f63ec83e9bc.png"></p>
+<p>       整个过程大体描述如下，其中前两个步骤是在本地电脑内完成的，后8个步骤涉及到真正的域名解析服务器：</p>
+<p><strong>第一步</strong>、</p>
+<p>      本地电脑会检查浏览器缓存中有没有这个域名对应的解析过的IP地址，如果缓存中有，这个解析过程就结束。浏览器缓存域名也是有限制的，不仅浏览器缓存大小有限制，而且缓存的时间也有限制，通常情况下为几分钟到几小时不等，域名被缓存的时间限制可以通过TTL属性来设置。这个缓存时间太长和太短都不太好，如果时间太长，一旦域名被解析到的IP有变化，会导致被客户端缓存的域名无法解析到变化后的IP地址，以致该域名不能正常解析，这段时间内有一部分用户无法访问网站。如果设置时间太短，会导致用户每次访问网站都要重新解析一次域名。</p>
+<p><strong>第二步</strong>、</p>
+<p>        如果浏览器缓存中没有数据，浏览器会查找操作系统缓存中是否有这个域名对应的DNS解析结果。其实操作系统也有一个域名解析的过程，在Linux中可以通过&#x2F;etc&#x2F;hosts文件来设置，而在windows中可以通过配置C:\Windows\System32\drivers\etc\hosts文件来设置，用户可以将任何域名解析到任何能够访问的IP地址。例如，我们在测试时可以将一个域名解析到一台测试服务器上，这样不用修改任何代码就能测试到单独服务器上的代码的业务逻辑是否正确。正是因为有这种本地DNS解析的规程，所以有黑客就可能通过修改用户的域名来把特定的域名解析到他指定的IP地址上，导致这些域名被劫持。</p>
+<p><strong>第三步</strong>、</p>
+<p>        前两个过程无法解析时，就要用到我们网络配置中的”DNS服务器地址”了。操作系统会把这个域名发送给这个本地DNS服务器。每个完整的内网通常都会配置本地DNS服务器，例如用户是在学校或工作单位接入互联网，那么用户的本地DNS服务器肯定在学校或工作单位里面。它们一般都会缓存域名解析结果，当然缓存时间是受到域名的失效时间控制的。大约80%的域名解析到这里就结束了，后续的DNS迭代和递归也是由本地DNS服务器负责。</p>
+<p>windows在这配置：控制面板-》网络和共享中心-》更改适配器设置-》选中目标适配器右键选择属性-》Internet协议版本4(TCP&#x2F;IPv4)-》配置DNS地址。</p>
+<p><img src="/images/1705296943-0a03676aca44e0f568c7c9ee24d2e2b8.png"></p>
+<p><img src="/images/1705296943-4cc1ba0c7603880951114640760d49fe.png"></p>
+<p> Linux在这设置：&#x2F;etc&#x2F;resolv.conf</p>
+<p><img src="/images/1705296943-40cb65279c6d39308535ed9ae4aace95.png"></p>
+<p> <img src="/images/1705296943-0d204e03af5dc9802391db59a22c636b.png"></p>
+<p><strong>第四步</strong>、</p>
+<p>       如果本地DNS服务器仍然没有命中，就直接到根DNS服务器请求解析。</p>
+<p><strong>第五步</strong>、</p>
+<p>       根DNS服务器返回给本地DNS域名服务器一个顶级DNS服务器地址，它是国际顶级域名服务器，如.com、.cn、.org等，全球只有13台左右。</p>
+<p><strong>第六步</strong>、</p>
+<p>       本地DNS服务器再向上一步获得的顶级DNS服务器发送解析请求。</p>
+<p><strong>第七步</strong>、</p>
+<p>        接受请求的顶级DNS服务器查找并返回此域名对应的Name Server域名服务器的地址，这个Name Server服务器就是我要访问的网站域名提供商的服务器，其实该域名的解析任务就是由域名提供商的服务器来完成。   比如我要访问<a target="_blank" rel="noopener" href="http://www.baidu.com,而这个域名是从a公司注册获得的,那么a公司上的服务器就会有www.baidu.com的相关信息./">www.baidu.com，而这个域名是从A公司注册获得的，那么A公司上的服务器就会有www.baidu.com的相关信息。</a></p>
+<p><strong>第八步</strong>、</p>
+<p>       Name Server服务器会查询存储的域名和IP的映射关系表，再把查询出来的域名和IP地址等等信息，连同一个TTL值返回给本地DNS服务器。</p>
+<p><strong>第九步</strong>、</p>
+<p>       返回该域名对应的IP和TTL值，本地DNS服务器会缓存这个域名和IP的对应关系，缓存时间由TTL值控制。</p>
+<p><strong>第十步</strong>、</p>
+<p>       把解析的结果返回给本地电脑，本地电脑根据TTL值缓存在本地系统缓存中，域名解析过程结束在实际的DNS解析过程中，可能还不止这10步，如Name Server可能有很多级，或者有一个GTM来负载均衡控制，这都有可能会影响域名解析过程。</p>
+<h2 id="递归查询和迭代查询的区别"><a href="#递归查询和迭代查询的区别" class="headerlink" title="递归查询和迭代查询的区别"></a>递归查询和迭代查询的区别</h2><p>DNS客户端和本地名称服务器是递归，而本地名称服务器和其他名称服务器之间是迭代。<br><strong>DNS递归名称解析</strong>： 在DNS递归名称解析中，当所配置的本地名称服务器解析不了时，后面的查询工作是由本地名称服务器替代DNS客户端进行的（以“本地名称服务器”为中心），只需要本地名称服务器向DNS客户端返回最终的查询结果即可。</p>
+<p><strong>DNS迭代名称解析</strong>：（或者叫“迭代查询”）的所有查询工作全部是DNS客户端自己进行（以“DNS客户端”自己为中心）。在条件之一满足时就会采用迭代名称解析方式：</p>
+<ul>
+<li><p>在查询本地名称服务器时，如果客户端的请求报文中没有申请使用递归查询，即在DNS请求报头部的RD字段没有置1。相当于说“你都没有主动要求我为你进行递归查询，我当然不会为你工作了”。</p>
+</li>
+<li><p>客户端在DNS请求报文中申请使用的是递归查询（也就是RD字段置1了），但在所配置的本地名称服务器上是禁用递归查询（DNS服务器一般默认支持递归查询的），即在应答DNS报文头部的RA字段置0。</p>
+</li>
+</ul>
+<h2 id="域名解析记录"><a href="#域名解析记录" class="headerlink" title="域名解析记录"></a>域名解析记录</h2><p>       主要分为A记录、MX记录、CNAME记录、NS记录和TXT记录：</p>
+<p>1、A记录</p>
+<p>A代表Address，用来指定域名对应的IP地址，如将item.taobao.com指定到115.238.23.xxx，将switch.taobao.com指定到121.14.24.xxx。<strong>A****记录可以将多个域名解析到一个IP地址，但是不能将一个域名解析到多个IP地址</strong></p>
+<p>2、MX记录</p>
+<p>Mail Exchange，就是可以将某个域名下的邮件服务器指向自己的Mail Server，如taobao.com域名的A记录IP地址是115.238.25.xxx，如果将MX记录设置为115.238.25.xxx，即<a href="mailto:&#x78;&#x78;&#x78;&#64;&#116;&#97;&#x6f;&#x62;&#97;&#x6f;&#46;&#99;&#111;&#x6d;">&#x78;&#x78;&#x78;&#64;&#116;&#97;&#x6f;&#x62;&#97;&#x6f;&#46;&#99;&#111;&#x6d;</a>的邮件路由，DNS会将邮件发送到115.238.25.xxx所在的服务器，而正常通过Web请求的话仍然解析到A记录的IP地址</p>
+<p>3、CNAME记录</p>
+<p>Canonical Name，即别名解析。所谓别名解析就是可以为一个域名设置一个或者多个别名，如将aaa.com解析到bbb.net、将ccc.com也解析到bbb.net，其中bbb.net分别是aaa.com和ccc.com的别名</p>
+<p>4、NS记录</p>
+<p>为某个域名指定DNS解析服务器，也就是这个域名由指定的IP地址的DNS服务器取解析</p>
+<p>5、TXT记录</p>
+<p>为某个主机名或域名设置说明，如可以为ddd.net设置TXT记录为”这是XXX的博客”这样的说明</p>
  
       <!-- reward -->
       
@@ -209,12 +245,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/12/%E9%83%A8%E7%BD%B2%E8%87%AA%E7%AD%BE%E8%AF%81%E4%B9%A6%E6%8A%A5%E9%94%99%EF%BC%9Acurl-60-Peer%E2%80%98s-certificate-issuer-is-not-recognized/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/15/DNS%E5%9F%9F%E5%90%8D%E8%AF%A6%E7%BB%86%E8%A7%A3%E6%9E%90%E8%BF%87%E7%A8%8B/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E8%AF%81%E4%B9%A6/" rel="tag">证书</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DNS/" rel="tag">DNS</a></li></ul>
 
     </footer>
   </div>
@@ -222,19 +258,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/01/15/DNS%E5%9F%9F%E5%90%8D%E8%AF%A6%E7%BB%86%E8%A7%A3%E6%9E%90%E8%BF%87%E7%A8%8B/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            DNS域名详细解析过程
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/01/12/blackbox-exporter%E7%9B%91%E6%8E%A7%E7%BB%84%E4%BB%B6/" class="article-nav-link">
+      <a href="/2024/01/12/%E9%83%A8%E7%BD%B2%E8%87%AA%E7%AD%BE%E8%AF%81%E4%B9%A6%E6%8A%A5%E9%94%99%EF%BC%9Acurl-60-Peer%E2%80%98s-certificate-issuer-is-not-recognized/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">blackbox_exporter监控组件</div>
+        <div class="article-nav-title">部署自签证书报错：curl: (60) Peer‘s certificate issuer is not recognized</div>
       </a>
     
   </nav>
