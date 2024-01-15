@@ -123,7 +123,6 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>Prometheus 在处理数据指标的过程中，包括【抓取的生命周期】和【标签的生命周期】。<br>默认情况下，当 Prometheus加载 Target 实例完成后，这些Target时候都会包含一些默认的标签：这些标签将会告诉Prometheus如何从该Target实例中获取监控数据。</p>
-<p><img src="/images/1705308060-f973cde10539307683ca4905b9fc3b10.png"></p>
 <p>1、Prometheus的标签配置</p>
 <p>Prometheus通过标签可以实现查询过滤，并且还支持重新标签实现动态生成标签、过滤、删除无用标签等灵活配置。在采集数据之前可以使用relabel_configs进行重新标记，存储数据之前可以使用metric_relabel_configs重新标记。两种重新打标签的方式都支持以下动作：</p>
 <p>· replace：默认动作，将匹配到的标签内容做替换<br>• keep：通过正则匹配，仅保留正则匹配到的标签<br>• drop：通过正则匹配，删除正则匹配到的标签<br>• labeldrop：删除指定标签，比如一些默认标签并不需要，可以用该动作删除<br>• labelkeep：仅保留指定标签</p>
