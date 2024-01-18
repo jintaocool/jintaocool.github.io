@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">998</span>
+            <span class="post-count">997</span>
         </span>
     </span>
 
@@ -128,7 +128,7 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ git pull</span><br><span class="line">ssh: connect to host github.com port 22: Connection refused</span><br><span class="line">fatal: Could not <span class="built_in">read</span> from remote repository.</span><br><span class="line">​</span><br><span class="line">Please make sure you have the correct access rights</span><br><span class="line">and the repository exists.</span><br></pre></td></tr></table></figure>
 
 <h2 id="排查思路"><a href="#排查思路" class="headerlink" title="排查思路"></a><strong>排查思路</strong></h2><p><code>ssh: connect to host github.com port 22: Connection refused</code>这个错误提示的是连接<code>github.com</code>的22端口被拒绝了。</p>
-<p>原本以为[<a href="http://github.com]挂了，但是浏览器访问[http://github.com]一切正常。">http://github.com]挂了，但是浏览器访问[http://github.com]一切正常。</a></p>
+<p>原本以为 <a target="_blank" rel="noopener" href="http://github.com/">http://github.com</a> 挂了，但是浏览器访问 <a target="_blank" rel="noopener" href="http://github.com/">http://github.com</a> 一切正常。</p>
 <p>网上搜索这个报错，发现很多人遇到这个问题，大概有2个原因和对应解决方案：</p>
 <h3 id="使用GitHub的443端口"><a href="#使用GitHub的443端口" class="headerlink" title="使用GitHub的443端口"></a><strong>使用GitHub的443端口</strong></h3><p>22端口可能被防火墙屏蔽了，可以尝试连接GitHub的443端口。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">$ vim ~/.ssh/config</span><br><span class="line">```</span><br><span class="line"><span class="comment"># Add section below to it</span></span><br><span class="line">Host github.com</span><br><span class="line">  Hostname ssh.github.com</span><br><span class="line">  Port 443</span><br><span class="line">```</span><br><span class="line">$ ssh -T git@github.com</span><br><span class="line">Hi xxxxx! You<span class="string">&#x27;ve successfully authenticated, but GitHub does not</span></span><br><span class="line"><span class="string">provide shell access.</span></span><br></pre></td></tr></table></figure>
@@ -154,12 +154,12 @@
 <h2 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a><strong>解决方案</strong></h2><p>网上的招都没用，只能自力更生了。既然和GitHub建立ssh连接的时候提示<code>connection refused</code>，那我们就详细看看建立ssh连接的过程中发生了什么，可以使用<code>ssh -v</code>命令，<code>-v</code>表示verbose，会打出详细日志。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">$ ssh -vT git@github.com</span><br><span class="line">OpenSSH_9.0p1, OpenSSL 1.1.1o  3 May 2022</span><br><span class="line">debug1: Reading configuration data /etc/ssh/ssh_config</span><br><span class="line">debug1: Connecting to github.com [::1] port 22.</span><br><span class="line">debug1: connect to address ::1 port 22: Connection refused</span><br><span class="line">debug1: Connecting to github.com [127.0.0.1] port 22.</span><br><span class="line">debug1: connect to address 127.0.0.1 port 22: Connection refused</span><br><span class="line">ssh: connect to host github.com port 22: Connection refused</span><br></pre></td></tr></table></figure>
 
-<p>从上面的信息马上就发现了诡异的地方，连接[<a href="http://github.com]的地址居然是`::1`和`127.0.0.1`。前者是IPV6的localhost地址，后者是IPV4的localhost地址。">http://github.com]的地址居然是`::1`和`127.0.0.1`。前者是IPV6的localhost地址，后者是IPV4的localhost地址。</a></p>
-<p>到这里问题就很明确了，是DNS解析出问题了，导致[<a href="http://github.com]域名被解析成了localhost的ip地址，就自然连不上GitHub了。">http://github.com]域名被解析成了localhost的ip地址，就自然连不上GitHub了。</a></p>
+<p>从上面的信息马上就发现了诡异的地方，连接 <a target="_blank" rel="noopener" href="http://github.com/">http://github.com</a> 的地址居然是<code>::1</code>和<code>127.0.0.1</code>。前者是IPV6的localhost地址，后者是IPV4的localhost地址。</p>
+<p>到这里问题就很明确了，是DNS解析出问题了，导致 <a target="_blank" rel="noopener" href="http://github.com/">http://github.com</a> 域名被解析成了localhost的ip地址，就自然连不上GitHub了。</p>
 <p>Windows下执行<code>ipconfig /flushdns</code> 清楚DNS缓存后也没用，最后修改hosts文件，增加一条github.com的域名映射搞定。</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">140.82.113.4 github.com</span><br></pre></td></tr></table></figure>
 
-<p>查找[<a href="http://github.com]的ip地址可以使用[https://www.ipaddress.com/]来查询，也可以使用`nslookup`命令">http://github.com]的ip地址可以使用[https://www.ipaddress.com/]来查询，也可以使用`nslookup`命令</a></p>
+<p>查找 <a target="_blank" rel="noopener" href="http://github.com/">http://github.com</a> 的ip地址可以使用 <a target="_blank" rel="noopener" href="https://www.ipaddress.com/">https://www.ipaddress.com/</a> 来查询，也可以使用<code>nslookup</code>命令</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nslookup github.com 8.8.8.8</span><br></pre></td></tr></table></figure>
 
 <p><code>nslookup</code>是域名解析工具，<code>8.8.8.8</code>是Google的DNS服务器地址。直接使用</p>
