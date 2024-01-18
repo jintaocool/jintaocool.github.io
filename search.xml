@@ -9709,4 +9709,71 @@
         <tag>PMM</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Prometheus监控业务指标</title>
+    <url>/2024/01/18/Prometheus%E7%9B%91%E6%8E%A7%E4%B8%9A%E5%8A%A1%E6%8C%87%E6%A0%87/</url>
+    <content><![CDATA[<p>在 Kubernetes 已经成了事实上的容器编排标准之下，微服务的部署变得非常容易。但随着微服务规模的扩大，服务治理带来的挑战也会越来越大。在这样的背景下出现了服务可观测性（observability）的概念。</p>
+<p>在分布式系统里，系统的故障可能出现在任何节点，怎么能在出了故障的时候快速定位问题和解决问题，甚至是在故障出现之前就能感知到服务系统的异常，把故障扼杀在摇篮里。这就是可观测性的意义所在。</p>
+<h2 id="可观测性"><a href="#可观测性" class="headerlink" title="可观测性"></a>可观测性</h2><p>可观测性是由 logging, metrics, tracing 构建的, 简称为可观测性三支柱。</p>
+<p><img src="/images/1705556580-3233006632b26182e4fb61395342bd0a.png" alt="图片"></p>
+<ul>
+<li><p><strong>Lgging</strong>，展现的是应用运行而产生的事件或者程序在执行的过程中间产生的一些日志，可以详细解释系统的运行状态，但是存储和查询需要消耗大量的资源。所以往往使用过滤器减少数据量。</p>
+</li>
+<li><p><strong>Metrics</strong>，是一种聚合数值，存储空间很小，可以观察系统的状态和趋势，但对于问题定位缺乏细节展示。这个时候使用等高线指标等多维数据结构来增强对于细节的表现力。例如统计一个服务的 TBS 的正确率、成功率、流量等，这是常见的针对单个指标或者某一个数据库的。</p>
+</li>
+<li><p><strong>Tracing</strong>，面向的是请求，可以轻松分析出请求中异常点，但与 logging 有相同的问题就是资源消耗较大。通常也需要通过采样的方式减少数据量。比如一次请求的范围，也就是从浏览器或者手机端发起的任何一次调用，一个流程化的东西，我们需要轨迹去追踪。</p>
+</li>
+</ul>
+<p>这篇文章讨论的主题就是可观测性中的 metrics。在 k8s 作为基础设施的背景下，我们知道 K8s 本身是个复杂的容器编排系统，它本身的稳定运行至关重要。与之相伴的指标监控系统 Promethues 也已经成为了云原生服务下监控体系的事实标准。</p>
+<p>相信大家对资源层面比如 CPU，Memory，Network；应用层面比如 Http 请求数，请求耗时等指标的监控都有所了解。那么业务层面的指标又怎么利用 Prometheus 去监控和告警呢？这就是这篇文章的核心内容。</p>
+<p>以我们一个业务场景为例，在系统中有多种类型的 task 在运行，并且 task 的运行时间各异，task 本身有各种状态包括待执行、执行中、执行成功、执行失败等。如果想确保系统的稳定运行，我们必须对各个类型的 task 的运行状况了如指掌。比如当前是否有任务挤压，失败任务是否过多，并且当超过阈值是否告警。</p>
+<p>为了解决上述的监控告警问题，我们先得了解一下 Prometheus 的指标类型</p>
+<h2 id="指标"><a href="#指标" class="headerlink" title="指标"></a>指标</h2><h3 id="指标定义"><a href="#指标定义" class="headerlink" title="指标定义"></a>指标定义</h3><p>在形式上，所有的指标（Metric）都通过如下格式标示：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;metric name&gt;&#123;&lt;label name&gt;=&lt;label value&gt;, ...&#125;</span><br></pre></td></tr></table></figure>
+
+<p>指标的名称（metric name）可以反映被监控样本的含义（比如，<code>http_request_total</code> - 表示当前系统接收到的HTTP请求总量）。指标名称只能由ASCII字符、数字、下划线以及冒号组成并必须符合正则表达式 <code>[a-zA-Z_:][a-zA-Z0-9_:]*</code>。</p>
+<p>标签（label）反映了当前样本的特征维度，通过这些维度Prometheus可以对样本数据进行过滤，聚合等。标签的名称只能由ASCII字符、数字以及下划线组成并满足正则表达式<code>[a-zA-Z_][a-zA-Z0-9_]*</code>。</p>
+<h3 id="指标类型"><a href="#指标类型" class="headerlink" title="指标类型"></a>指标类型</h3><p>Prometheus定义了4种不同的指标类型（metric type）：Counter（计数器）、Gauge（仪表盘）、Histogram（直方图）、Summary（摘要）。</p>
+<h4 id="Counter"><a href="#Counter" class="headerlink" title="Counter"></a>Counter</h4><p>Counter类型的指标其工作方式和计数器一样，只增不减（除非系统发生重置）。常见的监控指标，如<code>http_requests_total</code>，<code>node_cpu</code>都是 Counter 类型的监控指标。一般在定义Counter类型指标的名称时推荐使用<code>_total</code>作为后缀。</p>
+<p>通过 counter 指标我们可以和容易的了解某个事件产生的速率变化。</p>
+<p>例如，通过<code>rate()</code>函数获取HTTP请求量的增长率：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">rate(http_requests_total[5m])</span><br></pre></td></tr></table></figure>
+
+<h4 id="Gauge"><a href="#Gauge" class="headerlink" title="Gauge"></a>Gauge</h4><p>Gauge类型的指标侧重于反应系统的当前状态。因此这类指标的样本数据可增可减。常见指标如：<code>node_memory_MemFree</code>（主机当前空闲的内容大小）、<code>node_memory_MemAvailable</code>（可用内存大小）都是Gauge类型的监控指标。</p>
+<p>通过Gauge指标，我们可以直接查看系统的当前状态</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">node_memory_MemFree</span><br></pre></td></tr></table></figure>
+
+<h4 id="Summary"><a href="#Summary" class="headerlink" title="Summary"></a>Summary</h4><p>Summary 主用用于统计和分析样本的分布情况。比如某 Http 请求的响应时间大多数都在 100 ms 内，而个别请求的响应时间需要 5s，那么这中情况下统计指标的平均值就不能反映出真实情况。而如果通过 Summary 指标我们能立马看响应时间的9分位数，这样的指标才是有意义的。</p>
+<p>例如</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.</span><br><span class="line"># TYPE go_gc_duration_seconds summary</span><br><span class="line">go_gc_duration_seconds&#123;quantile=&quot;0&quot;&#125; 3.98e-05</span><br><span class="line">go_gc_duration_seconds&#123;quantile=&quot;0.25&quot;&#125; 5.31e-05</span><br><span class="line">go_gc_duration_seconds&#123;quantile=&quot;0.5&quot;&#125; 6.77e-05</span><br><span class="line">go_gc_duration_seconds&#123;quantile=&quot;0.75&quot;&#125; 0.0001428</span><br><span class="line">go_gc_duration_seconds&#123;quantile=&quot;1&quot;&#125; 0.0008099</span><br><span class="line">go_gc_duration_seconds_sum 0.0114183</span><br><span class="line">go_gc_duration_seconds_count 85</span><br></pre></td></tr></table></figure>
+
+<h4 id="Histogram"><a href="#Histogram" class="headerlink" title="Histogram"></a>Histogram</h4><p>Histogram 类型的指标同样用于统计和样本分析。与 Summary 类型的指标相似之处在于 Histogram 类型的样本同样会反应当前指标的记录的总数(以<code>_count</code>作为后缀)以及其值的总量（以<code>_sum</code>作为后缀）。不同在于 Histogram 指标直接反应了在不同区间内样本的个数，区间通过标签len进行定义。同时对于Histogram的指标，可以通过 <code>histogram_quantile()</code> 函数计算出其值的分位数。</p>
+<p>例如</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># HELP prometheus_http_response_size_bytes Histogram of response size for HTTP requests.</span><br><span class="line"># TYPE prometheus_http_response_size_bytes histogram</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;100&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;1000&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;10000&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;100000&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;1e+06&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_bucket&#123;handler=&quot;/&quot;,le=&quot;+Inf&quot;&#125; 1</span><br><span class="line">prometheus_http_response_size_bytes_sum&#123;handler=&quot;/&quot;&#125; 29</span><br><span class="line">prometheus_http_response_size_bytes_count&#123;handler=&quot;/&quot;&#125; 1</span><br></pre></td></tr></table></figure>
+
+<h2 id="应用指标监控"><a href="#应用指标监控" class="headerlink" title="应用指标监控"></a>应用指标监控</h2><h4 id="暴露指标"><a href="#暴露指标" class="headerlink" title="暴露指标"></a>暴露指标</h4><p>Prometheus 最常用的方式是通过 pull 去抓取 metrics。所以我们首先在服务通过 <code>/metrics</code> 接口暴露指标，这样 Promethues server 就能通过 http 请求抓取到我们的业务指标。</p>
+<p>接口示例</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">server := gin.New()</span><br><span class="line">server.Use(middlewares.AccessLogger(), middlewares.Metric(), gin.Recovery())</span><br><span class="line"></span><br><span class="line">server.GET(&quot;/health&quot;, func(c *gin.Context) &#123;</span><br><span class="line">    c.JSON(http.StatusOK, gin.H&#123;        &quot;message&quot;: &quot;ok&quot;,</span><br><span class="line">    &#125;)</span><br><span class="line">&#125;)</span><br><span class="line"></span><br><span class="line">server.GET(&quot;/metrics&quot;, Monitor)func Monitor(c *gin.Context) &#123;</span><br><span class="line">    h := promhttp.Handler()</span><br><span class="line">    h.ServeHTTP(c.Writer, c.Request)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h4 id="定义指标"><a href="#定义指标" class="headerlink" title="定义指标"></a>定义指标</h4><p>为了方便理解，这里选取了三种类型和两种业务场景的指标<br>示例</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">var (</span><br><span class="line">    //HTTPReqDuration metric:http_request_duration_seconds</span><br><span class="line">    HTTPReqDuration *prometheus.HistogramVec</span><br><span class="line">    //HTTPReqTotal metric:http_request_total</span><br><span class="line">    HTTPReqTotal *prometheus.CounterVec</span><br><span class="line">    // TaskRunning metric:task_running</span><br><span class="line">    TaskRunning *prometheus.GaugeVec</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line">func init() &#123;</span><br><span class="line">    // 监控接口请求耗时</span><br><span class="line">    // 指标类型是 Histogram</span><br><span class="line">    HTTPReqDuration = prometheus.NewHistogramVec(prometheus.HistogramOpts&#123;</span><br><span class="line">        Name:    &quot;http_request_duration_seconds&quot;,</span><br><span class="line">        Help:    &quot;http request latencies in seconds&quot;,</span><br><span class="line">        Buckets: nil,</span><br><span class="line">    &#125;, []string&#123;&quot;method&quot;, &quot;path&quot;&#125;)</span><br><span class="line">    // &quot;method&quot;、&quot;path&quot; 是 label</span><br><span class="line"></span><br><span class="line">    // 监控接口请求次数</span><br><span class="line">    // 指标类型是 Counter</span><br><span class="line">    HTTPReqTotal = prometheus.NewCounterVec(prometheus.CounterOpts&#123;</span><br><span class="line">        Name: &quot;http_requests_total&quot;,</span><br><span class="line">        Help: &quot;total number of http requests&quot;,</span><br><span class="line">    &#125;, []string&#123;&quot;method&quot;, &quot;path&quot;, &quot;status&quot;&#125;)    // &quot;method&quot;、&quot;path&quot;、&quot;status&quot; 是 label</span><br><span class="line"></span><br><span class="line">    // 监控当前在执行的 task 数量</span><br><span class="line">    // 监控类型是 Gauge</span><br><span class="line">    TaskRunning = prometheus.NewGaugeVec(prometheus.GaugeOpts&#123;</span><br><span class="line">        Name: &quot;task_running&quot;,</span><br><span class="line">        Help: &quot;current count  of running task&quot;,</span><br><span class="line">    &#125;, []string&#123;&quot;type&quot;, &quot;state&quot;&#125;)</span><br><span class="line">    // &quot;type&quot;、&quot;state&quot; 是 label</span><br><span class="line"></span><br><span class="line">    prometheus.MustRegister(</span><br><span class="line">        HTTPReqDuration,</span><br><span class="line">        HTTPReqTotal,</span><br><span class="line">        TaskRunning,</span><br><span class="line">    )</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>通过上述的代码我们就定义并且注册了我们的想要监控的指标。</p>
+<h4 id="生成指标"><a href="#生成指标" class="headerlink" title="生成指标"></a>生成指标</h4><p>示例</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">start := time.Now()</span><br><span class="line">c.Next()</span><br><span class="line"></span><br><span class="line">duration := float64(time.Since(start)) / float64(time.Second)</span><br><span class="line"></span><br><span class="line">path := c.Request.URL.Path</span><br><span class="line"></span><br><span class="line">// 请求数加1</span><br><span class="line">controllers.HTTPReqTotal.With(prometheus.Labels&#123;</span><br><span class="line">    &quot;method&quot;: c.Request.Method,</span><br><span class="line">    &quot;path&quot;:   path,</span><br><span class="line">    &quot;status&quot;: strconv.Itoa(c.Writer.Status()),</span><br><span class="line">&#125;).Inc()</span><br><span class="line"></span><br><span class="line">//  记录本次请求处理时间</span><br><span class="line">controllers.HTTPReqDuration.With(prometheus.Labels&#123;</span><br><span class="line">    &quot;method&quot;: c.Request.Method,</span><br><span class="line">    &quot;path&quot;:   path,</span><br><span class="line">&#125;).Observe(duration)</span><br><span class="line"></span><br><span class="line">// 模拟新建任务</span><br><span class="line">controllers.TaskRunning.With(prometheus.Labels&#123;</span><br><span class="line">    &quot;type&quot;:  shuffle([]string&#123;&quot;video&quot;, &quot;audio&quot;&#125;),</span><br><span class="line">    &quot;state&quot;: shuffle([]string&#123;&quot;process&quot;, &quot;queue&quot;&#125;),</span><br><span class="line">&#125;).Inc()</span><br><span class="line"></span><br><span class="line">// 模拟任务完成</span><br><span class="line">controllers.TaskRunning.With(prometheus.Labels&#123;</span><br><span class="line">    &quot;type&quot;:  shuffle([]string&#123;&quot;video&quot;, &quot;audio&quot;&#125;),</span><br><span class="line">    &quot;state&quot;: shuffle([]string&#123;&quot;process&quot;, &quot;queue&quot;&#125;),</span><br><span class="line">&#125;).Dec()</span><br></pre></td></tr></table></figure>
+
+<h4 id="抓取指标"><a href="#抓取指标" class="headerlink" title="抓取指标"></a>抓取指标</h4><p>Promethues 抓取 target 配置</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 抓取间隔</span><br><span class="line">scrape_interval: 5s</span><br><span class="line"></span><br><span class="line"># 目标</span><br><span class="line">scrape_configs:</span><br><span class="line">  - job_name: &#x27;prometheus&#x27;</span><br><span class="line">    static_configs:</span><br><span class="line">      - targets: [&#x27;prometheus:9090&#x27;]</span><br><span class="line">  - job_name: &#x27;local-service&#x27;</span><br><span class="line">    metrics_path: /metrics</span><br><span class="line">    static_configs:</span><br><span class="line">      - targets: [&#x27;host.docker.internal:8000&#x27;]</span><br></pre></td></tr></table></figure>
+
+<p>在实际应用中静态配置 target 地址不太适用，在 k8s 下 Promethues通过与 Kubernetes API 集成目前主要支持5种服务发现模式，分别是：Node、Service、Pod、Endpoints、Ingress。</p>
+<p>指标展示如下图：</p>
+<p><img src="/images/1705556580-37d80127b73f829661c0d17b431e0b18.svg" alt="图片"><br><img src="/images/1705556580-37d80127b73f829661c0d17b431e0b18.svg" alt="图片"></p>
+]]></content>
+      <categories>
+        <category>Prometheus</category>
+      </categories>
+      <tags>
+        <tag>Prometheus</tag>
+      </tags>
+  </entry>
 </search>
