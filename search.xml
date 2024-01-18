@@ -9684,4 +9684,29 @@
         <tag>Prometheus</tag>
       </tags>
   </entry>
+  <entry>
+    <title>PMM数据库监控工具部署过程</title>
+    <url>/2024/01/18/PMM%E6%95%B0%E6%8D%AE%E5%BA%93%E7%9B%91%E6%8E%A7%E5%B7%A5%E5%85%B7%E9%83%A8%E7%BD%B2%E8%BF%87%E7%A8%8B/</url>
+    <content><![CDATA[<h1 id="PMM数据库监控工具"><a href="#PMM数据库监控工具" class="headerlink" title="PMM数据库监控工具"></a>PMM数据库监控工具</h1><p>今天给大家介绍一款非常好用的监控工具,percona出品的pmm2。该工具主要是封装了VictoriaMetrics(Promethuse的替代品，和Promethuse API兼容)、Grafana、ClickHouse)等优秀产品，可以实现MySQL、MongoDB、PostgreSQL数据库的监控(其他库也可以自定义实现)，有丰富的默认监控指标与看板。除此之外，集成的慢查询分析功能也非常香。开箱即用！</p>
+<h3 id="架构图"><a href="#架构图" class="headerlink" title="架构图"></a><strong>架构图</strong></h3><p><img src="/images/1705549137-2c84f18e7ff6e0cc565631fff8a28a9b.png"></p>
+<p><img src="/images/1705549137-0a6d13665df997fcf3f7d7ba0461f44c.png"></p>
+<p><img src="/images/1705549137-41de4d55308eba68271e9ba9167ad0da.png"></p>
+<h3 id="安装步骤"><a href="#安装步骤" class="headerlink" title="安装步骤"></a><strong>安装步骤</strong></h3><h5 id="第一步-安装-docker"><a href="#第一步-安装-docker" class="headerlink" title="第一步 安装 docker"></a><strong>第一步 安装 docker</strong></h5><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#centos8</span><br><span class="line">#1. 下载docker-ce的repo</span><br><span class="line">curl https://download.docker.com/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker-ce.repo</span><br><span class="line">#2. 安装依赖（这是相比centos7的关键步骤）</span><br><span class="line">yum install https://download.docker.com/linux/fedora/30/x86_64/stable/Packages/containerd.io-1.2.6-3.3.fc30.x86_64.rpm</span><br><span class="line">#3. 安装docker-ce</span><br><span class="line">yum install docker-ce -y</span><br><span class="line">#4. 启动docker</span><br><span class="line">systemctl start docker</span><br></pre></td></tr></table></figure>
+
+<h5 id="第二步-安装pmm-server"><a href="#第二步-安装pmm-server" class="headerlink" title="第二步 安装pmm-server"></a><strong>第二步 安装pmm-server</strong></h5><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment">#拉取镜像</span></span><br><span class="line">docker pull percona/pmm-server:2</span><br><span class="line"><span class="comment">#创建数据卷</span></span><br><span class="line">docker volume create pmm-data</span><br><span class="line"><span class="comment">#启动容器</span></span><br><span class="line">docker run --detach --restart always --publish 443:443 -v pmm-data:/srv --name pmm-server percona/pmm-server:2</span><br><span class="line"><span class="comment">#修改admin密码</span></span><br><span class="line">docker <span class="built_in">exec</span> -t pmm-server change-admin-password passwordxxx</span><br><span class="line"><span class="comment">#查看日志</span></span><br><span class="line">docker logs  pmm-server</span><br><span class="line"><span class="comment">#查看网页 （非本地环境localhost换成机器ip 注意防火墙要开通）</span></span><br><span class="line"><span class="comment">#账户:admin 密码:passwordxxx (参考修改admin密码步骤的密码）</span></span><br><span class="line">https://localhost:443</span><br></pre></td></tr></table></figure>
+
+<h5 id="第三步-被监控节点安装-pmm-client"><a href="#第三步-被监控节点安装-pmm-client" class="headerlink" title="第三步 被监控节点安装 pmm-client"></a><strong>第三步 被监控节点安装 pmm-client</strong></h5><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#1 配置yum源</span><br><span class="line">yum install -y https://repo.percona.com/yum/percona-release-latest.noarch.rpm</span><br><span class="line">#2 安装pmm2-client</span><br><span class="line">yum install -y pmm2-client</span><br><span class="line">#3  查看版本</span><br><span class="line">pmm-admin --version</span><br><span class="line">#4 注册节点 注意admin账户密码和ip不要填错</span><br><span class="line">pmm-admin config --server-insecure-tls --server-url=https://admin:passwordxxx@X.X.X.X:443</span><br><span class="line"></span><br><span class="line"># 说明：</span><br><span class="line"># X.X.X.X is the address of your PMM Server.</span><br><span class="line"># 443 is the default port number.</span><br><span class="line"># admin/admin is the default PMM username and password. This is the same account you use to log into the PMM user interface, which you had the option to change when first logging in.</span><br></pre></td></tr></table></figure>
+
+<p>安装完登录界面长这样，更多内容大家自行探索。</p>
+<p><img src="/images/1705549137-057068c9e100bed329233009ccfd2c22.png"></p>
+<h3 id="参考文档"><a href="#参考文档" class="headerlink" title="参考文档"></a><strong>参考文档</strong></h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://docs.percona.com/percona-monitoring-and-management/index.html</span><br></pre></td></tr></table></figure>
+
+]]></content>
+      <categories>
+        <category>PMM</category>
+      </categories>
+      <tags>
+        <tag>PMM</tag>
+      </tags>
+  </entry>
 </search>
