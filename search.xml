@@ -9776,4 +9776,69 @@
         <tag>Prometheus</tag>
       </tags>
   </entry>
+  <entry>
+    <title>ssh: connect to host github.com port 22: Connection refused</title>
+    <url>/2024/01/18/ssh-connect-to-host-github-com-port-22-Connection-refused/</url>
+    <content><![CDATA[<h2 id="问题现象"><a href="#问题现象" class="headerlink" title="问题现象"></a><strong>问题现象</strong></h2><p>本文以Windows系统为例进行说明，在个人电脑上使用Git命令来操作GitHub上的项目，本来都很正常，突然某一天开始，会提示如下错误<code>ssh: connect to host github.com port 22: Connection refused</code>。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ git pull</span><br><span class="line">ssh: connect to host github.com port 22: Connection refused</span><br><span class="line">fatal: Could not <span class="built_in">read</span> from remote repository.</span><br><span class="line">​</span><br><span class="line">Please make sure you have the correct access rights</span><br><span class="line">and the repository exists.</span><br></pre></td></tr></table></figure>
+
+<h2 id="排查思路"><a href="#排查思路" class="headerlink" title="排查思路"></a><strong>排查思路</strong></h2><p><code>ssh: connect to host github.com port 22: Connection refused</code>这个错误提示的是连接<code>github.com</code>的22端口被拒绝了。</p>
+<p>原本以为[<a href="http://github.com]挂了，但是浏览器访问[http://github.com]一切正常。">http://github.com]挂了，但是浏览器访问[http://github.com]一切正常。</a></p>
+<p>网上搜索这个报错，发现很多人遇到这个问题，大概有2个原因和对应解决方案：</p>
+<h3 id="使用GitHub的443端口"><a href="#使用GitHub的443端口" class="headerlink" title="使用GitHub的443端口"></a><strong>使用GitHub的443端口</strong></h3><p>22端口可能被防火墙屏蔽了，可以尝试连接GitHub的443端口。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ vim ~/.ssh/config</span><br><span class="line">```</span><br><span class="line"><span class="comment"># Add section below to it</span></span><br><span class="line">Host github.com</span><br><span class="line">  Hostname ssh.github.com</span><br><span class="line">  Port 443</span><br><span class="line">```</span><br><span class="line">$ ssh -T git@github.com</span><br><span class="line">Hi xxxxx! You<span class="string">&#x27;ve successfully authenticated, but GitHub does not</span></span><br><span class="line"><span class="string">provide shell access.</span></span><br></pre></td></tr></table></figure>
+
+<p>这个解决方案的思路是：给<code>~/.ssh/config</code>文件里添加如下内容，这样ssh连接GitHub的时候就会使用443端口。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">Host github.com</span><br><span class="line">  Hostname ssh.github.com</span><br><span class="line">  Port 443</span><br></pre></td></tr></table></figure>
+
+<p>如果<code>~/.ssh</code>目录下没有config文件，新建一个即可。</p>
+<p>修改完<code>~/.ssh/config</code>文件后，使用<code>ssh -T git@github.com</code>来测试和GitHub的网络通信是否正常，如果提示<code>Hi xxxxx! You&#39;ve successfully authenticated, but GitHub does not provide shell access.</code> 就表示一切正常了。</p>
+<p>但是，这个方案在我这里行不通，修改后还是提示<code>ssh: connect to host github.com port 443: Connection refused</code>。</p>
+<p><strong>这个方案有效的前提是</strong>：执行命令<code>ssh -T -p 443 git@ssh.github.com</code>后不再提示<code>connection refused</code>，所以要尝试这个方案的小伙伴先执行这条命令测试下。</p>
+<h3 id="使用https协议，不要使用ssh协议"><a href="#使用https协议，不要使用ssh协议" class="headerlink" title="使用https协议，不要使用ssh协议"></a><strong>使用https协议，不要使用ssh协议</strong></h3><p>在你的GitHub的本地repo目录，执行如下命令：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ git config --<span class="built_in">local</span> -e</span><br></pre></td></tr></table></figure>
+
+<p>然后把里面的url配置项从git格式</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">url = git@github.com:username/repo.git</span><br></pre></td></tr></table></figure>
+
+<p>修改为https格式</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">url = https://github.com/username/repo.git</span><br></pre></td></tr></table></figure>
+
+<p>这个其实修改的是repo根目录下的<code>./git/config</code>文件。</p>
+<p><strong>但是这个方法在我这里同样不生效</strong>。</p>
+<h2 id="解决方案"><a href="#解决方案" class="headerlink" title="解决方案"></a><strong>解决方案</strong></h2><p>网上的招都没用，只能自力更生了。既然和GitHub建立ssh连接的时候提示<code>connection refused</code>，那我们就详细看看建立ssh连接的过程中发生了什么，可以使用<code>ssh -v</code>命令，<code>-v</code>表示verbose，会打出详细日志。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">$ ssh -vT git@github.com</span><br><span class="line">OpenSSH_9.0p1, OpenSSL 1.1.1o  3 May 2022</span><br><span class="line">debug1: Reading configuration data /etc/ssh/ssh_config</span><br><span class="line">debug1: Connecting to github.com [::1] port 22.</span><br><span class="line">debug1: connect to address ::1 port 22: Connection refused</span><br><span class="line">debug1: Connecting to github.com [127.0.0.1] port 22.</span><br><span class="line">debug1: connect to address 127.0.0.1 port 22: Connection refused</span><br><span class="line">ssh: connect to host github.com port 22: Connection refused</span><br></pre></td></tr></table></figure>
+
+<p>从上面的信息马上就发现了诡异的地方，连接[<a href="http://github.com]的地址居然是`::1`和`127.0.0.1`。前者是IPV6的localhost地址，后者是IPV4的localhost地址。">http://github.com]的地址居然是`::1`和`127.0.0.1`。前者是IPV6的localhost地址，后者是IPV4的localhost地址。</a></p>
+<p>到这里问题就很明确了，是DNS解析出问题了，导致[<a href="http://github.com]域名被解析成了localhost的ip地址，就自然连不上GitHub了。">http://github.com]域名被解析成了localhost的ip地址，就自然连不上GitHub了。</a></p>
+<p>Windows下执行<code>ipconfig /flushdns</code> 清楚DNS缓存后也没用，最后修改hosts文件，增加一条github.com的域名映射搞定。</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">140.82.113.4 github.com</span><br></pre></td></tr></table></figure>
+
+<p>查找[<a href="http://github.com]的ip地址可以使用[https://www.ipaddress.com/]来查询，也可以使用`nslookup`命令">http://github.com]的ip地址可以使用[https://www.ipaddress.com/]来查询，也可以使用`nslookup`命令</a></p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">nslookup github.com 8.8.8.8</span><br></pre></td></tr></table></figure>
+
+<p><code>nslookup</code>是域名解析工具，<code>8.8.8.8</code>是Google的DNS服务器地址。直接使用</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">nslookup github.com</span><br></pre></td></tr></table></figure>
+
+<p>就会使用本机已经设置好的DNS服务器进行域名解析，<code>ipconfig /all</code>可以查看本机DNS服务器地址。</p>
+<p>这个问题其实就是DNS解析被污染了，有2种可能：</p>
+<ul>
+<li>DNS解析被运营商劫持了</li>
+<li>使用了科学上网工具</li>
+</ul>
+<p>按照我上面写的解决方案操作即可解决。</p>
+<h2 id="References"><a href="#References" class="headerlink" title="References"></a><strong>References</strong></h2><ul>
+<li><a href="https://link.zhihu.com/?target=https://chaxuri.com/archives/43.html">https://chaxuri.com/archives/43.html</a></li>
+<li><a href="https://link.zhihu.com/?target=https://stackoverflow.com/questions/15589682/ssh-connect-to-host-github-com-port-22-connection-timed-out">https://stackoverflow.com/questions/15589682/ssh-connect-to-host-github-com-port-22-connection-timed-out</a></li>
+<li><a href="https://link.zhihu.com/?target=https://docs.github.com/en/authentication/troubleshooting-ssh/error-permission-denied-publickey">https://docs.github.com/en/authentication/troubleshooting-ssh/error-permission-denied-publickey</a></li>
+<li><a href="https://link.zhihu.com/?target=https://gist.github.com/Tamal/1cc77f88ef3e900aeae65f0e5e504794">https://gist.github.com/Tamal/1cc77f88ef3e900aeae65f0e5e504794</a></li>
+</ul>
+]]></content>
+      <categories>
+        <category>Github</category>
+      </categories>
+      <tags>
+        <tag>Github</tag>
+      </tags>
+  </entry>
 </search>
