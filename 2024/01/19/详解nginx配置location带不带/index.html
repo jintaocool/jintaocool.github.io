@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>详解nginx配置location带不带/ |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Nginx-详解nginx配置location带不带"
+  class="article article-type-Nginx"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  详解nginx配置location带不带/
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/19/%E8%AF%A6%E8%A7%A3nginx%E9%85%8D%E7%BD%AElocation%E5%B8%A6%E4%B8%8D%E5%B8%A6/" class="article-date">
+  <time datetime="2024-01-19T07:26:25.000Z" itemprop="datePublished">2024-01-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Nginx/">Nginx</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">5 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h1><p>nginx的知识点有很多</p>
+<ul>
+<li>server : 用于定义服务，http中可以有多个server块</li>
+<li>listen : 指定服务器侦听请求的IP地址和端口</li>
+<li>server_name : 服务名称，用于配置域名</li>
+<li><strong>location</strong> : <strong>用于配置映射路径uri对应的配置</strong></li>
+<li>root : 根路径</li>
+<li>index : 设置首页</li>
+<li>return：返回http状态码 和 可选的第二个参数可以是重定向的URL</li>
+<li>rewrite：重写URI请求 rewrite，通过使用rewrite指令在请求处理期间多次修改请求URI</li>
+<li>error_page：缺省页</li>
+<li>deny：禁止访问某个目录</li>
+<li>内置变量：nginx的配置文件中可以使用的内置变量以美元符$开始，也有人叫全局变量</li>
+<li>当然远远不止以上几点…</li>
+</ul>
+<p>我们今天着重讨论<code>location</code></p>
+<h1 id="nginx-conf配置：location不带"><a href="#nginx-conf配置：location不带" class="headerlink" title="nginx.conf配置：location不带&#x2F;"></a>nginx.conf配置：location不带&#x2F;</h1><p>首先，通过<code>nginx.conf</code>的设置，我们在8080端口开启了一个服务，以下的一些配置项我简单介绍一下</p>
+<ol>
+<li><code>location</code>：<code>映射路径</code>，一个server中可以有多个location, location后面跟一个uri,可以是一个正则表达式, &#x2F; 表示匹配任意路径, 当客户端访问的路径满足这个uri时就会执行location块里面的代码</li>
+<li><code>alias</code>：<code>虚拟目录</code>，alias指定的目录是准确的，即location匹配访问的path目录下的文件直接是在alias目录下查找的，我设置成我电脑目录的一个文件夹</li>
+<li><code>index</code>：<code>首页</code>，我设置成这个alias里的index.html</li>
+</ol>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">server</span> &#123;</span><br><span class="line">        <span class="attribute">listen</span>       <span class="number">8080</span>;</span><br><span class="line">        <span class="attribute">server_name</span>  localhost;</span><br><span class="line">        <span class="attribute">add_header</span> Cache-Control: <span class="literal">no</span>-cache;</span><br><span class="line"></span><br><span class="line">        <span class="section">location</span> /homepage &#123;</span><br><span class="line">            <span class="attribute">alias</span> <span class="string">&quot;/usr/local/Cellar/nginx/1.19.7/html/html/&quot;</span>;</span><br><span class="line">            <span class="attribute">index</span> index.html;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">error_page</span>  <span class="number">404</span>              /<span class="number">404</span>.html;</span><br><span class="line"></span><br><span class="line">        <span class="attribute">error_page</span>   <span class="number">500</span> <span class="number">502</span> <span class="number">503</span> <span class="number">504</span>  /<span class="number">404</span>.html;</span><br><span class="line"></span><br><span class="line">        <span class="section">location</span> = /<span class="number">404</span>.html &#123;</span><br><span class="line">            <span class="attribute">root</span>   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<h1 id="静态资源目录配置"><a href="#静态资源目录配置" class="headerlink" title="静态资源目录配置"></a>静态资源目录配置</h1><p>以下是上述<code>alias</code>指定的<code>/usr/local/Cellar/nginx/1.19.7/html/html</code>目录结构</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">.</span><br><span class="line">├── html      <span class="comment"># 放置html文件的文件夹</span></span><br><span class="line">├── scripts   <span class="comment"># 放置js文件的文件夹</span></span><br><span class="line">├── styles    <span class="comment"># 放置css文件的文件夹</span></span><br><span class="line">├── 404.html  <span class="comment"># 404专用html文件</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1705649112-28b8c14bcde296ced2fec4678539138e.webp" alt="image.png"></p>
+<p>在终端中开启nginx</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nginx</span><br></pre></td></tr></table></figure>
+
+<p>可以看到8080端口正常开启了服务</p>
+<p><img src="/images/1705649112-45d51095204ffdb4eebaecbc770e929e.webp" alt="image.png"></p>
+<h1 id="访问URL"><a href="#访问URL" class="headerlink" title="访问URL"></a>访问URL</h1><p>首先，我们访问的URL为<code>http://localhost:8080/homepage/</code></p>
+<p>从下图可以看到，我们的请求为200，说明nginx成功找到了该文件并返回给客户端</p>
+<p><img src="/images/1705649112-24b9d6bd579596b57255a35d3ffcee44.webp" alt="image.png"></p>
+<p>接着，我们访问的URL为<code>http://localhost:8080/homepage</code></p>
+<p>从下图中可以看到，我们的请求被<code>301</code>了，<code>301</code>的地址可以从响应头的<code>Location</code>里得知，被<code>301</code>到了<code>http://localhost:8080/homepage/</code>，然后该请求则跟上文一致200并返回html</p>
+<p><img src="/images/1705649112-55b9f4c9a5dd6f5aea4f91d331459710.webp" alt="image.png"></p>
+<h1 id="nginx-conf配置：location带"><a href="#nginx-conf配置：location带" class="headerlink" title="nginx.conf配置：location带&#x2F;"></a>nginx.conf配置：location带&#x2F;</h1><p>我们现在修改location</p>
+<figure class="highlight diff"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">server &#123;</span><br><span class="line">        listen       8080;</span><br><span class="line">        server_name  localhost;</span><br><span class="line">        add_header Cache-Control: no-cache;</span><br><span class="line"></span><br><span class="line"><span class="deletion">-       location /homepage &#123;</span></span><br><span class="line"><span class="addition">+       location /homepage/ &#123;</span></span><br><span class="line">            alias &quot;/usr/local/Cellar/nginx/1.19.7/html/html/&quot;;</span><br><span class="line">            index index.html;</span><br><span class="line">            expires off;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        error_page  404              /404.html;</span><br><span class="line"></span><br><span class="line">        error_page   500 502 503 504  /404.html;</span><br><span class="line"></span><br><span class="line">        location = /404.html &#123;</span><br><span class="line">            root   html;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p>修改完成后，让nginx重启，应用新的配置</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">nginx -s reload</span><br></pre></td></tr></table></figure>
+
+<h1 id="接着访问URL"><a href="#接着访问URL" class="headerlink" title="接着访问URL"></a>接着访问URL</h1><p>首先，我们访问的URL为<code>http://localhost:8080/homepage</code></p>
+<p>在下图中，我们可以看到请求404了</p>
+<p><img src="/images/1705649112-958bfd8025713cf348c8501b365f96b6.webp" alt="image.png"></p>
+<p>接着，我们访问的URL为<code>http://localhost:8080/homepage/</code></p>
+<p>在下图中，我们可以看到，<strong>与未加&#x2F;对比，并没有什么不同</strong></p>
+<p><img src="/images/1705649112-687c00bbd1442d867481e8e93b3f81d3.webp" alt="image.png"></p>
+<h1 id="location-URI结尾带不带"><a href="#location-URI结尾带不带" class="headerlink" title="location URI结尾带不带 &#x2F;"></a>location URI结尾带不带 &#x2F;</h1><p>关于 URI 尾部的 <code>/</code> 有三点也需要说明一下。第一点与 location 配置有关，其他两点无关。</p>
+<ol>
+<li>location 中的字符有没有 <code>/</code> 都没有影响。也就是说 <code>/homepage/</code> 和 <code>/homepage</code> 是一样的。</li>
+<li>如果 URI 结构是 <code>https://domain.com/</code> 的形式，尾部有没有 <code>/</code> 都不会造成重定向。因为浏览器在发起请求的时候，默认加上了 <code>/</code> 。虽然很多浏览器在地址栏里也不会显示 <code>/</code> 。</li>
+<li>如果 URI 的结构是 <code>https://domain.com/homepage/</code> 。尾部如果缺少 <code>/</code> 将导致重定向。因为根据约定，URL 尾部的 <code>/</code> 表示目录，没有 <code>/</code> 表示文件。所以访问 <code>/homepage/</code> 时，服务器会自动去该目录下找对应的默认文件。如果访问 <code>/homepage</code> 的话，服务器会先去找 <code>homepage</code> 文件，找不到的话会将 <code>homepage</code> 当成目录，重定向到 <code>/homepage/</code> ，去该目录下找默认文件。</li>
+</ol>
+<h1 id="location优先级"><a href="#location优先级" class="headerlink" title="location优先级"></a>location优先级</h1><p><code>location</code>的优先级与<code>location</code>配置的位置无关</p>
+<ol>
+<li>正则匹配 location ~ &#x2F;index { }</li>
+<li>不区分大小写的正则匹配 location ~* &#x2F;index { }</li>
+<li>匹配路径的前缀，如果找到停止搜索 location ^~ &#x2F;index { }</li>
+<li>精确匹配 location &#x3D; &#x2F;index { }</li>
+<li>普通路径前缀匹配 location &#x2F;index { }</li>
+<li>优先级: 4 &gt; 3 &gt; 2 &gt; 1 &gt; 5</li>
+</ol>
+<figure class="highlight nginx"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">location</span> = / &#123;</span><br><span class="line">    <span class="comment"># 精确匹配/，主机名后面不能带任何字符串 /</span></span><br><span class="line">    [ <span class="attribute">configuration</span> A ]</span><br><span class="line">&#125;</span><br><span class="line">location / &#123;</span><br><span class="line">    <span class="comment"># 匹配所有以 / 开头的请求。</span></span><br><span class="line">    <span class="comment"># 但是如果有更长的同类型的表达式，则选择更长的表达式。</span></span><br><span class="line">    <span class="comment"># 如果有正则表达式可以匹配，则优先匹配正则表达式。</span></span><br><span class="line">    [ <span class="attribute">configuration</span> B ]</span><br><span class="line">&#125;</span><br><span class="line">location /documents/ &#123;</span><br><span class="line">    <span class="comment"># 匹配所有以 /documents/ 开头的请求，匹配符合以后，还要继续往下搜索。</span></span><br><span class="line">    <span class="comment"># 但是如果有更长的同类型的表达式，则选择更长的表达式。</span></span><br><span class="line">    <span class="comment"># 如果有正则表达式可以匹配，则优先匹配正则表达式。</span></span><br><span class="line">    [ <span class="attribute">configuration</span> C ]</span><br><span class="line">&#125;</span><br><span class="line">location<span class="regexp"> ^~</span> /images/ &#123;</span><br><span class="line">    <span class="comment"># 匹配所有以 /images/ 开头的表达式，如果匹配成功，则停止匹配查找，停止搜索。</span></span><br><span class="line">    <span class="comment"># 所以，即便有符合的正则表达式location，也不会被使用</span></span><br><span class="line">    [ <span class="attribute">configuration</span> D ]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">location <span class="regexp">~* \.(gif|jpg|jpeg)$</span> &#123;</span><br><span class="line">    <span class="comment"># 匹配所有以 gif jpg jpeg结尾的请求。</span></span><br><span class="line">    <span class="comment"># 但是 以 /images/开头的请求，将使用 Configuration D，D具有更高的优先级</span></span><br><span class="line">    [ <span class="attribute">configuration</span> E ]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">location /images/ &#123;</span><br><span class="line">    <span class="comment"># 字符匹配到 /images/，还会继续往下搜索</span></span><br><span class="line">    [ <span class="attribute">configuration</span> F ]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">location = /test.htm &#123;</span><br><span class="line">    <span class="attribute">root</span>   /usr/local/var/www/htm;</span><br><span class="line">    <span class="attribute">index</span>  index.htm;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/19/%E8%AF%A6%E8%A7%A3nginx%E9%85%8D%E7%BD%AElocation%E5%B8%A6%E4%B8%8D%E5%B8%A6/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Nginx/" rel="tag">Nginx</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/19/%E6%B8%85%E7%90%86Docker%E5%9E%83%E5%9C%BE%E5%8D%A0%E7%94%A8%E7%9A%84%E7%A3%81%E7%9B%98%E7%A9%BA%E9%97%B4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">清理Docker垃圾占用的磁盘空间</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
