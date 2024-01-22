@@ -143,17 +143,17 @@
 </li>
 </ul>
 <h2 id="1-域名购买"><a href="#1-域名购买" class="headerlink" title="1.域名购买"></a>1.域名购买</h2><p>域名可以在腾讯云上购买，根据自己的需要选择代理商购买域名即可。</p>
-<p>腾讯云域名购买地址：<a href="https://link.juejin.cn/?target=https://dnspod.qcloud.com/?from=console" title="https://dnspod.qcloud.com/?from=console">dnspod.qcloud.com&#x2F;?from&#x3D;conso…</a></p>
+<p>腾讯云域名购买地址：<a href="%22https://dnspod.qcloud.com/?from=console%22">dnspod.qcloud.com&#x2F;?from&#x3D;conso…</a></p>
 <p>其他代理商的域名购买地址请自行查询。</p>
 <h2 id="2-域名解析"><a href="#2-域名解析" class="headerlink" title="2.域名解析"></a>2.域名解析</h2><p>在购买好域名的基础上，我们需要进行域名的解析，不然通过该域名无法得知实际的公网 IP 地址</p>
-<p>腾讯云域名解析地址：<a href="https://link.juejin.cn/?target=https://console.cloud.tencent.com/cns" title="https://console.cloud.tencent.com/cns">console.cloud.tencent.com&#x2F;cns</a></p>
+<p>腾讯云域名解析地址：<a href="%22https://console.cloud.tencent.com/cns%22">console.cloud.tencent.com&#x2F;cns</a></p>
 <p>进入此页面点击<code>解析</code>，然后添加一条 A 记录(记录类型为 A，记录值为腾讯云服务器的公网 IP 地址，主机记录根据自己的需要进行选择即可，线路类型选择默认即可，TTL 默认设置 600 秒即可)，此时我们已经完成了域名的解析工作。</p>
 <p>然后我们可以通过 ping 服务来测试解析是否成功，通过 ping 域名,查看返回的 IP 是否为自己的公网 IP 地址，如果返回的是自己的公网 IP 地址，即证明解析成功，可以执行后续操作了。此时在浏览器的地址栏中输入自己的域名即可打开自己通过公网 IP 才能打开的网站。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">例如：</span><br><span class="line">ping sweetheartjq.cn</span><br></pre></td></tr></table></figure>
 
 <p>若出现如下页面即表示解析成功</p>
 <p><img src="/images/1705886768-5a7513f9112b12fa0b29e2d3d6d2fcb4.webp" alt="域名解析成功页面"></p>
-<h2 id="3-申请并下载-SSL-证书"><a href="#3-申请并下载-SSL-证书" class="headerlink" title="3.申请并下载 SSL 证书"></a>3.申请并下载 SSL 证书</h2><p>SSL 证书申请地址：<a href="https://link.juejin.cn/?target=https://console.cloud.tencent.com/ssl" title="https://console.cloud.tencent.com/ssl">console.cloud.tencent.com&#x2F;ssl</a></p>
+<h2 id="3-申请并下载-SSL-证书"><a href="#3-申请并下载-SSL-证书" class="headerlink" title="3.申请并下载 SSL 证书"></a>3.申请并下载 SSL 证书</h2><p>SSL 证书申请地址：<a href="%22https://console.cloud.tencent.com/ssl%22">console.cloud.tencent.com&#x2F;ssl</a></p>
 <p>进入此页面点击<code>申请免费证书</code>或者<code>购买证书</code>均可，根据自己的需要进行选择即可，一般情况下若没有特殊作用的建议选择申请免费证书。</p>
 <p>点击申请免费证书后，在出现下图所示页面后点击<code>确定</code>即可。</p>
 <p><img src="/images/1705886768-4f3fe85062c5e6c71992afbee147899e.webp"></p>
@@ -162,12 +162,12 @@
 <p>填写完成后等待腾讯审核即可，一般这个审核较快，最长不会超过一天，审核通过后可以在我的证书页面中看到自己的已经签发的证书，然后点击下载即可。</p>
 <p><img src="/images/1705886768-6124c5a21eb27e822236e76ee06b9cc2.webp"></p>
 <h2 id="4-上传证书到自己的服务器"><a href="#4-上传证书到自己的服务器" class="headerlink" title="4.上传证书到自己的服务器"></a>4.上传证书到自己的服务器</h2><p>将上一步中下载的证书解压，然后根据自己的服务(apache&#x2F;nginx&#x2F;tomcat 等)选择将相应的文件上传到自己的服务器即可。此处可以通过 FileZilla 或者 xftp 将文件上传到服务器，具体如何上传可以根据自己的喜好选择即可。</p>
-<p>FileZilla 官网：<a href="https://link.juejin.cn/?target=https://filezilla-project.org/" title="https://filezilla-project.org/">filezilla-project.org&#x2F;</a></p>
-<p>xftp 官网：<a href="https://link.juejin.cn/?target=https://www.netsarang.com/zh/xftp/" title="https://www.netsarang.com/zh/xftp/">www.netsarang.com/zh/xftp/</a></p>
+<p>FileZilla 官网：<a href="%22https://filezilla-project.org/%22">filezilla-project.org&#x2F;</a></p>
+<p>xftp 官网：<a href="%22https://www.netsarang.com/zh/xftp/%22">www.netsarang.com/zh/xftp/</a></p>
 <p><strong>注意：若使用的是 nginx 服务，即将解压文件夹下的 nginx 目录下的两个文件上传到 nginx 的安装目录下的 conf 目录下，其他服务请查看腾讯的文档进行上传</strong></p>
 <p>例如我的 nginx 目录下的这两个文件，将其上传到自己的服务器的 nginx 安装目录下的 conf 文件夹下即可。</p>
 <p><img src="/images/1705886768-c0db7ead6ddc35af1fed687f2e1ee4a5.webp"></p>
-<p>腾讯官方的 SSL 证书安装教程：<a href="https://link.juejin.cn/?target=https://cloud.tencent.com/document/product/400/35244" title="https://cloud.tencent.com/document/product/400/35244">cloud.tencent.com&#x2F;document&#x2F;pr…</a></p>
+<p>腾讯官方的 SSL 证书安装教程：<a href="%22https://cloud.tencent.com/document/product/400/35244%22">cloud.tencent.com&#x2F;document&#x2F;pr…</a></p>
 <h2 id="5-修改服务器上的-nginx-目录下的-nginx-conf-文件"><a href="#5-修改服务器上的-nginx-目录下的-nginx-conf-文件" class="headerlink" title="5.修改服务器上的 nginx 目录下的 nginx.conf 文件"></a>5.修改服务器上的 nginx 目录下的 nginx.conf 文件</h2><p>在上一步的文件上传成功后，需要修改服务器上的 nginx 目录下的<code>nginx.conf</code>文件。</p>
 <ul>
 <li>此操作可通过执行 vim &#x2F;usr&#x2F;local&#x2F;nginx&#x2F;conf&#x2F;nginx.conf 命令行编辑该文件。</li>
@@ -181,8 +181,8 @@
 
 <p>配置完成后即可通过 https 协议访问自己的域名。</p>
 <p><strong>注意，若重启 nginx 服务报如下错误（ssl parameter requires ngx_http_ssl_module），则证明 nginx 安装时缺少 http_ssl_module 模块，解决方案参考下文</strong></p>
-<p>解决方案可参考：<a href="https://link.juejin.cn/?target=https://sweetheartjq.cn/pages/3cce56/" title="https://sweetheartjq.cn/pages/3cce56/">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></p>
-<p>或参考此文：<a href="https://link.juejin.cn/?target=https://www.jianshu.com/p/9e81818028b7" title="https://www.jianshu.com/p/9e81818028b7">www.jianshu.com/p/9e8181802…</a> <strong>若按照此文章配置不成功的情况下，可以将 nginx 服务删除，然后重新安装，在安装时配置安装 http_ssl_module 模块，具体可参考我的文章<a href="https://link.juejin.cn/?target=https://sweetheartjq.cn/pages/3cce56/" title="https://sweetheartjq.cn/pages/3cce56/">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></strong></p>
+<p>解决方案可参考：<a href="%22https://sweetheartjq.cn/pages/3cce56/%22">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></p>
+<p>或参考此文：<a href="%22https://www.jianshu.com/p/9e81818028b7%22">www.jianshu.com/p/9e8181802…</a> <strong>若按照此文章配置不成功的情况下，可以将 nginx 服务删除，然后重新安装，在安装时配置安装 http_ssl_module 模块，具体可参考我的文章<a href="%22https://sweetheartjq.cn/pages/3cce56/%22">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></strong></p>
 <h2 id="6-http-重定向到-https-协议（可选）"><a href="#6-http-重定向到-https-协议（可选）" class="headerlink" title="6.http 重定向到 https 协议（可选）"></a>6.http 重定向到 https 协议（可选）</h2><p>在浏览器中直接输入域名访问的是 http 协议，若需要将 http 请求重定向到 https 请求，则可以执行下方操作，即修改 nginx 安装目录下的<code>nginx.conf</code>文件。</p>
 <p>配置 SSL 证书和重定向到 https 请求</p>
 <figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">server &#123;</span><br><span class="line">    <span class="comment">#SSL 访问端口号为 443</span></span><br><span class="line">    listen 443 ssl<span class="comment">;</span></span><br><span class="line"> <span class="comment">#填写绑定证书的域名</span></span><br><span class="line"> <span class="comment"># cloud.tencent.com为自己的域名</span></span><br><span class="line">    server_name cloud.tencent.com<span class="comment">;</span></span><br><span class="line"> <span class="comment">#证书文件名称</span></span><br><span class="line"> <span class="comment"># 1_cloud.tencent.com_bundle.crt为你自己下载的文件中以.crt结尾的文件名</span></span><br><span class="line">    ssl_certificate 1_cloud.tencent.com_bundle.crt<span class="comment">;</span></span><br><span class="line"> <span class="comment">#私钥文件名称</span></span><br><span class="line"> <span class="comment"># 2_cloud.tencent.com.key 为你自己下载的文件中以.key结尾的文件名</span></span><br><span class="line">    ssl_certificate_key 2_cloud.tencent.com.key<span class="comment">;</span></span><br><span class="line">    ssl_session_timeout 5m<span class="comment">;</span></span><br><span class="line"> <span class="comment">#请按照以下协议配置</span></span><br><span class="line">    ssl_protocols TLSv1 TLSv1.1 TLSv1.2<span class="comment">;</span></span><br><span class="line"> <span class="comment">#请按照以下套件配置，配置加密套件，写法遵循 openssl 标准。</span></span><br><span class="line">    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:HIGH:!aNULL:!MD5:!RC4:!DHE<span class="comment">;</span></span><br><span class="line">    ssl_prefer_server_ciphers on<span class="comment">;</span></span><br><span class="line">    location / &#123;</span><br><span class="line">    <span class="comment">#网站主页路径。此路径仅供参考，具体请您按照实际目录操作。</span></span><br><span class="line">    <span class="comment"># 此时的root下的路径保持和自己的http协议下的另一个server中的root下的路径一致</span></span><br><span class="line">        root html<span class="comment">;</span></span><br><span class="line">        index  index.html index.htm<span class="comment">;</span></span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 80<span class="comment">;</span></span><br><span class="line">    <span class="comment">#填写绑定证书的域名</span></span><br><span class="line">    <span class="comment"># cloud.tencent.com为你自己的域名</span></span><br><span class="line">    server_name cloud.tencent.com<span class="comment">;</span></span><br><span class="line">    <span class="comment">#把http的域名请求转成https</span></span><br><span class="line">    return 301 https://$host$request_uri<span class="comment">;</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
@@ -191,8 +191,8 @@
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo service nginx reload</span><br></pre></td></tr></table></figure>
 
 <h2 id="完成"><a href="#完成" class="headerlink" title="完成"></a>完成</h2><p>此时已经安装配置完成了，可以通过 https 协议访问自己的域名了，且使用 http 协议访问此域名时会自动重定向到 https 请求。</p>
-<h3 id="参考文档："><a href="#参考文档：" class="headerlink" title="参考文档："></a>参考文档：</h3><p>腾讯官方的 SSL 证书安装教程：<a href="https://link.juejin.cn/?target=https://cloud.tencent.com/document/product/400/35244" title="https://cloud.tencent.com/document/product/400/35244">cloud.tencent.com&#x2F;document&#x2F;pr…</a></p>
-<p>centos7 安装配置 nginx 服务：<a href="https://link.juejin.cn/?target=https://sweetheartjq.cn/pages/3cce56/" title="https://sweetheartjq.cn/pages/3cce56/">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></p>
+<h3 id="参考文档："><a href="#参考文档：" class="headerlink" title="参考文档："></a>参考文档：</h3><p>腾讯官方的 SSL 证书安装教程：<a href="%22https://cloud.tencent.com/document/product/400/35244%22">cloud.tencent.com&#x2F;document&#x2F;pr…</a></p>
+<p>centos7 安装配置 nginx 服务：<a href="%22https://sweetheartjq.cn/pages/3cce56/%22">sweetheartjq.cn&#x2F;pages&#x2F;3cce5…</a></p>
  
       <!-- reward -->
       
