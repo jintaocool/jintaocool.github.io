@@ -10209,4 +10209,36 @@
         <tag>Http</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Prometheus查询合并标签</title>
+    <url>/2024/01/22/Prometheus%E6%9F%A5%E8%AF%A2%E5%90%88%E5%B9%B6%E6%A0%87%E7%AD%BE/</url>
+    <content><![CDATA[<p>说明：Prometheus有时需要将两个度量值通过某个标签关联，相当于sql里面的连表查询。在实际使用场景中，我们可能会对两个指标进行关联查询判断，需要判断指标B的值，但在写告警rule时需要借助指标A的labels【指标B中并没有这些labels】，则需要把指标B的value值通过关联交集lable赋值给指标A，此后可以对指标A进行判断并在rule中引用A的lables。</p>
+<p>0*指标A{交集label&#x3D;<del>“关联值”} + on (交集label) group_left(指标B) 指标B{交集label&#x3D;</del>“关联值”}</p>
+<p><img src="/images/screenshot-20240122-142655.png" alt="图片"></p>
+<p>举例如下：</p>
+<p>有<code>查询语句1</code>（得到温度传感器的名称）：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">node_hwmon_sensor_label&#123;instance<span class="operator">=</span>&quot;192.168.1.100&quot;,  label<span class="operator">=</span><span class="operator">~</span>&quot;core_.*&quot;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>得到结果：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">node_hwmon_sensor_label&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_0&quot;</span>, sensor=<span class="string">&quot;temp2&quot;</span>&#125;   1</span><br><span class="line">node_hwmon_sensor_label&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_1&quot;</span>, sensor=<span class="string">&quot;temp3&quot;</span>&#125;   1</span><br><span class="line">node_hwmon_sensor_label&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_2&quot;</span>, sensor=<span class="string">&quot;temp4&quot;</span>&#125;   1</span><br><span class="line">node_hwmon_sensor_label&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_3&quot;</span>, sensor=<span class="string">&quot;temp5&quot;</span>&#125;   1</span><br></pre></td></tr></table></figure>
+
+<p>有<code>查询语句2</code>（得到温度传感器的温度值）：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line">node_hwmon_temp_celsius&#123;instance<span class="operator">=</span>&quot;192.168.1.100&quot;, chip<span class="operator">=</span><span class="operator">~</span>&quot;.+core.+&quot;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>得到结果：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">node_hwmon_temp_celsius&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, sensor=<span class="string">&quot;temp1&quot;</span>&#125;  37</span><br><span class="line">node_hwmon_temp_celsius&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, sensor=<span class="string">&quot;temp2&quot;</span>&#125;  34</span><br><span class="line">node_hwmon_temp_celsius&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, sensor=<span class="string">&quot;temp3&quot;</span>&#125;  37</span><br><span class="line">node_hwmon_temp_celsius&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, sensor=<span class="string">&quot;temp4&quot;</span>&#125;  35</span><br><span class="line">node_hwmon_temp_celsius&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, sensor=<span class="string">&quot;temp5&quot;</span>&#125;  34</span><br></pre></td></tr></table></figure>
+
+<p>遇到的问题是：在<code>查询语句2</code>中得到的结果没有标识此温度传感器叫什么名字，对应到哪个核心CPU上，此名字在<code>查询语句1</code>中可以得到，所以，目标就是通过一行查询语言，得到温度的同时，也可以得到此传感器对应到哪个CPU核心上。这两个结果中，可以通过<code>sensor=&quot;tempX&quot;</code>进行关联，则有如下语句：</p>
+<figure class="highlight sql"><table><tr><td class="code"><pre><span class="line"><span class="number">0</span> <span class="operator">*</span> node_hwmon_sensor_label&#123;instance<span class="operator">=</span>&quot;27.151.29.179&quot;,  label<span class="operator">=</span><span class="operator">~</span>&quot;core_.*&quot;&#125; <span class="operator">+</span> <span class="keyword">on</span> (sensor) group_left(node_hwmon_temp_celsius) node_hwmon_temp_celsius&#123;instance<span class="operator">=</span>&quot;27.151.29.179&quot;, chip<span class="operator">=</span><span class="operator">~</span>&quot;.+core.+&quot;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>得到结果：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_0&quot;</span>, sensor=<span class="string">&quot;temp2&quot;</span>&#125;  33</span><br><span class="line">&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_1&quot;</span>, sensor=<span class="string">&quot;temp3&quot;</span>&#125;  36</span><br><span class="line">&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_2&quot;</span>, sensor=<span class="string">&quot;temp4&quot;</span>&#125;  35</span><br><span class="line">&#123;chip=<span class="string">&quot;platform_coretemp_0&quot;</span>, instance=<span class="string">&quot;192.168.1.100&quot;</span>, job=<span class="string">&quot;node-development&quot;</span>, label=<span class="string">&quot;core_3&quot;</span>, sensor=<span class="string">&quot;temp5&quot;</span>&#125;  34</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>Prometheus</category>
+      </categories>
+      <tags>
+        <tag>Prometheus</tag>
+      </tags>
+  </entry>
 </search>
