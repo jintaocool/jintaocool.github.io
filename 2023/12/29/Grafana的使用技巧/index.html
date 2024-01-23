@@ -147,14 +147,14 @@
 </ul>
 <h2 id="总量误区"><a href="#总量误区" class="headerlink" title="总量误区"></a>总量误区</h2><p>这里有一个常见的 Grafana 误区，因为经常有用数值类型的 count_ps来顺便获取每秒打点数量的情况，注意在这种情况下，一段时间内的打点总量需要使用 count___ps 的 avg 平均值来乘以这段时间的秒数来计算，而不是通过界面上的 Total 直接读取。</p>
 <p>这是因为，在界面上一条曲线能够展示的点的数量是有限的，Grafana 会根据你的窗口宽度来决定返回的点数，因为像<code>一天</code>这样的时间段肯定没办法在界面上展示每一秒的点，毕竟总量为86400个点就算带鱼屏也不可能挤得下。对于无法展示的点，Grafana 默认是使用 avg 平均值的行为来修正返回点的值，举个栗子，如下图：</p>
-<p><img src="/assets/1703817654-da741bf9da37ec3cbfdb27ed2cbe6f11.webp"></p>
+<p><img src="/images/1703817654-da741bf9da37ec3cbfdb27ed2cbe6f11.webp"></p>
 <p>上图时间范围是一天，上部分为曲线面板的值，下部分为 面饼图表的值，并且上部分图标的曲线为 count 类型（十秒聚一次），可以看到 avg 平均值为 683，那么总量应该为 682 乘以 6 （如果是 count_ps 这里则是60） 乘以 60 （一小时60分钟）再乘以 24 （一天24小时）得到589万，与图片中下部分的582万相近，因此上部分 total 的117万是一个完完全全让人误解的值，可以认为它毫无意义进而直接无视掉。</p>
 <h2 id="误差"><a href="#误差" class="headerlink" title="误差"></a>误差</h2><p>上文中我们计算出来的589万和界面上的582万其实也有一点误差，不过这是可以接受的，因为 statsd 一般情况下是 UDP 的形式（它其实有 TCP 的形式），所以如果想要完全正确的数据，那么最好把打点相关的数据也入库，从数据库里后置查询出来的才是完全可靠。</p>
 <h2 id="模板变量"><a href="#模板变量" class="headerlink" title="模板变量"></a>模板变量</h2><p>模板变量能够动态地控制面板中的查询语句，是十分重要的功能。经常可以在面板的左上角发现它们，如下图：</p>
-<p><img src="/assets/1703817654-b2928bf6b280e8c770918193b7191e18.svg"></p>
+<p><img src="/images/1703817654-b2928bf6b280e8c770918193b7191e18.svg"></p>
 <h2 id="模板变量的写法"><a href="#模板变量的写法" class="headerlink" title="模板变量的写法"></a>模板变量的写法</h2><p>模板变量支持 <code>$name</code> 和 <code>[[name]]</code> 的写法，针对 graphite 数据源主要使用前者，例如：<code>stats.timers.fe.test.$key.count_ps</code></p>
 <h2 id="新建模板变量"><a href="#新建模板变量" class="headerlink" title="新建模板变量"></a>新建模板变量</h2><p>Grafana 界面上齿轮按钮 -&gt; Templating -&gt; 点击 New，即可出现类似如下的界面：</p>
-<p><img src="/assets/1703817654-ef7ea0c94b737a215402a7432df34bc9.svg"></p>
+<p><img src="/images/1703817654-ef7ea0c94b737a215402a7432df34bc9.svg"></p>
 <p>本段主要介绍 Query 类型的写法。</p>
 <ul>
 <li><p>Name</p>
@@ -178,7 +178,7 @@
 <h2 id="模板变量的隐藏玩法"><a href="#模板变量的隐藏玩法" class="headerlink" title="模板变量的隐藏玩法"></a>模板变量的隐藏玩法</h2><p>模板变量甚至可以用在 Grafana 的跳转中，这个隐藏玩法带来了很多便利。在 <code>Link</code> 或者 <code>Dashboard</code> 里 URL 中任意位置填入 $name ，那么用户点击该链接跳转时 Grafana 同样会替换该变量来让你跳到正确的链接去。这和其他系统整合起来能够做到很不错的用户体验，例如跳转到 kibana 那边去查询日志。</p>
 <p>另外，Custom 类型的模板变量可以允许用户在变量下拉框中自行输入值，也是一个经常用到的类型，并且模板变量会和当前链接中的 querystring 部分的<code>var-$&#123;name&#125;</code> 同步，配合起来可以轻松地让第三方系统和 Grafana 互相精准地跳转</p>
 <h2 id="Grafana-面板编辑器"><a href="#Grafana-面板编辑器" class="headerlink" title="Grafana 面板编辑器"></a>Grafana 面板编辑器</h2><p>以 Editor 权限的账号进入到任意面板中，点击某个图表继而点击小弹窗中的 Edit 按钮，即可进入图表的编辑器界面。对于编辑器本文只介绍图表的重要配置，Metrics，Legend 和 Display</p>
-<h2 id="Metrcis"><a href="#Metrcis" class="headerlink" title="Metrcis"></a>Metrcis</h2><p><img src="/assets/1703817654-78c4f4f168e7ab1377b1235f4b3c89f6.svg"></p>
+<h2 id="Metrcis"><a href="#Metrcis" class="headerlink" title="Metrcis"></a>Metrcis</h2><p><img src="/images/1703817654-78c4f4f168e7ab1377b1235f4b3c89f6.svg"></p>
 <ul>
 <li><p>编辑模式</p>
 </li>
@@ -189,9 +189,9 @@
 <li><p><code>Panel data source</code> 一定要选对，否则查不到对应的路径，并且很有可能冒出来 Mock 数据让人一脸懵逼。</p>
 </li>
 </ul>
-<p><img src="/assets/1703817654-59dc1882427981465c6be535a1f9917c.svg"></p>
+<p><img src="/images/1703817654-59dc1882427981465c6be535a1f9917c.svg"></p>
 <p>开启动态编辑模式时可以在点击上图中每个框框，这时 Grafana 会自动加载该位置在数据源中的值，并且你也可以在这里选择模板变量来动态控制。</p>
-<p><img src="/assets/1703817654-868cfe72bf63ff2338b11f2a156dec91.svg"></p>
+<p><img src="/images/1703817654-868cfe72bf63ff2338b11f2a156dec91.svg"></p>
 <p>点击尾巴上的加号，会冒出来对应数据源的函数，可以做一些高级的功能，这个也是本文下半部分的重点，稍后再做介绍。graphite 的函数比较多，其他数据源会少一些。</p>
 <h2 id="Legend"><a href="#Legend" class="headerlink" title="Legend"></a>Legend</h2><p>Legend 主要控制曲线的名称和值的展示，比较简单，这里列出一下他们的含义</p>
 <ul>
@@ -256,9 +256,9 @@
 </li>
 </ul>
 <h2 id="高级函数"><a href="#高级函数" class="headerlink" title="高级函数"></a>高级函数</h2><p>以 graphite 为例子，打点路径中的 KEY 只支持大小写字母、数字、中划线和下划线，这会导致前端的路径（经常包含 # 和 :path）存不下来，因此我们只能提前转译，例如将 # 转译为 ANCHOR，将 :path 转译为 PATH ，再将 &#x2F; 转译为 -，这样在变量模板中展示的就是比较怪异的前端路径，不过好在我们有函数，可以在界面上把它替换回来。</p>
-<p><img src="/assets/1703817654-07ee04e476f13473e8a5f95f57d72163.svg"></p>
+<p><img src="/images/1703817654-07ee04e476f13473e8a5f95f57d72163.svg"></p>
 <p>点击编辑界面 Metrics 面板中编辑模式的加号，添加 <code>aliaSub</code> 函数，并依此填入上图的三种的替换规则，在界面上就可以看到如下图的正常路径了：</p>
-<p><img src="/assets/1703817654-42cb4786c1c5cbea296066067a49ec87.svg"></p>
+<p><img src="/images/1703817654-42cb4786c1c5cbea296066067a49ec87.svg"></p>
 <p>aliaSub 只是其中一个简单的 alias 函数，用来处理曲线的名称，更多的函数是被用来处理单个查询的聚合、多条曲线的聚合、展示不同时间线、计算和过滤，本节会介绍其中一些经常用到的函数。</p>
 <h2 id="聚合单个查询的多条匹配曲线的总量-Combine-sumSeries"><a href="#聚合单个查询的多条匹配曲线的总量-Combine-sumSeries" class="headerlink" title="聚合单个查询的多条匹配曲线的总量 Combine -&gt; sumSeries"></a>聚合单个查询的多条匹配曲线的总量 Combine -&gt; sumSeries</h2><p>例如，假设 <code>stats_count.fe.test.*</code> 有几十个匹配值，那么这个查询就会在图表中展示几十条曲线，此时如何获取所有曲线的总值呢？</p>
 <p>不需要在打点时多打一份总量数据，直接使用 <code>sumSeries</code> 函数即可，<code>sumSeries(stats_count.fe.test.*)</code></p>
@@ -279,7 +279,7 @@
 </li>
 </ul>
 <h2 id="多条曲线数值的聚合-Special-groupByNode"><a href="#多条曲线数值的聚合-Special-groupByNode" class="headerlink" title="多条曲线数值的聚合 Special -&gt; groupByNode"></a>多条曲线数值的聚合 Special -&gt; groupByNode</h2><p>sumSeries 函数只能简单地将多条数据的最终值加起来，如果不是末尾位置的就不行了，而且也不支持除了 sum 外的功能，例如 avg 平均，使用 groupByNode 就可以动态地对指定位置的多个数值类型进行聚合了，如下图：</p>
-<p><img src="/assets/1703817654-76c82d41b168617077f427594b588591.svg"></p>
+<p><img src="/images/1703817654-76c82d41b168617077f427594b588591.svg"></p>
 <h2 id="计算多个-Query-组成的成功率-Calculate-asPercent"><a href="#计算多个-Query-组成的成功率-Calculate-asPercent" class="headerlink" title="计算多个 Query 组成的成功率 Calculate -&gt; asPercent"></a>计算多个 Query 组成的成功率 Calculate -&gt; asPercent</h2><p>假设我们有如下几条打点：</p>
 <figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">stats.timers.fe.test.error1.count</span><br><span class="line">stats.timers.fe.test.error2.count</span><br><span class="line">stats.timers.fe.test.error3.count</span><br><span class="line">stats.timers.fe.test.success.count</span><br></pre></td></tr></table></figure>
 
