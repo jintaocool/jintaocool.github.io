@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Grafana中table的使用技巧 |  Lijintao&#39;s Blog</title>
+      <title>Grafana reporter定时报表踩坑记录 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,7 +69,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="Grafana-Grafana中table的使用技巧"
+  id="Grafana-Grafana-reporter定时报表踩坑记录"
   class="article article-type-Grafana"
   itemscope
   itemprop="blogPost"
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Grafana中table的使用技巧
+  Grafana reporter定时报表踩坑记录
 </h1>
  
 
@@ -88,8 +88,8 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/01/23/Grafana%E4%B8%ADtable%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" class="article-date">
-  <time datetime="2024-01-23T05:38:15.000Z" itemprop="datePublished">2024-01-23</time>
+      <a href="/2024/01/23/Grafana-reporter%E5%AE%9A%E6%97%B6%E6%8A%A5%E8%A1%A8%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/" class="article-date">
+  <time datetime="2024-01-23T05:43:09.000Z" itemprop="datePublished">2024-01-23</time>
 </a> 
   <div class="article-category">
     <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">44</span>
+            <span class="post-count">995</span>
         </span>
     </span>
 
@@ -109,23 +109,48 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">1 分钟</span>
+            <span class="post-count">4 分钟</span>
         </span>
     </span>
 </div>
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>将多个指标数据显示在同一个Table中，需要用到Transform功能，利用Transform功能可以将数据进行处理只显示想要的数据：</p>
-<p><img src="/images/1705988255-d1f880e82a4e885c896baeef03cda15d.png"></p>
-<p><img src="/images/1705988255-04d870c1d6ef72eb725998e478384c8a.png"> </p>
-<p><img src="/images/1705988255-327ea06b154fd91c47330b68a3261595.png"></p>
+  <p>前言：本以为测试grafana reporter功能能很顺利，但按照网上大佬分享的记录进行操作，屡屡报错，不知是因为我的grafana部署在k8s中之前由低版本升级到高版本导致的，还是其他原因，在grafana中安装Grafana Image Renderer 一直报错。</p>
+<p>Github地址：<a target="_blank" rel="noopener" href="https://github.com/IzakMarais/reporter">https://github.com/IzakMarais/reporter</a>  ，对中文不支持，dashboard中含有中文字符会报错。</p>
+<p>　　　首先介绍一下Grafana Image Renderer，它是一个用于将Grafana仪表盘转换为静态图像的插件。它提供了在Grafana中生成PNG、JPEG和SVG格式图像的功能，这些图像可以用于导出仪表盘的快照、生成报告、在文档中嵌入等用途。通过Grafana Image Renderer插件，用户可以通过简单的HTTP请求将特定的Grafana仪表盘转换为静态图像。用户可以指定要转换的仪表盘、图像的宽度和高度等参数，并通过HTTP响应获取图像的二进制数据。该插件在处理图像时还支持渲染时过滤器的应用，例如应用时间范围、自定义变量、主题等，以确保生成的图像准确地显示所需的数据和样式。Grafana Image Renderer插件可以与其他工具和系统集成，例如将生成的图像嵌入到报告生成工具、文档管理系统或自定义的应用程序中。这样，用户就能够方便地分享、保存和展示Grafana仪表盘的快照，而无需访问Grafana本身。</p>
+<p>　　　Grafana Reporter是一个基于Grafana的插件，用于生成和导出报告。它允许用户将Grafana中的监控数据和仪表盘内容导出为报告，以便与团队成员、管理层或其他人共享。Grafana Reporter支持导出为PDF、PNG、SVG和CSV等格式，可以定制报告的样式、布局和内容。用户可以设定报告的时间范围、图表和指标，并在报告中包含注释、摘要和其他信息。Grafana Reporter使用户能够以可视化和易读的方式展示和分享他们的监控数据。　</p>
+<h2 id="1-安装Grafana-reporter"><a href="#1-安装Grafana-reporter" class="headerlink" title="1.安装Grafana-reporter"></a>1.安装Grafana-reporter</h2><p>①编译安装</p>
+<p>#下载go，并配置相关路径<br>#git下载grafana-reporter到$GOPATH&#x2F;src&#x2F;下<br>go get github.com&#x2F;IzakMarais&#x2F;reporter&#x2F;…<br>此处插一句，由于github.com为国外网站，git下载过慢，可以通过各种加速方式，把zip包下载后放在$GOPATH&#x2F;src&#x2F;目录下，一般路径会有问题，请按照git install的时候提示放置包的位置<br>#go编译安装<br>go install -v github.com&#x2F;IzakMarais&#x2F;reporter&#x2F;cmd&#x2F;grafana-reporter<br>#在$GOPATH&#x2F;bin&#x2F;目录下生成grafana-reporter二进制文件<br>.&#x2F;grafana-reporter启动，默认监听0.0.0.0:8686，连接localhost:3000，<br>可以通过-port :18686更改监听端口，可以通过-ip 192.168.1.1:3000指定连接的grafana地址</p>
+<p>②docker安装</p>
+<p>#需注意时区问题，默认生成的报表为UTC时区，推荐使用修改时区后镜像或挂载时区文件</p>
+<p>docker run –name grafana-reporter –rm -v &#x2F;etc&#x2F;localtime:&#x2F;etc&#x2F;localtime -p 8686:8686 –net&#x3D;”host” izakmarais&#x2F;grafana-reporter</p>
+<p>#docker-compose.yml文件，安装grafana和renderer插件</p>
+<p>version: ‘3’<br>services:<br>  grafana:<br>    image: grafana&#x2F;grafana:latest<br>  ports:<br>    - ‘3000:3000’<br>  environment:<br>    GF_RENDERING_SERVER_URL: <a target="_blank" rel="noopener" href="http://10.10.10.10:8081/render">http://10.10.10.10:8081/render</a><br>    GF_RENDERING_CALLBACK_URL: <a target="_blank" rel="noopener" href="http://10.10.10.10:3000/">http://10.10.10.10:3000/</a><br>    GF_LOG_FILTERS: rendering:debug<br>  renderer:<br>   image: grafana&#x2F;grafana-image-renderer:latest<br>  ports:<br>    - ‘8081:8081’</p>
+<h2 id="2-生成grafana-apitoken"><a href="#2-生成grafana-apitoken" class="headerlink" title="2.生成grafana apitoken"></a>2.生成grafana apitoken</h2><p>此处不建议修改grafana为匿名登录方式，因为这样不安全。</p>
+<p><img src="/images/1705988543-b857e9da3de023e35b67b2e985eb33be.png"></p>
+<p><img src="/images/1705988543-0e9357cb39a3706ae3c580b1230fd779.png"></p>
+<p><img src="/images/1705988543-a4ea520a95c7567f4dd9805a6cb849d8.png"></p>
+<p><img src="/images/1705988543-f8e3c0cce7dab00574eea50a6d641deb.png"></p>
+<p><img src="/images/1705988543-d7c55674ac757ee834fcccec31fe4f94.png"></p>
+<h2 id="3-配置dashboard-links"><a href="#3-配置dashboard-links" class="headerlink" title="3.配置dashboard links"></a>3.配置dashboard links</h2><p><img src="/images/1705988543-22b328b40a6aed344240c2a5c9d3a03c.png"></p>
+<p>URL：<a target="_blank" rel="noopener" href="http://10.10.10.10:8686/api/v5/report/AOixXtq4z?apitoken=glsa%5C_6q3TMrS4kdEYvTaoFva1P60I6lRUhJmE%5C_256081c9">http://10.10.10.10:8686/api/v5/report/AOixXtq4z?apitoken=glsa\_6q3TMrS4kdEYvTaoFva1P60I6lRUhJmE\_256081c9</a><br>解释：10.10.10.10:8686是grafana-reporter所在的服务所在，所以grafana-reporter可以跨服务器配置；&#x2F;api&#x2F;v5&#x2F;report&#x2F;此为固定写法，不用修改；AOixXtq4z是uid，面板id，可以查看浏览器上方连接查看</p>
+<p><img src="/images/1705988543-e640ba405884667081fe90727cabc77b.png"></p>
+<ul>
+<li>点击即可查看pdf，也可以通过wget -O 名称.pdf Url下载</li>
+<li>wget -O export.pdf <a target="_blank" rel="noopener" href="http://10.10.10.10:8686/api/v5/report/AOixXtq4z?apitoken=glsa%5C_6q3TMrS4kdEYvTaoFva1P60I6lRUhJmE%5C_256081c9">http://10.10.10.10:8686/api/v5/report/AOixXtq4z?apitoken=glsa\_6q3TMrS4kdEYvTaoFva1P60I6lRUhJmE\_256081c9</a></li>
+</ul>
+<p><img src="/images/1705988543-a0ba0187bf2948835b6d0dde57d73ada.png"></p>
+<p><img src="/images/1705988543-3a0875f8c6d2da6eb73bbf70d08bb3e3.png"></p>
+<p><img src="/images/1705988543-260ad0b28ae97f7f7abb729363b09ef4.png"></p>
  
       <!-- reward -->
       
@@ -196,7 +221,7 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/23/Grafana%E4%B8%ADtable%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/23/Grafana-reporter%E5%AE%9A%E6%97%B6%E6%8A%A5%E8%A1%A8%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -209,19 +234,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/01/23/Grafana-reporter%E5%AE%9A%E6%97%B6%E6%8A%A5%E8%A1%A8%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            Grafana reporter定时报表踩坑记录
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/01/22/Prometheus%E6%9F%A5%E8%AF%A2%E5%90%88%E5%B9%B6%E6%A0%87%E7%AD%BE/" class="article-nav-link">
+      <a href="/2024/01/23/Grafana%E4%B8%ADtable%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">Prometheus查询合并标签</div>
+        <div class="article-nav-title">Grafana中table的使用技巧</div>
       </a>
     
   </nav>
