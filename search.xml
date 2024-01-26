@@ -10509,4 +10509,25 @@
         <tag>技术咖</tag>
       </tags>
   </entry>
+  <entry>
+    <title>grafana启用未签名插件</title>
+    <url>/2024/01/26/grafana%E5%90%AF%E7%94%A8%E6%9C%AA%E7%AD%BE%E5%90%8D%E6%8F%92%E4%BB%B6/</url>
+    <content><![CDATA[<h3 id="编辑配置文件grafana-ini"><a href="#编辑配置文件grafana-ini" class="headerlink" title="编辑配置文件grafana.ini"></a>编辑配置文件grafana.ini</h3><pre><code class="bash">[plugins]
+enable_alpha = true
+# 如果你想测试还没有准备好普遍使用的 alpha 插件，设置为 true。默认是假的。
+allow_loading_unsigned_plugins = 插件名
+# 输入一个逗号分隔的插件标识符列表，以识别要加载的插件，即使它们是无符号的。修改签名的插件永远不会被加载。
+plugin_admin_enabled = true
+# 只对 Grafana 管理员开放，默认情况下插件管理应用设置为 false。设置为 true 以启用应用程序。
+plugin_admin_external_manage_enabled = true
+# 如果您想启用外部插件管理，请设置为 true。默认是假的。这只适用于 Grafana Cloud 用户。
+</code></pre>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>
