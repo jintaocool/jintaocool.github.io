@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>分类 |  Lijintao&#39;s Blog</title>
+      <title>skywalking动态配置[集成nacos/apollo/consul] |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -68,12 +68,191 @@
       
     <main class="content on">
       <section class="outer">
+  <article
+  id="Skywalking-skywalking动态配置-集成nacos-apollo-consul"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  skywalking动态配置[集成nacos/apollo/consul]
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/26/skywalking%E5%8A%A8%E6%80%81%E9%85%8D%E7%BD%AE-%E9%9B%86%E6%88%90nacos-apollo-consul/" class="article-date">
+  <time datetime="2024-01-26T08:42:21.000Z" itemprop="datePublished">2024-01-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
   
-    <h1 class="page-type-title">分类</h1>
-    <div class="categories-box">
-      <ul class="category-list"><li class="category-list-item"><a class="category-list-link" href="/categories/Alertmanager/">Alertmanager</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/ClickHouse/">ClickHouse</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/DNS/">DNS</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Docker/">Docker</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Elasticsearch/">Elasticsearch</a><span class="category-list-count">4</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Github/">Github</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Grafana/">Grafana</a><span class="category-list-count">7</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Http/">Http</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/K8s/">K8s</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Keepalived/">Keepalived</a><span class="category-list-count">2</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Linux/">Linux</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Mysql/">Mysql</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Nginx/">Nginx</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PMM/">PMM</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/PromQL/">PromQL</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Prometheus/">Prometheus</a><span class="category-list-count">18</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/SNMP/">SNMP</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/SQL/">SQL</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Shell/">Shell</a><span class="category-list-count">3</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Skywalking/">Skywalking</a><span class="category-list-count">6</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a><span class="category-list-count">14</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/Zabbix/">Zabbix</a><span class="category-list-count">5</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/exporter/">exporter</a><span class="category-list-count">1</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E6%8A%80%E6%9C%AF%E5%92%96/">技术咖</a><span class="category-list-count">5</span></li><li class="category-list-item"><a class="category-list-link" href="/categories/%E8%AF%81%E4%B9%A6/">证书</a><span class="category-list-count">1</span></li></ul>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">253</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">1 分钟</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
   
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="说明：以下配置仅关于的阈值规则的动态配置，其他参数也可以进行配置。"><a href="#说明：以下配置仅关于的阈值规则的动态配置，其他参数也可以进行配置。" class="headerlink" title="说明：以下配置仅关于的阈值规则的动态配置，其他参数也可以进行配置。"></a>说明：以下配置仅关于的阈值规则的动态配置，其他参数也可以进行配置。</h3><h3 id="1，skywalking动态配置集成nacos"><a href="#1，skywalking动态配置集成nacos" class="headerlink" title="1，skywalking动态配置集成nacos"></a>1，skywalking动态配置集成nacos</h3><p>        编辑application.yml</p>
+<p><img src="/images/1706258617-6978dc1fa2c9dcb754e308cbdc3f24ac.png"></p>
+<p>nacos配置参数如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">nacos:</span><br><span class="line">  <span class="comment"># Nacos Server Host</span></span><br><span class="line">  serverAddr: 10.10.5.145</span><br><span class="line">  <span class="comment"># Nacos Server Port</span></span><br><span class="line">  port: 8848</span><br><span class="line">  <span class="comment"># Nacos Configuration Group</span></span><br><span class="line">  group: <span class="string">&#x27;skywalking&#x27;</span></span><br><span class="line">  <span class="comment"># Nacos Configuration namespace</span></span><br><span class="line">  namespace: <span class="string">&#x27;&#x27;</span></span><br><span class="line">  <span class="comment"># Unit seconds, sync period. Default fetch every 60 seconds.</span></span><br><span class="line">  period: 60</span><br><span class="line">  <span class="comment"># Nacos auth username</span></span><br><span class="line">  username: nacos</span><br><span class="line">  password: nacos1@345</span><br><span class="line">  <span class="comment"># Nacos auth accessKey</span></span><br><span class="line">  accessKey: <span class="variable">$&#123;SW_CONFIG_NACOS_ACCESSKEY:&quot;&quot;&#125;</span></span><br><span class="line">  secretKey: <span class="variable">$&#123;SW_CONFIG_NACOS_SECRETKEY:&quot;&quot;&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>nacos配置如下：</p>
+<p><img src="/images/1706258617-da9ba7f950fcc6f7e5b06d8311eba5de.png"></p>
+<p><img src="/images/1706258617-792fe7f29829a0123ba7db73d207bac1.png"></p>
+<h3 id="2，skywalking动态配置集成apollo"><a href="#2，skywalking动态配置集成apollo" class="headerlink" title="2，skywalking动态配置集成apollo"></a>2，skywalking动态配置集成apollo</h3><p>        编辑application.yml</p>
+<p><img src="/images/1706258617-ab66fa27e228452f9a6884a9bec60fe0.png"></p>
+<p>apollo配置参数如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">apollo:</span><br><span class="line">  apolloMeta: <span class="variable">$&#123;SW_CONFIG_APOLLO:http://apollo-configservice.paaska-pro.kaka.net&#125;</span></span><br><span class="line">  apolloCluster: <span class="variable">$&#123;SW_CONFIG_APOLLO_CLUSTER:hosmp-sky&#125;</span></span><br><span class="line">  apolloEnv: <span class="variable">$&#123;SW_CONFIG_APOLLO_ENV:&quot;PRO&quot;&#125;</span></span><br><span class="line">  appId: <span class="variable">$&#123;SW_CONFIG_APOLLO_APP_ID:s0888&#125;</span></span><br><span class="line">  period: <span class="variable">$&#123;SW_CONFIG_APOLLO_PERIOD:60&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>apollo配置如下：</p>
+<p><img src="/images/1706258617-f9cda9a1725ad7f38e7293c2a1c57c40.png"></p>
+<p>3，skywalking动态配置集成consul</p>
+<p>        编辑application.yml</p>
+<p><img src="/images/1706258617-dd0c8cb499752736873daafb06bedbac.png"></p>
+<p>consul配置参数如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">consul:</span><br><span class="line">  <span class="comment"># Consul host and ports, separated by comma, e.g. 1.2.3.4:8500,2.3.4.5:8500</span></span><br><span class="line">  hostAndPorts: <span class="variable">$&#123;SW_CONFIG_CONSUL_HOST_AND_PORTS:10.10.37.30:8500&#125;</span></span><br><span class="line">  <span class="comment"># Sync period in seconds. Defaults to 60 seconds.</span></span><br><span class="line">  period: <span class="variable">$&#123;SW_CONFIG_CONSUL_PERIOD:60&#125;</span></span><br><span class="line">  <span class="comment"># Consul aclToken</span></span><br><span class="line">  aclToken: <span class="variable">$&#123;SW_CONFIG_CONSUL_ACL_TOKEN:&quot;848b1dc9-aab0-40a7-8e3e-7e8b869a97ac&quot;&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>consul配置如下： </p>
+<p><img src="/images/1706258617-1ef7d2f3584075af5d7de202cab51f37.png"></p>
+<p><img src="/images/1706258617-6335c0ba695cf0dce5ed2f63d4ad19d8.png"> </p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/26/skywalking%E5%8A%A8%E6%80%81%E9%85%8D%E7%BD%AE-%E9%9B%86%E6%88%90nacos-apollo-consul/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/26/Zabbix%E8%87%AA%E5%AE%9A%E4%B9%89%E9%A3%9E%E4%B9%A6webhook%E5%91%8A%E8%AD%A6%E5%AA%92%E4%BB%8B/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix自定义飞书webhook告警媒介</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -227,6 +406,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
