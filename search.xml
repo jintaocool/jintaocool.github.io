@@ -10676,4 +10676,38 @@ plugin_admin_external_manage_enabled = true
         <tag>Skywalking</tag>
       </tags>
   </entry>
+  <entry>
+    <title>PMM深入研究：如何自定义配置和集成到外部grafana</title>
+    <url>/2024/01/26/PMM%E6%B7%B1%E5%85%A5%E7%A0%94%E7%A9%B6%EF%BC%9A%E5%A6%82%E4%BD%95%E8%87%AA%E5%AE%9A%E4%B9%89%E9%85%8D%E7%BD%AE%E5%92%8C%E9%9B%86%E6%88%90%E5%88%B0%E5%A4%96%E9%83%A8grafana/</url>
+    <content><![CDATA[<h3 id="一、如何自定义配置"><a href="#一、如何自定义配置" class="headerlink" title="一、如何自定义配置"></a>一、如何自定义配置</h3><p>        PMM整个部署过程是安装ansible并执行了playbook完成的，yml配置文件会根据你添加的目标重新生成。为什么想自定义配置，是因为我想把它采集的数据通过远程写入的方式传输到外部我们的持久化数据库victoriametrics里，这样就可以统一大盘进行展示。PMM对mongodb监控以及mysql执行SQL的分析做的非常棒。但我在查阅资料实施一系列操作后仍然不成功，发现了问题，以下是整个过程。</p>
+<p>        查阅到参考资料：<a href="https://www.percona.com/blog/2020/03/23/extending-pmm-prometheus-configuration/" title="Extending PMM&#39;s Prometheus Configuration">Extending PMM’s Prometheus Configuration</a></p>
+<p>        PMM基于ansible自动生成运行的配置文件，我们可以基于pmm 定义好的一个基础配置提供自定义配置的扩展，配置目录文件是在</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">/srv/prometheus/prometheus.base.yml，这个文件默认是不存在的，需要手动创建，格式如下：</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">---</span><br><span class="line"></span><br><span class="line">remote_write:</span><br><span class="line"></span><br><span class="line">  - url: http://1.2.3.4:8428/api/v1/write</span><br><span class="line"></span><br><span class="line">​</span><br><span class="line">scrape_configs:</span><br><span class="line"></span><br><span class="line">  - job_name: victoria-metrics</span><br><span class="line"></span><br><span class="line">    honor_timestamps: <span class="literal">true</span></span><br><span class="line"></span><br><span class="line">    scrape_interval: 5s</span><br><span class="line"></span><br><span class="line">    scrape_timeout: 4s</span><br><span class="line"></span><br><span class="line">    metrics_path: /metrics</span><br><span class="line"></span><br><span class="line">    scheme: http</span><br><span class="line"></span><br><span class="line">    static_configs:</span><br><span class="line"></span><br><span class="line">      - targets:</span><br><span class="line"></span><br><span class="line">          - <span class="string">&quot;1.2.3.4:8428&quot;</span></span><br><span class="line"></span><br><span class="line">        labels:</span><br><span class="line"></span><br><span class="line">          instance: pmm-server</span><br></pre></td></tr></table></figure>
+
+<p>        他链接里说global 会保留, scrape_configs 以及 rule_files 被合并, alerting, remote_write, 以及 remote_read 设置同样被保留，但我测试remote_write如何都不能成功，其他是可以的，后来我详细阅读了说明文档及一些别人提出的问题，发现PMM已经不再内置prometheus，而是用victoriametrics替代了它，看他架构也是由vmagent替代了prometheus的数据收集功能，它每次重新生成的配置文件在 &#x2F;etc&#x2F;victoriametrics-promscrape.yml，内容如下：</p>
+<p><img src="/images/1706263343-39b7cfa7eb69f7043b3a97ce937b770e.png"></p>
+<p>        你可以创建 &#x2F;srv&#x2F;prometheus&#x2F;prometheus.base.yml，自定义job配置或者修改global参数，但配置remote_write是不行的，是因为vmagent的配置文件不支持这个参数，我们知道vmagent的配置文件和prometheus的配置文件是有很多不一样的地方的。</p>
+<h3 id="二、集成到外部grafana"><a href="#二、集成到外部grafana" class="headerlink" title="二、集成到外部grafana"></a>二、集成到外部grafana</h3><p>        要集成到外部grafana，首先你要做的是如何将内部的victoriametrics端口暴露出来，你深入了解后，会发现它内部使用了nginx，访问都会经过nginx，所以可以在nginx配置上修改，来将victoriametrics暴露出来。我的环境是在kubesphere里创建的，如下：</p>
+<p><img src="/images/1706263343-4df36335e9d85a5fe4a7c05ebd693883.png"></p>
+<p><img src="/images/1706263343-fc8dcf6d129637b4fbff966a9a2073cb.png"></p>
+<p><img src="/images/1706263343-386f2b6a00fa874f3a372e0916b02d43.png"></p>
+<p>你需要修改nginx配置来暴露victoriametrics，像图中8080端口我就是配置的nginx用来暴露victoriametrics端口</p>
+<p>修改的ng配置路径：&#x2F;etc&#x2F;nginx&#x2F;conf.d&#x2F;pmm.conf</p>
+<p><img src="/images/1706263343-647f05108f5f2d5ce278a7f8dc246957.png"></p>
+<p>加了这一段如下，你可以再添加别的将其他服务端口进行暴露：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">  server &#123;</span><br><span class="line">    listen 8080;</span><br><span class="line">    server_name _;</span><br><span class="line"></span><br><span class="line">    location / &#123;</span><br><span class="line">        proxy_pass http://127.0.0.1:9090/prometheus/;</span><br><span class="line">        proxy_read_timeout 600;</span><br><span class="line">        proxy_http_version 1.1;</span><br><span class="line">        proxy_set_header Connection <span class="string">&quot;&quot;</span>;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>你可以访问到victoriametrics了：</p>
+<p><img src="/images/1706263343-3c715b108a3e37c3798b528521deda09.png"> </p>
+<p>然后你在外部的grafana中配置添加数据源就可以了，这样就可以做数据展示了，可以把原生的grafana中的dashboard导出来进行导入，数据都会展示出来了。</p>
+]]></content>
+      <categories>
+        <category>PMM</category>
+      </categories>
+      <tags>
+        <tag>PMM</tag>
+      </tags>
+  </entry>
 </search>
