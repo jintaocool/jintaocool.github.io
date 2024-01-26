@@ -10530,4 +10530,32 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>k8s中pod监控数据在grafana中展示</title>
+    <url>/2024/01/26/k8s%E4%B8%ADpod%E7%9B%91%E6%8E%A7%E6%95%B0%E6%8D%AE%E5%9C%A8grafana%E4%B8%AD%E5%B1%95%E7%A4%BA/</url>
+    <content><![CDATA[<p><strong>实现目标</strong>：将kubesphere中运行的pod监控数据在grafana平台进行展示。</p>
+<p><strong>前提说明</strong>：需要在k8s每个集群中内置的prometheus配置中将pod指标数据远程写入到victoriametrics持久化数据库中。</p>
+<p><strong>实现效果如下</strong>：</p>
+<p><img src="/images/1706257621-3e6f1812d1aa2841145d91c011c5d7b2.png"></p>
+<p><img src="/images/1706257621-0688a6f7fcfe35e0b66da650417fdfd5.png"></p>
+<p><img src="/images/1706257621-d266652532cbeb01e6d4899f19a68976.png"></p>
+<p>CPU使用量：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">round(<span class="built_in">sum</span> by (namespace, pod) (irate(container_cpu_usage_seconds_total&#123;job=<span class="string">&quot;kubelet&quot;</span>, pod!=<span class="string">&quot;&quot;</span>, image!=<span class="string">&quot;&quot;</span>&#125;[5m])) * on (namespace, pod) group_left(owner_kind, owner_name) kube_pod_owner&#123;namespace=~<span class="string">&quot;<span class="variable">$scode</span>&quot;</span>&#125; * on (namespace, pod) group_left(node) kube_pod_info&#123;pod=~<span class="string">&quot;<span class="variable">$pod</span>&quot;</span>&#125;, 0.001)*1000</span><br></pre></td></tr></table></figure>
+
+<p>内存使用量：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="built_in">sum</span> by (namespace, pod) (container_memory_working_set_bytes&#123;job=<span class="string">&quot;kubelet&quot;</span>, pod!=<span class="string">&quot;&quot;</span>, image!=<span class="string">&quot;&quot;</span>&#125;) * on (namespace, pod) group_left(owner_kind, owner_name) kube_pod_owner&#123;namespace=~<span class="string">&quot;<span class="variable">$scode</span>&quot;</span>&#125; * on (namespace, pod) group_left(node) kube_pod_info&#123;pod=~<span class="string">&quot;<span class="variable">$pod</span>&quot;</span>&#125;</span><br></pre></td></tr></table></figure>
+
+<p>网络流出速率：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">(<span class="built_in">sum</span> by (namespace, pod) (irate(container_network_transmit_bytes_total&#123;pod!=<span class="string">&quot;&quot;</span>, interface!~<span class="string">&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;</span>, job=<span class="string">&quot;kubelet&quot;</span>&#125;[5m])) * on (namespace, pod) group_left(owner_kind, owner_name) kube_pod_owner&#123;namespace=~<span class="string">&quot;<span class="variable">$scode</span>&quot;</span>&#125; * on (namespace, pod) group_left(node) kube_pod_info&#123;pod=~<span class="string">&quot;<span class="variable">$pod</span>&quot;</span>&#125;)*8</span><br></pre></td></tr></table></figure>
+
+<p>网络流入速率：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">(<span class="built_in">sum</span> by (namespace, pod) (irate(container_network_receive_bytes_total&#123;pod!=<span class="string">&quot;&quot;</span>, interface!~<span class="string">&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;</span>, job=<span class="string">&quot;kubelet&quot;</span>&#125;[5m])) * on (namespace, pod) group_left(owner_kind, owner_name) kube_pod_owner&#123;namespace=~<span class="string">&quot;<span class="variable">$scode</span>&quot;</span>&#125; * on (namespace, pod) group_left(node) kube_pod_info&#123;pod=~<span class="string">&quot;<span class="variable">$pod</span>&quot;</span>&#125;)*8</span><br></pre></td></tr></table></figure>
+]]></content>
+      <categories>
+        <category>K8s</category>
+      </categories>
+      <tags>
+        <tag>K8s</tag>
+      </tags>
+  </entry>
 </search>
