@@ -10558,4 +10558,85 @@ plugin_admin_external_manage_enabled = true
         <tag>K8s</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Zabbix自定义飞书webhook告警媒介</title>
+    <url>/2024/01/26/Zabbix%E8%87%AA%E5%AE%9A%E4%B9%89%E9%A3%9E%E4%B9%A6webhook%E5%91%8A%E8%AD%A6%E5%AA%92%E4%BB%8B/</url>
+    <content><![CDATA[<p><strong>说明：适用于7.0及以上版本，低版本可能会有问题。</strong></p>
+<p><img src="/images/1706258160-db7e2cb50d98f10afab9eec8de4f83ba.png"></p>
+<h5 id="参数如下："><a href="#参数如下：" class="headerlink" title="参数如下："></a>参数如下：</h5><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>名称</strong></td>
+<td><strong>值</strong></td>
+</tr>
+<tr>
+<td>EVENT.DURATION</td>
+<td>{EVENT.DURATION}</td>
+</tr>
+<tr>
+<td>EVENTDATE</td>
+<td>{EVENT.DATE}</td>
+</tr>
+<tr>
+<td>EVENTNAME</td>
+<td>{EVENT.NAME}</td>
+</tr>
+<tr>
+<td>EVENTRECOVERYDATE</td>
+<td>{EVENT.RECOVERY.DATE}</td>
+</tr>
+<tr>
+<td>EVENTRECOVERYTIME</td>
+<td>{EVENT.RECOVERY.TIME}</td>
+</tr>
+<tr>
+<td>EVENTSTATUS</td>
+<td>{EVENT.STATUS}</td>
+</tr>
+<tr>
+<td>EVENTTIME</td>
+<td>{EVENT.TIME}</td>
+</tr>
+<tr>
+<td>Host</td>
+<td>{HOST.NAME}</td>
+</tr>
+<tr>
+<td>message</td>
+<td>{ALERT.MESSAGE}</td>
+</tr>
+<tr>
+<td>Operationaldata</td>
+<td>{EVENT.OPDATA}</td>
+</tr>
+<tr>
+<td>problemID</td>
+<td>{EVENT.ID}</td>
+</tr>
+<tr>
+<td>Severity</td>
+<td>{EVENT.SEVERITY}</td>
+</tr>
+<tr>
+<td>URL</td>
+<td>飞书webhook地址</td>
+</tr>
+</tbody></table>
+<h5 id="JavaScript内容如下："><a href="#JavaScript内容如下：" class="headerlink" title="JavaScript内容如下："></a>JavaScript内容如下：</h5><figure class="highlight javascript"><table><tr><td class="code"><pre><span class="line"><span class="keyword">try</span> &#123;</span><br><span class="line">           <span class="keyword">var</span> sourceData = <span class="title class_">JSON</span>.<span class="title function_">parse</span>(value),</span><br><span class="line">               req = <span class="keyword">new</span> <span class="title class_">HttpRequest</span>(),</span><br><span class="line">               response;</span><br><span class="line"></span><br><span class="line">           <span class="keyword">if</span> (sourceData.<span class="property">HTTPProxy</span>) &#123;</span><br><span class="line">               req.<span class="title function_">setProxy</span>(sourceData.<span class="property">HTTPProxy</span>);</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           req.<span class="title function_">addHeader</span>(<span class="string">&#x27;Content-Type: application/json&#x27;</span>);</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> ip = sourceData.<span class="property">Host</span>;</span><br><span class="line"><span class="keyword">const</span> type = <span class="string">&#x27;NET&#x27;</span>;</span><br><span class="line"><span class="keyword">const</span> level = <span class="string">&#x27;P2&#x27;</span>;</span><br><span class="line"><span class="keyword">const</span> description =sourceData.<span class="property">EVENTNAME</span>; <span class="string">&#x27;Interface Ethernet1/0/8(): High error rate&#x27;</span>;</span><br><span class="line"><span class="keyword">const</span> startTime = sourceData.<span class="property">EVENTDATE</span>+<span class="string">&#x27; &#x27;</span>+sourceData.<span class="property">EVENTTIME</span>;</span><br><span class="line"><span class="keyword">const</span> source = <span class="string">&#x27;zabbix&#x27;</span>;</span><br><span class="line"><span class="keyword">const</span> endTime = sourceData.<span class="property">EVENTRECOVERYDATE</span>+<span class="string">&#x27; &#x27;</span>+sourceData.<span class="property">EVENTRECOVERYTIME</span>;</span><br><span class="line"></span><br><span class="line"><span class="keyword">const</span> template = <span class="string">&#x27;告警IP:&#x27;</span>+ip+<span class="string">&#x27;\n告警类型:&#x27;</span>+type+<span class="string">&#x27;\n告警级别:&#x27;</span>+level+<span class="string">&#x27;\n告警描述:&#x27;</span>+description+<span class="string">&#x27;\n开始时间:&#x27;</span>+startTime+<span class="string">&#x27;\n告警来源:&#x27;</span>+source+<span class="string">&#x27;\n结束时间:&#x27;</span>+endTime;</span><br><span class="line"></span><br><span class="line">              <span class="title class_">Zabbix</span>.<span class="title function_">log</span>(<span class="number">4</span>,template);</span><br><span class="line">           <span class="keyword">var</span> targetData = &#123;</span><br><span class="line">               <span class="string">&quot;msg_type&quot;</span>: <span class="string">&quot;interactive&quot;</span>,</span><br><span class="line">               <span class="string">&quot;card&quot;</span>: &#123;</span><br><span class="line">                 <span class="string">&quot;config&quot;</span>: &#123;</span><br><span class="line">                   <span class="string">&quot;wide_screen_mode&quot;</span>: <span class="literal">true</span></span><br><span class="line">                 &#125;,</span><br><span class="line">                 <span class="string">&quot;elements&quot;</span>: [</span><br><span class="line">                   &#123;</span><br><span class="line">                     <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;div&quot;</span>,</span><br><span class="line">                     <span class="string">&quot;text&quot;</span>: &#123;</span><br><span class="line">                          <span class="string">&quot;content&quot;</span>: template ,</span><br><span class="line">                          <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;lark_md&quot;</span></span><br><span class="line">                             &#125;</span><br><span class="line"></span><br><span class="line">                   &#125;</span><br><span class="line">                 ],</span><br><span class="line">                 <span class="string">&quot;header&quot;</span>: &#123;</span><br><span class="line">                   <span class="string">&quot;template&quot;</span>: <span class="string">&quot;red&quot;</span>,</span><br><span class="line">                   <span class="string">&quot;title&quot;</span>: &#123;</span><br><span class="line">                     <span class="string">&quot;content&quot;</span>: sourceData.<span class="property">Host</span>+<span class="string">&quot;**&quot;</span>+sourceData.<span class="property">EVENTSTATUS</span>+<span class="string">&quot;**&quot;</span>+sourceData.<span class="property">Operationaldata</span>,</span><br><span class="line">                     <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;plain_text&quot;</span></span><br><span class="line">                   &#125;</span><br><span class="line">                 &#125;</span><br><span class="line">               &#125;&#125;;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">           <span class="title class_">Zabbix</span>.<span class="title function_">log</span>(<span class="number">4</span>, <span class="string">&#x27;[feishu  webhook ] Webhook request with value=&#x27;</span> + value);</span><br><span class="line"></span><br><span class="line">           response = req.<span class="title function_">post</span>(sourceData.<span class="property">URL</span>, <span class="title class_">JSON</span>.<span class="title function_">stringify</span>(targetData));</span><br><span class="line">           <span class="title class_">Zabbix</span>.<span class="title function_">log</span>(<span class="number">4</span>, <span class="string">&#x27;[feishu    webhook ] Responded with code: &#x27;</span> + req.<span class="title function_">getStatus</span>() + <span class="string">&#x27;. Response: &#x27;</span> + response);</span><br><span class="line"></span><br><span class="line">           <span class="keyword">try</span> &#123;</span><br><span class="line">               response = <span class="title class_">JSON</span>.<span class="title function_">parse</span>(response);</span><br><span class="line">           &#125;</span><br><span class="line">           <span class="keyword">catch</span> (error) &#123;</span><br><span class="line">               <span class="keyword">if</span> (req.<span class="title function_">getStatus</span>() &lt; <span class="number">200</span> || req.<span class="title function_">getStatus</span>() &gt;= <span class="number">300</span>) &#123;</span><br><span class="line">                   <span class="keyword">throw</span> <span class="string">&#x27;Request failed with status code &#x27;</span> + req.<span class="title function_">getStatus</span>();</span><br><span class="line">               &#125;</span><br><span class="line">               <span class="keyword">else</span> &#123;</span><br><span class="line">                   <span class="keyword">throw</span> <span class="string">&#x27;Request success, but response parsing failed.&#x27;</span>;</span><br><span class="line">               &#125;</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           <span class="keyword">if</span> (req.<span class="title function_">getStatus</span>() !== <span class="number">200</span> || response.<span class="property">code</span> !== <span class="number">0</span>) &#123;</span><br><span class="line">               <span class="keyword">throw</span> response.<span class="property">error</span>;</span><br><span class="line">           &#125;</span><br><span class="line"></span><br><span class="line">           <span class="keyword">return</span> <span class="string">&#x27;OK&#x27;</span>;</span><br><span class="line">       &#125;</span><br><span class="line">       <span class="keyword">catch</span> (error) &#123;</span><br><span class="line"></span><br><span class="line">           <span class="title class_">Zabbix</span>.<span class="title function_">log</span>(<span class="number">3</span>, <span class="string">&#x27;[ Jira webhook ] Sending failed. Error: &#x27;</span> + error);</span><br><span class="line"></span><br><span class="line">           <span class="keyword">throw</span> <span class="string">&#x27;Failed with error: &#x27;</span> + error;</span><br><span class="line">       &#125;</span><br></pre></td></tr></table></figure>
+
+<p>测试如下：</p>
+<p><img src="/images/1706258160-784df2f9363cdc5f0f1e7c3d06f26f98.png"></p>
+]]></content>
+      <categories>
+        <category>Zabbix</category>
+      </categories>
+      <tags>
+        <tag>Zabbix</tag>
+      </tags>
+  </entry>
 </search>
