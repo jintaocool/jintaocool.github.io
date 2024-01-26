@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>打造出色的Prometheus监控系统 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="技术咖-打造出色的Prometheus监控系统"
+  class="article article-type-技术咖"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  打造出色的Prometheus监控系统
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/01/26/%E6%89%93%E9%80%A0%E5%87%BA%E8%89%B2%E7%9A%84Prometheus%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/" class="article-date">
+  <time datetime="2024-01-26T01:07:34.000Z" itemprop="datePublished">2024-01-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF%E5%92%96/">技术咖</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.9k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">14 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一、监控概念-误区"><a href="#一、监控概念-误区" class="headerlink" title="一、监控概念&amp;误区"></a>一、监控概念&amp;误区</h2><p>监控是管理基础设施和业务的核心工具，监控应该和应用程序一起构建和部署，没有监控，将无法了解你的系统运行环境，进行故障诊断，也无法阻止提供系统性的性能、成本和状态等信息。</p>
+<ul>
+<li>误区：</li>
+</ul>
+<p>要尽量避免进行机械式的监控、不够准确的监控、静态和监控、不频繁的监控、缺少自动化或自服务。</p>
+<h2 id="二、黑盒监控-白盒监控"><a href="#二、黑盒监控-白盒监控" class="headerlink" title="二、黑盒监控&amp;白盒监控"></a>二、黑盒监控&amp;白盒监控</h2><h3 id="1、黑盒监控"><a href="#1、黑盒监控" class="headerlink" title="1、黑盒监控"></a>1、黑盒监控</h3><ul>
+<li><p>应用程序或主机是从外部观察的，因此，这种方法可能相当有限。检查是为了评估被观察的系统是否以已知的方式响应探测。</p>
+</li>
+<li><p>例子：</p>
+</li>
+</ul>
+<p>1）主机是否相应PING的请求<br>2）特定的TCP端口是否打开<br>3）应用程序在接受到特定的HTTP请求时，是否使用正确的数据和状态代码进行响应<br>4）特定应用程序的进程是否在其主机中运行</p>
+<h3 id="2、白盒监控"><a href="#2、白盒监控" class="headerlink" title="2、白盒监控"></a>2、白盒监控</h3><p>系统在被测对象表面显示其内部状态和临界段的性能数据。这种类型的自省可能非常强大，因为它暴露了内部操作，显示不同内部组件的健康状况，否则很难甚至不可能确定。这种数据处理通常以胰腺癌方式进行处理：</p>
+<p><strong>1）通过日志导出</strong>：到目前为止。这是也是在广泛引入库之前，应用程序是如何暴露其内部工作的最常见的情况，例如：可以处理 HTTP 服务器的访问日志来监视请求率、延迟和错误百分比；<br><strong>2）以结构化的事件输出</strong>：这种方法类似于日志记录，但不是将数据写入磁盘，而是直接将数据发送到处理系统进行分析和聚合。<br><strong>3）以聚合的方式保存在内存中</strong>：这种格式的数据可以驻留在端点中，也可以直接从命令行工具中读取。这种方法的例子有&#x2F;metrics with Prometheus metrics、HAProxy 的 stats 页面或 varnishstats 命令行工具</p>
+<h2 id="三、度量指标"><a href="#三、度量指标" class="headerlink" title="三、度量指标"></a>三、度量指标</h2><p>度量指标有监控系统执行的过程通常可以分为两种方式：push（被监控的服务自动往监控系统进行推送）、pull（监控系统去服务进行拉取）【站在客户的角度】</p>
+<ul>
+<li><p>Push VS Pull</p>
+</li>
+<li><p>测量什么：</p>
+</li>
+</ul>
+<p>谷歌提出应该监控的四个指标：</p>
+<ul>
+<li><p>延迟：服务请求所需的时间</p>
+</li>
+<li><p>流量：正在发出的请求的数量</p>
+</li>
+<li><p>错误：求失败的比率</p>
+</li>
+<li><p>饱和：未处理的工作量，通常在队列中</p>
+</li>
+</ul>
+<p>Brendan 的方法更关注于及其他声明对于每个资源（CPU、磁盘、网络接口等等），应该监视以下指标：</p>
+<ul>
+<li><p>利用率：以资源繁忙的百分比来衡量</p>
+</li>
+<li><p>饱和：资源无法处理的工作量，通常会排队</p>
+</li>
+<li><p>错误：发生的错误数量</p>
+</li>
+</ul>
+<p>汤姆威尔基的红色方法：更侧重于服务级别方法，而不是底层系统本身。显然，这种才领略对于见识服务很有用，对于预测外部客户的体验也很有价值。如果服务的错误率增加，那么就可以合理地假设这些错误将直接或间接地影响客户的体验。</p>
+<ul>
+<li><p>速率：转换成每秒请求数</p>
+</li>
+<li><p>错误：每秒失败请求的数量</p>
+</li>
+<li><p>持久性：这些请求所花费的时间</p>
+</li>
+</ul>
+<h2 id="四、Prometheus"><a href="#四、Prometheus" class="headerlink" title="四、Prometheus"></a>四、Prometheus</h2><h3 id="1、介绍-架构"><a href="#1、介绍-架构" class="headerlink" title="1、介绍&amp;架构"></a>1、介绍&amp;架构</h3><p>Prometheus 是一个开源系统监控和警报工具包，将其监控的指标进行收集并存储为时间序列数据，即指标信息与记录时的时间戳以及称为标签的可选键值对一起存储。很多公司用来监控 K8s集群。</p>
+<p><img src="/images/1706230632-37d80127b73f829661c0d17b431e0b18.svg" alt="图片"></p>
+<h3 id="2-合适-不合适场景"><a href="#2-合适-不合适场景" class="headerlink" title="2. 合适&amp;不合适场景"></a>2. 合适&amp;不合适场景</h3><ul>
+<li><p><strong>合适场景</strong>：Prometheus 可以很好地记录任何数字时间序列，它既适合以机器为中心的监控，也适合监控高度动态的面向服务的架构。在微服务的世界中，他对多维数据收集的查询的支持是一个特殊的优势。专为可靠性而设计，是在中断期间可以使用的系统，可让你快速诊断问题。每个Prometheus服务器都是独立的，不依赖于网络存储或其他远程服务。当你的基础设施的其他部分损坏时，你可以依赖他，并且你无需设置大量基础设施即可使用</p>
+</li>
+<li><p><strong>不合适场景</strong>：你需要100%准确性，例如按请求计费。这时候Prometheus就不太适合，你最好使用其他系统来收集和分析数据以进行计费。</p>
+</li>
+</ul>
+<h3 id="3-数据模型"><a href="#3-数据模型" class="headerlink" title="3. 数据模型"></a>3. 数据模型</h3><p>因为监控数量极大，所以使用了时间序列数据存储（就是带时间戳和值的）</p>
+<ul>
+<li>Prometheus本地存储：</li>
+</ul>
+<p>Prometheus的本地存储被称为 Prometheus TSDB。TSDB的设计核心有两个：block和WAL，而block又包含chunk、index、meta.json、tombstones。</p>
+<p>TSDB将存储的监控数据按照时间分隔成block，block大小并不固定，按照设定的步长倍数递增。随着数据量的不断增长，TSDB会将小的block合并成大的block，这样不仅可以减少数据存储，还可以减少内存中的block个数，便于对数据进行索引。</p>
+<p>每个block都有全局唯一的名称，通过ULID（Universally Unique Lexicograpphically Sortable Indetifier，全局字典可排序ID）原理生成，可以通过block的文件名确定这个block的创建时间，从而很方便的按照时间对block排序。对时序数据库的查询通常会涉及到连续的很多块，这种通过命名便可以排序的设计非常简便。</p>
+<p>WAL（Write-Ahead Logging，预写日志）是关系型数据库中利用日志来实现事务性和持久性的一种技术，即在进行某个操作之前先将这件事情记录下来，以便之后数据进行回滚、重试等操作并保证数据的可靠性。Prometheus为了防止丢失暂存在内存中还未被写入磁盘的监控数据，引入了WAL机制。</p>
+<p>按照每种对象设定的采集周期，Prometheus会将周期性采集的监控数据通过Add接口添加到head block中，但这些数据没有被持久化，TSDB通过WAL将提交的数据先保存到磁盘中，在TSDB宕机重启后，会首先启动多协程读取WAL，从而恢复之前的状态。</p>
+<ul>
+<li><strong>Prometheus 数据模型：</strong></li>
+</ul>
+<p>Prometheus 将数据存储为时间序列，其中包括称为标签的键值对、时间戳和最后的值：</p>
+<p>表示法：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">&lt;metric_name&gt;[&#123;&lt;label_1=“value_1”&gt;,&lt;label_N=“value_N”&gt;&#125;]&lt;datapoint_numercial_value&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-指标"><a href="#4-指标" class="headerlink" title="4. 指标"></a>4. 指标</h3><ul>
+<li><p>Counter：Prometheus实例接收的数据包总数<strong>（一直增）</strong></p>
+</li>
+<li><p>Gauge：测量是一种度量，他在收集时对给定的测量进行快照，可以增加或减少（例如温度、磁盘空间、内存使用量）</p>
+</li>
+<li><p>Histogram：常常用于观察，一个Histogram包含下列值的合并：【某时间段内的百分比或者请求数量有多少】</p>
+</li>
+</ul>
+<h3 id="5-指标的摘要和聚合"><a href="#5-指标的摘要和聚合" class="headerlink" title="5. 指标的摘要和聚合"></a>5. 指标的摘要和聚合</h3><p>指标摘要：通常来说。单个指标对我们来说价值很小，往往需要联合并可视化多个指标，这其中需要一些数学变换，例如我们可能会统计函数应用于指标或指标组，常见函数有：计数、求和、平均值、中间数、百分位数、标准差、变化率等等</p>
+<ul>
+<li>指标聚合：就是能看到来自多个源的指标的聚合视图</li>
+</ul>
+<h3 id="6-NodeExporter部署"><a href="#6-NodeExporter部署" class="headerlink" title="6. NodeExporter部署"></a>6. NodeExporter部署</h3><p>Prometheus使用exporter工具来暴露主机和应用程序上的指标。有很多种类型的exporter。</p>
+<h3 id="7-cAdvisor监控Docker容器"><a href="#7-cAdvisor监控Docker容器" class="headerlink" title="7. cAdvisor监控Docker容器"></a>7. cAdvisor监控Docker容器</h3><p>cAdvisor（Constainer Advisor）是由谷歌开发的一个项目，让从正在运行的容器手机、聚合、分析和导出数据。可用的数据涵盖了几乎所有你可能需要的东西，从内存限制到GPU指标</p>
+<ul>
+<li><p>cAdvisor 并不绑定到 Docker 容器，但它通常作为一个容器部署，从容器守护进程和 Linux cgroups 收集数据，是容器的发现透明且完全自动化。</p>
+</li>
+<li><p>除了以 Prometheus 格式公开指标之外，cAdvisor 还提供了一个有用的 web界面，允许即使可视化主机及其容器的状态</p>
+</li>
+</ul>
+<h3 id="8-捕获目标生命周期"><a href="#8-捕获目标生命周期" class="headerlink" title="8. 捕获目标生命周期"></a>8. 捕获目标生命周期</h3><p>服务发现-&gt;配置-&gt;重新标记（relable_configs）-&gt; 抓取 -&gt; metrics_relable_configs</p>
+<h3 id="9-PromQL查询语言"><a href="#9-PromQL查询语言" class="headerlink" title="9. PromQL查询语言"></a>9. PromQL查询语言</h3><p>选择器及标签匹配器：</p>
+<p><strong>（1）选择器</strong></p>
+<p>Prometheus被设计用来处理成千上万的时间序列、根据标签的组合，咩哥指标名称可以有几个不同的时间序列；当来自不同的工作的类型名称的指标混合在一起时，查询正确的数据可能看起来比较困难。所以在Prometheus中，选择器指的是一组标签匹配器、度量名称也包含在这个定义中，因为从技术上讲，他的内容表示也是一个标签，尽管是一个特殊的标签：name。</p>
+<p>选择器中的每个标签名称&#x2F;值对称为标签匹配器，多个匹配器可用于进一步筛选选择器匹配的时间序列。标签匹配器用花括号括起来。如果不需要匹配器，可以省略花括号。选择器可以返回及时或范围向量</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">//例如：$ prometheus_build_info&#123;version=&quot;2.17.0&quot;&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）标签匹配器</strong></p>
+<p>标签匹配器用于将查询搜索限制为特定的一组标签值。下面将使用node_cpu_secends_total metric来阐述标签匹配的操作，匹配的操作符有&#x3D;、!&#x3D;、&#x3D;和! 如果没有任何匹配的规范。仅此度量就会返回一个包含度量名称的所有可用时间序列的及时向量。以及所有的CPU核心数（cpu&#x3D;“0”，cpu&#x3D;“1”）和CPU的型号（mode&#x3D;“idle”，mode&#x3D;“iowait”，mode&#x3D;“irq”，mode&#x3D;“nice”，mode&#x3D;“softirq”，mode&#x3D;“steal”，mode&#x3D;“user”，mode&#x3D;“system”）</p>
+<p><strong>（3）范围、偏移、子查询</strong></p>
+<p>范围向量：如果要定义一个范围向量选择查询，你必须设置一个及时向量选择器和使用[]追加一个范围。</p>
+<p>偏移量的修饰符：offset的修饰符查询过去的数据，也就是说可双选择相对于当前时间的多长时间以前</p>
+<p>子查询【道理类似于 MySQL中】</p>
+<p><strong>（4）PromQL操作符</strong></p>
+<p>向量匹配：有one-to-one、many-to-one、one-to-many【其实就类似于mysql的左右外连接】</p>
+<p><strong>（5）PromQL函数</strong></p>
+<p><code>lable_join()</code>和<code>label_replace()</code>这些函数用于操作标签——他们允许您将标签连接到其他标签，提取标签值的一部分，甚至删除标签（尽管使用标准的聚合操作更容易、更符合人体工程学）。在这两个函数中，如果定义的目标标签是一个新的，它将被添加到标签集；如果他是一个现有的标签，它将被取代。【也就是说，如果该语句满足什么条件的话，机会产生相对应的结果】</p>
+<p><code>predict_linear（）</code>函数可以预测时间序列v在t秒后的值，它基于简单线性回归的方式，对时间窗口内的样本数据进行统计，从而可以对时间序列的变化趋势作出预测。该函数的返回结果不带有度量指标，只有标签列表。</p>
+<p>rate()和irate()函数：</p>
+<p>sort()和sort_desc()</p>
+<h3 id="10-计算CPU的使用率"><a href="#10-计算CPU的使用率" class="headerlink" title="10. 计算CPU的使用率"></a>10. 计算CPU的使用率</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">//例子：avg(irate(node_cpu_seconds_total&#123;job=&quot;node&quot;&#125;[5m] by (instance) * 100))</span><br></pre></td></tr></table></figure>
+
+<h3 id="11-计算CPU负载（饱和度）"><a href="#11-计算CPU负载（饱和度）" class="headerlink" title="11. 计算CPU负载（饱和度）"></a>11. 计算CPU负载（饱和度）</h3><p>在主机上获得CPU饱和的一种方法是跟踪平均负载，实际上它是将主机上的CPU数量考虑在内的一段时间内的平均运行队列长度。平均负载少于CPU的数量通常是正常的，长时间内超过该数字的平均值则表示CPU已经饱和。</p>
+<p>要查看主机的平均负载，可以使用node_load*指标，他们显示1分钟、5分钟和15分钟的平均负载。比如使用1分钟的平均负载：node_load1</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">//计算主机上的CPU数量，可以使用count聚合实现</span><br><span class="line">count by (instance)(node_cpu_seconds_total&#123;mode=&quot;idle&quot;&#125;)</span><br><span class="line">//接下来将此计算与node_load指标结合起来</span><br><span class="line">node_load1 &gt; on (instance) 2 * count by (instance)(node_cpu_seconds_total&#123;mode=&quot;idle&quot;&#125;)</span><br><span class="line">//这里我们查询的是1分钟的负载超过主机CPU数量的两倍的结果</span><br></pre></td></tr></table></figure>
+
+<h3 id="12-计算内存使用率"><a href="#12-计算内存使用率" class="headerlink" title="12. 计算内存使用率"></a>12. 计算内存使用率</h3><p>Node Exporter的内存指标按内存的类型和使用率进行细分。可以在<code>node_memory</code>为前缀的指标列表找到他们。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">//查看主机上的总内存</span><br><span class="line">node_memory_MemTotal_bytes</span><br><span class="line">//主机上的可用内存</span><br><span class="line">node_memory_MemFree_bytes</span><br><span class="line">//缓冲缓存中的内存</span><br><span class="line">node_memory_Buffers_bytes</span><br><span class="line">//页面缓存中的内存</span><br><span class="line">node_memory_Cached_bytes</span><br><span class="line">//通过以上的就可以计算出内存使用率</span><br><span class="line">（总内存-可用内存-缓冲缓存中的内存-页面缓冲中的内存）/总内存 * 100</span><br></pre></td></tr></table></figure>
+
+<h3 id="13-计算内存饱和度"><a href="#13-计算内存饱和度" class="headerlink" title="13. 计算内存饱和度"></a>13. 计算内存饱和度</h3><p>还可以通过检查内存和磁盘的读写来监控内存饱和度，可以使用从&#x2F;proc&#x2F;vmstat收集的两个Node Exporter指标</p>
+<ul>
+<li><p>node_vmstat_pswpin：系统每秒从磁盘读到内存的字节数</p>
+</li>
+<li><p>node_vmstat_pswpout：系统每秒从内存写到磁盘的字节数</p>
+</li>
+<li><p>两者都是自上次启动以来的字节数，以KB为单位</p>
+</li>
+<li><p>为了获得饱和度指标，对每个指标计算每一分钟的速率，将两个速率相加，然后乘以1024获得字节数</p>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">1024 * sum by (instance) ((rate(node_vmstat_pgpgin[1m]) + rate(node_vmstat_pgpgout[1m])))</span><br></pre></td></tr></table></figure>
+
+<p>然后，可以对此设置图形化展示或者警报，以识别行为不当的应用程序主机。</p>
+<h3 id="14-磁盘使用率"><a href="#14-磁盘使用率" class="headerlink" title="14. 磁盘使用率"></a>14. 磁盘使用率</h3><p>对于磁盘，只测量磁盘使用情况而不是使用率、饱和或错误。这是因为在大多数情况下，它是对可视化和警报最有用的数据。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">//node_filesystem_size_bytes指标显示了被监控的每个文件系统挂载的大小。node_filesystem_size_bytes</span><br></pre></td></tr></table></figure>
+
+<p>可以使用与内存指标类似的查询来生成在主机上使用的磁盘空间百分比。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(node_filesystem_size_bytes&#123;mountpoint=&quot;/&quot;&#125; - node_filesystem_free_bytes&#123;mountpoint=&quot;/&quot;&#125;) / node_filesystem_size_bytes&#123;mountpoint=&quot;/&quot;&#125; * 100</span><br></pre></td></tr></table></figure>
+
+<p>与内存指标不同，在每个主机上的每个挂载点都有文件系统指标。所以添加了mountpoint标签，特别是跟文件系统”&#x2F;“挂载。这将在每台主机上返回该文件系统磁盘使用指标。</p>
+<p>如果想要或需要监控特定挂载点，那么我们可以为其添加查询。比如要监控&#x2F;data挂载点，可以使用。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(node_filesystem_size_bytes&#123;mountpoint=&quot;/data&quot;&#125; - node_filesystem_free_bytes&#123;mountpoint=&quot;/data&quot;&#125;) / node_filesystem_size_bytes&#123;mountpoint=&quot;/data&quot;&#125; * 100</span><br></pre></td></tr></table></figure>
+
+<p>或者可以使用正则表达式匹配多个挂载点</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">(node_filesystem_size_bytes&#123;mountpoint=&quot;/|/run&quot;&#125; - node_filesystem_free_bytes&#123;mountpoint=&quot;/|/run&quot;&#125;) / node_filesystem_size_bytes&#123;mountpoint=&quot;/|/run&quot;&#125; * 100</span><br></pre></td></tr></table></figure>
+
+<p>可以使用 predict_linear 函数来构建在未来什么时候会耗尽磁盘空间</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">//预测四小时之后磁盘空间会不会爆满</span><br><span class="line">predict_linear(node_filesystem_free_bytes&#123;mountpoint=&quot;/&quot;&#125;[1h], 4* 3600) &lt; 0</span><br></pre></td></tr></table></figure>
+
+<p>上面是指定跟文件系统，还可以通过制定作业名称或使用正则表达式来选择所有文件系统</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">predict_linear(node_filesystem_free_bytes&#123;job=&quot;node&quot;&#125;[1h], 4* 3600) &lt; 0</span><br></pre></td></tr></table></figure> 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/01/26/%E6%89%93%E9%80%A0%E5%87%BA%E8%89%B2%E7%9A%84Prometheus%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%8A%80%E6%9C%AF%E5%92%96/" rel="tag">技术咖</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/01/23/grafana%E5%AF%B9%E6%8C%87%E6%A0%87%E8%BF%9B%E8%A1%8C%E7%BB%84%E5%90%88%E8%AE%A1%E7%AE%97/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">grafana对指标进行组合计算</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/2019/about">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
