@@ -10717,6 +10717,18 @@ plugin_admin_external_manage_enabled = true
 <li>SUBSTRING函数，该函数用于返回字符串的一个子串。它的语法为 SUBSTRING(str,pos,len)，其中str为要截取的字符串，pos表示起始位置，len表示要截取的长度。例如，SUBSTRING(‘abc123’,4,3)将返回字符串’123’。这个函数常用于从字符串中提取出数字部分。</li>
 </ul>
 <p><code>update exporter e set e.cmdb_id = substring(cmdb_id,4,4) where e.server_type like &#39;oracle%&#39; and e.status = &#39;运行&#39; and e.cmdb_id like &#39;PS%&#39;;</code></p>
+<ul>
+<li>字符串截取函数substring_index</li>
+</ul>
+<p>substring_index(str，delim，n)</p>
+<p>str：要处理的字符串<br>delim：分隔符，不能为空<br>n：第n个分隔符左边&#x2F;右边的全部内容</p>
+<p>(1) 如果n是正数，那么就是从左往右数，第N个分隔符的左边的全部内容;</p>
+<p>(2) 相反，如果是负数，那么就是从右往左数，第N个分隔符右边的所有内容。</p>
+<p>例如，字段名为profile，字符串内容180cm,75kg,27,male ，取出第三部分的27岁这个值</p>
+<p>第一步：先从左往右数到第3个’,’，取左边全部内容：</p>
+<p>substring_index(profile, ‘,’ , 3), 得到180cm,75kg,27</p>
+<p>第二步：从右往左数第一个分隔符，故n为-1，取分隔符右边全部内容:</p>
+<p>substring_index(substring_index(profile, ‘,’ , 3), ‘,’ -1)，得到27</p>
 ]]></content>
       <categories>
         <category>SQL</category>
