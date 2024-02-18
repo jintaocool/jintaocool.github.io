@@ -10720,15 +10720,6 @@ plugin_admin_external_manage_enabled = true
 <ul>
 <li>字符串截取函数substring_index</li>
 </ul>
-<p>substring_index(str，delim，n)</p>
-<p>str：要处理的字符串<br>delim：分隔符，不能为空<br>n：第n个分隔符左边&#x2F;右边的全部内容</p>
-<p>(1) 如果n是正数，那么就是从左往右数，第N个分隔符的左边的全部内容;</p>
-<p>(2) 相反，如果是负数，那么就是从右往左数，第N个分隔符右边的所有内容。</p>
-<p>例如，字段名为profile，字符串内容180cm,75kg,27,male ，取出第三部分的27岁这个值</p>
-<p>第一步：先从左往右数到第3个’,’，取左边全部内容：</p>
-<p>substring_index(profile, ‘,’ , 3), 得到180cm,75kg,27</p>
-<p>第二步：从右往左数第一个分隔符，故n为-1，取分隔符右边全部内容:</p>
-<p>substring_index(substring_index(profile, ‘,’ , 3), ‘,’ -1)，得到27 </p>
 ]]></content>
       <categories>
         <category>SQL</category>
