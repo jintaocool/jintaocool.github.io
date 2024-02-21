@@ -10876,4 +10876,47 @@ plugin_admin_external_manage_enabled = true
         <tag>Prometheus</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Kubernetes日常操作命令</title>
+    <url>/2024/02/21/Kubernetes%E6%97%A5%E5%B8%B8%E6%93%8D%E4%BD%9C%E5%91%BD%E4%BB%A4/</url>
+    <content><![CDATA[<h3 id="根据overlay2目录名找容器"><a href="#根据overlay2目录名找容器" class="headerlink" title="根据overlay2目录名找容器"></a>根据overlay2目录名找容器</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">docker ps -q | xargs docker inspect --format &#x27;&#123;&#123;.State.Pid&#125;&#125;, &#123;&#123;.Id&#125;&#125;, &#123;&#123;.Name&#125;&#125;, &#123;&#123;.GraphDriver.Data.WorkDir&#125;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="调试coredns"><a href="#调试coredns" class="headerlink" title="调试coredns"></a>调试coredns</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl run -it --rm --restart=Never --image=infoblox/dnstools:latest dnstools</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看资源使用情况"><a href="#查看资源使用情况" class="headerlink" title="查看资源使用情况"></a>查看资源使用情况</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &quot;echo &#123;&#125; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve --;&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看资源总情况"><a href="#查看资源总情况" class="headerlink" title="查看资源总情况"></a>查看资源总情况</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get no -o=custom-columns=&quot;NODE:.metadata.name,ALLOCATABLE CPU:.status.allocatable.cpu,ALLOCATABLE MEMORY:.status.allocatable.memory&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看CPU分配情况"><a href="#查看CPU分配情况" class="headerlink" title="查看CPU分配情况"></a>查看CPU分配情况</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &#x27;echo -n &quot;&#123;&#125;\t&quot; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve -- | grep cpu | awk &#x27;\&#x27;&#x27;&#123;print $2$3&#125;&#x27;\&#x27;&#x27;;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看内存分配情况"><a href="#查看内存分配情况" class="headerlink" title="查看内存分配情况"></a>查看内存分配情况</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &#x27;echo -n &quot;&#123;&#125;\t&quot; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve -- | grep memory | awk &#x27;\&#x27;&#x27;&#123;print $2$3&#125;&#x27;\&#x27;&#x27;;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="线程数统计"><a href="#线程数统计" class="headerlink" title="线程数统计"></a>线程数统计</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">printf &quot;    NUM  PID\t\tCOMMAND\n&quot; &amp;&amp; ps -eLf | awk &#x27;&#123;$1=null;$3=null;$4=null;$5=null;$6=null;$7=null;$8=null;$9=null;print&#125;&#x27; | sort |uniq -c |sort -rn | head -10</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置默认storageclass"><a href="#配置默认storageclass" class="headerlink" title="配置默认storageclass"></a>配置默认storageclass</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl patch storageclass &lt;your-class-name&gt; -p &#x27;&#123;&quot;metadata&quot;: &#123;&quot;annotations&quot;:&#123;&quot;storageclass.kubernetes.io/is-default-class&quot;:&quot;true&quot;&#125;&#125;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看容器名"><a href="#查看容器名" class="headerlink" title="查看容器名"></a>查看容器名</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get po calibre-web-76b9bf4d8b-2kc5j -o json | jq -j &quot;.spec.containers[].name&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="进入容器namespace"><a href="#进入容器namespace" class="headerlink" title="进入容器namespace"></a>进入容器namespace</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">docker ps | grep APP_NAME</span><br><span class="line">docker inspect CONTAINER_ID | grep Pid</span><br><span class="line">nsenter -t PID -n</span><br></pre></td></tr></table></figure>
+
+<h3 id="查找非-running-状态的-Pod"><a href="#查找非-running-状态的-Pod" class="headerlink" title="查找非 running 状态的 Pod"></a>查找非 running 状态的 Pod</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get pods -A --field-selector=status.phase!=Running | grep -v Complete</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取节点列表及其内存容量"><a href="#获取节点列表及其内存容量" class="headerlink" title="获取节点列表及其内存容量"></a>获取节点列表及其内存容量</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get no -o json | \</span><br><span class="line">  jq -r &#x27;.items | sort_by(.status.capacity.memory)[]|[.metadata.name,.status.capacity.memory]| @tsv&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取每个节点的Pod数量"><a href="#获取每个节点的Pod数量" class="headerlink" title="获取每个节点的Pod数量"></a>获取每个节点的Pod数量</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get po -o json --all-namespaces | \</span><br><span class="line">  jq &#x27;.items | group_by(.spec.nodeName) | map(&#123;&quot;nodeName&quot;: .[0].spec.nodeName, &quot;count&quot;: length&#125;) | sort_by(.count)&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取前一个容器的日志"><a href="#获取前一个容器的日志" class="headerlink" title="获取前一个容器的日志"></a>获取前一个容器的日志</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl -n my-namespace logs my-pod –previous</span><br></pre></td></tr></table></figure>
+
+<h3 id="把Secret复制到其他namespace"><a href="#把Secret复制到其他namespace" class="headerlink" title="把Secret复制到其他namespace"></a>把Secret复制到其他namespace</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get secrets -o json --namespace namespace-old | \</span><br><span class="line">  jq &#x27;.items[].metadata.namespace = &quot;namespace-new&quot;&#x27; | \</span><br><span class="line">  kubectl create-f  -</span><br></pre></td></tr></table></figure>
+
+<h3 id="批量删除所有命名空间下某一个状态的所有pod"><a href="#批量删除所有命名空间下某一个状态的所有pod" class="headerlink" title="批量删除所有命名空间下某一个状态的所有pod"></a>批量删除所有命名空间下某一个状态的所有pod</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl get pods --all-namespaces |grep Terminating | awk &#x27;NR&gt;1 &#123;print $1 ,$2&#125;&#x27; | xargs -l -t kubectl delete pod --force --grace-period=0  -n $1 $2</span><br><span class="line">kubectl get pods --all-namespaces |grep Evicted | awk &#x27;NR&gt;1 &#123;print $1 ,$2&#125;&#x27; | xargs -l -t kubectl delete pod --force --grace-period=0  -n $1 $2</span><br></pre></td></tr></table></figure>
+
+<h3 id="使用kubectl-debug对某一个pod进行转包分析"><a href="#使用kubectl-debug对某一个pod进行转包分析" class="headerlink" title="使用kubectl-debug对某一个pod进行转包分析"></a>使用kubectl-debug对某一个pod进行转包分析</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">kubectl-debug pod-name-xxxx -n xxxx --agentless --port-forward</span><br><span class="line">tcpdump -n -vvv -w /tmp/xxx.pcap</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Kubernetes</category>
+      </categories>
+      <tags>
+        <tag>Kubernetes</tag>
+      </tags>
+  </entry>
 </search>

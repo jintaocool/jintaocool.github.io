@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Prometheus与VictoriaMetrics对比 |  Lijintao&#39;s Blog</title>
+      <title>Kubernetes日常操作命令 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,8 +69,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="Prometheus-Prometheus与VictoriaMetrics对比"
-  class="article article-type-Prometheus"
+  id="Kubernetes-Kubernetes日常操作命令"
+  class="article article-type-Kubernetes"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Prometheus与VictoriaMetrics对比
+  Kubernetes日常操作命令
 </h1>
  
 
@@ -88,11 +88,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/02/21/Prometheus%E4%B8%8EVictoriaMetrics%E5%AF%B9%E6%AF%94/" class="article-date">
-  <time datetime="2024-02-21T08:05:22.000Z" itemprop="datePublished">2024-02-21</time>
+      <a href="/2024/02/21/Kubernetes%E6%97%A5%E5%B8%B8%E6%93%8D%E4%BD%9C%E5%91%BD%E4%BB%A4/" class="article-date">
+  <time datetime="2024-02-21T09:21:38.000Z" itemprop="datePublished">2024-02-21</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
   </div>
   
 <div class="word_count">
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">2.6k</span>
+            <span class="post-count">622</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">9 分钟</span>
+            <span class="post-count">3 分钟</span>
         </span>
     </span>
 </div>
@@ -124,135 +124,39 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>时序数据库有很多，比如Prometheus、M3DB、TimescaleDB、OpenTSDB、InfluxDB等等。Prometheus与VictoriaMetrics是开源的时间序列数据库，在复杂的环境中提供了强大的监控和告警解决方案。下面我们分析下Prometheus和VictoriaMetrics之间的差异，以为用户提供最合适的解决方案。</p>
-<h2 id="Prometheus"><a href="#Prometheus" class="headerlink" title="Prometheus"></a>Prometheus</h2><p><strong>Prometheus</strong>最初是 SoundCloud 中的一个项目，是一个功能强大的监控和警报工具包，专门用于处理多维环境中的时间序列数据。由于其对多维数据收集、查询和警报生成的本机支持，它在 SRE 和 DevOps 社区中变得非常受欢迎。</p>
-<p>Prometheus 是在云原生计算基金会 (CNCF) 下开发的。Prometheus 服务器、客户端库、Alertmanager 和其他相关组件可以在 Prometheus GitHub 组织中找到。主要存储库是： <a target="_blank" rel="noopener" href="https://github.com/prometheus/prometheus">https://github.com/prometheus/prometheus</a></p>
-<h2 id="VictoriaMetrics"><a href="#VictoriaMetrics" class="headerlink" title="VictoriaMetrics"></a>VictoriaMetrics</h2><p><strong>VictoriaMetrics</strong>则是一个高性能、高性价比、可扩展的时间序列数据库，可以作为Prometheus的长期远程存储。它拥有超强的数据压缩和高速数据摄取能力，使其成为大规模监控任务的有吸引力的替代方案。VictoriaMetrics源代码可以在以下位置找到：<a target="_blank" rel="noopener" href="https://github.com/VictoriaMetrics/VictoriaMetrics">https://github.com/VictoriaMetrics/VictoriaMetrics</a></p>
-<h2 id="性能比较"><a href="#性能比较" class="headerlink" title="性能比较"></a>性能比较</h2><p>VictoriaMetrics 与 Prometheus 之间的数据摄取和查询率性能基于使用指标的基准node_exporter`测试。内存和磁盘空间使用情况数据适用于单个 Prometheus 或 VictoriaMetrics 服务器。</p>
-<table>
-<thead>
-<tr>
-<th>比较</th>
-<th>Prometheus</th>
-<th>VictoriaMetrics</th>
-</tr>
-</thead>
-<tbody><tr>
-<td>数据采集</td>
-<td>基于拉动</td>
-<td>基于拉式和推式</td>
-</tr>
-<tr>
-<td>数据摄取</td>
-<td>每秒高达 240,000 个样本</td>
-<td>每秒高达 360,000 个样本</td>
-</tr>
-<tr>
-<td>数据查询</td>
-<td>每秒高达 80,000 次查询</td>
-<td>每秒高达 100,000 次查询</td>
-</tr>
-<tr>
-<td>内存使用情况</td>
-<td>高达 14GB RAM</td>
-<td>高达 4.3GB 的 RAM</td>
-</tr>
-<tr>
-<td>数据压缩</td>
-<td>使用LZF压缩</td>
-<td>使用 Snappy 压缩</td>
-</tr>
-<tr>
-<td>磁盘写入频率</td>
-<td>更频繁地将数据写入磁盘</td>
-<td>减少将数据写入磁盘的频率</td>
-</tr>
-<tr>
-<td>磁盘空间使用情况</td>
-<td>需要更多磁盘空间</td>
-<td>需要更少的磁盘空间</td>
-</tr>
-<tr>
-<td>查询语言</td>
-<td>PromQL</td>
-<td>MetricsQL（向后兼容 PromQL）</td>
-</tr>
-</tbody></table>
-<h2 id="可扩展性和集成性比较"><a href="#可扩展性和集成性比较" class="headerlink" title="可扩展性和集成性比较"></a>可扩展性和集成性比较</h2><p><strong>Prometheus</strong>使用基于PUll模型来收集指标，可以处理多达数百万个活动时间序列。该架构虽然简化了监控服务方的操作。但是也有一定的弊端，比如多个实例抓取的是相同的监控指标，不能保证采集的数据值为一致的，并且在实际的使用中可能遇到网络延迟问题，所以会产生数据不一致的问题，不过对于监控报警这个场景来说，一般不会要求数据的强一致性，所以从业务上来说是可以接受，因为这种数据不一致性影响基本上没什么影响。这种场景适合监控规模不大，只需要保存短周期监控数据的场景。</p>
-<p><img src="/images/1708502324-4ee5a9f9dbe12a6d154e9e69a49f0d2f.png"></p>
-<p><strong>而 VictoriaMetrics</strong>支持pull模型和Push模型。它能够处理大量数据和更广泛的网络场景（得益于其推送模型支持），使其具有可扩展性和灵活性。</p>
-<h3 id="Prometheus架构"><a href="#Prometheus架构" class="headerlink" title="Prometheus架构"></a>Prometheus架构</h3><p><img src="/images/1708502324-2ec2d06a4792dc1d542a244ffc0b50e2.png"></p>
-<p>Prometheus的架构由四个主要组件组成：</p>
-<ol>
-<li><p><strong>Prometheus Server</strong> ：Prometheus Server是Prometheus的核心组件，主要负责从各个目标（target）中收集指标（metrics）数据，并对这些数据进行存储、聚合和查询。</p>
-</li>
-<li><p><strong>Client Libraries</strong> ：Prometheus提供了多种客户端库，用于在应用程序中嵌入Prometheus的指标收集功能。</p>
-</li>
-<li><p><strong>Exporters</strong> ：Exporters是用于将第三方系统的监控数据导出为Prometheus格式的组件。Prometheus支持多种Exporters，例如Node Exporter、MySQL Exporter、HAProxy Exporter等。</p>
-</li>
-<li><p><strong>Alertmanager</strong>：Alertmanager是Prometheus的告警组件，用于根据用户定义的规则对监控数据进行告警。</p>
-</li>
-<li><p><strong>服务发现</strong>：Prometheus 支持各种服务发现机制，帮助它找到应该抓取的目标。</p>
-</li>
-<li><p><strong>PromQL</strong>：这是 Prometheus 内置的灵活查询语言，用于数据探索和仪表板，与 SQL 不同。</p>
-</li>
-</ol>
-<h3 id="VictoriaMetrics架构"><a href="#VictoriaMetrics架构" class="headerlink" title="VictoriaMetrics架构"></a>VictoriaMetrics架构</h3><p>VictoriaMetrics 提供<a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/Single-server-VictoriaMetrics.html">单机版</a>和<a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/Cluster-VictoriaMetrics.html">集群版</a>。如果您的每秒写入数据点数小于100万（这个数量是个什么概念呢，如果只是做机器设备的监控，每个机器差不多采集200个指标，采集频率是10秒的话每台机器每秒采集20个指标左右，100万&#x2F;20&#x3D;5万台机器），VictoriaMetrics 官方默认推荐您使用单机版，单机版可以通过增加服务器的CPU核心数，增加内存，增加IOPS来获得线性的性能提升。且单机版易于配置和运维。</p>
-<p>下面这是一个集群版的架构图</p>
-<p><img src="/images/1708502324-1f67d5f37c7f4f562e38ae98213094fc.png"></p>
-<p>VictoriaMetrics在保持更简单的架构的同时，还包括几个核心组件：</p>
-<ul>
-<li><code>vmstorage</code>：数据存储以及查询结果返回，默认端口为 8482</li>
-<li><code>vminsert</code>：数据录入，可实现类似分片、副本功能，默认端口 8480</li>
-<li><code>vmselect</code>：数据查询，汇总和数据去重，默认端口 8481</li>
-<li><code>vmagent</code>：数据指标抓取，支持多种后端存储，会占用本地磁盘缓存，默认端口 8429</li>
-<li><code>vmalert</code>：报警相关组件，不如果不需要告警功能可以不使用该组件，默认端口为 8880</li>
-</ul>
-<h2 id="数据压缩和存储效率"><a href="#数据压缩和存储效率" class="headerlink" title="数据压缩和存储效率"></a>数据压缩和存储效率</h2><p>Prometheus拥有高效的存储系统，但在长期数据存储后端和检索效率方面不如VictoriaMetrics。</p>
-<p>VictoriaMetrics 相对于 Prometheus 的主要优势之一是其数据压缩功能。它的数据压缩算法，可显著降低存储要求。VictoriaMetrics 声称提供比 Prometheus 高出 10 倍的数据压缩，这是长期数据保留和成本优化的关键优势。</p>
-<h3 id="Prometheus-1"><a href="#Prometheus-1" class="headerlink" title="Prometheus"></a>Prometheus</h3><ol>
-<li>内存存储：Prometheus利用内存存储来访问最近的时间序列数据。数据库中的这个部分被称为<code>head block</code>。</li>
-<li>磁盘存储：当数据达到一定的年龄或大小后，位于”head block”中的数据会被移动到磁盘中，这个过程称为<code>checkpointing</code>。这个数据库由长期存储的”persistent blocks”组成。</li>
-</ol>
-<h3 id="VictoriaMetrics-1"><a href="#VictoriaMetrics-1" class="headerlink" title="VictoriaMetrics"></a>VictoriaMetrics</h3><p>1.内存存储：与 Prometheus 类似，VictoriaMetrics 使用内存存储在传入数据写入磁盘之前进行缓冲。这种方法有助于优化写入性能。同事还缓存经常访问的数据以加快检索速度。</p>
-<p>2.磁盘存储：VictoriaMetrics 中的大部分数据存储在磁盘上。它使用一种高效的存储格式，可以实现大幅度的进行数据压缩。</p>
-<h2 id="查询语言"><a href="#查询语言" class="headerlink" title="查询语言"></a>查询语言</h2><h3 id="PromQL"><a href="#PromQL" class="headerlink" title="PromQL"></a>PromQL</h3><p><strong>Prometheus</strong>使用<strong>PromQL</strong>。PromQL 允许实时选择和聚合时间序列数据。它使我们能够高度灵活地使用指标。通过 PromQL，用户可以过滤和聚合指标，计算比率、比率、平均值和百分位数等指标。</p>
-<h3 id="MetricsQL"><a href="#MetricsQL" class="headerlink" title="MetricsQL"></a>MetricsQL</h3><p>VictoriaMetrics向后兼容 PromQL。我们都可以按照理解的 PromQL 语法来进行查询。但是，它还引入了 PromQL 的扩展，称为<strong>MetricsQL</strong>。MetricsQL 增强了 PromQL 提供的查询功能。它引入了新函数、运算符和语法糖。简化并改善了用户体验，特别是对于复杂的查询和聚合。</p>
-<h2 id="摄取率"><a href="#摄取率" class="headerlink" title="摄取率"></a>摄取率</h2><h4 id="Prometheus-2"><a href="#Prometheus-2" class="headerlink" title="Prometheus"></a>Prometheus</h4><ul>
-<li>Prometheus定期从监控目标中获取指标。这些获取的频率的调整可以控制数据摄取速率。</li>
-<li>Prometheus实际上能够摄取数据的速率取决于许多因素，包括运行的硬件性能、被获取的指标的复杂性以及存储层的效率。</li>
-<li>如果Prometheus无法跟上传入数据量，可能会丢弃样本或增加延迟。</li>
-</ul>
-<h4 id="VictoriaMetrics-2"><a href="#VictoriaMetrics-2" class="headerlink" title="VictoriaMetrics"></a>VictoriaMetrics</h4><ul>
-<li>VictoriaMetrics则比Prometheus更加高效利用资源。它声称在相同的数据量下，能够更高效地摄取数据，使用更少的CPU、内存和磁盘空间。</li>
-<li>这种效率使得VictoriaMetrics在相同硬件上能够比Prometheus更快地摄取数据。</li>
-<li>在架构设计方面，VictoriaMetrics可以通过拉取（与Prometheus类似）和推送模式来摄取数据。推送模式对于高基数数据和摄取速率是有帮助的。</li>
-</ul>
-<h2 id="高可用性和可靠性"><a href="#高可用性和可靠性" class="headerlink" title="高可用性和可靠性"></a>高可用性和可靠性</h2><p>Prometheus 本身并不支持集群，这意味着它不提供原生高可用性。高可用性可以通过运行重复实例来实现，或者thanos架构，当然也可以整合VictoriaMetrics。</p>
-<p><img src="/images/1708502324-b8a0ca1114ff4500bc208f03d05860bd.jpeg"></p>
-<p>而VictoriaMetrics 在设计时就考虑到了高可用性。它使用复制和集群来确保在实例发生故障时数据不会丢失，从而成为了很多大厂的选择。</p>
-<h2 id="API接口"><a href="#API接口" class="headerlink" title="API接口"></a>API接口</h2><p>Prometheus和VictoriaMetrics都提供了基于 Http的 API接口，已满足客户端调用需求</p>
-<h4 id="Prometheus-API"><a href="#Prometheus-API" class="headerlink" title="Prometheus API"></a>Prometheus API</h4><ul>
-<li>查询：Prometheus提供了PromQL查询语言，用户可以使用该语言通过HTTP API查询指标数据。</li>
-<li>元数据：API endpoint提供对 Prometheus 服务器中关系列和标签的元数据的访问。</li>
-<li>管理：某些管理任务，例如删除系列、快照等，也可以通过 API 执行。</li>
-</ul>
-<h4 id="VictoriaMetrics-API"><a href="#VictoriaMetrics-API" class="headerlink" title="VictoriaMetrics API"></a>VictoriaMetrics API</h4><p>VictoriaMetrics提供了一个全面的HTTP API，根据功能分为几个部分：</p>
-<ul>
-<li><p>适用于Prometheus的指标API：此API与Prometheus的HTTP API兼容，这意味着可以将VictoriaMetrics作为Prometheus的替代品。</p>
-</li>
-<li><p>InfluxDB API：VictoriaMetrics还提供与InfluxDB的写入和查询API兼容的API。这使得从InfluxDB切换到VictoriaMetrics也很容易。</p>
-</li>
-<li><p>Graphite API：VictoriaMetrics还为Graphite的API提供了一个兼容层。</p>
-</li>
-<li><p>MetricsQL和PromQL API：这些API用于查询存储在VictoriaMetrics中的指标数据。MetricsQL是VictoriaMetrics特定的</p>
-<p>PromQL扩展，提供了PromQL中不可用的额外功能。</p>
-</li>
-</ul>
-<h2 id="与-Grafana-集成"><a href="#与-Grafana-集成" class="headerlink" title="与 Grafana 集成"></a>与 Grafana 集成</h2><p>由于 VictoriaMetrics兼容Prometheus，所以在 在 Grafana 进行可视化配置时，可以使用“Prometheus”数据源，并将 Url 设置为VictoriaMetrics Server 地址即可。</p>
-<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>以上我们总结Prometheus与VictoriaMetrics的各个方面的对比，虽然VictoriaMetrics在某些方面可能比Prometheus更强大，比如在处理大规模数据和高并发负载时的性能表现，完全可以替换Prometheus，但它相对来说是相对较新的项目，尚未达到Prometheus在用户社区和广泛采用方面的水平。此外，Prometheus的发展时间更早，是CNCF第二个毕业的项目，已经得到了大量用户的验证，并且有更多的文档、教程和案例可供参考。</p>
-<p>此外，技术的流行和广泛采用并不仅仅取决于技术本身的性能，还受到多个因素的影响，包括市场宣传、社区支持、用户体验和可用性等。Prometheus在这些方面都做得相对较好，因此在监控领域更为流行和广泛采用。</p>
- 
+  <h3 id="根据overlay2目录名找容器"><a href="#根据overlay2目录名找容器" class="headerlink" title="根据overlay2目录名找容器"></a>根据overlay2目录名找容器</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker ps -q | xargs docker inspect --format &#x27;&#123;&#123;.State.Pid&#125;&#125;, &#123;&#123;.Id&#125;&#125;, &#123;&#123;.Name&#125;&#125;, &#123;&#123;.GraphDriver.Data.WorkDir&#125;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="调试coredns"><a href="#调试coredns" class="headerlink" title="调试coredns"></a>调试coredns</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl run -it --rm --restart=Never --image=infoblox/dnstools:latest dnstools</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看资源使用情况"><a href="#查看资源使用情况" class="headerlink" title="查看资源使用情况"></a>查看资源使用情况</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &quot;echo &#123;&#125; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve --;&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看资源总情况"><a href="#查看资源总情况" class="headerlink" title="查看资源总情况"></a>查看资源总情况</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get no -o=custom-columns=&quot;NODE:.metadata.name,ALLOCATABLE CPU:.status.allocatable.cpu,ALLOCATABLE MEMORY:.status.allocatable.memory&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看CPU分配情况"><a href="#查看CPU分配情况" class="headerlink" title="查看CPU分配情况"></a>查看CPU分配情况</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &#x27;echo -n &quot;&#123;&#125;\t&quot; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve -- | grep cpu | awk &#x27;\&#x27;&#x27;&#123;print $2$3&#125;&#x27;\&#x27;&#x27;;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看内存分配情况"><a href="#查看内存分配情况" class="headerlink" title="查看内存分配情况"></a>查看内存分配情况</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get nodes --no-headers | awk &#x27;&#123;print $1&#125;&#x27; | xargs -I &#123;&#125; sh -c &#x27;echo -n &quot;&#123;&#125;\t&quot; ; kubectl describe node &#123;&#125; | grep Allocated -A 5 | grep -ve Event -ve Allocated -ve percent -ve -- | grep memory | awk &#x27;\&#x27;&#x27;&#123;print $2$3&#125;&#x27;\&#x27;&#x27;;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="线程数统计"><a href="#线程数统计" class="headerlink" title="线程数统计"></a>线程数统计</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">printf &quot;    NUM  PID\t\tCOMMAND\n&quot; &amp;&amp; ps -eLf | awk &#x27;&#123;$1=null;$3=null;$4=null;$5=null;$6=null;$7=null;$8=null;$9=null;print&#125;&#x27; | sort |uniq -c |sort -rn | head -10</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置默认storageclass"><a href="#配置默认storageclass" class="headerlink" title="配置默认storageclass"></a>配置默认storageclass</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl patch storageclass &lt;your-class-name&gt; -p &#x27;&#123;&quot;metadata&quot;: &#123;&quot;annotations&quot;:&#123;&quot;storageclass.kubernetes.io/is-default-class&quot;:&quot;true&quot;&#125;&#125;&#125;&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="查看容器名"><a href="#查看容器名" class="headerlink" title="查看容器名"></a>查看容器名</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get po calibre-web-76b9bf4d8b-2kc5j -o json | jq -j &quot;.spec.containers[].name&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="进入容器namespace"><a href="#进入容器namespace" class="headerlink" title="进入容器namespace"></a>进入容器namespace</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker ps | grep APP_NAME</span><br><span class="line">docker inspect CONTAINER_ID | grep Pid</span><br><span class="line">nsenter -t PID -n</span><br></pre></td></tr></table></figure>
+
+<h3 id="查找非-running-状态的-Pod"><a href="#查找非-running-状态的-Pod" class="headerlink" title="查找非 running 状态的 Pod"></a>查找非 running 状态的 Pod</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get pods -A --field-selector=status.phase!=Running | grep -v Complete</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取节点列表及其内存容量"><a href="#获取节点列表及其内存容量" class="headerlink" title="获取节点列表及其内存容量"></a>获取节点列表及其内存容量</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kubectl get no -o json | \</span><br><span class="line">  jq -r &#x27;.items | sort_by(.status.capacity.memory)[]|[.metadata.name,.status.capacity.memory]| @tsv&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取每个节点的Pod数量"><a href="#获取每个节点的Pod数量" class="headerlink" title="获取每个节点的Pod数量"></a>获取每个节点的Pod数量</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kubectl get po -o json --all-namespaces | \</span><br><span class="line">  jq &#x27;.items | group_by(.spec.nodeName) | map(&#123;&quot;nodeName&quot;: .[0].spec.nodeName, &quot;count&quot;: length&#125;) | sort_by(.count)&#x27;</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取前一个容器的日志"><a href="#获取前一个容器的日志" class="headerlink" title="获取前一个容器的日志"></a>获取前一个容器的日志</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n my-namespace logs my-pod –previous</span><br></pre></td></tr></table></figure>
+
+<h3 id="把Secret复制到其他namespace"><a href="#把Secret复制到其他namespace" class="headerlink" title="把Secret复制到其他namespace"></a>把Secret复制到其他namespace</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">kubectl get secrets -o json --namespace namespace-old | \</span><br><span class="line">  jq &#x27;.items[].metadata.namespace = &quot;namespace-new&quot;&#x27; | \</span><br><span class="line">  kubectl create-f  -</span><br></pre></td></tr></table></figure>
+
+<h3 id="批量删除所有命名空间下某一个状态的所有pod"><a href="#批量删除所有命名空间下某一个状态的所有pod" class="headerlink" title="批量删除所有命名空间下某一个状态的所有pod"></a>批量删除所有命名空间下某一个状态的所有pod</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kubectl get pods --all-namespaces |grep Terminating | awk &#x27;NR&gt;1 &#123;print $1 ,$2&#125;&#x27; | xargs -l -t kubectl delete pod --force --grace-period=0  -n $1 $2</span><br><span class="line">kubectl get pods --all-namespaces |grep Evicted | awk &#x27;NR&gt;1 &#123;print $1 ,$2&#125;&#x27; | xargs -l -t kubectl delete pod --force --grace-period=0  -n $1 $2</span><br></pre></td></tr></table></figure>
+
+<h3 id="使用kubectl-debug对某一个pod进行转包分析"><a href="#使用kubectl-debug对某一个pod进行转包分析" class="headerlink" title="使用kubectl-debug对某一个pod进行转包分析"></a>使用kubectl-debug对某一个pod进行转包分析</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kubectl-debug pod-name-xxxx -n xxxx --agentless --port-forward</span><br><span class="line">tcpdump -n -vvv -w /tmp/xxx.pcap</span><br></pre></td></tr></table></figure> 
       <!-- reward -->
       
       <div id="reword-out">
@@ -322,12 +226,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/21/Prometheus%E4%B8%8EVictoriaMetrics%E5%AF%B9%E6%AF%94/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/21/Kubernetes%E6%97%A5%E5%B8%B8%E6%93%8D%E4%BD%9C%E5%91%BD%E4%BB%A4/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
 
     </footer>
   </div>
@@ -335,19 +239,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/02/21/Kubernetes%E6%97%A5%E5%B8%B8%E6%93%8D%E4%BD%9C%E5%91%BD%E4%BB%A4/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            Kubernetes日常操作命令
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/02/18/SQL%E4%B8%ADsubstring%E5%87%BD%E6%95%B0%E7%9A%84%E4%BD%BF%E7%94%A8/" class="article-nav-link">
+      <a href="/2024/02/21/Prometheus%E4%B8%8EVictoriaMetrics%E5%AF%B9%E6%AF%94/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">SQL中substring函数的使用</div>
+        <div class="article-nav-title">Prometheus与VictoriaMetrics对比</div>
       </a>
     
   </nav>
