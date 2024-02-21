@@ -10845,7 +10845,7 @@ plugin_admin_external_manage_enabled = true
 <li>在架构设计方面，VictoriaMetrics可以通过拉取（与Prometheus类似）和推送模式来摄取数据。推送模式对于高基数数据和摄取速率是有帮助的。</li>
 </ul>
 <h2 id="高可用性和可靠性"><a href="#高可用性和可靠性" class="headerlink" title="高可用性和可靠性"></a>高可用性和可靠性</h2><p>Prometheus 本身并不支持集群，这意味着它不提供原生高可用性。高可用性可以通过运行重复实例来实现，或者thanos架构，当然也可以整合VictoriaMetrics。</p>
-<p><img src="/images/1708502324-b8a0ca1114ff4500bc208f03d05860bd.jpeg" alt="来源：vivo容器监控系统架构"></p>
+<p><img src="/images/1708502324-b8a0ca1114ff4500bc208f03d05860bd.jpeg"></p>
 <p>而VictoriaMetrics 在设计时就考虑到了高可用性。它使用复制和集群来确保在实例发生故障时数据不会丢失，从而成为了很多大厂的选择。</p>
 <h2 id="API接口"><a href="#API接口" class="headerlink" title="API接口"></a>API接口</h2><p>Prometheus和VictoriaMetrics都提供了基于 Http的 API接口，已满足客户端调用需求</p>
 <h4 id="Prometheus-API"><a href="#Prometheus-API" class="headerlink" title="Prometheus API"></a>Prometheus API</h4><ul>
