@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Tag: Skywalking |  Lijintao&#39;s Blog</title>
+      <title>Skywalking高可用部署方案 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -68,217 +68,183 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="Skywalking-Skywalking高可用部署方案"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">#&nbspSkywalking</h1>
-    
-    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Skywalking高可用部署方案
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/02/26/Skywalking%E9%AB%98%E5%8F%AF%E7%94%A8%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/" class="article-date">
+  <time datetime="2024-02-26T10:02:45.000Z" itemprop="datePublished">2024-02-26</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
   
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2024" class="archive-year">2024</a>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">379</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">1 分钟</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/02/26/Skywalking%E9%AB%98%E5%8F%AF%E7%94%A8%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/" class="archive-article-date">
-  <time datetime="2024-02-26T10:02:45.000Z" itemprop="datePublished">02/26</time>
-</a>
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/02/26/Skywalking%E9%AB%98%E5%8F%AF%E7%94%A8%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/"
-    >Skywalking高可用部署方案</a> 
-</h2>
+  <h1 id="部署架构图"><a href="#部署架构图" class="headerlink" title="部署架构图"></a>部署架构图</h1><p><img src="/images/1708941680-8b1e94d93b0785e6d5d50f776270f894.png" alt="screenshot20230529143141.png"><br>Skywalking集群是将skywalking oap作为一个服务注册到nacos上，只要Skywalking oap服务没有全部宕机，保证有一个Skywalking oap在运行，就能进行追踪。<br>搭建一个Skywalking OAP集群需要：<br>（1）至少一个Nacos（也可以是Nacos集群）<br>（2）至少一个ElasticSearch（也可以是ES集群）<br>（3）至少2个Skywalking OAP服务<br>（4）至少1个UI</p>
+<h1 id="Skywalking集群部署"><a href="#Skywalking集群部署" class="headerlink" title="Skywalking集群部署"></a>Skywalking集群部署</h1><h2 id="1-下载Skywalking"><a href="#1-下载Skywalking" class="headerlink" title="1.下载Skywalking"></a>1.下载Skywalking</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget https://archive.apache.org/dist/skywalking/9.3.0/apache-skywalking-apm-9.3.0.tar.gz</span><br></pre></td></tr></table></figure>
+
+<h3 id="目录结构："><a href="#目录结构：" class="headerlink" title="目录结构："></a>目录结构：</h3><ul>
+<li>webapp: UI前端的jar包和配置文件。</li>
+<li>oap-libs: 后台应用的jar包以及它依赖的jar包，里面的sever-starter-**.jar是启动程序。</li>
+<li>config: 启动后台应用程序的配置文件。</li>
+<li>bin: 各种启动脚本，一般使用startup.<em>，用来启动web页面和对应的后台应用。<br>- oapService.</em>: 默认使用的后台启动程序的脚本。<br>- oapServiceInit.<em>: 使用init模式启动，在此模式下OAP服务器启动以初始化工作，然后退出。<br>- oapServiceNoInit.</em>: 使用no init模式启动，在此模式下OAP服务启动不进行初始化。<br>- webappService.<em>: UI前端的启动脚本。<br>- startup.</em>: 组合脚本，同时启动oapService.*和webappService.*脚本。</li>
+</ul>
+<h2 id="2-修改config-application-yml配置文件"><a href="#2-修改config-application-yml配置文件" class="headerlink" title="2.修改config&#x2F;application.yml配置文件"></a>2.修改config&#x2F;application.yml配置文件</h2><h3 id="1）使用nacos作为注册中心"><a href="#1）使用nacos作为注册中心" class="headerlink" title="1）使用nacos作为注册中心"></a>1）使用nacos作为注册中心</h3><p><img src="/images/1708941680-240e81176d6dd274c9021608e701478f.png" alt="1.png"></p>
+<h3 id="2）修改nacos配置"><a href="#2）修改nacos配置" class="headerlink" title="2）修改nacos配置"></a>2）修改nacos配置</h3><p><img src="/images/1708941680-2d9dc643860586396817826354a0e7fc.png" alt="8.png"></p>
+<h3 id="3）修改存储策略"><a href="#3）修改存储策略" class="headerlink" title="3）修改存储策略"></a>3）修改存储策略</h3><p><img src="/images/1708941680-c0856189b1c4abdd4d423722552609a4.png" alt="5.png"></p>
+<h2 id="3-修改webapp-application-yml的oap-service-集群模式写多个oap服务地址"><a href="#3-修改webapp-application-yml的oap-service-集群模式写多个oap服务地址" class="headerlink" title="3.修改webapp&#x2F;application.yml的oap-service(集群模式写多个oap服务地址)"></a>3.修改webapp&#x2F;application.yml的oap-service(集群模式写多个oap服务地址)</h2><p><img src="/images/1708941680-c8fe44a788bc4caea488f021f7a67589.png" alt="6.png"></p>
+<h2 id="4-启动服务"><a href="#4-启动服务" class="headerlink" title="4.启动服务"></a>4.启动服务</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh bin/startup.sh</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-浏览器访问"><a href="#5-浏览器访问" class="headerlink" title="5.浏览器访问"></a>5.浏览器访问</h2><p>访问<a href="http://10.0.0.1:8080的控制台">http://10.0.0.1:8080的控制台</a><br><img src="/images/1708941680-22ba91eed55f7878825814d34a1380f1.png" alt="7.png"></p>
  
-
-    </header>
-    
-    
+      <!-- reward -->
       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/26/skywalking%E5%8A%A8%E6%80%81%E9%85%8D%E7%BD%AE-%E9%9B%86%E6%88%90nacos-apollo-consul/" class="archive-article-date">
-  <time datetime="2024-01-26T08:42:21.000Z" itemprop="datePublished">01/26</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/26/skywalking%E5%8A%A8%E6%80%81%E9%85%8D%E7%BD%AE-%E9%9B%86%E6%88%90nacos-apollo-consul/"
-    >skywalking动态配置[集成nacos/apollo/consul]</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/03/Skywalking-%E5%8D%83%E4%BA%BF%E7%BA%A7%E7%9A%84%E6%95%B0%E6%8D%AE%E5%82%A8%E8%83%BD%E3%80%81%E6%AF%AB%E7%A7%92%E7%BA%A7%E7%9A%84%E6%9F%A5%E8%AF%A2%E8%80%97%E6%97%B6/" class="archive-article-date">
-  <time datetime="2024-01-03T01:10:28.000Z" itemprop="datePublished">01/03</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/03/Skywalking-%E5%8D%83%E4%BA%BF%E7%BA%A7%E7%9A%84%E6%95%B0%E6%8D%AE%E5%82%A8%E8%83%BD%E3%80%81%E6%AF%AB%E7%A7%92%E7%BA%A7%E7%9A%84%E6%9F%A5%E8%AF%A2%E8%80%97%E6%97%B6/"
-    >Skywalking-千亿级的数据储能、毫秒级的查询耗时</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-  
-  </div>
-  </div>
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2023" class="archive-year">2023</a>
-    </div>
-    <div class="archives">
-      
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/28/Skywalking%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2/" class="archive-article-date">
-  <time datetime="2023-12-28T02:51:37.000Z" itemprop="datePublished">12/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/28/Skywalking%E5%AE%89%E8%A3%85%E9%83%A8%E7%BD%B2/"
-    >Skywalking安装部署</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/19/Skywalking%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88%E5%8F%8A%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3/" class="archive-article-date">
-  <time datetime="2023-12-19T07:33:38.000Z" itemprop="datePublished">12/19</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/19/Skywalking%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88%E5%8F%8A%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3/"
-    >Skywalking部署方案及配置详解</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/15/Skywalking%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E7%A4%BA%E4%BE%8B/" class="archive-article-date">
-  <time datetime="2023-12-15T03:04:34.000Z" itemprop="datePublished">12/15</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/15/Skywalking%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E7%A4%BA%E4%BE%8B/"
-    >Skywalking告警规则示例</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Skywalking">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/08/SkyWalking-%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E/" class="archive-article-date">
-  <time datetime="2023-12-08T09:17:31.000Z" itemprop="datePublished">12/08</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/08/SkyWalking-%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E/"
-    >SkyWalking 告警规则配置说明</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    
-  </div>
-</article>
-      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/26/Skywalking%E9%AB%98%E5%8F%AF%E7%94%A8%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/26/Alertmanager%E5%91%8A%E8%AD%A6%E6%B6%88%E6%81%AF%E5%AF%B9%E6%8E%A5%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1%E3%80%81%E9%A3%9E%E4%B9%A6%E3%80%81%E9%92%89%E9%92%89/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Alertmanager告警消息对接企业微信、飞书、钉钉</div>
+      </a>
+    
+  </nav>
 
   
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -432,6 +398,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link

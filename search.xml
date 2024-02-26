@@ -11384,4 +11384,31 @@ plugin_admin_external_manage_enabled = true
         <tag>Alertmanager</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Skywalking高可用部署方案</title>
+    <url>/2024/02/26/Skywalking%E9%AB%98%E5%8F%AF%E7%94%A8%E9%83%A8%E7%BD%B2%E6%96%B9%E6%A1%88/</url>
+    <content><![CDATA[<h1 id="部署架构图"><a href="#部署架构图" class="headerlink" title="部署架构图"></a>部署架构图</h1><p><img src="/images/1708941680-8b1e94d93b0785e6d5d50f776270f894.png" alt="screenshot20230529143141.png"><br>Skywalking集群是将skywalking oap作为一个服务注册到nacos上，只要Skywalking oap服务没有全部宕机，保证有一个Skywalking oap在运行，就能进行追踪。<br>搭建一个Skywalking OAP集群需要：<br>（1）至少一个Nacos（也可以是Nacos集群）<br>（2）至少一个ElasticSearch（也可以是ES集群）<br>（3）至少2个Skywalking OAP服务<br>（4）至少1个UI</p>
+<h1 id="Skywalking集群部署"><a href="#Skywalking集群部署" class="headerlink" title="Skywalking集群部署"></a>Skywalking集群部署</h1><h2 id="1-下载Skywalking"><a href="#1-下载Skywalking" class="headerlink" title="1.下载Skywalking"></a>1.下载Skywalking</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">wget https://archive.apache.org/dist/skywalking/9.3.0/apache-skywalking-apm-9.3.0.tar.gz</span><br></pre></td></tr></table></figure>
+
+<h3 id="目录结构："><a href="#目录结构：" class="headerlink" title="目录结构："></a>目录结构：</h3><ul>
+<li>webapp: UI前端的jar包和配置文件。</li>
+<li>oap-libs: 后台应用的jar包以及它依赖的jar包，里面的sever-starter-**.jar是启动程序。</li>
+<li>config: 启动后台应用程序的配置文件。</li>
+<li>bin: 各种启动脚本，一般使用startup.<em>，用来启动web页面和对应的后台应用。<br>- oapService.</em>: 默认使用的后台启动程序的脚本。<br>- oapServiceInit.<em>: 使用init模式启动，在此模式下OAP服务器启动以初始化工作，然后退出。<br>- oapServiceNoInit.</em>: 使用no init模式启动，在此模式下OAP服务启动不进行初始化。<br>- webappService.<em>: UI前端的启动脚本。<br>- startup.</em>: 组合脚本，同时启动oapService.*和webappService.*脚本。</li>
+</ul>
+<h2 id="2-修改config-application-yml配置文件"><a href="#2-修改config-application-yml配置文件" class="headerlink" title="2.修改config&#x2F;application.yml配置文件"></a>2.修改config&#x2F;application.yml配置文件</h2><h3 id="1）使用nacos作为注册中心"><a href="#1）使用nacos作为注册中心" class="headerlink" title="1）使用nacos作为注册中心"></a>1）使用nacos作为注册中心</h3><p><img src="/images/1708941680-240e81176d6dd274c9021608e701478f.png" alt="1.png"></p>
+<h3 id="2）修改nacos配置"><a href="#2）修改nacos配置" class="headerlink" title="2）修改nacos配置"></a>2）修改nacos配置</h3><p><img src="/images/1708941680-2d9dc643860586396817826354a0e7fc.png" alt="8.png"></p>
+<h3 id="3）修改存储策略"><a href="#3）修改存储策略" class="headerlink" title="3）修改存储策略"></a>3）修改存储策略</h3><p><img src="/images/1708941680-c0856189b1c4abdd4d423722552609a4.png" alt="5.png"></p>
+<h2 id="3-修改webapp-application-yml的oap-service-集群模式写多个oap服务地址"><a href="#3-修改webapp-application-yml的oap-service-集群模式写多个oap服务地址" class="headerlink" title="3.修改webapp&#x2F;application.yml的oap-service(集群模式写多个oap服务地址)"></a>3.修改webapp&#x2F;application.yml的oap-service(集群模式写多个oap服务地址)</h2><p><img src="/images/1708941680-c8fe44a788bc4caea488f021f7a67589.png" alt="6.png"></p>
+<h2 id="4-启动服务"><a href="#4-启动服务" class="headerlink" title="4.启动服务"></a>4.启动服务</h2><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">sh bin/startup.sh</span><br></pre></td></tr></table></figure>
+
+<h2 id="5-浏览器访问"><a href="#5-浏览器访问" class="headerlink" title="5.浏览器访问"></a>5.浏览器访问</h2><p>访问<a href="http://10.0.0.1:8080的控制台">http://10.0.0.1:8080的控制台</a><br><img src="/images/1708941680-22ba91eed55f7878825814d34a1380f1.png" alt="7.png"></p>
+]]></content>
+      <categories>
+        <category>Skywalking</category>
+      </categories>
+      <tags>
+        <tag>Skywalking</tag>
+      </tags>
+  </entry>
 </search>
