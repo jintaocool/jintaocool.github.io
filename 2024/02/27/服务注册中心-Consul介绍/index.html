@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>服务注册中心-Consul介绍 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Consul-服务注册中心-Consul介绍"
+  class="article article-type-Consul"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  服务注册中心-Consul介绍
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/02/27/%E6%9C%8D%E5%8A%A1%E6%B3%A8%E5%86%8C%E4%B8%AD%E5%BF%83-Consul%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2024-02-27T09:23:11.000Z" itemprop="datePublished">2024-02-27</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Consul/">Consul</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">5.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">26 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="基础概念"><a href="#基础概念" class="headerlink" title="基础概念"></a>基础概念</h1><h2 id="什么是注册中心"><a href="#什么是注册中心" class="headerlink" title="什么是注册中心"></a>什么是注册中心</h2><p>随着微服务理论发展的成熟，越来越多互联网公司采用微服务架构来支持业务发展。各个微服务之间都需要通过注册中心来实现自动化的注册和发现。<br><img src="/images/1709025686-56e5fd03e5aee3d7f07fe99d236fe27a.jpg" alt="123321.png"><br>注册中心主要有三种角色：</p>
+<ul>
+<li><strong>服务提供者（RPC Server）</strong>：在启动时，向 Registry 注册自身服务，并向 Registry 定期发送心跳汇报存活状态。</li>
+<li><strong>服务消费者（RPC Client）</strong>：在启动时，向 Registry 订阅服务，把 Registry 返回的服务节点列表缓存在本地内存中，并与 RPC Sever 建立连接。</li>
+<li><strong>服务注册中心（Registry）</strong>：用于保存 RPC Server 的注册信息，当 RPC Server 节点发生变更时，Registry 会同步变更，RPC Client 感知后会刷新本地 内存中缓存的服务节点列表。</li>
+</ul>
+<p>最后，RPC Client 从本地缓存的服务节点列表中，基于负载均衡算法选择一台 RPC Sever 发起调用。<br>目前常见的注册中心有Consul、ETCD、Zookeeper、Eureka、Nacos等。</p>
+<h2 id="什么是Consul"><a href="#什么是Consul" class="headerlink" title="什么是Consul"></a>什么是Consul</h2><p>Consul是HashiCorp公司推出的开源工具，Consul由Go语言开发，部署起来非常容易，只需要极少的可执行程序和配置文件，具有绿色、轻量级的特点。Consul是分布式的、高可用的、 可横向扩展的用于实现分布式系统的服务发现与配置。</p>
+<h2 id="Consul特点"><a href="#Consul特点" class="headerlink" title="Consul特点"></a>Consul特点</h2><ul>
+<li>服务发现（Service Discovery）：Consul提供了通过DNS或者HTTP接口的方式来注册服务和发现服务。一些外部的服务通过Consul很容易的找到它所依赖的服务。</li>
+<li>健康检查（Health Checking）：Consul的Client可以提供任意数量的健康检查，既可以与给定的服务相关联(“webserver是否返回200 OK”)，也可以与本地节点相关联(“内存利用率是否低于90%”)。操作员可以使用这些信息来监视集群的健康状况，服务发现组件可以使用这些信息将流量从不健康的主机路由出去。</li>
+<li>Key&#x2F;Value存储：应用程序可以根据自己的需要使用Consul提供的Key&#x2F;Value存储。 Consul提供了简单易用的HTTP接口，结合其他工具可以实现动态配置、功能标记、领袖选举等等功能。</li>
+<li>安全服务通信：Consul可以为服务生成和分发TLS证书，以建立相互的TLS连接。意图可用于定义允许哪些服务通信。服务分割可以很容易地进行管理，其目的是可以实时更改的，而不是使用复杂的网络拓扑和静态防火墙规则。</li>
+<li>多数据中心：Consul支持开箱即用的多数据中心. 这意味着用户不需要担心需要建立额外的抽象层让业务扩展到多个区域。</li>
+</ul>
+<h2 id="consul组件"><a href="#consul组件" class="headerlink" title="consul组件"></a>consul组件</h2><ul>
+<li>Agent：是在 Consul 集群的每个成员上长期运行的守护进程，通过命令 consul agent 启动运行。由于所有节点都必须运行一个 Agent，因此 Agent 可以分为 client 或 Server。所有的 Agent 都可以运行DNS或HTTP接口，并负责运行监测和保持服务同步</li>
+<li>Client：是将所有RPC转发到 Server 的 Agent。Client 是相对无状态的，Client 唯一执行的后台活动是加入 LAN gossip 池。这只有最小的资源开销，且只消耗少量的网络带宽</li>
+<li>Server：是一个有一组扩展功能的 Agent，这些功能包括参与 Raft 选举、维护集群状态、响应RPC查询、与其他数据中心交互 WAN gossip 和转发查询给 leader 或远程的数据中心</li>
+<li>Datacenter：是一个私有的、低延迟和高带宽的网络环境。这不包括通过公网的通信，但就目的而言，单个 EC2 中的多个可用区域被视为数据中心的一部分</li>
+<li>Consensus：一致性。Consul 使用 Consensus 协议（具体由 Raft 算法实现）来提供一致性（由 CAP 定义），表明 leader 选举和事务的顺序达成一致</li>
+<li>Gossip：Consul 使用 Gossip 协议来管理成员资格并向集群广播消息。Serf 提供了完整的 Gossip 协议，可用于多种目的，而 Consul 建立在 Serf 之上。Gossip 涉及节点到节点的随机通信，主要是通过UDP。Gossip 协议也被称为 Epidemic 协议（流行病协议）</li>
+<li>LAN Gossip：指包含所有位于同一局域网或数据中心的节点的 LAN gossip 池</li>
+<li>WAN Gossip：指仅包含 Server 的 WAN gossip 池。这些 Server 主要分布在不同的数据中心，通常通过Internet或者广域网进行通信</li>
+<li>RPC：远程过程调用。一种 请求&#x2F;响应 机制，允许 Client 向 Server 发起请求</li>
+</ul>
+<h2 id="Consul-架构图"><a href="#Consul-架构图" class="headerlink" title="Consul 架构图"></a>Consul 架构图</h2><p><img src="/images/1709025686-34a054a5f58cc00d7e3c05256d9af1d1.jpg" alt="image.png"><br>每个为Consul提供服务的节点都会运行一个Consul Agent进程。运行代理不需要发现其他服务或获取&#x2F;设置密钥&#x2F;值数据。Agent负责对节点上的服务以及节点本身进行健康检查。<br>Consul Agent 分为两种模式， Server 和 Client模式，一般部署模型是 Server + Client的模式（当然也可以纯Server）, Server 具有Client的全部功能， 但是由于Server负责存储数据，并且强一致性模型的缘故， Server数是有限的（3-5个Server节点，Client可以无限扩展的）。<br>Agent与一个或多个Consul Server对话。Consul Server是<strong>存储</strong>和<strong>复制数据</strong>的地方。Server本身会选出一个Leader。虽然Consul可以用一台Server来运作，但建议使用3到5台，以避免故障情况导致数据丢失。建议每个数据中心采用Consul服务器集群。<br>Server Agent维护着一个目录（Catalog），这个目录（Catalog）是由Agent提交的信息汇总形成的。目录维护着集群的高层视图，包括哪些服务可用，哪些节点运行这些服务，健康信息等。<br>需要发现其他服务或节点的基础结构组件可以查询任何Consul Server或任何Consul Agent。Agent将查询自动转发到Server。<br>Agent会自动将查询转发给Server Agent。 每个数据中心都运行一个Consul Server集群。当有跨数据中心的服务发现或配置请求时，本地Consul Server将请求转发到远程数据中心并返回结果。</p>
+<h2 id="Consul的使用场景"><a href="#Consul的使用场景" class="headerlink" title="Consul的使用场景"></a>Consul的使用场景</h2><p>Consul的应用场景包括服务发现、服务隔离、服务配置：</p>
+<ul>
+<li>服务发现场景中consul作为注册中心，服务地址被注册到consul中以后，可以使用consul提供的dns、http接口查询，consul支持health check。</li>
+<li>服务隔离场景中consul支持以服务为单位设置访问策略，能同时支持经典的平台和新兴的平台，支持tls证书分发，service-to-service加密。</li>
+<li>服务配置场景中consul提供key-value数据存储功能，并且能将变动迅速地通知出去，借助Consul可以实现配置共享，需要读取配置的服务可以从Consul中读取到准确的配置信息。</li>
+<li>Consul可以帮助系统管理者更清晰的了解复杂系统内部的系统架构，运维人员可以将Consul看成一种监控软件，也可以看成一种资产（资源）管理系统。</li>
+</ul>
+<h1 id="安装部署"><a href="#安装部署" class="headerlink" title="安装部署"></a>安装部署</h1><p>参考文档：<a target="_blank" rel="noopener" href="https://developer.hashicorp.com/consul/downloads?host=www.consul.io">https://developer.hashicorp.com/consul/downloads?host=www.consul.io</a></p>
+<h2 id="yum部署"><a href="#yum部署" class="headerlink" title="yum部署"></a>yum部署</h2><p>安装软件包</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban ~]# yum install -y yum-utils</span><br><span class="line">[root@tiaoban ~]# yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo</span><br><span class="line">[root@tiaoban ~]# yum -y install consul</span><br></pre></td></tr></table></figure>
+
+<p>启动服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban ~]# systemctl start consul</span><br><span class="line">[root@tiaoban ~]# systemctl enable consul</span><br></pre></td></tr></table></figure>
+
+<h2 id="二进制部署"><a href="#二进制部署" class="headerlink" title="二进制部署"></a>二进制部署</h2><p>下载</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban ~]# mkdir consul</span><br><span class="line">[root@tiaoban ~]# cd consul/</span><br><span class="line">[root@tiaoban consul]# wget https://releases.hashicorp.com/consul/1.13.2/consul_1.13.2_linux_amd64.zip</span><br><span class="line">[root@tiaoban consul]# ls</span><br><span class="line">consul_1.13.2_darwin_amd64.zip</span><br></pre></td></tr></table></figure>
+
+<p>解压安装</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban consul]# unzip consul_1.13.2_linux_amd64.zip </span><br><span class="line">Archive:  consul_1.13.2_linux_amd64.zip</span><br><span class="line">  inflating: consul                  </span><br><span class="line">[root@tiaoban consul]# ls</span><br><span class="line">consul  consul_1.13.2_linux_amd64.zip</span><br><span class="line">[root@tiaoban consul]# mv consul /usr/local/bin/</span><br><span class="line">[root@tiaoban consul]# consul version</span><br><span class="line">Consul v1.13.2</span><br><span class="line">Revision 0e046bbb</span><br><span class="line">Build Date 2022-09-20T20:30:07Z</span><br><span class="line">Protocol 2 spoken by default, understands 2 to 3 (agent will automatically use protocol &gt;2 when speaking to compatible agents)</span><br></pre></td></tr></table></figure>
+
+<p>启动服务测试<br>使用单节点模式启动测试</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban consul]# consul agent -dev -ui -client 0.0.0.0</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1709025686-5f4b34f1e393657c4764d8c1dfc111bf.jpg" alt="image.png"><br>添加启动脚本</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban ~]# cat /usr/lib/systemd/system/consul.service </span><br><span class="line">[Unit]</span><br><span class="line">Description=consul</span><br><span class="line">After=network.target</span><br><span class="line">    </span><br><span class="line">[Service]</span><br><span class="line">ExecStart=/usr/local/consul/start.sh</span><br><span class="line">KillSignal=SIGTERM</span><br><span class="line">    </span><br><span class="line">[Install]</span><br><span class="line">WantedBy=multi-user.target</span><br><span class="line">[root@tiaoban ~]# mkdir -p /usr/local/consul/</span><br><span class="line">[root@tiaoban ~]# cat /usr/local/consul/start.sh</span><br><span class="line">#!/bin/bash</span><br><span class="line">/usr/local/bin/consul agent -dev -ui -client 0.0.0.0</span><br><span class="line">[root@tiaoban ~]# chmod u+x /usr/local/consul/start.sh </span><br></pre></td></tr></table></figure>
+
+<p>启动服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban ~]# systemctl daemon-reload </span><br><span class="line">[root@tiaoban ~]# systemctl start consul</span><br><span class="line">[root@tiaoban ~]# systemctl enable consul</span><br></pre></td></tr></table></figure>
+
+<h1 id="服务启动"><a href="#服务启动" class="headerlink" title="服务启动"></a>服务启动</h1><blockquote>
+<p>以下操作以yum方式安装consul配置为例，配置文件路径<code>/etc/consul.d/consul.hcl</code></p>
+</blockquote>
+<h2 id="单节点模式"><a href="#单节点模式" class="headerlink" title="单节点模式"></a>单节点模式</h2><p>修改配置文件</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># 指明数据中心的名字</span><br><span class="line">datacenter = &quot;my-dc-1&quot;</span><br><span class="line"># 存储状态的数据目录</span><br><span class="line">data_dir = &quot;/opt/consul&quot;</span><br><span class="line"># web ui</span><br><span class="line">ui_config&#123;</span><br><span class="line">  enabled = true</span><br><span class="line">&#125;</span><br><span class="line"># 节点是个Server</span><br><span class="line">server = true</span><br><span class="line"># 绑定的一个地址，用于节点之间通信的地址</span><br><span class="line">bind_addr = &quot;192.168.10.100&quot;</span><br><span class="line"># 期望提供的Server节点数目</span><br><span class="line">bootstrap_expect=1</span><br><span class="line"># Client接口绑定到的地址</span><br><span class="line">client_addr = &quot;0.0.0.0&quot;</span><br></pre></td></tr></table></figure>
+
+<p>启动服务，查看集群成员</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@tiaoban consul.d]# systemctl start consul</span><br><span class="line">[root@tiaoban consul.d]# consul members </span><br><span class="line">Node     Address              Status  Type    Build   Protocol  DC       Partition  Segment</span><br><span class="line">tiaoban  192.168.10.100:8301  alive   server  1.13.2  2         my-dc-1  default    &lt;all&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="集群模式"><a href="#集群模式" class="headerlink" title="集群模式"></a>集群模式</h2><p>主机规划</p>
+<table>
+<thead>
+<tr>
+<th>主机名</th>
+<th>IP</th>
+<th>角色</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>k8s-master</td>
+<td>192.168.10.10</td>
+<td>server</td>
+</tr>
+<tr>
+<td>k8s-work1</td>
+<td>192.168.10.11</td>
+<td>server</td>
+</tr>
+<tr>
+<td>k8s-work2</td>
+<td>192.168.10.12</td>
+<td>server</td>
+</tr>
+<tr>
+<td>tiaoban</td>
+<td>192.168.10.100</td>
+<td>clinet</td>
+</tr>
+</tbody></table>
+<p>server端配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"># 指明数据中心的名字</span><br><span class="line">datacenter = &quot;my-dc-1&quot;</span><br><span class="line"># 存储状态的数据目录</span><br><span class="line">data_dir = &quot;/opt/consul&quot;</span><br><span class="line"># web ui</span><br><span class="line">ui_config&#123;</span><br><span class="line">  enabled = true</span><br><span class="line">&#125;</span><br><span class="line"># 节点是个Server</span><br><span class="line">server = true</span><br><span class="line"># 绑定的一个地址，用于节点之间通信的地址。此处以192.168.10.10为例，其他两个更换ip即可。</span><br><span class="line">bind_addr = &quot;192.168.10.10&quot;</span><br><span class="line"># 期望提供的Server节点数目</span><br><span class="line">bootstrap_expect=3</span><br><span class="line"># Client接口绑定到的地址</span><br><span class="line">client_addr = &quot;0.0.0.0&quot;</span><br></pre></td></tr></table></figure>
+
+<p>client配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># 指明数据中心的名字</span><br><span class="line">datacenter = &quot;my-dc-1&quot;</span><br><span class="line"># 存储状态的数据目录</span><br><span class="line">data_dir = &quot;/opt/consul&quot;</span><br><span class="line"># web ui</span><br><span class="line">ui_config&#123;</span><br><span class="line">  enabled = true</span><br><span class="line">&#125;</span><br><span class="line"># 节点是个Server</span><br><span class="line">server = false</span><br><span class="line"># 绑定的一个地址，用于节点之间通信的地址</span><br><span class="line">bind_addr = &quot;192.168.10.100&quot;</span><br><span class="line"># Client接口绑定到的地址</span><br><span class="line">client_addr = &quot;0.0.0.0&quot;</span><br></pre></td></tr></table></figure>
+
+<p>启动服务并加入集群</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># 所有机器执行</span><br><span class="line">[root@k8s-master consul.d]# systemctl restart consul</span><br><span class="line"># 除了k8s-master以外的其他机器执行</span><br><span class="line">[root@k8s-tiaoban consul.d]# consul join 192.168.10.10</span><br><span class="line">Successfully joined cluster by contacting 1 nodes.</span><br></pre></td></tr></table></figure>
+
+<h1 id="Consul-常用CLI"><a href="#Consul-常用CLI" class="headerlink" title="Consul 常用CLI"></a>Consul 常用CLI</h1><h2 id="查看服务列表"><a href="#查看服务列表" class="headerlink" title="查看服务列表"></a>查看服务列表</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# consul catalog services</span><br><span class="line">consul</span><br><span class="line">traefik</span><br><span class="line">traefik-tcp</span><br></pre></td></tr></table></figure>
+
+<h2 id="注销服务"><a href="#注销服务" class="headerlink" title="注销服务"></a>注销服务</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">consul services deregister -id=:service-id</span><br><span class="line">// :service-id 为用户服务Id</span><br></pre></td></tr></table></figure>
+
+<h2 id="查看节点成员"><a href="#查看节点成员" class="headerlink" title="查看节点成员"></a>查看节点成员</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# consul members</span><br><span class="line">Node        Address              Status  Type    Build   Protocol  DC       Partition  Segment</span><br><span class="line">k8s-master  192.168.10.10:8301   alive   server  1.13.3  2         my-dc-1  default    &lt;all&gt;</span><br><span class="line">k8s-work1   192.168.10.11:8301   alive   server  1.13.3  2         my-dc-1  default    &lt;all&gt;</span><br><span class="line">k8s-work2   192.168.10.12:8301   alive   server  1.13.3  2         my-dc-1  default    &lt;all&gt;</span><br><span class="line">tiaoban     192.168.10.100:8301  alive   client  1.13.2  2         my-dc-1  default    &lt;default&gt;</span><br></pre></td></tr></table></figure>
+
+<h2 id="查看server节点信息"><a href="#查看server节点信息" class="headerlink" title="查看server节点信息"></a>查看server节点信息</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# consul operator raft list-peers</span><br><span class="line">Node        ID                                    Address             State     Voter  RaftProtocol</span><br><span class="line">k8s-work1   322a522a-dcf5-3727-052e-0f2d65406f8d  192.168.10.11:8300  follower  true   3</span><br><span class="line">k8s-master  5db3c09a-f94d-b53f-6c9f-694beb64c1aa  192.168.10.10:8300  leader    true   3</span><br><span class="line">k8s-work2   d0e4a609-f029-cd91-1d61-63c3403b82b3  192.168.10.12:8300  follower  false  3</span><br></pre></td></tr></table></figure>
+
+<h2 id="Consul常用HTTP-API"><a href="#Consul常用HTTP-API" class="headerlink" title="Consul常用HTTP API"></a>Consul常用HTTP API</h2><h2 id="服务查询"><a href="#服务查询" class="headerlink" title="服务查询"></a>服务查询</h2><ul>
+<li>&#x2F;agent&#x2F;services：该端点返回在本地代理程序中注册的所有服务；</li>
+<li>&#x2F;agent&#x2F;service&#x2F;{service_id}：返回在本地代理上注册的单个服务实例的完整服务定义；</li>
+<li>&#x2F;agent&#x2F;health&#x2F;service&#x2F;name&#x2F;{service_name} ：通过名称检索注册的服务状态（设置了健康检查的服务）；</li>
+<li>&#x2F;agent&#x2F;health&#x2F;service&#x2F;id&#x2F;{service_id}：通过id检索注册的服务状态（设置了健康检查的服务）；</li>
+<li>&#x2F;health&#x2F;service&#x2F;{service_name}?passing：通过健康检查的服务(包含未设置check的service)</li>
+</ul>
+<h2 id="服务注册"><a href="#服务注册" class="headerlink" title="服务注册"></a>服务注册</h2><ul>
+<li>&#x2F;agent&#x2F;service&#x2F;register：注册服务；</li>
+</ul>
+<h2 id="服务删除"><a href="#服务删除" class="headerlink" title="服务删除"></a>服务删除</h2><ul>
+<li>&#x2F;agent&#x2F;service&#x2F;deregister&#x2F;{service_id}：注销服务；</li>
+<li>&#x2F;agent&#x2F;service&#x2F;maintenance&#x2F;{service_id}：该端点将给定的服务置于“维护模式”，在维护模式下，该服务将被标记为不可用，并且不会出现在DNS或API查询中；</li>
+</ul>
+<h1 id="服务注册-1"><a href="#服务注册-1" class="headerlink" title="服务注册"></a>服务注册</h1><h2 id="配置文件"><a href="#配置文件" class="headerlink" title="配置文件"></a>配置文件</h2><p>新增json配置文件</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# cat /etc/consul.d/kube-apiserver.json </span><br><span class="line">&#123;</span><br><span class="line">    &quot;service&quot;: &#123;</span><br><span class="line">        &quot;name&quot;: &quot;traefik-tcp&quot;,</span><br><span class="line">        &quot;tags&quot;: [</span><br><span class="line">            &quot;k8s&quot;,&quot;traefik&quot;</span><br><span class="line">        ],</span><br><span class="line">        &quot;address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">        &quot;port&quot;: 9100</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>重启服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# systemctl restart consul</span><br></pre></td></tr></table></figure>
+
+<p>web界面查看<br><img src="/images/1709025686-6826da809f1490aa8e1e1ad021b1337f.jpg" alt="image.png"></p>
+<h2 id="HTTP-API"><a href="#HTTP-API" class="headerlink" title="HTTP API"></a>HTTP API</h2><p>注册一个name为traefik的服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# curl -X PUT -d &#x27;&#123;&quot;name&quot;: &quot;traefik&quot;,&quot;address&quot;: &quot;192.168.10.10&quot;,&quot;port&quot;: 80,&quot;tags&quot;: [&quot;k8s&quot;]&#125;&#x27; http://192.168.10.10:8500/v1/agent/service/register</span><br></pre></td></tr></table></figure>
+
+<p>注册带健康检查的服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X PUT -d &#x27;&#123;&quot;name&quot;: &quot;traefik-metrics&quot;,&quot;address&quot;: &quot;192.168.10.10&quot;,&quot;port&quot;: 80,&quot;tags&quot;: [&quot;k8s&quot;],&quot;checks&quot;:[&#123;&quot;http&quot;:&quot;http://192.168.10.10:9100/metrics&quot;,&quot;interval&quot;:&quot;5s&quot;&#125;]&#125;&#x27; http://192.168.10.10:8500/v1/agent/service/register</span><br></pre></td></tr></table></figure>
+
+<p>打开管理页面查看已注册的服务<br><img src="/images/1709025686-eb49bc0af4b5961462306e5db6329ebd.jpg" alt="image.png"></p>
+<h2 id="SDK"><a href="#SDK" class="headerlink" title="SDK"></a>SDK</h2><p>除了采用配置文件或者HTTP API方式注册服务外，consul也支持使用sdk包注册查询服务，目前主流的开发语法均已支持，详情参考文档：<br><a target="_blank" rel="noopener" href="https://developer.hashicorp.com/consul/api-docs/libraries-and-sdks">https://developer.hashicorp.com/consul/api-docs/libraries-and-sdks</a></p>
+<h1 id="服务查询-1"><a href="#服务查询-1" class="headerlink" title="服务查询"></a>服务查询</h1><h2 id="HTTP-API-1"><a href="#HTTP-API-1" class="headerlink" title="HTTP API"></a>HTTP API</h2><p>查看服务列表</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# curl -s http://192.168.10.10:8500/v1/catalog/services | jq</span><br><span class="line">&#123;</span><br><span class="line">  &quot;consul&quot;: [],</span><br><span class="line">  &quot;traefik&quot;: [</span><br><span class="line">    &quot;k8s&quot;</span><br><span class="line">  ],</span><br><span class="line">  &quot;traefik-tcp&quot;: [</span><br><span class="line">    &quot;k8s&quot;,</span><br><span class="line">    &quot;traefik&quot;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>查看服务详细信息</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# curl -s http://192.168.10.10:8500/v1/catalog/service/traefik | jq</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;ID&quot;: &quot;eda0ef7f-ca12-bbca-c84e-f88cc3664cd1&quot;,</span><br><span class="line">    &quot;Node&quot;: &quot;tiaoban&quot;,</span><br><span class="line">    &quot;Address&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">    &quot;Datacenter&quot;: &quot;my-dc-1&quot;,</span><br><span class="line">    &quot;TaggedAddresses&quot;: &#123;</span><br><span class="line">      &quot;lan&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">      &quot;lan_ipv4&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">      &quot;wan&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">      &quot;wan_ipv4&quot;: &quot;192.168.10.100&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;NodeMeta&quot;: &#123;</span><br><span class="line">      &quot;consul-network-segment&quot;: &quot;&quot;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;ServiceKind&quot;: &quot;&quot;,</span><br><span class="line">    &quot;ServiceID&quot;: &quot;traefik&quot;,</span><br><span class="line">    &quot;ServiceName&quot;: &quot;traefik&quot;,</span><br><span class="line">    &quot;ServiceTags&quot;: [</span><br><span class="line">      &quot;k8s&quot;</span><br><span class="line">    ],</span><br><span class="line">    &quot;ServiceAddress&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">    &quot;ServiceTaggedAddresses&quot;: &#123;</span><br><span class="line">      &quot;lan_ipv4&quot;: &#123;</span><br><span class="line">        &quot;Address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">        &quot;Port&quot;: 80</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;wan_ipv4&quot;: &#123;</span><br><span class="line">        &quot;Address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">        &quot;Port&quot;: 80</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;ServiceWeights&quot;: &#123;</span><br><span class="line">      &quot;Passing&quot;: 1,</span><br><span class="line">      &quot;Warning&quot;: 1</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;ServiceMeta&quot;: &#123;&#125;,</span><br><span class="line">    &quot;ServicePort&quot;: 80,</span><br><span class="line">    &quot;ServiceSocketPath&quot;: &quot;&quot;,</span><br><span class="line">    &quot;ServiceEnableTagOverride&quot;: false,</span><br><span class="line">    &quot;ServiceProxy&quot;: &#123;</span><br><span class="line">      &quot;Mode&quot;: &quot;&quot;,</span><br><span class="line">      &quot;MeshGateway&quot;: &#123;&#125;,</span><br><span class="line">      &quot;Expose&quot;: &#123;&#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;ServiceConnect&quot;: &#123;&#125;,</span><br><span class="line">    &quot;CreateIndex&quot;: 12,</span><br><span class="line">    &quot;ModifyIndex&quot;: 12</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>健康检查</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# curl -s http://192.168.10.10:8500/v1/health/service/traefik?passing | jq</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;Node&quot;: &#123;</span><br><span class="line">      &quot;ID&quot;: &quot;eda0ef7f-ca12-bbca-c84e-f88cc3664cd1&quot;,</span><br><span class="line">      &quot;Node&quot;: &quot;tiaoban&quot;,</span><br><span class="line">      &quot;Address&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">      &quot;Datacenter&quot;: &quot;my-dc-1&quot;,</span><br><span class="line">      &quot;TaggedAddresses&quot;: &#123;</span><br><span class="line">        &quot;lan&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">        &quot;lan_ipv4&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">        &quot;wan&quot;: &quot;192.168.10.100&quot;,</span><br><span class="line">        &quot;wan_ipv4&quot;: &quot;192.168.10.100&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;Meta&quot;: &#123;</span><br><span class="line">        &quot;consul-network-segment&quot;: &quot;&quot;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;CreateIndex&quot;: 9,</span><br><span class="line">      &quot;ModifyIndex&quot;: 11</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;Service&quot;: &#123;</span><br><span class="line">      &quot;ID&quot;: &quot;traefik&quot;,</span><br><span class="line">      &quot;Service&quot;: &quot;traefik&quot;,</span><br><span class="line">      &quot;Tags&quot;: [</span><br><span class="line">        &quot;k8s&quot;</span><br><span class="line">      ],</span><br><span class="line">      &quot;Address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">      &quot;TaggedAddresses&quot;: &#123;</span><br><span class="line">        &quot;lan_ipv4&quot;: &#123;</span><br><span class="line">          &quot;Address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">          &quot;Port&quot;: 80</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;wan_ipv4&quot;: &#123;</span><br><span class="line">          &quot;Address&quot;: &quot;192.168.10.10&quot;,</span><br><span class="line">          &quot;Port&quot;: 80</span><br><span class="line">        &#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;Meta&quot;: null,</span><br><span class="line">      &quot;Port&quot;: 80,</span><br><span class="line">      &quot;Weights&quot;: &#123;</span><br><span class="line">        &quot;Passing&quot;: 1,</span><br><span class="line">        &quot;Warning&quot;: 1</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;EnableTagOverride&quot;: false,</span><br><span class="line">      &quot;Proxy&quot;: &#123;</span><br><span class="line">        &quot;Mode&quot;: &quot;&quot;,</span><br><span class="line">        &quot;MeshGateway&quot;: &#123;&#125;,</span><br><span class="line">        &quot;Expose&quot;: &#123;&#125;</span><br><span class="line">      &#125;,</span><br><span class="line">      &quot;Connect&quot;: &#123;&#125;,</span><br><span class="line">      &quot;PeerName&quot;: &quot;&quot;,</span><br><span class="line">      &quot;CreateIndex&quot;: 12,</span><br><span class="line">      &quot;ModifyIndex&quot;: 12</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;Checks&quot;: [</span><br><span class="line">      &#123;</span><br><span class="line">        &quot;Node&quot;: &quot;tiaoban&quot;,</span><br><span class="line">        &quot;CheckID&quot;: &quot;serfHealth&quot;,</span><br><span class="line">        &quot;Name&quot;: &quot;Serf Health Status&quot;,</span><br><span class="line">        &quot;Status&quot;: &quot;passing&quot;,</span><br><span class="line">        &quot;Notes&quot;: &quot;&quot;,</span><br><span class="line">        &quot;Output&quot;: &quot;Agent alive and reachable&quot;,</span><br><span class="line">        &quot;ServiceID&quot;: &quot;&quot;,</span><br><span class="line">        &quot;ServiceName&quot;: &quot;&quot;,</span><br><span class="line">        &quot;ServiceTags&quot;: [],</span><br><span class="line">        &quot;Type&quot;: &quot;&quot;,</span><br><span class="line">        &quot;Interval&quot;: &quot;&quot;,</span><br><span class="line">        &quot;Timeout&quot;: &quot;&quot;,</span><br><span class="line">        &quot;ExposedPort&quot;: 0,</span><br><span class="line">        &quot;Definition&quot;: &#123;&#125;,</span><br><span class="line">        &quot;CreateIndex&quot;: 9,</span><br><span class="line">        &quot;ModifyIndex&quot;: 9</span><br><span class="line">      &#125;</span><br><span class="line">    ]</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>删除注册的服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# curl -X PUT http://192.168.10.10:8500/v1/agent/service/deregister/traefik</span><br></pre></td></tr></table></figure>
+
+<h2 id="DNS解析"><a href="#DNS解析" class="headerlink" title="DNS解析"></a>DNS解析</h2><p>DNS接口是Consul中主要的查询接口之一，另一个是HTTP接口， HTTP接口查询请查阅,Consul默认在8600端口监听DNS查询。<br>参考文档：<a target="_blank" rel="noopener" href="https://developer.hashicorp.com/consul/docs/discovery/dns">https://developer.hashicorp.com/consul/docs/discovery/dns</a><br>要使用DNS接口， 有几种方法可以实现：<br>一是使用指定的DNS解析库， 然后指向Consul；<br>二是把Consul设置为节点的DNS服务器, 并且提供recursors配置项， 这样非Consul的查询也能被解析；<br>最后一种方法是从已有的DNS服务器上把所有consul.为域名的请求转发到consul agent上。<br><strong>节点查找</strong><br>查找节点的地址信息，查找格式：<node>.node[.datacenter].<domain>。如果datacenter不指定，默认为当前集群查询。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# dig @192.168.10.10 -p 8600 tiaoban.node.consul ANY</span><br><span class="line"></span><br><span class="line">; &lt;&lt;&gt;&gt; DiG 9.11.26-RedHat-9.11.26-6.el8 &lt;&lt;&gt;&gt; @192.168.10.10 -p 8600 tiaoban.node.consul ANY</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 25684</span><br><span class="line">;; flags: qr aa rd; QUERY: 1, ANSWER: 2, AUTHORITY: 0, ADDITIONAL: 1</span><br><span class="line">;; WARNING: recursion requested but not available</span><br><span class="line"></span><br><span class="line">;; OPT PSEUDOSECTION:</span><br><span class="line">; EDNS: version: 0, flags:; udp: 4096</span><br><span class="line">;; QUESTION SECTION:</span><br><span class="line">;tiaoban.node.consul.           IN      ANY</span><br><span class="line"></span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">tiaoban.node.consul.    0       IN      A       192.168.10.100</span><br><span class="line">tiaoban.node.consul.    0       IN      TXT     &quot;consul-network-segment=&quot;</span><br><span class="line"></span><br><span class="line">;; Query time: 14 msec</span><br><span class="line">;; SERVER: 192.168.10.10#8600(192.168.10.10)</span><br><span class="line">;; WHEN: 一 10月 31 10:51:10 CST 2022</span><br><span class="line">;; MSG SIZE  rcvd: 100</span><br></pre></td></tr></table></figure>
+
+<p><strong>服务查找</strong><br>查询服务提供者。服务查询支持两种查找方法：标准和严格RFC 2782。<br>标准查找格式：[tag.]<service>.service[.datacenter].<domain>。Tag是可选的，而且与节点查找一样，数据中心也是可选。如果没有提供Tag，就不会有过滤，如果没有数据中心，就会选择默认的数据中心。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master ~]# dig @192.168.10.10 -p 8600 traefik.service.consul SRV</span><br><span class="line"></span><br><span class="line">; &lt;&lt;&gt;&gt; DiG 9.11.26-RedHat-9.11.26-6.el8 &lt;&lt;&gt;&gt; @192.168.10.10 -p 8600 traefik.service.consul SRV</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 28200</span><br><span class="line">;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 3</span><br><span class="line">;; WARNING: recursion requested but not available</span><br><span class="line"></span><br><span class="line">;; OPT PSEUDOSECTION:</span><br><span class="line">; EDNS: version: 0, flags:; udp: 4096</span><br><span class="line">;; QUESTION SECTION:</span><br><span class="line">;traefik.service.consul.                IN      SRV</span><br><span class="line"></span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">traefik.service.consul. 0       IN      SRV     1 1 80 c0a80a0a.addr.my-dc-1.consul.</span><br><span class="line"></span><br><span class="line">;; ADDITIONAL SECTION:</span><br><span class="line">c0a80a0a.addr.my-dc-1.consul. 0 IN      A       192.168.10.10</span><br><span class="line">tiaoban.node.my-dc-1.consul. 0  IN      TXT     &quot;consul-network-segment=&quot;</span><br><span class="line"></span><br><span class="line">;; Query time: 13 msec</span><br><span class="line">;; SERVER: 192.168.10.10#8600(192.168.10.10)</span><br><span class="line">;; WHEN: 一 10月 31 10:53:30 CST 2022</span><br><span class="line">;; MSG SIZE  rcvd: 164</span><br></pre></td></tr></table></figure>
+
+<p>RFC2782 查找 格式：_<service>._<protocol>.service[.datacenter][.domain]根据RFC 2782， SRV请求都应该在service和protocol前使用(_)作为前缀。避免发生DNS冲突。Protocol可以是service任何一个tag，如果service没有tag，使用tcp作为protocol。如果一旦设置了tcp，那么查询时将不会执行任何标签过滤。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"># 查询tag为k8s的注册服务traefik信息。</span><br><span class="line">[root@k8s-master ~]# dig @192.168.10.10 -p 8600 _traefik._k8s.service.consul SRV</span><br><span class="line"></span><br><span class="line">; &lt;&lt;&gt;&gt; DiG 9.11.26-RedHat-9.11.26-6.el8 &lt;&lt;&gt;&gt; @192.168.10.10 -p 8600 _traefik._k8s.service.consul SRV</span><br><span class="line">; (1 server found)</span><br><span class="line">;; global options: +cmd</span><br><span class="line">;; Got answer:</span><br><span class="line">;; -&gt;&gt;HEADER&lt;&lt;- opcode: QUERY, status: NOERROR, id: 43270</span><br><span class="line">;; flags: qr aa rd; QUERY: 1, ANSWER: 1, AUTHORITY: 0, ADDITIONAL: 3</span><br><span class="line">;; WARNING: recursion requested but not available</span><br><span class="line"></span><br><span class="line">;; OPT PSEUDOSECTION:</span><br><span class="line">; EDNS: version: 0, flags:; udp: 4096</span><br><span class="line">;; QUESTION SECTION:</span><br><span class="line">;_traefik._k8s.service.consul.  IN      SRV</span><br><span class="line"></span><br><span class="line">;; ANSWER SECTION:</span><br><span class="line">_traefik._k8s.service.consul. 0 IN      SRV     1 1 80 c0a80a0a.addr.my-dc-1.consul.</span><br><span class="line"></span><br><span class="line">;; ADDITIONAL SECTION:</span><br><span class="line">c0a80a0a.addr.my-dc-1.consul. 0 IN      A       192.168.10.10</span><br><span class="line">tiaoban.node.my-dc-1.consul. 0  IN      TXT     &quot;consul-network-segment=&quot;</span><br><span class="line"></span><br><span class="line">;; Query time: 1 msec</span><br><span class="line">;; SERVER: 192.168.10.10#8600(192.168.10.10)</span><br><span class="line">;; WHEN: 一 10月 31 10:57:05 CST 2022</span><br><span class="line">;; MSG SIZE  rcvd: 170</span><br></pre></td></tr></table></figure>
+
+<h1 id="配置kv"><a href="#配置kv" class="headerlink" title="配置kv"></a>配置kv</h1><p>consul kv 是consul的核心功能，并随consul agent一起安装。consul kv允许用户存储索引对象，尽管其主要用途是存储配置参数和元数据。<br>consul kv 数据存储在server上，可以由任何agent（client或server）访问。consul允许在所有server之间自动复制数据，如果发生故障，拥有一定数量的server将减少数据丢失的风险。<br>数据存储位于server上的数据目录中，为确保在完全中断的情况下不会丢失数据，可以使用 consul snapshot 命令备份数据。还可以通过 consul kv 子命令、HTTP API 和 Consul UI 访问kv存储。</p>
+<h2 id="命令行"><a href="#命令行" class="headerlink" title="命令行"></a>命令行</h2><p>命令行创建kv</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# consul kv put key1 value1</span><br><span class="line">Success! Data written to: key1</span><br></pre></td></tr></table></figure>
+
+<p>查看kv</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"># 查看所有key value数据</span><br><span class="line">[root@k8s-master consul.d]# consul kv get --recurse </span><br><span class="line">key1:value1</span><br><span class="line">key2:value2</span><br><span class="line"># 查看指定key value数据</span><br><span class="line">[root@k8s-master consul.d]# consul kv get key2</span><br><span class="line">value2</span><br></pre></td></tr></table></figure>
+
+<p>更新kv</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# consul kv put key2 v2</span><br><span class="line">Success! Data written to: key2</span><br></pre></td></tr></table></figure>
+
+<p>删除kv</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# consul kv delete key2</span><br><span class="line">Success! Deleted key: key2</span><br></pre></td></tr></table></figure>
+
+<h2 id="web"><a href="#web" class="headerlink" title="web"></a>web</h2><p>web界面创建kv<br><img src="/images/1709025686-a59c600d1b1ab302c4d2a373db93f867.jpg" alt="image.png"><br>web界面查看kv<br><img src="/images/1709025686-9114be0525c9e185fe3c122074452975.jpg" alt="image.png"></p>
+<h2 id="HTTP-API-2"><a href="#HTTP-API-2" class="headerlink" title="HTTP API"></a>HTTP API</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"># 设置kv</span><br><span class="line">[root@k8s-master consul.d]# curl -X PUT -d &#x27;value3&#x27; http://192.168.10.10:8500/v1/kv/key3</span><br><span class="line">true</span><br><span class="line"># 查看kv</span><br><span class="line">[root@k8s-master consul.d]# curl -s http://192.168.10.10:8500/v1/kv/key3 | jq</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;LockIndex&quot;: 0,</span><br><span class="line">    &quot;Key&quot;: &quot;key3&quot;,</span><br><span class="line">    &quot;Flags&quot;: 0,</span><br><span class="line">    &quot;Value&quot;: &quot;dmFsdWUz&quot;,</span><br><span class="line">    &quot;CreateIndex&quot;: 611,</span><br><span class="line">    &quot;ModifyIndex&quot;: 611</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br><span class="line"># base64解码查看内容</span><br><span class="line">[root@k8s-master consul.d]# echo &quot;dmFsdWUz&quot; | base64 -d</span><br><span class="line">value3</span><br><span class="line"># 删除kv</span><br><span class="line">[root@k8s-master consul.d]# curl -X DELETE http://192.168.10.10:8500/v1/kv/key3</span><br></pre></td></tr></table></figure>
+
+<h1 id="访问控制"><a href="#访问控制" class="headerlink" title="访问控制"></a>访问控制</h1><p>通过ACLS 来确保安全的访问 UI, API, CLI, servie 通信，Agent通信。如果想要确保数据中心安全，就需要配置ACLS。ACL核心原理是，将规则分组为策略， 然后一个或多个策略于令牌关联。</p>
+<h2 id="启用ACL"><a href="#启用ACL" class="headerlink" title="启用ACL"></a>启用ACL</h2><p>修改consul配置文件，新增如下内容</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"># acl访问控制</span><br><span class="line">acl = &#123;</span><br><span class="line">  enabled = true</span><br><span class="line">  default_policy = &quot;deny&quot; # 默认拒绝所有操作</span><br><span class="line">  enable_token_persistence = true # 持久化到磁盘，重启时重新加载</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>重启consul服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# systemctl restart consul</span><br></pre></td></tr></table></figure>
+
+<p>生成token</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-master consul.d]# consul acl bootstrap</span><br><span class="line">AccessorID:       16a37577-f243-94fb-8770-35489870025c</span><br><span class="line">SecretID:         54a3e3fd-ea07-85a8-67e3-33107a958977</span><br><span class="line">Description:      Bootstrap Token (Global Management)</span><br><span class="line">Local:            false</span><br><span class="line">Create Time:      2022-10-27 22:56:07.654230262 +0800 CST</span><br><span class="line">Policies:</span><br><span class="line">   00000000-0000-0000-0000-000000000001 - global-management</span><br></pre></td></tr></table></figure>
+
+<h2 id="访问验证"><a href="#访问验证" class="headerlink" title="访问验证"></a>访问验证</h2><p>web页面访问验证<br><img src="/images/1709025686-26d150b9427340dcffb99c35da36980c.jpg" alt="image.png"><br>api接口访问验证</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line"># 直接获取kv提示权限拒绝</span><br><span class="line">[root@k8s-master consul.d]# curl -s http://192.168.10.10:8500/v1/kv/key3 </span><br><span class="line">rpc error making call: Permission denied: token with AccessorID &#x27;00000000-0000-0000-0000-000000000002&#x27; lacks permission &#x27;key:read&#x27; on &quot;key3&quot;[root@k8s-master consul.d]# </span><br><span class="line"># 请求头添加token访问</span><br><span class="line">[root@k8s-master consul.d]# curl -s -H &quot;X-Consul-Token:54a3e3fd-ea07-85a8-67e3-33107a958977&quot; http://192.168.10.10:8500/v1/kv/key3 | jq</span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;LockIndex&quot;: 0,</span><br><span class="line">    &quot;Key&quot;: &quot;key3&quot;,</span><br><span class="line">    &quot;Flags&quot;: 0,</span><br><span class="line">    &quot;Value&quot;: &quot;dmFsdWUz&quot;,</span><br><span class="line">    &quot;CreateIndex&quot;: 611,</span><br><span class="line">    &quot;ModifyIndex&quot;: 611</span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure> 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/27/%E6%9C%8D%E5%8A%A1%E6%B3%A8%E5%86%8C%E4%B8%AD%E5%BF%83-Consul%E4%BB%8B%E7%BB%8D/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Consul/" rel="tag">Consul</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/27/Redis-6379%E7%AB%AF%E5%8F%A3%E6%97%A0%E6%B3%95%E8%AE%BF%E9%97%AE%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Redis 6379端口无法访问的解决方案</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
