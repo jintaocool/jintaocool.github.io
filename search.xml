@@ -11423,4 +11423,20 @@ plugin_admin_external_manage_enabled = true
         <tag>Redis</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Redis 6379端口无法访问的解决方案</title>
+    <url>/2024/02/27/Redis-6379%E7%AB%AF%E5%8F%A3%E6%97%A0%E6%B3%95%E8%AE%BF%E9%97%AE%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/</url>
+    <content><![CDATA[<p>如果配置Redis在不可预知的情况下只能在内网访问，而外网无法访问，先检查一下步骤是否配置</p>
+<p>1、需要考虑到Redis配置本身是否支持远程外网访问，在redis的配置文件中找到bind参数，如果bind参数配置为127.0.0.1则不允许外网访问，此时我们需要改变它的配置，将bind参数注释掉，或者是修改为0.0.0.0，或者是相应的外网ip 地址，然后保存配置。<br>2、其次需要考虑到Redis的安全控制，在Redis的配置文件中有一个可配置的参数 protected-mode, 如果该参数设置为yes, 则只允许本地访问，此时需要将protected-mode 参数设置为no,即可允许外网访问。<br>3、最后需要考虑到防火墙的设置，由于Redis占用6379端口，因此我们可用</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 开放端口</span><br><span class="line">sudo firewall-cmd --add-port=6379/tcp --permanent</span><br><span class="line"># 重启防火墙</span><br><span class="line">sudo firewall-cmd --reload </span><br></pre></td></tr></table></figure>
+
+<p>因为服务器默认关闭了防火墙，所以只按照上面的1，2 步骤设置了Redis的配置文件，未设置redis的密码，按照指定配置文件的方式重新启动Redis服务。</p>
+]]></content>
+      <categories>
+        <category>Redis</category>
+      </categories>
+      <tags>
+        <tag>Redis</tag>
+      </tags>
+  </entry>
 </search>

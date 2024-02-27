@@ -6,7 +6,7 @@
   <link href="http://example.com/atom.xml" rel="self"/>
   
   <link href="http://example.com/"/>
-  <updated>2024-02-27T06:40:03.789Z</updated>
+  <updated>2024-02-27T06:48:44.922Z</updated>
   <id>http://example.com/</id>
   
   <author>
@@ -15,6 +15,32 @@
   </author>
   
   <generator uri="https://hexo.io/">Hexo</generator>
+  
+  <entry>
+    <title>Redis 6379端口无法访问的解决方案</title>
+    <link href="http://example.com/2024/02/27/Redis-6379%E7%AB%AF%E5%8F%A3%E6%97%A0%E6%B3%95%E8%AE%BF%E9%97%AE%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/"/>
+    <id>http://example.com/2024/02/27/Redis-6379%E7%AB%AF%E5%8F%A3%E6%97%A0%E6%B3%95%E8%AE%BF%E9%97%AE%E7%9A%84%E8%A7%A3%E5%86%B3%E6%96%B9%E6%A1%88/</id>
+    <published>2024-02-27T06:45:31.000Z</published>
+    <updated>2024-02-27T06:48:44.922Z</updated>
+    
+    
+      
+      
+        
+        
+    <summary type="html">&lt;p&gt;如果配置Redis在不可预知的情况下只能在内网访问，而外网无法访问，先检查一下步骤是否配置&lt;/p&gt;
+&lt;p&gt;1、需要考虑到Redis配置本身是否支持远程外网访问，在redis的配置文件中找到bind参数，如果bind参数配置为127.0.0.1则不允许外网访问，此时我们需要改</summary>
+        
+      
+    
+    
+    
+    <category term="Redis" scheme="http://example.com/categories/Redis/"/>
+    
+    
+    <category term="Redis" scheme="http://example.com/tags/Redis/"/>
+    
+  </entry>
   
   <entry>
     <title>Redis配置文件详解</title>
@@ -496,31 +522,6 @@
     
     
     <category term="Grafana" scheme="http://example.com/tags/Grafana/"/>
-    
-  </entry>
-  
-  <entry>
-    <title>Prometheus查询合并标签</title>
-    <link href="http://example.com/2024/01/22/Prometheus%E6%9F%A5%E8%AF%A2%E5%90%88%E5%B9%B6%E6%A0%87%E7%AD%BE/"/>
-    <id>http://example.com/2024/01/22/Prometheus%E6%9F%A5%E8%AF%A2%E5%90%88%E5%B9%B6%E6%A0%87%E7%AD%BE/</id>
-    <published>2024-01-22T06:13:26.000Z</published>
-    <updated>2024-01-22T06:30:54.117Z</updated>
-    
-    
-      
-      
-        
-        
-    <summary type="html">&lt;p&gt;说明：Prometheus有时需要将两个度量值通过某个标签关联，相当于sql里面的连表查询。在实际使用场景中，我们可能会对两个指标进行关联查询判断，需要判断指标B的值，但在写告警rule时需要借助指标A的labels【指标B中并没有这些labels】，则需要把指标B的val</summary>
-        
-      
-    
-    
-    
-    <category term="Prometheus" scheme="http://example.com/categories/Prometheus/"/>
-    
-    
-    <category term="Prometheus" scheme="http://example.com/tags/Prometheus/"/>
     
   </entry>
   
