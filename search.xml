@@ -11809,4 +11809,72 @@ plugin_admin_external_manage_enabled = true
         <tag>Alertmanager</tag>
       </tags>
   </entry>
+  <entry>
+    <title>grafana API使用</title>
+    <url>/2024/02/27/grafana-API%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<blockquote>
+<p>Grafana 是一款采用 go 语言编写的开源应用，主要用于大规模指标数据的可视化展现，是运维工具中最流行的<strong>时序数据展示</strong>工具，目前已经支持绝大部分常用的时序数据库。同时它也提供了许多常用操作的API接口，可以通过调用相关API接口，实现grafana运维的自动化操作。</p>
+</blockquote>
+<h2 id="一、创建API-token"><a href="#一、创建API-token" class="headerlink" title="一、创建API token"></a>一、创建API token</h2><p>调用grafana的api请求时，需要在请求头中添加token认证，首先是创建api token</p>
+<p><img src="/images/1709027250-ead40ec42fb1364a7a43c0368725daa5.jpg" alt="image.png"></p>
+<p><img src="/images/1709027250-71970c15639692ca9bff3c691ee253c5.jpg" alt="image.png"></p>
+<p><img src="/images/1709027250-45f60e99879b400cd8b2d08ea1ed16da.jpg" alt="image.png"></p>
+<p>点击add按钮以后会返回一个token，妥善保存这个token，后续的所有请求都需要用到它。</p>
+<h2 id="二、常用API接口"><a href="#二、常用API接口" class="headerlink" title="二、常用API接口"></a>二、常用API接口</h2><h3 id="1-仪表盘-API"><a href="#1-仪表盘-API" class="headerlink" title="1. 仪表盘 API"></a>1. 仪表盘 API</h3><ul>
+<li>查询所有dashboard列表</li>
+</ul>
+<p><img src="/images/1709027250-116ea9403b930d990fe71bf40f1fb7f9.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定uid的dashboard信息（uid字段可以从刚才查询所有dashboard中获取）</li>
+</ul>
+<p><img src="/images/1709027250-1b5be317ad426ddab6e958f268d5f28e.jpg" alt="image.png"></p>
+<ul>
+<li>删除指定uid的dashboard</li>
+</ul>
+<p><img src="/images/1709027250-6dc58733dddb27f508e2c2b5062d8026.jpg" alt="image.png"></p>
+<h3 id="2-数据源API"><a href="#2-数据源API" class="headerlink" title="2. 数据源API"></a>2. 数据源API</h3><ul>
+<li>获取所有数据源</li>
+</ul>
+<p><img src="/images/1709027250-4db373baef81430a3336f298a9ae4559.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定id的数据源</li>
+</ul>
+<p><img src="/images/1709027250-64ee08df156c613bae8fa04746a00cd4.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定名称数据源</li>
+</ul>
+<p><img src="/images/1709027250-a00cb7079ce41f85a0d565c99101711e.jpg" alt="image.png"></p>
+<ul>
+<li>更新指定id的数据源（可以先查询指定id的数据源，获取响应内容，然后修改相关的字段组成请求体。body类型选择json）</li>
+</ul>
+<p><img src="/images/1709027250-f7ef8dd78cf9d4cd9f8b53fed3dbdefa.jpg" alt="image.png"></p>
+<ul>
+<li>删除指定id的数据源</li>
+</ul>
+<p><img src="/images/1709027250-557e4dc4900d3a80396d109770d1faa3.jpg" alt="image.png"></p>
+<h3 id="3-告警API"><a href="#3-告警API" class="headerlink" title="3. 告警API"></a>3. 告警API</h3><ul>
+<li>获取所有告警列表</li>
+</ul>
+<p><img src="/images/1709027250-28afbf36c1fb9d393f14ce209e85e98a.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定id的告警信息</li>
+</ul>
+<p><img src="/images/1709027250-84eb4c29ae3edca1bd811e2e738628f5.jpg" alt="image.png"></p>
+<ul>
+<li>暂停指定id的告警</li>
+</ul>
+<p><img src="/images/1709027250-f11f49b161f76c81d3c18ee3787485b6.jpg" alt="image.png"></p>
+<h2 id="三、python调用grafana-API示例"><a href="#三、python调用grafana-API示例" class="headerlink" title="三、python调用grafana API示例"></a>三、python调用grafana API示例</h2><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">import json</span><br><span class="line">import requests</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">class GrafanaApi:</span><br><span class="line">    def __init__(self, base, key):</span><br><span class="line">        self.base_url = &#x27;grafana访问地址&#x27;</span><br><span class="line">        self.headers = &#123;&#x27;Authorization&#x27;: &#x27;API token&#x27;, &#x27;content-type&#x27;: &quot;application/json&quot;&#125;</span><br><span class="line"></span><br><span class="line">    def get_all_datasource(self):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        获取所有数据源</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/datasources&#x27;</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">            return result</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    def get_dashboard_uid(self, name):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        查询指定dashboard的uid</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/search?query=&#x27; + name</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line">    def get_dashboard_data(self, uid):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        查询指定dashboard的data</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/dashboards/uid/&#x27; + uid</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()[&#x27;dashboard&#x27;]</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line">    def get_all_alert(self):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        获取所有告警列表</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/alerts&#x27;</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>以上只列举了常用的API接口使用，其他API接口详细使用方法请参阅官方文档<a href="https://grafana.com/docs/grafana/latest/http_api/" title="https://grafana.com/docs/grafana/latest/http_api/">https://grafana.com/docs/grafana/latest/http_api&#x2F;</a></p>
+</blockquote>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>

@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Tag: Grafana |  Lijintao&#39;s Blog</title>
+      <title>grafana API使用 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -68,242 +68,224 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="Grafana-grafana-API使用"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">#&nbspGrafana</h1>
-    
-    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  grafana API使用
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/02/27/grafana-API%E4%BD%BF%E7%94%A8/" class="article-date">
+  <time datetime="2024-02-27T09:48:26.000Z" itemprop="datePublished">2024-02-27</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
   
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2024" class="archive-year">2024</a>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">599</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">2 分钟</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/02/27/grafana-API%E4%BD%BF%E7%94%A8/" class="archive-article-date">
-  <time datetime="2024-02-27T09:48:26.000Z" itemprop="datePublished">02/27</time>
-</a>
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/02/27/grafana-API%E4%BD%BF%E7%94%A8/"
-    >grafana API使用</a> 
-</h2>
+  <blockquote>
+<p>Grafana 是一款采用 go 语言编写的开源应用，主要用于大规模指标数据的可视化展现，是运维工具中最流行的<strong>时序数据展示</strong>工具，目前已经支持绝大部分常用的时序数据库。同时它也提供了许多常用操作的API接口，可以通过调用相关API接口，实现grafana运维的自动化操作。</p>
+</blockquote>
+<h2 id="一、创建API-token"><a href="#一、创建API-token" class="headerlink" title="一、创建API token"></a>一、创建API token</h2><p>调用grafana的api请求时，需要在请求头中添加token认证，首先是创建api token</p>
+<p><img src="/images/1709027250-ead40ec42fb1364a7a43c0368725daa5.jpg" alt="image.png"></p>
+<p><img src="/images/1709027250-71970c15639692ca9bff3c691ee253c5.jpg" alt="image.png"></p>
+<p><img src="/images/1709027250-45f60e99879b400cd8b2d08ea1ed16da.jpg" alt="image.png"></p>
+<p>点击add按钮以后会返回一个token，妥善保存这个token，后续的所有请求都需要用到它。</p>
+<h2 id="二、常用API接口"><a href="#二、常用API接口" class="headerlink" title="二、常用API接口"></a>二、常用API接口</h2><h3 id="1-仪表盘-API"><a href="#1-仪表盘-API" class="headerlink" title="1. 仪表盘 API"></a>1. 仪表盘 API</h3><ul>
+<li>查询所有dashboard列表</li>
+</ul>
+<p><img src="/images/1709027250-116ea9403b930d990fe71bf40f1fb7f9.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定uid的dashboard信息（uid字段可以从刚才查询所有dashboard中获取）</li>
+</ul>
+<p><img src="/images/1709027250-1b5be317ad426ddab6e958f268d5f28e.jpg" alt="image.png"></p>
+<ul>
+<li>删除指定uid的dashboard</li>
+</ul>
+<p><img src="/images/1709027250-6dc58733dddb27f508e2c2b5062d8026.jpg" alt="image.png"></p>
+<h3 id="2-数据源API"><a href="#2-数据源API" class="headerlink" title="2. 数据源API"></a>2. 数据源API</h3><ul>
+<li>获取所有数据源</li>
+</ul>
+<p><img src="/images/1709027250-4db373baef81430a3336f298a9ae4559.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定id的数据源</li>
+</ul>
+<p><img src="/images/1709027250-64ee08df156c613bae8fa04746a00cd4.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定名称数据源</li>
+</ul>
+<p><img src="/images/1709027250-a00cb7079ce41f85a0d565c99101711e.jpg" alt="image.png"></p>
+<ul>
+<li>更新指定id的数据源（可以先查询指定id的数据源，获取响应内容，然后修改相关的字段组成请求体。body类型选择json）</li>
+</ul>
+<p><img src="/images/1709027250-f7ef8dd78cf9d4cd9f8b53fed3dbdefa.jpg" alt="image.png"></p>
+<ul>
+<li>删除指定id的数据源</li>
+</ul>
+<p><img src="/images/1709027250-557e4dc4900d3a80396d109770d1faa3.jpg" alt="image.png"></p>
+<h3 id="3-告警API"><a href="#3-告警API" class="headerlink" title="3. 告警API"></a>3. 告警API</h3><ul>
+<li>获取所有告警列表</li>
+</ul>
+<p><img src="/images/1709027250-28afbf36c1fb9d393f14ce209e85e98a.jpg" alt="image.png"></p>
+<ul>
+<li>查询指定id的告警信息</li>
+</ul>
+<p><img src="/images/1709027250-84eb4c29ae3edca1bd811e2e738628f5.jpg" alt="image.png"></p>
+<ul>
+<li>暂停指定id的告警</li>
+</ul>
+<p><img src="/images/1709027250-f11f49b161f76c81d3c18ee3787485b6.jpg" alt="image.png"></p>
+<h2 id="三、python调用grafana-API示例"><a href="#三、python调用grafana-API示例" class="headerlink" title="三、python调用grafana API示例"></a>三、python调用grafana API示例</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">import json</span><br><span class="line">import requests</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">class GrafanaApi:</span><br><span class="line">    def __init__(self, base, key):</span><br><span class="line">        self.base_url = &#x27;grafana访问地址&#x27;</span><br><span class="line">        self.headers = &#123;&#x27;Authorization&#x27;: &#x27;API token&#x27;, &#x27;content-type&#x27;: &quot;application/json&quot;&#125;</span><br><span class="line"></span><br><span class="line">    def get_all_datasource(self):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        获取所有数据源</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/datasources&#x27;</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">            return result</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">    def get_dashboard_uid(self, name):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        查询指定dashboard的uid</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/search?query=&#x27; + name</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line">    def get_dashboard_data(self, uid):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        查询指定dashboard的data</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/dashboards/uid/&#x27; + uid</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()[&#x27;dashboard&#x27;]</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br><span class="line"></span><br><span class="line">    def get_all_alert(self):</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        获取所有告警列表</span><br><span class="line">        &quot;&quot;&quot;</span><br><span class="line">        api_url = self.base_url + &#x27;/api/alerts&#x27;</span><br><span class="line">        response = requests.get(api_url, headers=self.headers, verify=False, timeout=120)</span><br><span class="line">        if response.status_code == 200:</span><br><span class="line">            res = response.json()</span><br><span class="line">            ……</span><br><span class="line">        else:</span><br><span class="line">            return False</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>以上只列举了常用的API接口使用，其他API接口详细使用方法请参阅官方文档<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/http_api/" title="https://grafana.com/docs/grafana/latest/http_api/">https://grafana.com/docs/grafana/latest/http_api&#x2F;</a></p>
+</blockquote>
  
-
-    </header>
-    
-    
+      <!-- reward -->
       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/26/grafana%E5%90%AF%E7%94%A8%E6%9C%AA%E7%AD%BE%E5%90%8D%E6%8F%92%E4%BB%B6/" class="archive-article-date">
-  <time datetime="2024-01-26T05:32:57.000Z" itemprop="datePublished">01/26</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/26/grafana%E5%90%AF%E7%94%A8%E6%9C%AA%E7%AD%BE%E5%90%8D%E6%8F%92%E4%BB%B6/"
-    >grafana启用未签名插件</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/23/grafana%E5%AF%B9%E6%8C%87%E6%A0%87%E8%BF%9B%E8%A1%8C%E7%BB%84%E5%90%88%E8%AE%A1%E7%AE%97/" class="archive-article-date">
-  <time datetime="2024-01-23T05:57:09.000Z" itemprop="datePublished">01/23</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/23/grafana%E5%AF%B9%E6%8C%87%E6%A0%87%E8%BF%9B%E8%A1%8C%E7%BB%84%E5%90%88%E8%AE%A1%E7%AE%97/"
-    >grafana对指标进行组合计算</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/23/Grafana%E5%86%85%E7%BD%AE%E5%8F%82%E6%95%B0/" class="archive-article-date">
-  <time datetime="2024-01-23T05:54:44.000Z" itemprop="datePublished">01/23</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/23/Grafana%E5%86%85%E7%BD%AE%E5%8F%82%E6%95%B0/"
-    >Grafana内置参数</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/23/kubesphere%E4%B8%AD%E9%83%A8%E7%BD%B2grafana%E5%AE%9E%E7%8E%B0dashboard%E4%BB%A5PDF%E6%96%B9%E5%BC%8F%E5%AF%BC%E5%87%BA/" class="archive-article-date">
-  <time datetime="2024-01-23T05:50:19.000Z" itemprop="datePublished">01/23</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/23/kubesphere%E4%B8%AD%E9%83%A8%E7%BD%B2grafana%E5%AE%9E%E7%8E%B0dashboard%E4%BB%A5PDF%E6%96%B9%E5%BC%8F%E5%AF%BC%E5%87%BA/"
-    >kubesphere中部署grafana实现dashboard以PDF方式导出</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/23/Grafana-reporter%E5%AE%9A%E6%97%B6%E6%8A%A5%E8%A1%A8%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/" class="archive-article-date">
-  <time datetime="2024-01-23T05:43:09.000Z" itemprop="datePublished">01/23</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/23/Grafana-reporter%E5%AE%9A%E6%97%B6%E6%8A%A5%E8%A1%A8%E8%B8%A9%E5%9D%91%E8%AE%B0%E5%BD%95/"
-    >Grafana reporter定时报表踩坑记录</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/23/Grafana%E4%B8%ADtable%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" class="archive-article-date">
-  <time datetime="2024-01-23T05:38:15.000Z" itemprop="datePublished">01/23</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/23/Grafana%E4%B8%ADtable%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/"
-    >Grafana中table的使用技巧</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-  
-  </div>
-  </div>
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2023" class="archive-year">2023</a>
-    </div>
-    <div class="archives">
-      
-      <article class="archive-article archive-type-Grafana">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/29/Grafana%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/" class="archive-article-date">
-  <time datetime="2023-12-29T02:47:38.000Z" itemprop="datePublished">12/29</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/29/Grafana%E7%9A%84%E4%BD%BF%E7%94%A8%E6%8A%80%E5%B7%A7/"
-    >Grafana的使用技巧</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
-
-    
-  </div>
-</article>
-      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/27/grafana-API%E4%BD%BF%E7%94%A8/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/27/Alertmanager%E9%85%8D%E7%BD%AE%E8%AF%A6%E8%A7%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Alertmanager配置详解</div>
+      </a>
+    
+  </nav>
 
   
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -457,6 +439,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
