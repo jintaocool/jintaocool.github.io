@@ -12329,4 +12329,106 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Zabbix配置Webhook告警推送至企业微信</title>
+    <url>/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/</url>
+    <content><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Zabbix如何将告警通过Webhook发送至IM？网上搜罗一番发现配置还是比较繁琐，以此为由本文将介绍如何通过自带的Webhook功能将告警信息推送至IM平台，笔者的推送思路是创建两个Webhook一个为一般告警或以下，另一个为严重和灾难级别，方便区分告警紧急程度，下面来看看如何配置吧。</p>
+<h2 id="版本与环境"><a href="#版本与环境" class="headerlink" title="版本与环境"></a>版本与环境</h2><ul>
+<li><p>版本：Zabbix 6.0 LTS</p>
+</li>
+<li><p>IM：企业微信</p>
+</li>
+</ul>
+<h2 id="Webhook"><a href="#Webhook" class="headerlink" title="Webhook"></a>Webhook</h2><h3 id="什么是Webhook"><a href="#什么是Webhook" class="headerlink" title="什么是Webhook"></a>什么是Webhook</h3><p>以下是来自GPT对Webhook的介绍： Webhook 是一种网络编程的概念，用于在特定事件发生时，将数据或通知传送到指定的 URL。它是一种异步通信方式，可以让应用程序之间实现实时的数据交换和信息传递。 以下是 Webhook 的一些基本概念和特点：- 工作原理： Webhook 的工作原理很简单。当某个事件在源应用程序中触发时，源应用会向预先配置的目标 URL 发送 HTTP 请求。目标 URL 可以是你自己的服务器、外部服务、第三方应用程序等。- 事件触发： Webhook 通常用于捕获和响应特定事件，如用户注册、支付成功、数据更新等。当事件发生时，源应用程序会将相关数据封装为一个 HTTP 请求，并发送到目标 URL。- 实时性： Webhook 实现了实时数据传输，因为事件触发后立即发送通知。这与轮询（Polling）方式不同，后者需要定期查询源数据是否有更新。- 自定义数据： Webhook 可以在请求中传递自定义数据，这样目标应用程序可以根据数据内容做出适当的处理。- 用途广泛： Webhook 在很多场景中得到应用，包括通知、集成、自动化等。比如，你可以通过 Webhook 将表单提交的数据发送到外部数据库、实现不同应用程序之间的集成，或者实现实时通知功能。- 安全性： Webhook 通常需要进行身份验证，确保只有合法的请求可以触发。常见的方式包括使用密钥、令牌、数字签名等来验证来源。- 管理： 一些服务提供了管理界面，让用户可以配置和管理 Webhook，包括设置事件、目标 URL、请求方法等。 Webhook 的使用非常灵活，可以根据不同的应用场景进行定制。许多云服务、应用程序和开发框架都支持 Webhook 功能，使得不同系统之间的集成更加便捷。</p>
+<h3 id="创建Webhook"><a href="#创建Webhook" class="headerlink" title="创建Webhook"></a>创建Webhook</h3><p>先创建一个群聊，点击菜单-&gt;添加群机器人-&gt;添加机器人。</p>
+<p><img src="/images/1709109514-3c702544ef2b4421e9f76a70cf0bc946.jpg" alt="图片"></p>
+<p>选择新建机器人。</p>
+<p><img src="/images/1709109514-e95bd7109939befb7083962b4813f176.jpg" alt="图片"></p>
+<p>输入机器人名称后点击添加。</p>
+<p><img src="/images/1709109514-47201d711be7971994d6bd23da5dd582.jpg" alt="图片"></p>
+<p>创建完成后得到一个webhook地址。</p>
+<p><img src="/images/1709109514-b641041f0170575cd7feec27a224973d.jpg" alt="图片"></p>
+<h2 id="安装ZABBIX"><a href="#安装ZABBIX" class="headerlink" title="安装ZABBIX"></a>安装ZABBIX</h2><p>参照此片文章</p>
+<p><a href="https://zhuanlan.zhihu.com/p/645105851">Debain 部署 Zabbix 6 LTS1 </a></p>
+<h2 id="创建一般告警媒介"><a href="#创建一般告警媒介" class="headerlink" title="创建一般告警媒介"></a>创建一般告警媒介</h2><p>创建告警类型</p>
+<p><img src="/images/1709109514-438e05a77ae4fbed562402bd36f69284.jpg" alt="图片"></p>
+<p>按需填入相关信息，token获取请参照 创建Webhook 章节。</p>
+<p><img src="/images/1709109514-ad3dfb7d0aa8d93fdc6b35782c07c8a5.jpg" alt="图片"></p>
+<p>javaScript脚本内容如下，有相关注释。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">var WeCom = &#123;</span><br><span class="line">    message: null,</span><br><span class="line">    webhook_url: null,</span><br><span class="line"></span><br><span class="line">    sendMessage: function() &#123;</span><br><span class="line">        // 定义消息推送格式</span><br><span class="line">        var params = &#123;</span><br><span class="line">            msgtype: &quot;markdown&quot;,</span><br><span class="line">            markdown: &#123;</span><br><span class="line">                content:WeCom.message</span><br><span class="line">            &#125;,</span><br><span class="line">            // 这个参数控制是否禁用消息中的链接预览。当设置为 true 时，如果消息中包含链接，企业微信客户端将不会自动预览链接的内容，而是直接显示链接地址。</span><br><span class="line">            disable_web_page_preview: true,</span><br><span class="line">        &#125;,</span><br><span class="line">        data,</span><br><span class="line">        response,</span><br><span class="line">        request = new CurlHttpRequest();</span><br><span class="line">        request.AddHeader(&#x27;Content-Type: application/json&#x27;);</span><br><span class="line">        data = JSON.stringify(params);</span><br><span class="line"></span><br><span class="line">        // 将推送信息写入zabbix日志中用于排错，第一个参数 4 表示日志级别Information，不存储webhook链接信息，避免泄露。</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] URL: Webhook  address&#x27;);</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] params: &#x27; + data);</span><br><span class="line">        // 推送告警消息</span><br><span class="line">        response = request.Post(WeCom.webhook_url, data);</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] HTTP code: &#x27; + request.Status());</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] response: &#x27; + response);</span><br><span class="line"></span><br><span class="line">        // 格式化返回的结果并做出判断，有异常则抛出异常。</span><br><span class="line">        try &#123;</span><br><span class="line">            response = JSON.parse(response);</span><br><span class="line">        &#125;</span><br><span class="line">        catch (error) &#123;</span><br><span class="line">            response = null;</span><br><span class="line">            Zabbix.Log(4, &#x27;[WeCom Webhook] response parse error&#x27;);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if (request.Status() !== 200 ||  response.errcode !== 0 || response.errmsg !== &#x27;ok&#x27;) &#123;</span><br><span class="line">            if (typeof response.errmsg === &#x27;string&#x27;) &#123;</span><br><span class="line">                throw response.errmsg;</span><br><span class="line">            &#125;</span><br><span class="line">            else &#123;</span><br><span class="line">                throw &#x27;Unknown error. Check debug log for more information.&#x27;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">try &#123;</span><br><span class="line">    var params = JSON.parse(value);</span><br><span class="line">    // 判断Webhook_url参数是否定义，未定义抛出错误。</span><br><span class="line">    if (typeof params.Webhook_url === &#x27;undefined&#x27;) &#123;</span><br><span class="line">        throw &#x27;Incorrect value is given for parameter &quot;Webhook_url&quot;: parameter is missing&#x27;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // 传参给WeCom</span><br><span class="line">    WeCom.webhook_url = params.Webhook_url;</span><br><span class="line">    WeCom.message = params.Subject + &#x27;\n&#x27; + params.Message;</span><br><span class="line">    // 执行消息推送函数</span><br><span class="line">    WeCom.sendMessage();</span><br><span class="line">    // 返回给zabbix，ok 在 Zabbix 动作中会被用来标识成功执行。</span><br><span class="line">    return &#x27;OK&#x27;;</span><br><span class="line">&#125;</span><br><span class="line">    // 遇到错误抛出错误信息。</span><br><span class="line">catch (error) &#123;</span><br><span class="line">    Zabbix.Log(4, &#x27;[WeCom Webhook] notification failed: &#x27; + error);</span><br><span class="line">    throw &#x27;Sending failed: &#x27; + error + &#x27;.&#x27;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置一般告警通知消息模板"><a href="#配置一般告警通知消息模板" class="headerlink" title="配置一般告警通知消息模板"></a>配置一般告警通知消息模板</h3><p>告警通知消息格式如下图所示：</p>
+<p><img src="/images/1709109514-9aa0b415787c3962059aa3fb07456090.jpg" alt="图片"></p>
+<p>告警可用变量请参照官方文档 <a href="https://link.zhihu.com/?target=https://www.zabbix.com/documentation/current/zh/manual/appendix/macros/supported_by_location">跳转</a></p>
+<p><img src="/images/1709109514-31586a36090c2ed7c1fb7cc92e27cafa.jpg" alt="图片"></p>
+<p>配置信息如下，标题为和关键信息加粗和上色（黄色）。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># &lt;font color=&quot;warning&quot;&gt;【ZABBIX监控告警】&lt;/font&gt;</span><br><span class="line"></span><br><span class="line">&gt;通知时间：&lt;font color=&quot;comment&quot;&gt;&#123;DATE&#125;-&#123;TIME&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警级别：**&lt;font color=&quot;warning&quot;&gt;&#123;TRIGGER.SEVERITY&#125;&lt;/font&gt;**</span><br><span class="line">&gt;主机名称：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.NAME&#125;&lt;/font&gt;</span><br><span class="line">&gt;主机IP：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.IP&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DATE&#125;-&#123;EVENT.TIME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题名称：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.NAME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题详情：&lt;font color=&quot;comment&quot;&gt;&#123;ITEM.NAME&#125;:&#123;ITEM.VALUE&#125;&lt;/font&gt;</span><br><span class="line">&gt;目前状态：**&lt;font color=&quot;warning&quot;&gt;&#123;TRIGGER.STATUS&#125;&lt;/font&gt;**</span><br><span class="line">&gt;操作数据：&lt;font color=&quot;comment&quot;&gt;&#123;EVENT.OPDATA&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警持续时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DURATION&#125;&lt;/font&gt;**</span><br><span class="line">&gt;[确认告警和查看详情,请点击链接](http://http://x.x.x.x:8080/)</span><br></pre></td></tr></table></figure>
+
+<p>企业微信webhook支持三种颜色，详情参考官方文档<a href="https://link.zhihu.com/?target=https://developer.work.weixin.qq.com/document/path/91770%23markdown%25E7%25B1%25BB%25E5%259E%258B">跳转</a></p>
+<p><img src="/images/1709109514-14fc9e5390e43698338267c7a91e0070.jpg" alt="图片"></p>
+<h3 id="配置一般告警恢复消息模板"><a href="#配置一般告警恢复消息模板" class="headerlink" title="配置一般告警恢复消息模板"></a>配置一般告警恢复消息模板</h3><p>告警消息恢复通知格式如下图所示：</p>
+<p><img src="/images/1709109514-6a17e96b7dee9eb95a7cbf864fcd5003.jpg" alt="图片"></p>
+<p>告警可用变量请参照官方文档 <a href="https://link.zhihu.com/?target=https://www.zabbix.com/documentation/current/zh/manual/appendix/macros/supported_by_location">跳转</a></p>
+<p><img src="/images/1709109514-6084bed8a43010b5455b92e36f908967.jpg" alt="图片"></p>
+<p>配置信息如下，标题为和关键信息加粗和上色（绿色）。</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># &lt;font color=&quot;info&quot;&gt;【ZABBIX告警恢复】&lt;/font&gt;</span><br><span class="line"></span><br><span class="line">&gt;通知时间：&lt;font color=&quot;comment&quot;&gt;&#123;DATE&#125;-&#123;TIME&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警级别：**&lt;font color=&quot;info&quot;&gt;&#123;TRIGGER.SEVERITY&#125;&lt;/font&gt;**</span><br><span class="line">&gt;主机名称：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.NAME&#125;&lt;/font&gt;</span><br><span class="line">&gt;主机IP：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.IP&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DATE&#125;-&#123;EVENT.TIME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题名称：**&lt;font color=&quot;info&quot;&gt;&#123;EVENT.NAME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题详情：&lt;font color=&quot;comment&quot;&gt;&#123;ITEM.NAME&#125;:&#123;ITEM.VALUE&#125;&lt;/font&gt;</span><br><span class="line">&gt;目前状态：**&lt;font color=&quot;info&quot;&gt;&#123;TRIGGER.STATUS&#125;&lt;/font&gt;**</span><br><span class="line">&gt;操作数据：&lt;font color=&quot;comment&quot;&gt;&#123;EVENT.OPDATA&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警持续时间：**&lt;font color=&quot;info&quot;&gt;&#123;EVENT.DURATION&#125;&lt;/font&gt;**</span><br><span class="line">&gt;[确认告警和查看详情,请点击链接](http://x.x.x.x:8080/)</span><br></pre></td></tr></table></figure>
+
+<p>点击添加，完成告警媒介添加。</p>
+<p><img src="/images/1709109514-da26071b15125946a458ba89c1c08181.jpg" alt="图片"></p>
+<h3 id="验证告警媒介"><a href="#验证告警媒介" class="headerlink" title="验证告警媒介"></a>验证告警媒介</h3><p><img src="/images/1709109514-79dc66f46f33873c84e8cfa0120cc354.jpg" alt="图片"></p>
+<p>如下图所示标识脚本调用正常，出现异常情况可根据日志信息针对性解决。</p>
+<p><img src="/images/1709109514-0c71e3354e38a3f131e5c2e1e655f02d.jpg" alt="图片"></p>
+<p>会收到这样一条信息。</p>
+<p><img src="/images/1709109514-86c9ffcd9414e9d8b3570e976fa61f9e.png" alt="图片"></p>
+<h3 id="配置一般告警动作"><a href="#配置一般告警动作" class="headerlink" title="配置一般告警动作"></a>配置一般告警动作</h3><p>点击创建动作。</p>
+<p><img src="/images/1709109514-07d1b8ad321c82f2128e471f68a42ebb.jpg" alt="图片"></p>
+<p>定义名称和点击添加条件。</p>
+<p><img src="/images/1709109514-e1c984329d45f9982191ed1872fe9bb2.jpg" alt="图片"></p>
+<p>选择一般严重及以下等级告警。</p>
+<p><img src="/images/1709109514-367dd7250e39305e456494773a317400.jpg" alt="图片"></p>
+<p>验证配置。</p>
+<p><img src="/images/1709109514-919f694fe00d032f1bfb66ee2c3565f9.jpg" alt="图片"></p>
+<p>配置操作，发送到的用户组或用户至少要有设备的读取权限。</p>
+<p><img src="/images/1709109514-db53b41c31983a7c6ea96de91a196505.jpg" alt="图片"></p>
+<p>定义告警恢复操作。</p>
+<p><img src="/images/1709109514-59301475e1deddbf473d6d5e01ffd2bf.jpg" alt="图片"></p>
+<p>核对配置后点击添加。</p>
+<p><img src="/images/1709109514-a7578c63bad4ce4366110c8068e2bfa8.jpg" alt="图片"></p>
+<h3 id="配置用户一般告警媒介"><a href="#配置用户一般告警媒介" class="headerlink" title="配置用户一般告警媒介"></a>配置用户一般告警媒介</h3><p>进入Admin用户。</p>
+<p><img src="/images/1709109514-c05f3eac9d29eb5a92479b76d8b3b9a7.jpg" alt="图片"></p>
+<p>配置告警级别。</p>
+<p><img src="/images/1709109514-3a0698d09af38aaf1261f6a6ab08b1d5.jpg" alt="图片"></p>
+<p>核对信息，点击更新。</p>
+<p><img src="/images/1709109514-c2208a258e7efb8a22456e93d4b91892.jpg" alt="图片"></p>
+<h2 id="创建紧急告警媒介"><a href="#创建紧急告警媒介" class="headerlink" title="创建紧急告警媒介"></a>创建紧急告警媒介</h2><h3 id="配置紧急告警通知消息模板"><a href="#配置紧急告警通知消息模板" class="headerlink" title="配置紧急告警通知消息模板"></a>配置紧急告警通知消息模板</h3><p>将一般告警媒介克隆一份，替换Webhook的地址。</p>
+<p><img src="/images/1709109514-334fa9c73baa1abbd532d95fb8fa3ed3.jpg" alt="图片"></p>
+<p>修改名称和Webhook地址。</p>
+<p><img src="/images/1709109514-235bfc2bab94a4675778202e4f9413c6.jpg" alt="图片"></p>
+<p>修改告警消息模板，主题修改为ZABBIX监控紧急告警 ，问题和恢复都需要修改然后点击添加。</p>
+<p><img src="/images/1709109514-fa31ddc5f7b8ede0407b5a7fdb7af593.jpg" alt="图片"></p>
+<h3 id="配置紧急告警动作"><a href="#配置紧急告警动作" class="headerlink" title="配置紧急告警动作"></a>配置紧急告警动作</h3><p><img src="/images/1709109514-e20e1f02d5162ffa479907ee2c303f9d.jpg" alt="图片"></p>
+<p>配置条件为严重及以上</p>
+<p><img src="/images/1709109514-730fd2f110964437069830d0aef7305f.jpg" alt="图片"></p>
+<p><img src="/images/1709109514-248d22728c18956425570cc506dce20b.jpg" alt="图片"></p>
+<p>设置操作为紧急告警，告警周期缩短至每60秒一次</p>
+<p><img src="/images/1709109514-e729d1f17bc9bd1bb0ece1f698e779b3.jpg" alt="图片"></p>
+<p>设置恢复操作</p>
+<p><img src="/images/1709109514-acc74193435cbeecd1d3c610d76fe1db.jpg" alt="图片"></p>
+<p>核对后点击添加。</p>
+<p><img src="/images/1709109514-3c409949f3b54b44801261412740c2d5.jpg" alt="图片"></p>
+<p>区分普通和紧急告警。</p>
+<p><img src="/images/1709109514-7f50525b0c812f8d2c60dc233f674e98.jpg" alt="图片"></p>
+<h3 id="配置用户紧急告警媒介"><a href="#配置用户紧急告警媒介" class="headerlink" title="配置用户紧急告警媒介"></a>配置用户紧急告警媒介</h3><p><img src="/images/1709109514-49d2a471eb1312949b69299ecd5825d1.jpg" alt="图片"></p>
+<p>核对配置后点击更新。</p>
+<p><img src="/images/1709109514-3463d6ace4403b3d3e31a0d0c4583168.jpg" alt="图片"></p>
+<p>至此Zabbix通过Webook告警配置完成。</p>
+<p>其它IM平台修改一下Webhook地址应该就好了。</p>
+]]></content>
+      <categories>
+        <category>Zabbix</category>
+      </categories>
+      <tags>
+        <tag>Zabbix</tag>
+      </tags>
+  </entry>
 </search>

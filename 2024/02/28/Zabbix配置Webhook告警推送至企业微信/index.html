@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Zabbix配置Webhook告警推送至企业微信 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-Zabbix配置Webhook告警推送至企业微信"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Zabbix配置Webhook告警推送至企业微信
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/" class="article-date">
+  <time datetime="2024-02-28T09:12:37.000Z" itemprop="datePublished">2024-02-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">9 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Zabbix如何将告警通过Webhook发送至IM？网上搜罗一番发现配置还是比较繁琐，以此为由本文将介绍如何通过自带的Webhook功能将告警信息推送至IM平台，笔者的推送思路是创建两个Webhook一个为一般告警或以下，另一个为严重和灾难级别，方便区分告警紧急程度，下面来看看如何配置吧。</p>
+<h2 id="版本与环境"><a href="#版本与环境" class="headerlink" title="版本与环境"></a>版本与环境</h2><ul>
+<li><p>版本：Zabbix 6.0 LTS</p>
+</li>
+<li><p>IM：企业微信</p>
+</li>
+</ul>
+<h2 id="Webhook"><a href="#Webhook" class="headerlink" title="Webhook"></a>Webhook</h2><h3 id="什么是Webhook"><a href="#什么是Webhook" class="headerlink" title="什么是Webhook"></a>什么是Webhook</h3><p>以下是来自GPT对Webhook的介绍： Webhook 是一种网络编程的概念，用于在特定事件发生时，将数据或通知传送到指定的 URL。它是一种异步通信方式，可以让应用程序之间实现实时的数据交换和信息传递。 以下是 Webhook 的一些基本概念和特点：- 工作原理： Webhook 的工作原理很简单。当某个事件在源应用程序中触发时，源应用会向预先配置的目标 URL 发送 HTTP 请求。目标 URL 可以是你自己的服务器、外部服务、第三方应用程序等。- 事件触发： Webhook 通常用于捕获和响应特定事件，如用户注册、支付成功、数据更新等。当事件发生时，源应用程序会将相关数据封装为一个 HTTP 请求，并发送到目标 URL。- 实时性： Webhook 实现了实时数据传输，因为事件触发后立即发送通知。这与轮询（Polling）方式不同，后者需要定期查询源数据是否有更新。- 自定义数据： Webhook 可以在请求中传递自定义数据，这样目标应用程序可以根据数据内容做出适当的处理。- 用途广泛： Webhook 在很多场景中得到应用，包括通知、集成、自动化等。比如，你可以通过 Webhook 将表单提交的数据发送到外部数据库、实现不同应用程序之间的集成，或者实现实时通知功能。- 安全性： Webhook 通常需要进行身份验证，确保只有合法的请求可以触发。常见的方式包括使用密钥、令牌、数字签名等来验证来源。- 管理： 一些服务提供了管理界面，让用户可以配置和管理 Webhook，包括设置事件、目标 URL、请求方法等。 Webhook 的使用非常灵活，可以根据不同的应用场景进行定制。许多云服务、应用程序和开发框架都支持 Webhook 功能，使得不同系统之间的集成更加便捷。</p>
+<h3 id="创建Webhook"><a href="#创建Webhook" class="headerlink" title="创建Webhook"></a>创建Webhook</h3><p>先创建一个群聊，点击菜单-&gt;添加群机器人-&gt;添加机器人。</p>
+<p><img src="/images/1709109514-3c702544ef2b4421e9f76a70cf0bc946.jpg" alt="图片"></p>
+<p>选择新建机器人。</p>
+<p><img src="/images/1709109514-e95bd7109939befb7083962b4813f176.jpg" alt="图片"></p>
+<p>输入机器人名称后点击添加。</p>
+<p><img src="/images/1709109514-47201d711be7971994d6bd23da5dd582.jpg" alt="图片"></p>
+<p>创建完成后得到一个webhook地址。</p>
+<p><img src="/images/1709109514-b641041f0170575cd7feec27a224973d.jpg" alt="图片"></p>
+<h2 id="安装ZABBIX"><a href="#安装ZABBIX" class="headerlink" title="安装ZABBIX"></a>安装ZABBIX</h2><p>参照此片文章</p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/645105851">Debain 部署 Zabbix 6 LTS1 </a></p>
+<h2 id="创建一般告警媒介"><a href="#创建一般告警媒介" class="headerlink" title="创建一般告警媒介"></a>创建一般告警媒介</h2><p>创建告警类型</p>
+<p><img src="/images/1709109514-438e05a77ae4fbed562402bd36f69284.jpg" alt="图片"></p>
+<p>按需填入相关信息，token获取请参照 创建Webhook 章节。</p>
+<p><img src="/images/1709109514-ad3dfb7d0aa8d93fdc6b35782c07c8a5.jpg" alt="图片"></p>
+<p>javaScript脚本内容如下，有相关注释。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br></pre></td><td class="code"><pre><span class="line">var WeCom = &#123;</span><br><span class="line">    message: null,</span><br><span class="line">    webhook_url: null,</span><br><span class="line"></span><br><span class="line">    sendMessage: function() &#123;</span><br><span class="line">        // 定义消息推送格式</span><br><span class="line">        var params = &#123;</span><br><span class="line">            msgtype: &quot;markdown&quot;,</span><br><span class="line">            markdown: &#123;</span><br><span class="line">                content:WeCom.message</span><br><span class="line">            &#125;,</span><br><span class="line">            // 这个参数控制是否禁用消息中的链接预览。当设置为 true 时，如果消息中包含链接，企业微信客户端将不会自动预览链接的内容，而是直接显示链接地址。</span><br><span class="line">            disable_web_page_preview: true,</span><br><span class="line">        &#125;,</span><br><span class="line">        data,</span><br><span class="line">        response,</span><br><span class="line">        request = new CurlHttpRequest();</span><br><span class="line">        request.AddHeader(&#x27;Content-Type: application/json&#x27;);</span><br><span class="line">        data = JSON.stringify(params);</span><br><span class="line"></span><br><span class="line">        // 将推送信息写入zabbix日志中用于排错，第一个参数 4 表示日志级别Information，不存储webhook链接信息，避免泄露。</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] URL: Webhook  address&#x27;);</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] params: &#x27; + data);</span><br><span class="line">        // 推送告警消息</span><br><span class="line">        response = request.Post(WeCom.webhook_url, data);</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] HTTP code: &#x27; + request.Status());</span><br><span class="line">        Zabbix.Log(4, &#x27;[WeCom Webhook] response: &#x27; + response);</span><br><span class="line"></span><br><span class="line">        // 格式化返回的结果并做出判断，有异常则抛出异常。</span><br><span class="line">        try &#123;</span><br><span class="line">            response = JSON.parse(response);</span><br><span class="line">        &#125;</span><br><span class="line">        catch (error) &#123;</span><br><span class="line">            response = null;</span><br><span class="line">            Zabbix.Log(4, &#x27;[WeCom Webhook] response parse error&#x27;);</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        if (request.Status() !== 200 ||  response.errcode !== 0 || response.errmsg !== &#x27;ok&#x27;) &#123;</span><br><span class="line">            if (typeof response.errmsg === &#x27;string&#x27;) &#123;</span><br><span class="line">                throw response.errmsg;</span><br><span class="line">            &#125;</span><br><span class="line">            else &#123;</span><br><span class="line">                throw &#x27;Unknown error. Check debug log for more information.&#x27;</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">try &#123;</span><br><span class="line">    var params = JSON.parse(value);</span><br><span class="line">    // 判断Webhook_url参数是否定义，未定义抛出错误。</span><br><span class="line">    if (typeof params.Webhook_url === &#x27;undefined&#x27;) &#123;</span><br><span class="line">        throw &#x27;Incorrect value is given for parameter &quot;Webhook_url&quot;: parameter is missing&#x27;;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // 传参给WeCom</span><br><span class="line">    WeCom.webhook_url = params.Webhook_url;</span><br><span class="line">    WeCom.message = params.Subject + &#x27;\n&#x27; + params.Message;</span><br><span class="line">    // 执行消息推送函数</span><br><span class="line">    WeCom.sendMessage();</span><br><span class="line">    // 返回给zabbix，ok 在 Zabbix 动作中会被用来标识成功执行。</span><br><span class="line">    return &#x27;OK&#x27;;</span><br><span class="line">&#125;</span><br><span class="line">    // 遇到错误抛出错误信息。</span><br><span class="line">catch (error) &#123;</span><br><span class="line">    Zabbix.Log(4, &#x27;[WeCom Webhook] notification failed: &#x27; + error);</span><br><span class="line">    throw &#x27;Sending failed: &#x27; + error + &#x27;.&#x27;;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="配置一般告警通知消息模板"><a href="#配置一般告警通知消息模板" class="headerlink" title="配置一般告警通知消息模板"></a>配置一般告警通知消息模板</h3><p>告警通知消息格式如下图所示：</p>
+<p><img src="/images/1709109514-9aa0b415787c3962059aa3fb07456090.jpg" alt="图片"></p>
+<p>告警可用变量请参照官方文档 <a href="https://link.zhihu.com/?target=https://www.zabbix.com/documentation/current/zh/manual/appendix/macros/supported_by_location">跳转</a></p>
+<p><img src="/images/1709109514-31586a36090c2ed7c1fb7cc92e27cafa.jpg" alt="图片"></p>
+<p>配置信息如下，标题为和关键信息加粗和上色（黄色）。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># &lt;font color=&quot;warning&quot;&gt;【ZABBIX监控告警】&lt;/font&gt;</span><br><span class="line"></span><br><span class="line">&gt;通知时间：&lt;font color=&quot;comment&quot;&gt;&#123;DATE&#125;-&#123;TIME&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警级别：**&lt;font color=&quot;warning&quot;&gt;&#123;TRIGGER.SEVERITY&#125;&lt;/font&gt;**</span><br><span class="line">&gt;主机名称：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.NAME&#125;&lt;/font&gt;</span><br><span class="line">&gt;主机IP：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.IP&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DATE&#125;-&#123;EVENT.TIME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题名称：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.NAME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题详情：&lt;font color=&quot;comment&quot;&gt;&#123;ITEM.NAME&#125;:&#123;ITEM.VALUE&#125;&lt;/font&gt;</span><br><span class="line">&gt;目前状态：**&lt;font color=&quot;warning&quot;&gt;&#123;TRIGGER.STATUS&#125;&lt;/font&gt;**</span><br><span class="line">&gt;操作数据：&lt;font color=&quot;comment&quot;&gt;&#123;EVENT.OPDATA&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警持续时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DURATION&#125;&lt;/font&gt;**</span><br><span class="line">&gt;[确认告警和查看详情,请点击链接](http://http://x.x.x.x:8080/)</span><br></pre></td></tr></table></figure>
+
+<p>企业微信webhook支持三种颜色，详情参考官方文档<a href="https://link.zhihu.com/?target=https://developer.work.weixin.qq.com/document/path/91770%23markdown%25E7%25B1%25BB%25E5%259E%258B">跳转</a></p>
+<p><img src="/images/1709109514-14fc9e5390e43698338267c7a91e0070.jpg" alt="图片"></p>
+<h3 id="配置一般告警恢复消息模板"><a href="#配置一般告警恢复消息模板" class="headerlink" title="配置一般告警恢复消息模板"></a>配置一般告警恢复消息模板</h3><p>告警消息恢复通知格式如下图所示：</p>
+<p><img src="/images/1709109514-6a17e96b7dee9eb95a7cbf864fcd5003.jpg" alt="图片"></p>
+<p>告警可用变量请参照官方文档 <a href="https://link.zhihu.com/?target=https://www.zabbix.com/documentation/current/zh/manual/appendix/macros/supported_by_location">跳转</a></p>
+<p><img src="/images/1709109514-6084bed8a43010b5455b92e36f908967.jpg" alt="图片"></p>
+<p>配置信息如下，标题为和关键信息加粗和上色（绿色）。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># &lt;font color=&quot;info&quot;&gt;【ZABBIX告警恢复】&lt;/font&gt;</span><br><span class="line"></span><br><span class="line">&gt;通知时间：&lt;font color=&quot;comment&quot;&gt;&#123;DATE&#125;-&#123;TIME&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警级别：**&lt;font color=&quot;info&quot;&gt;&#123;TRIGGER.SEVERITY&#125;&lt;/font&gt;**</span><br><span class="line">&gt;主机名称：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.NAME&#125;&lt;/font&gt;</span><br><span class="line">&gt;主机IP：&lt;font color=&quot;comment&quot;&gt;&#123;HOST.IP&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警时间：**&lt;font color=&quot;warning&quot;&gt;&#123;EVENT.DATE&#125;-&#123;EVENT.TIME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题名称：**&lt;font color=&quot;info&quot;&gt;&#123;EVENT.NAME&#125;&lt;/font&gt;**</span><br><span class="line">&gt;问题详情：&lt;font color=&quot;comment&quot;&gt;&#123;ITEM.NAME&#125;:&#123;ITEM.VALUE&#125;&lt;/font&gt;</span><br><span class="line">&gt;目前状态：**&lt;font color=&quot;info&quot;&gt;&#123;TRIGGER.STATUS&#125;&lt;/font&gt;**</span><br><span class="line">&gt;操作数据：&lt;font color=&quot;comment&quot;&gt;&#123;EVENT.OPDATA&#125;&lt;/font&gt;</span><br><span class="line">&gt;告警持续时间：**&lt;font color=&quot;info&quot;&gt;&#123;EVENT.DURATION&#125;&lt;/font&gt;**</span><br><span class="line">&gt;[确认告警和查看详情,请点击链接](http://x.x.x.x:8080/)</span><br></pre></td></tr></table></figure>
+
+<p>点击添加，完成告警媒介添加。</p>
+<p><img src="/images/1709109514-da26071b15125946a458ba89c1c08181.jpg" alt="图片"></p>
+<h3 id="验证告警媒介"><a href="#验证告警媒介" class="headerlink" title="验证告警媒介"></a>验证告警媒介</h3><p><img src="/images/1709109514-79dc66f46f33873c84e8cfa0120cc354.jpg" alt="图片"></p>
+<p>如下图所示标识脚本调用正常，出现异常情况可根据日志信息针对性解决。</p>
+<p><img src="/images/1709109514-0c71e3354e38a3f131e5c2e1e655f02d.jpg" alt="图片"></p>
+<p>会收到这样一条信息。</p>
+<p><img src="/images/1709109514-86c9ffcd9414e9d8b3570e976fa61f9e.png" alt="图片"></p>
+<h3 id="配置一般告警动作"><a href="#配置一般告警动作" class="headerlink" title="配置一般告警动作"></a>配置一般告警动作</h3><p>点击创建动作。</p>
+<p><img src="/images/1709109514-07d1b8ad321c82f2128e471f68a42ebb.jpg" alt="图片"></p>
+<p>定义名称和点击添加条件。</p>
+<p><img src="/images/1709109514-e1c984329d45f9982191ed1872fe9bb2.jpg" alt="图片"></p>
+<p>选择一般严重及以下等级告警。</p>
+<p><img src="/images/1709109514-367dd7250e39305e456494773a317400.jpg" alt="图片"></p>
+<p>验证配置。</p>
+<p><img src="/images/1709109514-919f694fe00d032f1bfb66ee2c3565f9.jpg" alt="图片"></p>
+<p>配置操作，发送到的用户组或用户至少要有设备的读取权限。</p>
+<p><img src="/images/1709109514-db53b41c31983a7c6ea96de91a196505.jpg" alt="图片"></p>
+<p>定义告警恢复操作。</p>
+<p><img src="/images/1709109514-59301475e1deddbf473d6d5e01ffd2bf.jpg" alt="图片"></p>
+<p>核对配置后点击添加。</p>
+<p><img src="/images/1709109514-a7578c63bad4ce4366110c8068e2bfa8.jpg" alt="图片"></p>
+<h3 id="配置用户一般告警媒介"><a href="#配置用户一般告警媒介" class="headerlink" title="配置用户一般告警媒介"></a>配置用户一般告警媒介</h3><p>进入Admin用户。</p>
+<p><img src="/images/1709109514-c05f3eac9d29eb5a92479b76d8b3b9a7.jpg" alt="图片"></p>
+<p>配置告警级别。</p>
+<p><img src="/images/1709109514-3a0698d09af38aaf1261f6a6ab08b1d5.jpg" alt="图片"></p>
+<p>核对信息，点击更新。</p>
+<p><img src="/images/1709109514-c2208a258e7efb8a22456e93d4b91892.jpg" alt="图片"></p>
+<h2 id="创建紧急告警媒介"><a href="#创建紧急告警媒介" class="headerlink" title="创建紧急告警媒介"></a>创建紧急告警媒介</h2><h3 id="配置紧急告警通知消息模板"><a href="#配置紧急告警通知消息模板" class="headerlink" title="配置紧急告警通知消息模板"></a>配置紧急告警通知消息模板</h3><p>将一般告警媒介克隆一份，替换Webhook的地址。</p>
+<p><img src="/images/1709109514-334fa9c73baa1abbd532d95fb8fa3ed3.jpg" alt="图片"></p>
+<p>修改名称和Webhook地址。</p>
+<p><img src="/images/1709109514-235bfc2bab94a4675778202e4f9413c6.jpg" alt="图片"></p>
+<p>修改告警消息模板，主题修改为ZABBIX监控紧急告警 ，问题和恢复都需要修改然后点击添加。</p>
+<p><img src="/images/1709109514-fa31ddc5f7b8ede0407b5a7fdb7af593.jpg" alt="图片"></p>
+<h3 id="配置紧急告警动作"><a href="#配置紧急告警动作" class="headerlink" title="配置紧急告警动作"></a>配置紧急告警动作</h3><p><img src="/images/1709109514-e20e1f02d5162ffa479907ee2c303f9d.jpg" alt="图片"></p>
+<p>配置条件为严重及以上</p>
+<p><img src="/images/1709109514-730fd2f110964437069830d0aef7305f.jpg" alt="图片"></p>
+<p><img src="/images/1709109514-248d22728c18956425570cc506dce20b.jpg" alt="图片"></p>
+<p>设置操作为紧急告警，告警周期缩短至每60秒一次</p>
+<p><img src="/images/1709109514-e729d1f17bc9bd1bb0ece1f698e779b3.jpg" alt="图片"></p>
+<p>设置恢复操作</p>
+<p><img src="/images/1709109514-acc74193435cbeecd1d3c610d76fe1db.jpg" alt="图片"></p>
+<p>核对后点击添加。</p>
+<p><img src="/images/1709109514-3c409949f3b54b44801261412740c2d5.jpg" alt="图片"></p>
+<p>区分普通和紧急告警。</p>
+<p><img src="/images/1709109514-7f50525b0c812f8d2c60dc233f674e98.jpg" alt="图片"></p>
+<h3 id="配置用户紧急告警媒介"><a href="#配置用户紧急告警媒介" class="headerlink" title="配置用户紧急告警媒介"></a>配置用户紧急告警媒介</h3><p><img src="/images/1709109514-49d2a471eb1312949b69299ecd5825d1.jpg" alt="图片"></p>
+<p>核对配置后点击更新。</p>
+<p><img src="/images/1709109514-3463d6ace4403b3d3e31a0d0c4583168.jpg" alt="图片"></p>
+<p>至此Zabbix通过Webook告警配置完成。</p>
+<p>其它IM平台修改一下Webhook地址应该就好了。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/28/Grafana%E4%B8%ADElasticSearch%E6%97%A5%E5%BF%97%E6%9F%A5%E8%AF%A2%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Grafana中ElasticSearch日志查询使用方法</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
