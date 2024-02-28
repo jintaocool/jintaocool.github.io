@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana中ElasticSearch日志查询使用方法 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana中ElasticSearch日志查询使用方法"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana中ElasticSearch日志查询使用方法
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/02/28/Grafana%E4%B8%ADElasticSearch%E6%97%A5%E5%BF%97%E6%9F%A5%E8%AF%A2%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95/" class="article-date">
+  <time datetime="2024-02-28T07:17:17.000Z" itemprop="datePublished">2024-02-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>创建一个基于 ElasticSearch 的日志快速搜索仪表板.</p>
+<p>最终完整效果如下:</p>
+<p><img src="/images/1709104497-d2ab56f1fce5d7a945a6e1fab9290ea4.png"></p>
+<p>ElasticSearch Logs Quick Search Dashboard</p>
+<blockquote>
+<p>📝<strong>Notes</strong>:</p>
+<p>其实我基于 ElasticSearch 做了2个仪表板</p>
+<ul>
+<li>用于检索 Applog 的</li>
+<li>用于检索 accesslog 的</li>
+</ul>
+<p>在下面的讲解中会综合2个仪表板来进行说明.</p>
+</blockquote>
+<p>这次不会讲述详细细节, 只选择部分关键点进行说明.</p>
+<h2 id="知识储备"><a href="#知识储备" class="headerlink" title="知识储备"></a>知识储备</h2><h3 id="创建-Query"><a href="#创建-Query" class="headerlink" title="创建 Query"></a>创建 Query</h3><p>使用自定义的JSON字符串编写查询，field 在Elasticsearch索引映射中被映射为一个 keyword。</p>
+<p>如果查询是 multi-field 的 <code>text</code> 和 <code>keyword</code> 类型，使用 <code>&quot;field&quot;: &quot;fieldname.keyword&quot;</code>（有时是<code>fieldname.raw</code>）来指定你查询中的关键字字段。</p>
+<h4 id="Query"><a href="#Query" class="headerlink" title="Query"></a>Query</h4><table>
+<thead>
+<tr>
+<th>Query</th>
+<th>Description</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>&#123;&quot;find&quot;: &quot;fields&quot;, &quot;type&quot;: &quot;keyword&quot;&#125;</code></td>
+<td>返回一个索引类型为<code>keyword</code> 的字段名列表。</td>
+</tr>
+<tr>
+<td><code>&#123;&quot;find&quot;: &quot;terms&quot;, &quot;field&quot;: &quot;hostname.keyword&quot;, &quot;size&quot;: 1000&#125;</code></td>
+<td>使用 terms 聚合返回一个 keyword 的值列表。查询将使用当前仪表板的时间范围作为时间范围查询。</td>
+</tr>
+<tr>
+<td><code>&#123;&quot;find&quot;: &quot;terms&quot;, &quot;field&quot;: &quot;hostname&quot;, &quot;query&quot;: &#39;&lt;Lucene query&gt;&#39;&#125;</code></td>
+<td>使用terms 聚合和指定的Lucene查询过滤器，返回一个keyword field 的值列表。查询将使用当前仪表板的时间范围作为查询的时间范围。</td>
+</tr>
+</tbody></table>
+<p><code>terms</code> 的查询默认有500个结果的限制。要设置一个自定义的限制，需要在你的查询中设置<code>size</code>属性。</p>
+<h3 id="Variable-语法"><a href="#Variable-语法" class="headerlink" title="Variable 语法"></a>Variable 语法</h3><p>面板标题和 metric 查询可以使用多种不同的语法来引用变量：</p>
+<ul>
+<li><code>$varname</code>, 这种语法很容易阅读，但它不允许你在词的中间使用变量。例如：<code>apps.frontend.$server.requests.count</code></li>
+<li><code>$&#123;var_name&#125;</code>, 当你想在表达式的中间插值一个变量时，请使用这种语法。</li>
+<li><code>$&#123;var_name:&lt;format&gt;&#125;</code> 这种格式让你对Grafana如何插值有更多控制。</li>
+<li><code>[[varname]]</code> 不建议使用。废弃的旧语法，将在未来的版本中删除。</li>
+</ul>
+<h4 id="高级变量格式选项"><a href="#高级变量格式选项" class="headerlink" title="高级变量格式选项"></a>高级变量格式选项</h4><p>变量插值的格式取决于数据源，但在有些情况下，你可能想改变默认的格式。</p>
+<p>例如，MySql数据源的默认格式是以逗号分隔的方式连接多个值，并加引号, 如：<code>&#39;server01&#39;, &#39;server02&#39;</code>.在某些情况下，你可能希望有一个不带引号的逗号分隔的字符串, 如：<code>server01,server02</code>。你可以用下面列出的高级变量格式化选项来实现这一目的。</p>
+<h5 id="通用语法"><a href="#通用语法" class="headerlink" title="通用语法"></a>通用语法</h5><p>语法: <code>$&#123;var_name:option&#125;</code></p>
+<p>可以在[Grafana Play网站]上测试格式化选项。</p>
+<p>如果指定了任何无效的格式化选项，那么 <code>glob</code> 就是默认&#x2F;回退选项。</p>
+<h5 id="CSV"><a href="#CSV" class="headerlink" title="CSV"></a>CSV</h5><p>将具有多个值的变量形成一个逗号分隔的字符串。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:csv&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;test1,test2&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="分布式-OpenTSDB"><a href="#分布式-OpenTSDB" class="headerlink" title="分布式 - OpenTSDB"></a>分布式 - OpenTSDB</h5><p>以OpenTSDB的自定义格式对具有多个值的变量进行格式化。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:distributed&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;test1,servers=test2&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="双引号"><a href="#双引号" class="headerlink" title="双引号"></a>双引号</h5><p>将单值和多值变量形成一个逗号分隔的字符串，在单个值中用<code>\&quot;</code>转义<code>&quot;</code>，并将每个值用<code>&quot;&quot;</code>引号括起来。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:doublequote&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;&quot;test1&quot;,&quot;test2&quot;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Glob-Graphite"><a href="#Glob-Graphite" class="headerlink" title="Glob - Graphite"></a>Glob - Graphite</h5><p>将具有多个值的变量组成一个glob（用于Graphite查询）。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:glob&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;&#123;test1,test2&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="JSON"><a href="#JSON" class="headerlink" title="JSON"></a>JSON</h5><p>将具有多个值的变量形成一个逗号分隔的字符串。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:json&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;[&quot;test1&quot;, &quot;test2&quot;]&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Lucene-Elasticsearch"><a href="#Lucene-Elasticsearch" class="headerlink" title="Lucene - Elasticsearch"></a>Lucene - Elasticsearch</h5><p>以Lucene格式对Elasticsearch的多值变量进行格式化。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:lucene&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;(&quot;test1&quot; OR &quot;test2&quot;)&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="URL-编码-Percentencode"><a href="#URL-编码-Percentencode" class="headerlink" title="URL 编码 (Percentencode)"></a>URL 编码 (Percentencode)</h5><p>对单值和多值变量进行格式化，以便在URL参数中使用。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;foo()bar BAZ&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:percentencode&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;foo%28%29bar%20BAZ%2Ctest2&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Pipe"><a href="#Pipe" class="headerlink" title="Pipe"></a>Pipe</h5><p>将具有多个值的变量形成一个管道分隔的字符串。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1.&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:pipe&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;test1.|test2&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Raw"><a href="#Raw" class="headerlink" title="Raw"></a>Raw</h5><p>关闭数据源特定的格式化，如SQL查询中的单引号。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test.1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;var_name:raw&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;test.1,test2&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Regex"><a href="#Regex" class="headerlink" title="Regex"></a>Regex</h5><p>将有多个值的变量形成一个regex字符串。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1.&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:regex&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&#x27;(test1\.|test2)&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="单引号"><a href="#单引号" class="headerlink" title="单引号"></a>单引号</h5><p>将单值和多值变量形成一个逗号分隔的字符串，在单个值中用<code>\&#39;</code>转义<code>&#39;</code>，并将每个值用<code>&#39;</code>引号括起来。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&#x27;test1&#x27;</span>, <span class="string">&#x27;test2&#x27;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:singlequote&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&quot;&#x27;test1&#x27;,&#x27;test2&#x27;&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Sqlstring"><a href="#Sqlstring" class="headerlink" title="Sqlstring"></a>Sqlstring</h5><p>将单值和多值变量组成一个逗号分隔的字符串，每个值中的<code>&#39;</code>用<code>&#39;&#39;</code>转义，每个值用<code>&#39;</code>引号括起来。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&quot;test&#x27;1&quot;</span>, <span class="string">&quot;test2&quot;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:sqlstring&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&quot;&#x27;test&#x27;&#x27;1&#x27;,&#x27;test2&#x27;&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="Text"><a href="#Text" class="headerlink" title="Text"></a>Text</h5><p>将单值和多值变量转换成其文本表示法。对于一个单变量，它将只返回文本表示法。对于多值变量，它将返回与<code>+</code>相结合的文本表示法。</p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&quot;test1&quot;</span>, <span class="string">&quot;test2&quot;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:text&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&quot;test1 + test2&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="查询参数"><a href="#查询参数" class="headerlink" title="查询参数"></a>查询参数</h4><p>将单值和多值变量编入其查询参数表示法。例如：<code>var-foo=value1&amp;var-foo=value2</code></p>
+<figure class="highlight dart"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">servers = [<span class="string">&quot;test1&quot;</span>, <span class="string">&quot;test2&quot;</span>]</span><br><span class="line"><span class="built_in">String</span> to interpolate: <span class="string">&#x27;<span class="subst">$&#123;servers:queryparam&#125;</span>&#x27;</span></span><br><span class="line">Interpolation result: <span class="string">&quot;servers=test1&amp;servers=test2&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="配置变量选择选项"><a href="#配置变量选择选项" class="headerlink" title="配置变量选择选项"></a>配置变量选择选项</h3><p><strong>Selection Options</strong> 是一个你可以用来管理变量选项选择的功能。所有的选择选项都是可选的，它们在默认情况下是关闭的。</p>
+<h4 id="Multi-value-Variables"><a href="#Multi-value-Variables" class="headerlink" title="Multi-value Variables"></a>Multi-value Variables</h4><p>内插一个选择了多个值的变量是很棘手的，因为如何将多个值格式化为一个在使用该变量的给定环境中有效的字符串并不直接。Grafana试图通过允许每个数据源插件告知模板插值引擎对多个值使用什么格式来解决这个问题。</p>
+<blockquote>
+<p>📝<strong>Notes</strong>:</p>
+<p>变量上的<strong>Custom all value</strong>选项必须为空，以便Grafana将所有值格式化为一个字符串。如果它留空，那么Grafana就会把查询中的所有值连接起来（加在一起）。类似于<code>value1,value2,value3</code>。如果使用了一个自定义的所有值，那么该值将是类似于<code>*</code>或<code>all</code>的东西。</p>
+</blockquote>
+<h4 id="带有Prometheus或InfluxDB数据源的多值变量"><a href="#带有Prometheus或InfluxDB数据源的多值变量" class="headerlink" title="带有Prometheus或InfluxDB数据源的多值变量"></a>带有Prometheus或InfluxDB数据源的多值变量</h4><p>InfluxDB和Prometheus使用regex表达式，所以<code>host1</code>, <code>host2</code>, <code>host3</code> 变量会被插值为<code>&#123;host1,host2,host3&#125;</code>。每个值都会被regex转义。</p>
+<h4 id="使用Elastic数据源的多值变量"><a href="#使用Elastic数据源的多值变量" class="headerlink" title="使用Elastic数据源的多值变量"></a>使用Elastic数据源的多值变量</h4><p>Elasticsearch使用lucene查询语法，所以同样的变量会被格式化为<code>(&quot;host1&quot; OR &quot;host2&quot; OR &quot;host3&quot;)</code>。在这种情况下，每一个值都必须被转义，以便该值只包含lucene控制词和引号。</p>
+<h4 id="Include-All-选项"><a href="#Include-All-选项" class="headerlink" title="Include All 选项"></a>Include All 选项</h4><p>Grafana在变量下拉列表中添加了一个 <code>All</code> 选项。如果用户选择了这个选项，那么所有的变量选项都被选中。</p>
+<h4 id="自定义-all-的值"><a href="#自定义-all-的值" class="headerlink" title="自定义 all 的值"></a>自定义 all 的值</h4><p>这个选项只有在选择了 <strong>Include All option</strong> 时才可见。</p>
+<p>在Custom all value字段中可以输入regex、globs或lucene语法来定义All选项的值。</p>
+<p>默认情况下，<code>All</code> 值包括组合表达式中的所有选项。这可能会变得非常长，而且会产生性能问题。有时，指定一个自定义的所有值可能会更好，比如通配符。</p>
+<p>为了在 <strong>Custom all value</strong> 选项中拥有自定义的regex、globs或lucene语法，它永远不会被转义，所以你将不得不考虑什么是你的数据源的有效值。</p>
+<h3 id="ElasticSearch-Template-Variables"><a href="#ElasticSearch-Template-Variables" class="headerlink" title="ElasticSearch Template Variables"></a>ElasticSearch Template Variables</h3><h4 id="选择一种-Variable-语法"><a href="#选择一种-Variable-语法" class="headerlink" title="选择一种 Variable 语法"></a>选择一种 Variable 语法</h4><p>如上文所述, Elasticsearch数据源支持在查询字段中使用多种变量语法.</p>
+<p>当启用 <strong>Multi-value</strong> 或 <strong>Include all value</strong> 选项时，Grafana 会将标签从纯文本转换为与 Lucene 兼容的条件。即隐式转换 <code>$varname</code> 为 <code>$&#123;varname:lucene&#125;</code></p>
+<h2 id="实战"><a href="#实战" class="headerlink" title="实战"></a>实战</h2><h3 id="1-弄清楚有哪些索引字段"><a href="#1-弄清楚有哪些索引字段" class="headerlink" title="1. 弄清楚有哪些索引字段"></a>1. 弄清楚有哪些索引字段</h3><p>首先, 最重要的, 就是弄清楚该索引有哪些索引<strong>字段(fields)</strong>, 以及有哪些<strong>keywords</strong>, 选择部分字段和 keywords 作为 varibles. 可以直接通过 Kibana 界面进行查询和尝试.</p>
+<p>如本次选择的有:</p>
+<ul>
+<li><code>app_name</code></li>
+<li><code>level</code></li>
+<li><code>request_path</code> (🐾 通过多次在 Kibana 上使用发现, 查询时应该使用 <code>request_path.keyword</code> 而不是 <code>request_path</code>)</li>
+<li><code>request_method</code></li>
+<li><code>status_code</code></li>
+</ul>
+<h3 id="2-创建-Variables"><a href="#2-创建-Variables" class="headerlink" title="2. 创建 Variables"></a>2. 创建 Variables</h3><h4 id="app-name"><a href="#app-name" class="headerlink" title="app_name"></a>app_name</h4><p>设置如下:</p>
+<ul>
+<li>Name: <code>app_name</code></li>
+<li>Type: Query</li>
+<li>Data source: ES</li>
+<li>Query: <code>&#123;&quot;find&quot;: &quot;terms&quot;, &quot;field&quot;: &quot;current_app_name&quot;&#125;</code>, 另外, 如果嵌套使用, 可以类似这样 <code>&#123;&quot;find&quot;: &quot;terms&quot;, &quot;field&quot;: &quot;pod_name&quot;, &quot;query&quot;: &quot;app_name:$app_name&quot;&#125;</code></li>
+</ul>
+<h4 id="request-path"><a href="#request-path" class="headerlink" title="request_path"></a>request_path</h4><p>设置如下:</p>
+<ul>
+<li>Name: <code>request_path</code></li>
+<li>Type: Query</li>
+<li>Data source: ES</li>
+<li>Query: <code>&#123;&quot;find&quot;: &quot;terms&quot;, &quot;field&quot;: &quot;request_path.keyword&quot;, &quot;query&quot;: &quot;app_name:$app_name&quot;&#125;</code></li>
+<li>Multi-value: ✔️</li>
+<li>Include All option: ✔️</li>
+<li>Custom all value: <code>*</code></li>
+</ul>
+<p>🐾 注意, 这里使用了 Custom all value, 最终 Query All 的表达式就会变成: <code>request_path.keyword:*</code> 而不是 <code>request_path.keyword:(&lt;path1&gt; OR &lt;path2&gt; ...)</code></p>
+<h4 id="request-method"><a href="#request-method" class="headerlink" title="request_method"></a>request_method</h4><p><code>request_method</code> 常用的就这么几个:</p>
+<ul>
+<li>GET</li>
+<li>POST</li>
+<li>DELETE</li>
+<li>HEAD</li>
+<li>PUT</li>
+<li>PATCH</li>
+<li>OPTIONS</li>
+</ul>
+<p>所以可以将其设置为 <code>Custom</code> variable, 设置如下:</p>
+<ul>
+<li>Name: <code>request_method</code></li>
+<li>Type: Custom</li>
+<li>Values separated by comma: <code>GET,POST,DELETE,HEAD, PUT,PATCH,OPTIONS</code></li>
+<li>Multi-value: ✔️</li>
+<li>Include All option: ✔️</li>
+<li>Custom all value: <code>*</code></li>
+</ul>
+<h4 id="level"><a href="#level" class="headerlink" title="level"></a>level</h4><p>日志级别可以直接使用 Custom 类型变量. 如下:</p>
+<ul>
+<li>Name: <code>level</code></li>
+<li>Type: <code>Custom</code></li>
+<li>Values separated by comma: <code>INFO, WARN, ERROR,FATAL</code></li>
+<li>Multi-value: ✔️</li>
+<li>Include All option: ✔️</li>
+</ul>
+<p>如果只关注错误日志, 那么 level 变量的默认值可以设置为同时勾选: <code>ERROR</code> 和 <code>FATAL</code></p>
+<h4 id="status-code"><a href="#status-code" class="headerlink" title="status_code"></a>status_code</h4><p>这里会将 <code>status_code</code> variable 用于 Lucene 的范围语法 <code>[]</code>(包括开头和结尾的2个数字), 所以有用到<code>Custom all value</code> 以及 Variable 语法配置.</p>
+<ul>
+<li>Name: <code>status_code</code></li>
+<li>Type: <code>Custom</code></li>
+<li>Values separated by comma: <code>200 TO 299, 300 TO 399, 400 TO 499, 500 TO 599</code></li>
+<li>Include All option: ✔️</li>
+<li>Custom all value: <code>200 TO 599</code> (📝Note: 即包括所有的 http 状态码, 从 200 到 599)</li>
+</ul>
+<p>后续要在 Query 中使用, 用法如下:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">status_code:[<span class="variable">$&#123;status_code:raw&#125;</span>]</span><br></pre></td></tr></table></figure>
+
+<p>直接使用 <code>$&#123;status_code:raw&#125;</code>, 这样传入就会变成:</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">status_code:[<span class="number">200</span> TO <span class="number">299</span>]</span><br><span class="line">status_code:[<span class="number">200</span> TO <span class="number">599</span>]</span><br></pre></td></tr></table></figure>
+
+<p>按期望完成对 ES 的查询.</p>
+<h4 id="filter"><a href="#filter" class="headerlink" title="filter"></a>filter</h4><p>最后, 还添加一个 <code>Ad hoc filters</code> variable, 方便用户进行更多自定义的过滤筛选.</p>
+<ul>
+<li>Name: filter</li>
+<li>Type: <code>Ad hoc filters</code></li>
+<li>Data source: <code>$&#123;datasource&#125;</code></li>
+</ul>
+<p>后续会在该 Dashboard 的所有 Query 中自动使用. 一个典型使用场景如下:</p>
+<p>对于 <code>request_path</code>, 需要过滤监控&#x2F;健康检查等请求(包含<code>info</code> <code>health</code> <code>metric</code> 等关键词), 那么可以将该 <code>filter</code> 保存为默认的变量值.</p>
+<p>request_path ad hoc filter</p>
+<h3 id="3-Panel"><a href="#3-Panel" class="headerlink" title="3. Panel"></a>3. Panel</h3><p>Dashboard 只有 2 个面板组成:</p>
+<ul>
+<li>上图: Time series, 显示日志柱状图, 并着色, <code>INFO</code>日志为绿色, <code>WARN</code> 日志为黄色, <code>ERROR</code> 和 <code>FATAL</code> 日志为红色.</li>
+<li>下日志</li>
+</ul>
+<h4 id="Time-series-panel"><a href="#Time-series-panel" class="headerlink" title="Time series panel"></a>Time series panel</h4><p>如下图:</p>
+<p>3 Colors Time series panel</p>
+<p>可以通过如下 Query 实现:</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">app_name:<span class="variable">$app_name</span> AND level:(<span class="variable">$level</span> AND INFO)</span><br><span class="line">app_name:<span class="variable">$app_name</span> AND level:(<span class="variable">$level</span> AND ERROR or FATAL)</span><br></pre></td></tr></table></figure>
+
+<p><code>$level AND INFO</code> 这种写法是一个 workaround, 为的是在 level 变量改变时, Time series panel 随之改变.</p>
+<p>另外一个需要注意的点是, <code>Metric</code> 是 <code>Count</code>(日志条数) 而不是 <code>Logs</code> (具体日志).</p>
+<p>还有, 需要配置 Override -&gt; Color, 如下:</p>
+<p>Color Override</p>
+<p>最后, 如果柱子太密, 可以通过调整如 <code>3 Colors Time series panel</code> 图中的 <code>Interval</code> 来调整时间间隔, 本例调整为 <code>1m</code></p>
+<h3 id="Logs-panel"><a href="#Logs-panel" class="headerlink" title="Logs panel"></a>Logs panel</h3><p>在 Logs panel 中, 也可以根据实际情况做一系列调整.</p>
+<p>如下图, 可以对日志展示方式做调整:</p>
+<p>Logs panel settings</p>
+<ul>
+<li>Time: 是否加时间戳</li>
+<li>Unique labels: 是否每条日志加 label</li>
+<li>Common labels: 是否对 logs panel 左上角对所有日志加 common labels</li>
+<li>Wrap lines</li>
+<li>Pretify JSON: JSON 美化</li>
+<li>Enable log details: 启用查看日志详细信息</li>
+<li>Deduplication: 日志去重, 去重方式有:<ul>
+<li>None: 不去重</li>
+<li>Exact: 精确去重</li>
+<li>Numbers: 不同数字记为同一类的去重方式</li>
+<li>Signature: 根据计算得出的 Signature 去重</li>
+</ul>
+</li>
+<li>Order: 排序.</li>
+</ul>
+<p>另外, 考虑到 ES 日志的 log details 会有很多我们不关注的 fields, 如: <code>_source</code> <code>_id</code> 等, 可以通过 <strong>Transform</strong> 进行转换调整. 具体如下图:</p>
+<p>Logs panel Transform</p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章算是该系列文章的一个重点了. 包含了非常多的实用细节.</p>
+<p>如:</p>
+<ul>
+<li>ES Query</li>
+<li>Variable 语法<ul>
+<li>Variable raw 语法</li>
+<li>Lucene - Elasticsearch 语法</li>
+<li>…</li>
+</ul>
+</li>
+<li>Multi-value Variables</li>
+<li>Include All 选项</li>
+<li>自定义 all 的值</li>
+<li><code>Ad hoc filters</code> Variable</li>
+<li>ES Metric Type<ul>
+<li>Count</li>
+<li>Logs</li>
+<li>…</li>
+</ul>
+</li>
+<li>调整Query 时间间隔</li>
+<li>Logs panel 设置</li>
+<li>Panel Transform</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/02/28/Grafana%E4%B8%ADElasticSearch%E6%97%A5%E5%BF%97%E6%9F%A5%E8%AF%A2%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/27/Prometheus%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0%E4%B9%8Bkubernetes-sd-configs/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus自动发现之kubernetes_sd_configs</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
