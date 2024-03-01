@@ -1,0 +1,695 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Zabbix通过API批量添加/删除主机 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-Zabbix通过API批量添加-删除主机"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Zabbix通过API批量添加/删除主机
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/01/Zabbix%E9%80%9A%E8%BF%87API%E6%89%B9%E9%87%8F%E6%B7%BB%E5%8A%A0-%E5%88%A0%E9%99%A4%E4%B8%BB%E6%9C%BA/" class="article-date">
+  <time datetime="2024-03-01T08:41:31.000Z" itemprop="datePublished">2024-03-01</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">20 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="场景："><a href="#场景：" class="headerlink" title="场景："></a><strong>场景：</strong></h1><p>公司业务变更，部分机器需要变更，下线重新调整相关的业务。</p>
+<p>我们机器上有zabbix和prometheus监控，下线需要清空这些监控。</p>
+<p>prometheus比较监控，可以直接使用consul自动注册。</p>
+<p>zabbix 删除下线就很麻烦。一台就可以手动删除，但是上百台那，一个个手动吗，很麻烦的。</p>
+<p>[<img src="/images/1709282302-5b016a99d868dfcb6efbfe7d224b3dd0.png">]</p>
+<p> [<img src="/images/1709282302-91147db6051cba4dd1ebdbcfc9bb87e6.png">]</p>
+<p>所以直接考虑zabbix的APi来批量删除主机</p>
+<h2 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a>介绍</h2><p><strong>代码放在下方</strong></p>
+<p>代码使用的是python2.0的</p>
+<p>因为我是纯内网环境需要先在外网部署好环境 ，然后打包使用的。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br></pre></td><td class="code"><pre><span class="line">Python3虚拟环境创建</span><br><span class="line"></span><br><span class="line">/usr/local/python3/bin/python3.7 -m venv py3</span><br><span class="line"></span><br><span class="line">加载虚拟环境</span><br><span class="line"></span><br><span class="line"><span class="built_in">source</span> py3/bin/activate</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">安装依赖</span><br><span class="line"></span><br><span class="line">pip install -r requirements.txt</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">生成依赖</span><br><span class="line"></span><br><span class="line">pip freeze &gt; requirements.txt</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">python2 虚拟环境</span><br><span class="line">1.安装virtualenv</span><br><span class="line"></span><br><span class="line">pip install virtualenv</span><br><span class="line"></span><br><span class="line">2.创建虚拟环境</span><br><span class="line"></span><br><span class="line">virtualenv 虚拟环境名称 </span><br><span class="line"></span><br><span class="line">3.激活虚拟环境</span><br><span class="line"></span><br><span class="line"><span class="built_in">source</span> 虚拟环境目录/bin/activate  （./虚拟环境目录/bin/activate）</span><br><span class="line"></span><br><span class="line">4.退出虚拟环境</span><br><span class="line"></span><br><span class="line">deactivate</span><br></pre></td></tr></table></figure>
+
+<p>我们采用python2.0创建虚拟环境</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@zabbix</span> zabbix]<span class="comment"># virtualenv py2</span></span><br><span class="line"></span><br><span class="line">[root<span class="variable">@zabbix</span> zabbix]<span class="comment"># ls</span></span><br><span class="line">py2  zbx_tool.py</span><br><span class="line">[root<span class="variable">@zabbix</span> zabbix]<span class="comment"># source py2/</span></span><br><span class="line">bin/        .gitignore  <span class="keyword">include</span>/    lib/        lib64/      pyvenv.cfg  </span><br><span class="line">             python            wheel2            </span><br><span class="line">[root<span class="variable">@zabbix</span> zabbix]<span class="comment"># source py2/bin/activate</span></span><br><span class="line">(py2) [root<span class="variable">@zabbix</span> zabbix]<span class="comment"># ls</span></span><br><span class="line">py2  zbx_tool.py</span><br><span class="line">(py2) [root<span class="variable">@zabbix</span> zabbix]<span class="comment"># pip install argparse</span></span><br><span class="line">.........</span><br><span class="line">(py2) [root<span class="variable">@zabbix</span> zabbix]<span class="comment"># ls</span></span><br><span class="line">py2  zbx_tool.py</span><br><span class="line">(py2) [root<span class="variable">@zabbix</span> zabbix]<span class="comment"># python</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">打包 上传虚拟环境</span><br><span class="line">tar -zcvf zabbix.tar.gz zabbix</span><br></pre></td></tr></table></figure>
+
+<p>上传内网环境进行解压，然后加载就可以使用虚拟环境</p>
+ <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">source</span> py2/bin/activate</span><br></pre></td></tr></table></figure>
+
+<h2 id="生产环境实战"><a href="#生产环境实战" class="headerlink" title="生产环境实战"></a>生产环境实战</h2><h3 id="删除单台主机"><a href="#删除单台主机" class="headerlink" title="删除单台主机"></a>删除单台主机</h3><p>[<img src="/images/1709282302-025168128dd28ca7b93aff605d0a85fb.png">]</p>
+<h3 id="批量删除"><a href="#批量删除" class="headerlink" title="批量删除"></a>批量删除</h3><p>[<img src="/images/1709282302-3a3138885596170b0ba76905be2dd3db.png">]</p>
+<h3 id="for循环删除"><a href="#for循环删除" class="headerlink" title="for循环删除"></a>for循环删除</h3><p>首先新建有一个文本，然后通过for 循环批量删除</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">for</span> ip <span class="keyword">in</span> `<span class="built_in">cat</span> zabbixip`;<span class="keyword">do</span> python zbx_tool.py --delete <span class="variable">$ip</span> ;<span class="keyword">done</span></span><br></pre></td></tr></table></figure>
+
+<p>[<img src="/images/1709282302-3e558386f6be7e49e2c444fa3948872e.png">]</p>
+<p> <strong>开始</strong>[<img src="/images/1709282302-9c432aef97ebeab4e3645c112ba83b8c.png">]</p>
+<p><strong>批量操作</strong></p>
+<p> [<img src="/images/1709282302-7bf1e47c6db6e1ba7d774f59bca33f81.png">]</p>
+<h2 id="代码"><a href="#代码" class="headerlink" title="代码"></a><strong>代码</strong></h2><p>集合脚本，包含查询主机，主机组，模板，添加开启禁用删除主机等功能</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/env python</span></span><br><span class="line"><span class="comment">#-*- coding: utf-8 -*-</span></span><br><span class="line"> </span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> urllib2</span><br><span class="line"><span class="keyword">import</span> argparse</span><br><span class="line"> </span><br><span class="line"><span class="keyword">from</span> urllib2 <span class="keyword">import</span> URLError</span><br><span class="line"> </span><br><span class="line">reload(sys)</span><br><span class="line">sys.setdefaultencoding(<span class="string">&#x27;utf-8&#x27;</span>)</span><br><span class="line"> </span><br><span class="line"><span class="keyword">class</span> <span class="title class_">zabbix_api</span>:</span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">__init__</span>(<span class="params">self</span>):</span><br><span class="line">        self.url = <span class="string">&#x27;http://zabbix.xxx.com/api_jsonrpc.php&#x27;</span></span><br><span class="line">        self.header = &#123;<span class="string">&quot;Content-Type&quot;</span>:<span class="string">&quot;application/json&quot;</span>&#125;</span><br><span class="line"> </span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">user_login</span>(<span class="params">self</span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">                           <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;method&quot;</span>: <span class="string">&quot;user.login&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                                      <span class="string">&quot;user&quot;</span>: <span class="string">&quot;admin&quot;</span>,</span><br><span class="line">                                      <span class="string">&quot;password&quot;</span>: <span class="string">&quot;zabbix&quot;</span></span><br><span class="line">                                      &#125;,</span><br><span class="line">                           <span class="string">&quot;id&quot;</span>: <span class="number">0</span></span><br><span class="line">                           &#125;)</span><br><span class="line"> </span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;\033[041m 认证失败，请检查URL !\033[0m&quot;</span>,e.code</span><br><span class="line">        <span class="keyword">except</span> KeyError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;\033[041m 认证失败，请检查用户名密码 !\033[0m&quot;</span>,e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="comment">#print response[&#x27;result&#x27;]</span></span><br><span class="line">            self.authID = response[<span class="string">&#x27;result&#x27;</span>]</span><br><span class="line">            <span class="keyword">return</span> self.authID</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hostid_get_hostname</span>(<span class="params">self, hostId=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: <span class="string">&quot;host.get&quot;</span>,</span><br><span class="line">            <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                <span class="string">&quot;filter&quot;</span>: &#123;<span class="string">&quot;hostid&quot;</span>: hostId&#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">            <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">        &#125;)</span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;reason&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;We failed to reach a server.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Reason: &#x27;</span>, e.reason</span><br><span class="line">            <span class="keyword">elif</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;code&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;The server could not fulfill the request.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Error code: &#x27;</span>, e.code</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            <span class="comment">#print response</span></span><br><span class="line">            result.close()</span><br><span class="line"> </span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;hostId is not exist&quot;</span></span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="comment">#print &quot;主机数量: \33[31m%s\33[0m&quot; % (len(response[&#x27;result&#x27;]))</span></span><br><span class="line">            host_dict=<span class="built_in">dict</span>()</span><br><span class="line">            <span class="keyword">for</span> host <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                status = &#123;<span class="string">&quot;0&quot;</span>: <span class="string">&quot;OK&quot;</span>, <span class="string">&quot;1&quot;</span>: <span class="string">&quot;Disabled&quot;</span>&#125;</span><br><span class="line">                available = &#123;<span class="string">&quot;0&quot;</span>: <span class="string">&quot;Unknown&quot;</span>, <span class="string">&quot;1&quot;</span>: <span class="string">&quot;available&quot;</span>, <span class="string">&quot;2&quot;</span>: <span class="string">&quot;Unavailable&quot;</span>&#125;</span><br><span class="line">                <span class="comment">#if len(hostId) == 0:</span></span><br><span class="line">                <span class="comment">#    print &quot;HostID : %s\t HostName : %s\t Status :\33[32m%s\33[0m \t Available :\33[31m%s\33[0m&quot; % (</span></span><br><span class="line">                <span class="comment">#        host[&#x27;hostid&#x27;], host[&#x27;name&#x27;], status[host[&#x27;status&#x27;]], available[host[&#x27;available&#x27;]])</span></span><br><span class="line">                <span class="comment">#else:</span></span><br><span class="line">                <span class="comment">#    print &quot;HostID : %s\t HostName : %s\t Status :\33[32m%s\33[0m \t Available :\33[31m%s\33[0m&quot; % (</span></span><br><span class="line">                <span class="comment">#        host[&#x27;hostid&#x27;], host[&#x27;name&#x27;], status[host[&#x27;status&#x27;]], available[host[&#x27;available&#x27;]])</span></span><br><span class="line">                host_dict[<span class="string">&#x27;name&#x27;</span>]=host[<span class="string">&#x27;name&#x27;</span>]</span><br><span class="line">                host_dict[<span class="string">&#x27;status&#x27;</span>]=status[host[<span class="string">&#x27;status&#x27;</span>]]</span><br><span class="line">                host_dict[<span class="string">&#x27;available&#x27;</span>]=available[host[<span class="string">&#x27;available&#x27;</span>]]</span><br><span class="line">                <span class="keyword">return</span> host_dict</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hostid_get_hostip</span>(<span class="params">self, hostId=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: <span class="string">&quot;hostinterface.get&quot;</span>,</span><br><span class="line">            <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                <span class="string">&quot;filter&quot;</span>: &#123;<span class="string">&quot;hostid&quot;</span>: hostId&#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">            <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">        &#125;)</span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;reason&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;We failed to reach a server.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Reason: &#x27;</span>, e.reason</span><br><span class="line">            <span class="keyword">elif</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;code&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;The server could not fulfill the request.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Error code: &#x27;</span>, e.code</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            <span class="comment"># print response</span></span><br><span class="line">            result.close()</span><br><span class="line"> </span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;\033[041m hostid \033[0m is not exist&quot;</span></span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="comment">#print &quot;主机数量: \33[31m%s\33[0m&quot; % (len(response[&#x27;result&#x27;]))</span></span><br><span class="line">            <span class="keyword">for</span> hostip <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                <span class="comment">#print hostip</span></span><br><span class="line">                <span class="comment">#if len(hostip) == 0:</span></span><br><span class="line">                <span class="comment">#    print &quot;HostID : %s\t HostIp : %s \t Port : %s &quot; % (hostip[&#x27;hostid&#x27;], hostip[&#x27;ip&#x27;], hostip[&#x27;port&#x27;])</span></span><br><span class="line">                <span class="comment">#else:</span></span><br><span class="line">                <span class="comment">#    print &quot;HostID : %s\t HostIp :\33[32m%s\33[0m \t Port :\33[31m%s\33[0m&quot; % (</span></span><br><span class="line">                <span class="comment">#        hostip[&#x27;hostid&#x27;], hostip[&#x27;ip&#x27;], hostip[&#x27;port&#x27;])</span></span><br><span class="line">                <span class="keyword">return</span> hostip[<span class="string">&#x27;ip&#x27;</span>]</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">host_get</span>(<span class="params">self,hostName=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data=json.dumps(&#123;</span><br><span class="line">                <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                <span class="string">&quot;method&quot;</span>: <span class="string">&quot;host.get&quot;</span>,</span><br><span class="line">                <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                          <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                          <span class="comment">#&quot;filter&quot;:&#123;&quot;host&quot;:&quot;&quot;&#125;</span></span><br><span class="line">                          <span class="string">&quot;filter&quot;</span>:&#123;<span class="string">&quot;host&quot;</span>:hostName&#125;</span><br><span class="line">                          &#125;,</span><br><span class="line">                <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">                <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">                &#125;)</span><br><span class="line">        request = urllib2.Request(self.url,data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;reason&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;We failed to reach a server.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Reason: &#x27;</span>, e.reason</span><br><span class="line">            <span class="keyword">elif</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;code&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;The server could not fulfill the request.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Error code: &#x27;</span>, e.code</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            <span class="comment">#print reqponse</span></span><br><span class="line">            result.close()</span><br><span class="line"> </span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;\033[041m %s \033[0m is not exist&quot;</span> % hostName</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;主机数量: \033[31m%s\033[0m&quot;</span>%(<span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]))</span><br><span class="line">            <span class="keyword">for</span> host <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                status=&#123;<span class="string">&quot;0&quot;</span>:<span class="string">&quot;OK&quot;</span>,<span class="string">&quot;1&quot;</span>:<span class="string">&quot;Disabled&quot;</span>&#125;</span><br><span class="line">                available=&#123;<span class="string">&quot;0&quot;</span>:<span class="string">&quot;Unknown&quot;</span>,<span class="string">&quot;1&quot;</span>:<span class="string">&quot;available&quot;</span>,<span class="string">&quot;2&quot;</span>:<span class="string">&quot;Unavailable&quot;</span>&#125;</span><br><span class="line">                <span class="comment">#print host</span></span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">len</span>(hostName)==<span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;HostID : %s\t HostName : %s\t HostIp : %s\t Status :%s \t Available :%s&quot;</span>%(host[<span class="string">&#x27;hostid&#x27;</span>],host[<span class="string">&#x27;name&#x27;</span>],self.hostid_get_hostip(hostId=host[<span class="string">&#x27;hostid&#x27;</span>]),status[host[<span class="string">&#x27;status&#x27;</span>]],available[host[<span class="string">&#x27;available&#x27;</span>]])</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;HostID : %s\t HostName : %s\t HostIp : %s\t Status :\033[32m%s\033[0m \t Available :\033[31m%s\033[0m&quot;</span>%(host[<span class="string">&#x27;hostid&#x27;</span>],host[<span class="string">&#x27;name&#x27;</span>],self.hostid_get_hostip(hostId=host[<span class="string">&#x27;hostid&#x27;</span>]),status[host[<span class="string">&#x27;status&#x27;</span>]],available[host[<span class="string">&#x27;available&#x27;</span>]])</span><br><span class="line">                    <span class="keyword">return</span> host[<span class="string">&#x27;hostid&#x27;</span>]</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hostip_get</span>(<span class="params">self, hostIp=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: <span class="string">&quot;hostinterface.get&quot;</span>,</span><br><span class="line">            <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                <span class="string">&quot;filter&quot;</span>: &#123;<span class="string">&quot;ip&quot;</span>: hostIp&#125;</span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">            <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">        &#125;)</span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="keyword">if</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;reason&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;We failed to reach a server.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Reason: &#x27;</span>, e.reason</span><br><span class="line">            <span class="keyword">elif</span> <span class="built_in">hasattr</span>(e, <span class="string">&#x27;code&#x27;</span>):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;The server could not fulfill the request.&#x27;</span></span><br><span class="line">                <span class="built_in">print</span> <span class="string">&#x27;Error code: &#x27;</span>, e.code</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            <span class="comment"># print response</span></span><br><span class="line">            result.close()</span><br><span class="line"> </span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;\033[041m hostip \033[0m is not exist&quot;</span></span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;主机数量: \33[31m%s\33[0m&quot;</span> % (<span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]))</span><br><span class="line">            <span class="keyword">for</span> hostip <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                host = self.hostid_get_hostname(hostip[<span class="string">&#x27;hostid&#x27;</span>])</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">len</span>(hostip) == <span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;HostID : %s\t HostName : %s\t HostIp : %s\t Status :\33[32m%s\33[0m \t Available :\33[31m%s\33[0m&quot;</span>%(hostip[<span class="string">&#x27;hostid&#x27;</span>],host[<span class="string">&#x27;name&#x27;</span>],hostip[<span class="string">&#x27;ip&#x27;</span>],host[<span class="string">&#x27;status&#x27;</span>],host[<span class="string">&#x27;available&#x27;</span>])</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;HostID : %s\t HostName : %s\t HostIp : %s\t Status :\33[32m%s\33[0m \t Available :\33[31m%s\33[0m&quot;</span>%(hostip[<span class="string">&#x27;hostid&#x27;</span>],host[<span class="string">&#x27;name&#x27;</span>],hostip[<span class="string">&#x27;ip&#x27;</span>],host[<span class="string">&#x27;status&#x27;</span>],host[<span class="string">&#x27;available&#x27;</span>])</span><br><span class="line">                    <span class="keyword">return</span> hostip[<span class="string">&#x27;hostid&#x27;</span>]</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hostgroup_get</span>(<span class="params">self, hostgroupName=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">                           <span class="string">&quot;jsonrpc&quot;</span>:<span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;method&quot;</span>:<span class="string">&quot;hostgroup.get&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;params&quot;</span>:&#123;</span><br><span class="line">                                     <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                                     <span class="string">&quot;filter&quot;</span>: &#123;</span><br><span class="line">                                                <span class="string">&quot;name&quot;</span>: hostgroupName</span><br><span class="line">                                                &#125;</span><br><span class="line">                                     &#125;,</span><br><span class="line">                           <span class="string">&quot;auth&quot;</span>:self.user_login(),</span><br><span class="line">                           <span class="string">&quot;id&quot;</span>:<span class="number">1</span>,</span><br><span class="line">                           &#125;)</span><br><span class="line"> </span><br><span class="line">        request = urllib2.Request(self.url,data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="comment"># result.read()</span></span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="comment">#print response()</span></span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;\033[041m %s \033[0m is not exist&quot;</span> % hostgroupName</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="keyword">for</span> group <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                <span class="keyword">if</span>  <span class="built_in">len</span>(hostgroupName)==<span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;hostgroup:  \033[31m%s\033[0m \tgroupid : %s&quot;</span> %(group[<span class="string">&#x27;name&#x27;</span>],group[<span class="string">&#x27;groupid&#x27;</span>])</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;hostgroup:  \033[31m%s\033[0m\tgroupid : %s&quot;</span> %(group[<span class="string">&#x27;name&#x27;</span>],group[<span class="string">&#x27;groupid&#x27;</span>])</span><br><span class="line">                    self.hostgroupID = group[<span class="string">&#x27;groupid&#x27;</span>]</span><br><span class="line">            <span class="keyword">return</span> group[<span class="string">&#x27;groupid&#x27;</span>]</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">template_get</span>(<span class="params">self,templateName=<span class="string">&#x27;&#x27;</span></span>):</span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">                           <span class="string">&quot;jsonrpc&quot;</span>:<span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;method&quot;</span>: <span class="string">&quot;template.get&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                                      <span class="string">&quot;output&quot;</span>: <span class="string">&quot;extend&quot;</span>,</span><br><span class="line">                                      <span class="string">&quot;filter&quot;</span>: &#123;</span><br><span class="line">                                                 <span class="string">&quot;name&quot;</span>:templateName</span><br><span class="line">                                                 &#125;</span><br><span class="line">                                      &#125;,</span><br><span class="line">                           <span class="string">&quot;auth&quot;</span>:self.user_login(),</span><br><span class="line">                           <span class="string">&quot;id&quot;</span>:<span class="number">1</span>,</span><br><span class="line">                           &#125;)</span><br><span class="line"> </span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="comment">#print response</span></span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> <span class="built_in">len</span>(response[<span class="string">&#x27;result&#x27;</span>]):</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;\033[041m %s \033[0m is not exist&quot;</span> % templateName</span><br><span class="line">                <span class="keyword">return</span> <span class="literal">False</span></span><br><span class="line"> </span><br><span class="line">            <span class="keyword">for</span> template <span class="keyword">in</span> response[<span class="string">&#x27;result&#x27;</span>]:</span><br><span class="line">                <span class="keyword">if</span> <span class="built_in">len</span>(templateName)==<span class="number">0</span>:</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;template : %s \t id : %s&quot;</span> % (template[<span class="string">&#x27;name&#x27;</span>], template[<span class="string">&#x27;templateid&#x27;</span>])</span><br><span class="line">                <span class="keyword">else</span>:</span><br><span class="line">                    self.templateID = response[<span class="string">&#x27;result&#x27;</span>][<span class="number">0</span>][<span class="string">&#x27;templateid&#x27;</span>]</span><br><span class="line">                    <span class="built_in">print</span> <span class="string">&quot;Template Name :%s&quot;</span>%templateName</span><br><span class="line">                    <span class="keyword">return</span> response[<span class="string">&#x27;result&#x27;</span>][<span class="number">0</span>][<span class="string">&#x27;templateid&#x27;</span>]</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">hostgroup_create</span>(<span class="params">self,hostgroupName</span>):</span><br><span class="line">        <span class="keyword">if</span> self.hostgroup_get(hostgroupName):</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;hostgroup  \033[42m%s\033[0m is exist !&quot;</span> % hostgroupName</span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"> </span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">                          <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                          <span class="string">&quot;method&quot;</span>: <span class="string">&quot;hostgroup.create&quot;</span>,</span><br><span class="line">                          <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                          <span class="string">&quot;name&quot;</span>: hostgroupName</span><br><span class="line">                          &#125;,</span><br><span class="line">                          <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">                          <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">                          &#125;)</span><br><span class="line">        request=urllib2.Request(self.url,data)</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;添加主机组:%s  hostgroupID : %s&quot;</span>%(hostgroupName,self.hostgroup_get(hostgroupName))</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">host_create</span>(<span class="params">self, hostIp, hostgroupName, templateName, hostName</span>):</span><br><span class="line">        <span class="keyword">if</span> self.host_get(hostName) <span class="keyword">or</span> self.hostip_get(hostIp):</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;该主机已经添加!&quot;</span></span><br><span class="line">            sys.exit(<span class="number">1</span>)</span><br><span class="line"> </span><br><span class="line">        group_list=[]</span><br><span class="line">        template_list=[]</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> hostgroupName.split(<span class="string">&#x27;,&#x27;</span>):</span><br><span class="line">            var = &#123;&#125;</span><br><span class="line">            var[<span class="string">&#x27;groupid&#x27;</span>] = self.hostgroup_get(i)</span><br><span class="line">            group_list.append(var)</span><br><span class="line">        <span class="keyword">for</span> i <span class="keyword">in</span> templateName.split(<span class="string">&#x27;,&#x27;</span>):</span><br><span class="line">            var=&#123;&#125;</span><br><span class="line">            var[<span class="string">&#x27;templateid&#x27;</span>]=self.template_get(i)</span><br><span class="line">            template_list.append(var)</span><br><span class="line"> </span><br><span class="line">        data = json.dumps(&#123;</span><br><span class="line">                           <span class="string">&quot;jsonrpc&quot;</span>:<span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;method&quot;</span>:<span class="string">&quot;host.create&quot;</span>,</span><br><span class="line">                           <span class="string">&quot;params&quot;</span>:&#123;</span><br><span class="line">                                     <span class="string">&quot;host&quot;</span>: hostName,</span><br><span class="line">                                     <span class="string">&quot;interfaces&quot;</span>: [</span><br><span class="line">                                     &#123;</span><br><span class="line">                                     <span class="string">&quot;type&quot;</span>: <span class="number">1</span>,</span><br><span class="line">                                     <span class="string">&quot;main&quot;</span>: <span class="number">1</span>,</span><br><span class="line">                                     <span class="string">&quot;useip&quot;</span>: <span class="number">1</span>,</span><br><span class="line">                                     <span class="string">&quot;ip&quot;</span>: hostIp,</span><br><span class="line">                                     <span class="string">&quot;dns&quot;</span>: <span class="string">&quot;&quot;</span>,</span><br><span class="line">                                     <span class="string">&quot;port&quot;</span>: <span class="string">&quot;10050&quot;</span></span><br><span class="line">                                      &#125;</span><br><span class="line">                                     ],</span><br><span class="line">                                   <span class="string">&quot;groups&quot;</span>: group_list,</span><br><span class="line">                                   <span class="string">&quot;templates&quot;</span>: template_list,</span><br><span class="line">                                     &#125;,</span><br><span class="line">                           <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">                           <span class="string">&quot;id&quot;</span>:<span class="number">1</span></span><br><span class="line">        &#125;)</span><br><span class="line">        request = urllib2.Request(self.url, data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;add host : %s id :%s&quot;</span> % (hostIp, hostName)</span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">except</span> KeyError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;\033[041m 主机添加有误，请检查模板正确性或主机是否添加重复 !\033[0m&quot;</span>,e</span><br><span class="line">            <span class="built_in">print</span> response</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">host_disable</span>(<span class="params">self,hostip</span>):</span><br><span class="line">        data=json.dumps(&#123;</span><br><span class="line">                <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                <span class="string">&quot;method&quot;</span>: <span class="string">&quot;host.update&quot;</span>,</span><br><span class="line">                <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;hostid&quot;</span>: self.host_get(hostip),</span><br><span class="line">                <span class="string">&quot;status&quot;</span>: <span class="number">1</span></span><br><span class="line">                &#125;,</span><br><span class="line">                <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">                <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">                &#125;)</span><br><span class="line">        request = urllib2.Request(self.url,data)</span><br><span class="line">        <span class="comment">#opener = urllib2.build_opener(urllib2.HTTPBasicAuthHandler(TerminalPassword()))</span></span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">                request.add_header(key, self.header[key])</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">            <span class="comment">#result = opener.open(request)</span></span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&#x27;------------主机现在状态------------&#x27;</span></span><br><span class="line">            <span class="built_in">print</span> self.host_get(hostip)</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">host_enable</span>(<span class="params">self,hostip</span>):</span><br><span class="line">        data=json.dumps(&#123;</span><br><span class="line">            <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">            <span class="string">&quot;method&quot;</span>: <span class="string">&quot;host.update&quot;</span>,</span><br><span class="line">            <span class="string">&quot;params&quot;</span>: &#123;</span><br><span class="line">            <span class="string">&quot;hostid&quot;</span>: self.host_get(hostip),</span><br><span class="line">            <span class="string">&quot;status&quot;</span>: <span class="number">0</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">            <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">            &#125;)</span><br><span class="line">        request = urllib2.Request(self.url,data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">            <span class="comment">#result = opener.open(request)</span></span><br><span class="line">        <span class="keyword">except</span> URLError <span class="keyword">as</span> e:</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;Error as &quot;</span>, e</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            response = json.loads(result.read())</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&#x27;------------主机现在状态------------&#x27;</span></span><br><span class="line">            <span class="built_in">print</span> self.host_get(hostip)</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">def</span> <span class="title function_">host_delete</span>(<span class="params">self,hostNames</span>):</span><br><span class="line">        hostid_list=[]</span><br><span class="line">        <span class="keyword">for</span> hostName <span class="keyword">in</span> hostNames.split(<span class="string">&#x27;,&#x27;</span>):</span><br><span class="line">            hostid = self.host_get(hostName=hostName)</span><br><span class="line">            <span class="keyword">if</span> <span class="keyword">not</span> hostid:</span><br><span class="line">                <span class="built_in">print</span> <span class="string">&quot;主机 \033[041m %s\033[0m  删除失败 !&quot;</span> % hostName</span><br><span class="line">                sys.exit()</span><br><span class="line">            hostid_list.append(hostid)</span><br><span class="line"> </span><br><span class="line">        data=json.dumps(&#123;</span><br><span class="line">                <span class="string">&quot;jsonrpc&quot;</span>: <span class="string">&quot;2.0&quot;</span>,</span><br><span class="line">                <span class="string">&quot;method&quot;</span>: <span class="string">&quot;host.delete&quot;</span>,</span><br><span class="line">                <span class="string">&quot;params&quot;</span>: hostid_list,</span><br><span class="line">                <span class="string">&quot;auth&quot;</span>: self.user_login(),</span><br><span class="line">                <span class="string">&quot;id&quot;</span>: <span class="number">1</span></span><br><span class="line">                &#125;)</span><br><span class="line"> </span><br><span class="line">        request = urllib2.Request(self.url,data)</span><br><span class="line">        <span class="keyword">for</span> key <span class="keyword">in</span> self.header:</span><br><span class="line">            request.add_header(key, self.header[key])</span><br><span class="line"> </span><br><span class="line">        <span class="keyword">try</span>:</span><br><span class="line">            result = urllib2.urlopen(request)</span><br><span class="line">            result.close()</span><br><span class="line">            <span class="built_in">print</span> <span class="string">&quot;主机 \033[041m %s\033[0m  已经删除 !&quot;</span> % hostName</span><br><span class="line">        <span class="keyword">except</span> Exception,e:</span><br><span class="line">            <span class="built_in">print</span>  e</span><br><span class="line"> </span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&quot;__main__&quot;</span>:</span><br><span class="line">    zabbix=zabbix_api()</span><br><span class="line">    parser=argparse.ArgumentParser(description=<span class="string">&#x27;zabbix api &#x27;</span>,usage=<span class="string">&#x27;%(prog)s [options]&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-H&#x27;</span>,<span class="string">&#x27;--host&#x27;</span>,nargs=<span class="string">&#x27;?&#x27;</span>,dest=<span class="string">&#x27;listhost&#x27;</span>,default=<span class="string">&#x27;host&#x27;</span>,<span class="built_in">help</span>=<span class="string">&#x27;查询主机&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-G&#x27;</span>,<span class="string">&#x27;--group&#x27;</span>,nargs=<span class="string">&#x27;?&#x27;</span>,dest=<span class="string">&#x27;listgroup&#x27;</span>,default=<span class="string">&#x27;group&#x27;</span>,<span class="built_in">help</span>=<span class="string">&#x27;查询主机组&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-T&#x27;</span>,<span class="string">&#x27;--template&#x27;</span>,nargs=<span class="string">&#x27;?&#x27;</span>,dest=<span class="string">&#x27;listtemp&#x27;</span>,default=<span class="string">&#x27;template&#x27;</span>,<span class="built_in">help</span>=<span class="string">&#x27;查询模板信息&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-A&#x27;</span>,<span class="string">&#x27;--add-group&#x27;</span>,nargs=<span class="number">1</span>,dest=<span class="string">&#x27;addgroup&#x27;</span>,<span class="built_in">help</span>=<span class="string">&#x27;添加主机组&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-C&#x27;</span>,<span class="string">&#x27;--add-host&#x27;</span>,dest=<span class="string">&#x27;addhost&#x27;</span>,nargs=<span class="number">4</span>,metavar=(<span class="string">&#x27;192.168.2.1&#x27;</span>, <span class="string">&#x27;groupname&#x27;</span>, <span class="string">&#x27;Template01,Template02&#x27;</span>, <span class="string">&#x27;hostName&#x27;</span>),<span class="built_in">help</span>=<span class="string">&#x27;添加主机,多个主机组或模板使用逗号&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-d&#x27;</span>,<span class="string">&#x27;--disable&#x27;</span>,dest=<span class="string">&#x27;disablehost&#x27;</span>,nargs=<span class="string">&#x27;+&#x27;</span>,metavar=(<span class="string">&#x27;sh-aa-01&#x27;</span>),<span class="built_in">help</span>=<span class="string">&#x27;禁用主机,填写主机名，多个主机名之间用逗号&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-e&#x27;</span>,<span class="string">&#x27;--enable&#x27;</span>,dest=<span class="string">&#x27;enablehost&#x27;</span>,nargs=<span class="number">1</span>,metavar=(<span class="string">&#x27;sh-aa-01&#x27;</span>),<span class="built_in">help</span>=<span class="string">&#x27;开启主机&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-D&#x27;</span>,<span class="string">&#x27;--delete&#x27;</span>,dest=<span class="string">&#x27;deletehost&#x27;</span>,nargs=<span class="string">&#x27;+&#x27;</span>,metavar=(<span class="string">&#x27;sh-aa-01&#x27;</span>),<span class="built_in">help</span>=<span class="string">&#x27;删除主机,多个主机之间用逗号&#x27;</span>)</span><br><span class="line">    parser.add_argument(<span class="string">&#x27;-v&#x27;</span>,<span class="string">&#x27;--version&#x27;</span>, action=<span class="string">&#x27;version&#x27;</span>, version=<span class="string">&#x27;%(prog)s 1.0&#x27;</span>)</span><br><span class="line"> </span><br><span class="line">    <span class="keyword">if</span> <span class="built_in">len</span>(sys.argv) == <span class="number">1</span>:</span><br><span class="line">        <span class="comment">#print parser.print_help()</span></span><br><span class="line">        <span class="comment">#print zabbix.host_get(hostName=&#x27;bbb&#x27;)</span></span><br><span class="line">        <span class="comment">#print zabbix.hostip_get(hostIp=&#x27;127.0.0.1&#x27;)</span></span><br><span class="line">        <span class="comment">#print zabbix.hostid_get_hostname(hostId=&#x27;10108&#x27;)</span></span><br><span class="line">        <span class="comment">#print zabbix.hostid_get_hostid(hostId=&#x27;10105&#x27;)</span></span><br><span class="line">        <span class="comment">#print zabbix.hostgroup_get(hostgroupName=&#x27;Linux servers&#x27;)</span></span><br><span class="line">        <span class="comment">#print zabbix.hostgroup_get(hostgroupName=&#x27;aaa&#x27;)</span></span><br><span class="line">        <span class="comment"># ...</span></span><br><span class="line">        <span class="built_in">print</span> zabbix.host_delete(<span class="string">&#x27;hz-aaa-02&#x27;</span>)</span><br><span class="line">    <span class="keyword">else</span>:</span><br><span class="line">        args = parser.parse_args()</span><br><span class="line">        <span class="keyword">if</span> args.listhost != <span class="string">&#x27;host&#x27;</span>:</span><br><span class="line">            <span class="keyword">if</span> args.listhost:</span><br><span class="line">                zabbix.host_get(args.listhost)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                zabbix.host_get()</span><br><span class="line">        <span class="keyword">if</span> args.listgroup != <span class="string">&#x27;group&#x27;</span>:</span><br><span class="line">            <span class="keyword">if</span> args.listgroup:</span><br><span class="line">                zabbix.hostgroup_get(args.listgroup)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                zabbix.hostgroup_get()</span><br><span class="line">        <span class="keyword">if</span> args.listtemp != <span class="string">&#x27;template&#x27;</span>:</span><br><span class="line">            <span class="keyword">if</span> args.listtemp:</span><br><span class="line">                zabbix.template_get(args.listtemp)</span><br><span class="line">            <span class="keyword">else</span>:</span><br><span class="line">                zabbix.template_get()</span><br><span class="line">        <span class="keyword">if</span> args.addgroup:</span><br><span class="line">            zabbix.hostgroup_create(args.addgroup[<span class="number">0</span>])</span><br><span class="line">        <span class="keyword">if</span> args.addhost:</span><br><span class="line">            zabbix.host_create(args.addhost[<span class="number">0</span>], args.addhost[<span class="number">1</span>], args.addhost[<span class="number">2</span>], args.addhost[<span class="number">3</span>])</span><br><span class="line">        <span class="keyword">if</span> args.disablehost:</span><br><span class="line">            zabbix.host_disable(args.disablehost)</span><br><span class="line">        <span class="keyword">if</span> args.deletehost:</span><br><span class="line">            zabbix.host_delete(args.deletehost[<span class="number">0</span>])</span><br></pre></td></tr></table></figure>
+
+<h2 id="用法"><a href="#用法" class="headerlink" title="用法"></a><strong>用法</strong></h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">&gt; python zbx_tool.py -h</span><br><span class="line">usage: zbx_tool.py [options]</span><br><span class="line"> </span><br><span class="line">zabbix api</span><br><span class="line"> </span><br><span class="line">optional arguments:</span><br><span class="line">  -h, --<span class="built_in">help</span>            show this <span class="built_in">help</span> message and <span class="built_in">exit</span></span><br><span class="line">  -H [LISTHOST], --host [LISTHOST]</span><br><span class="line">                        查询主机</span><br><span class="line">  -G [LISTGROUP], --group [LISTGROUP]</span><br><span class="line">                        查询主机组</span><br><span class="line">  -T [LISTTEMP], --template [LISTTEMP]</span><br><span class="line">                        查询模板信息</span><br><span class="line">  -A ADDGROUP, --add-group ADDGROUP</span><br><span class="line">                        添加主机组</span><br><span class="line">  -C 192.168.2.1 groupname Template01,Template02 hostName, --add-host 192.168.2.1 groupname Template01,Template02 hostName</span><br><span class="line">                        添加主机,多个主机组或模板使用逗号</span><br><span class="line">  -d sh-aa-01 [sh-aa-01 ...], --<span class="built_in">disable</span> sh-aa-01 [sh-aa-01 ...]</span><br><span class="line">                        禁用主机,填写主机名，多个主机名之间</span><br><span class="line">                        ¨逗号</span><br><span class="line">  -e sh-aa-01, --<span class="built_in">enable</span> sh-aa-01</span><br><span class="line">                        开启主机</span><br><span class="line">  -D sh-aa-01 [sh-aa-01 ...], --delete sh-aa-01 [sh-aa-01 ...]</span><br><span class="line">                        删除主机,多个主机之间用逗号</span><br><span class="line">  -v, --version         show program<span class="string">&#x27;s version number and exit</span></span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/01/Zabbix%E9%80%9A%E8%BF%87API%E6%89%B9%E9%87%8F%E6%B7%BB%E5%8A%A0-%E5%88%A0%E9%99%A4%E4%B8%BB%E6%9C%BA/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix配置Webhook告警推送至企业微信</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
