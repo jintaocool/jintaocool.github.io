@@ -12486,4 +12486,56 @@ plugin_admin_external_manage_enabled = true
         <tag>Scripts</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Linux设置防火墙只允许特定IP访问指定端口</title>
+    <url>/2024/03/11/Linux%E8%AE%BE%E7%BD%AE%E9%98%B2%E7%81%AB%E5%A2%99%E5%8F%AA%E5%85%81%E8%AE%B8%E7%89%B9%E5%AE%9AIP%E8%AE%BF%E9%97%AE%E6%8C%87%E5%AE%9A%E7%AB%AF%E5%8F%A3/</url>
+    <content><![CDATA[<h3 id="一、概述"><a href="#一、概述" class="headerlink" title="一、概述"></a>一、概述</h3><h4 id="1、目的"><a href="#1、目的" class="headerlink" title="1、目的"></a>1、目的</h4><p>　　服务器A使用端口1521，只有允许指定IP应用才可以访问，其它未经允许服务器ip地址无法正常访问。</p>
+<h4 id="2、方法步骤"><a href="#2、方法步骤" class="headerlink" title="2、方法步骤"></a>2、方法步骤</h4><ul>
+<li>启用防火墙。</li>
+<li>检查端口与关闭端口访问。</li>
+<li>添加设置特定ip访问特定端口。</li>
+</ul>
+<p>3、注意事项</p>
+<p>　　启用防火墙的时候，一定要注意，如果是远程访问的话，一定要先添加远程端口的规则，否则将导致无法远程到该服务器上。如果出现该问题，看是否有其他同一段服务器，采用ssh ip方式进行登录，进行调整。</p>
+<h3 id="二、启用防火墙"><a href="#二、启用防火墙" class="headerlink" title="二、启用防火墙"></a>二、启用防火墙</h3><p>　　首先查看防火墙是否开启</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#查看防火墙状态</span><br><span class="line">systemctl status firewalld</span><br><span class="line">#开启防火墙</span><br><span class="line">systemctl start firewalld</span><br><span class="line">#开机启动</span><br><span class="line">systemctl enable firewalld</span><br></pre></td></tr></table></figure>
+
+<h3 id="三、检查端口与关闭端口访问"><a href="#三、检查端口与关闭端口访问" class="headerlink" title="三、检查端口与关闭端口访问"></a>三、检查端口与关闭端口访问</h3><p>1、确保端口关闭。如果已开放则关闭端口。此处端口如果开放，是所有ip都可以进行访问。  </p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#查询打开的端口</span><br><span class="line">firewall-cmd --zone=public --list-ports</span><br></pre></td></tr></table></figure>
+
+<p>2、关闭端口，如果端口未开启则无需关闭。  </p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#关闭端口1521</span><br><span class="line">firewall-cmd --zone=public --remove-port=1521/tcp --permanent</span><br><span class="line">#重新载入一下防火墙设置，使设置生效</span><br><span class="line">firewall-cmd --reload</span><br><span class="line">#查询打开的端口</span><br><span class="line">firewall-cmd --zone=public --list-ports</span><br></pre></td></tr></table></figure>
+
+<h3 id="四、开方IP地址与端口"><a href="#四、开方IP地址与端口" class="headerlink" title="四、开方IP地址与端口"></a>四、开方IP地址与端口</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#允许ip192.168.1.1访问1521端口</span><br><span class="line">firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;192.168.1.1&quot; port protocol=&quot;tcp&quot; port=&quot;1521&quot; accept&quot;</span><br><span class="line">#重新载入一下防火墙设置，使设置生效</span><br><span class="line">firewall-cmd --reload</span><br><span class="line">#查看已设置规则</span><br><span class="line">firewall-cmd --zone=public --list-rich-rules</span><br></pre></td></tr></table></figure>
+
+<h3 id="五、其他常用"><a href="#五、其他常用" class="headerlink" title="五、其他常用"></a>五、其他常用</h3><p>1、查看防火墙清单</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#查看所有已开放的临时端口　　</span><br><span class="line">firewall-cmd --list-all</span><br><span class="line">#查看防火墙状态</span><br><span class="line">systemctl status firewalld</span><br><span class="line">#打开防火墙</span><br><span class="line">systemctl start firewalld</span><br><span class="line">#重启防火墙 </span><br><span class="line">systemctl reload firewalld</span><br></pre></td></tr></table></figure>
+
+<p>2、开放或限制端口（端口开放，所有ip都可以访问）</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#开放1521端口</span><br><span class="line">#firewall-cmd --zone=public --add-port=1521/tcp --permanent</span><br><span class="line">#重新载入一下防火墙设置，使设置生效</span><br><span class="line">firewall-cmd --reload</span><br><span class="line">#通过如下命令查看1521是否生效</span><br><span class="line">firewall-cmd --zone=public --query-port=1521/tcp</span><br><span class="line">#系统打开的所有端口</span><br><span class="line">firewall-cmd --zone=public --list-ports</span><br><span class="line">#关掉刚刚打开的1521端口</span><br><span class="line">firewall-cmd --zone=public --remove-port=1521/tcp --permanent</span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>3、批量开放或限制端口<br>　　批量开放端口，如从1001到1005这之间的端口我们全部要打开</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">firewall-cmd --zone=public --add-port=1001-1005/tcp --permanent</span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>　　批量限制端口：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">firewall-cmd --zone=public --remove-port=1001-1005/tcp --permanent</span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>4、开放或限制ip（设置规则）<br>　　开放IP为192.168.1.1的地址允许访问1521端口</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;192.168.1.1&quot; port protocol=&quot;tcp&quot; port=&quot;1521&quot; accept&quot;</span><br><span class="line">firewall-cmd --reload</span><br><span class="line">#查看已经设置的规则　</span><br><span class="line">firewall-cmd --zone=public --list-rich-rules</span><br></pre></td></tr></table></figure>
+
+<p>　　限制IP为192.168.1.1的地址禁止访问1521端口即禁止访问机器</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;192.168.1.1&quot; port protocol=&quot;tcp&quot; port=&quot;1521&quot; reject&quot;</span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>　　删除原设置规则</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">firewall-cmd --permanent --remove-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;192.168.1.1&quot; port protocol=&quot;tcp&quot; port=&quot;1521&quot; accept&quot;</span><br><span class="line">firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p>5、如设置未生效，可尝试直接编辑规则文件，删掉原来的设置规则，重新载入一下防火墙即可  </p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">vi /etc/firewalld/zones/public.xml</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Linux</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+      </tags>
+  </entry>
 </search>
