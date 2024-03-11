@@ -1,0 +1,856 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>SkyWalking使用详解 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-SkyWalking使用详解"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  SkyWalking使用详解
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/11/SkyWalking%E4%BD%BF%E7%94%A8%E8%AF%A6%E8%A7%A3/" class="article-date">
+  <time datetime="2024-03-11T08:53:34.000Z" itemprop="datePublished">2024-03-11</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">16 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="1-1-简介"><a href="#1-1-简介" class="headerlink" title="1.1 简介"></a>1.1 简介</h2><p><code>skywalking</code> 是一个优秀的国产开源框架，2015年由个人吴晟（华为开发者）开源 ， 2017年加入<code>Apache</code>孵化器。短短两年就被<code>Apache</code>收入麾下，实力可见一斑。</p>
+<p><code>skywalking</code>支持<code>dubbo</code>，<code>SpringCloud</code>，<code>SpringBoot</code>集成，代码无侵入，通信方式采用<code>GRPC</code>，性能较好，实现方式是<code>java</code>探针，支持告警，支持<code>JVM</code>监控，支持全局调用统计等等，功能较完善。</p>
+<h2 id="1-2-如何选择"><a href="#1-2-如何选择" class="headerlink" title="1.2 如何选择"></a>1.2 如何选择</h2><p><code>Skywalking</code>相比于<code>zipkin</code>还是有很大的优势的，如下：</p>
+<ul>
+<li><p><code>skywalking</code>采用字节码增强的技术实现代码无侵入，<code>zipKin</code>代码侵入性比较高  </p>
+</li>
+<li><p><code>skywalking</code>功能比较丰富，报表统计，UI界面更加人性化</p>
+</li>
+</ul>
+<h2 id="1-3-Skywalking架构"><a href="#1-3-Skywalking架构" class="headerlink" title="1.3 Skywalking架构"></a>1.3 Skywalking架构</h2><p><code>skywalking</code>和<code>zipkin</code>一样，也分为服务端和客户端，服务端负责收集日志数据并且展示，架构如下：<br><img src="/images/1710147079-4f2258e112578b8ad2e16981bbb89d46.png" alt="图片"></p>
+<p>上述架构图中主要分为四个部分，如下：</p>
+<ul>
+<li>上面的<code>Agent</code>：负责收集日志数据，并且传递给中间的<code>OAP服务器</code></li>
+<li>中间的<code>OAP</code>：负责接收 <code>Agent</code> 发送的 <code>Tracing</code> 和 <code>Metric</code> 的数据信息，然后进行分析(<code>Analysis Core</code>) ，存储到外部存储器( <code>Storage</code> )，最终提供查询( <code>Query</code> )功能。</li>
+<li>左面的<code>UI</code>：负责提供<code>web</code>控制台，查看链路，查看各种指标，性能等等。</li>
+<li>右面<code>Storage</code>：负责数据的存储，支持多种存储类型。</li>
+</ul>
+<p>看了架构图之后，思路很清晰了，<code>Agent</code>负责收集日志传输数据，通过<code>GRPC</code>的方式传递给<code>OAP</code>进行分析并且存储到数据库中，最终通过UI界面将分析的统计报表、服务依赖、拓扑关系图展示出来。</p>
+<h2 id="1-4-服务端搭建"><a href="#1-4-服务端搭建" class="headerlink" title="1.4 服务端搭建"></a>1.4 服务端搭建</h2><p><code>skywalking</code>同样是通过<code>jar</code>包方式启动，需要下载jar包，地址：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/downloads/">https://skywalking.apache.org/downloads/</a></p>
+<h3 id="1-4-1-下载安装包"><a href="#1-4-1-下载安装包" class="headerlink" title="1.4.1 下载安装包"></a>1.4.1 下载安装包</h3><p>选择V9.5.0这个版本，如下图：<br><img src="/images/1710147079-08ef03ab0b56230e265cdb4354cd2b50.png" alt="在这里插入图片描述"><br>解压之后完整目录如下图：<br><img src="/images/1710147079-ac241156cc207bda44b5428f57e04b1b.png" alt="在这里插入图片描述"><br>重要的目录结构分析如下：</p>
+<ul>
+<li><code>agent</code>：客户端需要指定的目录，其中有一个jar，就是负责和客户端整合收集日志<br><code>skywalking8.7.0</code>之后的版本，<code>agent</code>的相关代码被抽离出skywalking当中，需要自行下载<code>agent</code>，从官网下载与之相对应的：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/downloads/">https://skywalking.apache.org/downloads/</a></li>
+<li><code>bin</code>：服务端启动的脚本</li>
+<li><code>config</code>：一些配置文件的目录</li>
+<li><code>logs</code>：oap服务的日志目录</li>
+<li><code>oap-libs</code>：oap所需的依赖目录</li>
+<li><code>webapp</code>：UI服务的目录</li>
+</ul>
+<h3 id="1-4-2-配置修改"><a href="#1-4-2-配置修改" class="headerlink" title="1.4.2 配置修改"></a>1.4.2 配置修改</h3><p>启动之前需要对配置文件做一些修改，修改如下：</p>
+<h4 id="1-4-2-1-config-application-yml"><a href="#1-4-2-1-config-application-yml" class="headerlink" title="1.4.2.1 config&#x2F;application.yml"></a>1.4.2.1 config&#x2F;application.yml</h4><p>这个是<code>oap</code>服务的配置文件，需要修改注册中心为<code>nacos</code>，如下图：<br><img src="/images/1710147079-50497ee93750df3770c7866f9a9a2a74.png" alt="图片"></p>
+<ul>
+<li>配置①：修改默认注册中心选择<code>nacos</code>，这样就不用在启动参数中指定了。</li>
+<li>配置②：修改<code>nacos</code>的相关配置</li>
+</ul>
+<h4 id="1-4-2-2-webapp-webapp-yml"><a href="#1-4-2-2-webapp-webapp-yml" class="headerlink" title="1.4.2.2 webapp&#x2F;webapp.yml"></a>1.4.2.2 webapp&#x2F;webapp.yml</h4><p>这个是UI服务的配置文件，其中有一个<code>server.port</code>配置，是UI服务的端口，默认<code>8080</code>，将其改成8888，避免端口冲突，如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">serverPort:</span> <span class="string">$&#123;SW_SERVER_PORT:-8888&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="1-4-3-启动服务"><a href="#1-4-3-启动服务" class="headerlink" title="1.4.3 启动服务"></a>1.4.3 启动服务</h3><p>启动命令在<code>/bin</code>目录下，这里需要启动两个服务，如下：</p>
+<ul>
+<li><code>oap服务</code>：对应的启动脚本<code>oapService.bat</code>，Linux下对应的后缀是<code>sh</code></li>
+<li><code>UI服务</code>：对应的启动脚本<code>webappService.bat</code>，Linux下对应的后缀是<code>sh</code></li>
+</ul>
+<p>当然还有一个<code>startup.bat</code>启动文件，可以直接启动上述两个服务，我们可以直接使用这个脚本，直接双击，将会弹出两个窗口则表示启动成功，如下图：<br><img src="/images/1710147079-57562d8347e64cbe39cd4f71c35d9b8f.png" alt="图片"></p>
+<p>此时直接访问：<a target="_blank" rel="noopener" href="http://localhost:8888/%EF%BC%8C%E7%9B%B4%E6%8E%A5%E8%BF%9B%E5%85%A5UI%E7%AB%AF%EF%BC%8C%E5%A6%82%E4%B8%8B%E5%9B%BE%EF%BC%9A">http://localhost:8888/，直接进入UI端，如下图：</a><br><img src="/images/1710147079-661c029404ba520ec0de251fffc3516c.png" alt="在这里插入图片描述"></p>
+<h2 id="1-5-客户端搭建"><a href="#1-5-客户端搭建" class="headerlink" title="1.5 客户端搭建"></a>1.5 客户端搭建</h2><p>客户端也就是单个微服务，由于<code>Skywalking</code>采用字节码增强技术，因此对于微服务无代码侵入，只要是普通的微服务即可，不需要引入什么依赖。</p>
+<p>想要传输数据必须借助<code>skywalking</code>提供的<code>agent</code>，只需要在启动参数指定即可，命令如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">-javaagent:D:\SoftWare\Tools\SkyWalking\skywalking-agent\skywalking-agent.jar</span><br><span class="line">-Dskywalking.agent.service_name=skywalking-product-service</span><br><span class="line">-Dskywalking.collector.backend_service=127.0.0.1:11800</span><br></pre></td></tr></table></figure>
+
+<p>上述命令解析如下：</p>
+<ul>
+<li><code>-javaagent</code>：指定<code>skywalking</code>中的<code>agent</code>中的<code>skywalking-agent.jar</code>的路径</li>
+<li><code>-Dskywalking.agent.service_name</code>：指定在<code>skywalking</code>中的服务名称，一般是微服务的<code>spring.application.name</code></li>
+<li><code>-Dskywalking.collector.backend_service</code>：指定<code>oap</code>服务绑定的地址，如果是本地，由于<code>oap</code>服务默认的端口是<code>11800</code>，因此只需要配置为<code>127.0.0.1:11800</code></li>
+</ul>
+<p><code>注意</code>：<code>agent</code>的<code>jar</code>包路径不能包含中文，不能有空格，否则运行不成功。</p>
+<h2 id="1-6-数据持久化"><a href="#1-6-数据持久化" class="headerlink" title="1.6 数据持久化"></a>1.6 数据持久化</h2><p>只要服务端重启之后，这些链路追踪数据将会丢失了，因为<code>skywalking</code>默认持久化的方式是存储在内存中。<br>当然这里也是可以通过插拔方式的替换掉存储中间件，企业中往往是使用<code>ES</code>存储，这里介绍一下MySQL的方式存储</p>
+<h3 id="1-6-1-修改配置文件"><a href="#1-6-1-修改配置文件" class="headerlink" title="1.6.1 修改配置文件"></a>1.6.1 修改配置文件</h3><p>修改 <code>config/application.yml</code> 文件中的存储方式，总共需要修改两处地方。</p>
+<p>修改默认的存储方式为mysql，如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">storage:</span></span><br><span class="line">  <span class="attr">selector:</span> <span class="string">$&#123;SW_STORAGE:mysql&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>修改Mysql相关的信息，比如用户名、密码等，如下图：<br><img src="/images/1710147079-ed8833dd958746ddfc990f2e22da8a16.png" alt="图片"></p>
+<h3 id="1-6-2-添加MySQL的jdbc依赖"><a href="#1-6-2-添加MySQL的jdbc依赖" class="headerlink" title="1.6.2 添加MySQL的jdbc依赖"></a>1.6.2 添加MySQL的jdbc依赖</h3><p>默认的 <code>oap</code> 中是没有<code>jdbc</code>驱动依赖，因此需要我们手动添加一下，只需要将驱动的jar放在<code>oap-libs</code>文件夹中，如下图：</p>
+<p><img src="/images/1710147079-13cc432beff8116283f64f538ec3980b.png" alt="图片"><br>好了，已经配置完成，启动服务端，在<code>skywalking</code>这个数据库中将会自动创建表，如下图：</p>
+<p><img src="/images/1710147079-09505e89c2ee580d663c5bf7ebb8a341.png" alt="图片"></p>
+<h2 id="1-7-日志监控"><a href="#1-7-日志监控" class="headerlink" title="1.7 日志监控"></a>1.7 日志监控</h2><p>在<code>skywalking</code>的<code>UI</code>端有一个日志的模块，用于收集客户端的日志，默认是没有数据的，那么需要如何将日志数据传输到<code>skywalking</code>中呢？</p>
+<p>日志框架的种类很多，比较出名的有log4j，logback，log4j2，那么就以<code>logback</code>为例子介绍一下如何配置，官方文档如下：</p>
+<blockquote>
+<p>log4j：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-log4j-1.x/">https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-log4j-1.x/</a><br>log4j2：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-log4j-2.x/">https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-log4j-2.x/</a><br>logback：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-logback-1.x/">https://skywalking.apache.org/docs/skywalking-java/v8.8.0/en/setup/service-agent/java-agent/application-toolkit-logback-1.x/</a></p>
+</blockquote>
+<h3 id="1-7-1-添加依赖"><a href="#1-7-1-添加依赖" class="headerlink" title="1.7.1 添加依赖"></a>1.7.1 添加依赖</h3><p>根据官方文档，需要先添加依赖，如下：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- 如果想在项目代码中获取链路TraceId，则需要引入此依赖 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.skywalking<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>apm-toolkit-trace<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>8.8.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- 自定义功能相关, 比如自定义tag --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.skywalking<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>apm-toolkit-opentracing<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>8.8.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br><span class="line"><span class="comment">&lt;!-- skywalking 日志记录 logback插件 --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">dependency</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">groupId</span>&gt;</span>org.apache.skywalking<span class="tag">&lt;/<span class="name">groupId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">artifactId</span>&gt;</span>apm-toolkit-logback-1.x<span class="tag">&lt;/<span class="name">artifactId</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">version</span>&gt;</span>8.8.0<span class="tag">&lt;/<span class="name">version</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">dependency</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="1-7-2-添加配置文件"><a href="#1-7-2-添加配置文件" class="headerlink" title="1.7.2 添加配置文件"></a>1.7.2 添加配置文件</h3><p>新建一个<code>logback-spring.xml</code>放在<code>resource</code>目录下，配置如下：  </p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">&lt;?xml version=<span class="string">&quot;1.0&quot;</span> encoding=<span class="string">&quot;UTF-8&quot;</span>?&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;<span class="name">configuration</span> <span class="attr">scan</span>=<span class="string">&quot;true&quot;</span> <span class="attr">scanPeriod</span>=<span class="string">&quot; 5 seconds&quot;</span>&gt;</span></span><br><span class="line">  <span class="comment">&lt;!--控制台日志打印--&gt;</span></span><br><span class="line">  <span class="comment">&lt;!-- with the MDC, set %X&#123;tid&#125; in Pattern --&gt;</span></span><br><span class="line">	<span class="comment">&lt;!-- MDC是什么：MDC采用Map的方式存储上下文，线程独立的，子线程会从父线程拷贝上下文 --&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">&quot;stdout&quot;</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.ConsoleAppender&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.encoder.LayoutWrappingEncoder&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">layout</span> <span class="attr">class</span>=<span class="string">&quot;org.apache.skywalking.apm.toolkit.log.logback.v1.x.mdc.TraceIdMDCPatternLogbackLayout&quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">Pattern</span>&gt;</span>%d&#123;yyyy-MM-dd HH:mm:ss.SSS&#125; [%X&#123;tid&#125;] [%thread] %-5level %logger&#123;36&#125; -%msg%n<span class="tag">&lt;/<span class="name">Pattern</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">layout</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line">	</span><br><span class="line"></span><br><span class="line">    <span class="comment">&lt;!--skywalking日志上报--&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">&quot;grpc-log&quot;</span> <span class="attr">class</span>=<span class="string">&quot;org.apache.skywalking.apm.toolkit.log.logback.v1.x.log.GRPCLogClientAppender&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.encoder.LayoutWrappingEncoder&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">layout</span> <span class="attr">class</span>=<span class="string">&quot;org.apache.skywalking.apm.toolkit.log.logback.v1.x.mdc.TraceIdMDCPatternLogbackLayout&quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">Pattern</span>&gt;</span>%d&#123;yyyy-MM-dd HH:mm:ss.SSS&#125; [%X&#123;tid&#125;] [%thread] %-5level %logger&#123;36&#125; -%msg%n<span class="tag">&lt;/<span class="name">Pattern</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">layout</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line">    <span class="comment">&lt;!--日志文件--&gt;</span></span><br><span class="line">    <span class="tag">&lt;<span class="name">appender</span> <span class="attr">name</span>=<span class="string">&quot;fileAppender&quot;</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.FileAppender&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">file</span>&gt;</span>./logs/gateway-all.log<span class="tag">&lt;/<span class="name">file</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">encoder</span> <span class="attr">class</span>=<span class="string">&quot;ch.qos.logback.core.encoder.LayoutWrappingEncoder&quot;</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;<span class="name">layout</span> <span class="attr">class</span>=<span class="string">&quot;org.apache.skywalking.apm.toolkit.log.logback.v1.x.TraceIdPatternLogbackLayout&quot;</span>&gt;</span></span><br><span class="line">                <span class="tag">&lt;<span class="name">Pattern</span>&gt;</span>[%sw_ctx] [%level] %d&#123;yyyy-MM-dd HH:mm:ss.SSS&#125; [%thread] %logger:%line - %msg%n<span class="tag">&lt;/<span class="name">Pattern</span>&gt;</span></span><br><span class="line">            <span class="tag">&lt;/<span class="name">layout</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;/<span class="name">encoder</span>&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">appender</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">root</span> <span class="attr">level</span>=<span class="string">&quot;INFO&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">&quot;stdout&quot;</span>/&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">&quot;grpc-log&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">root</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">logger</span> <span class="attr">name</span>=<span class="string">&quot;fileLogger&quot;</span> <span class="attr">level</span>=<span class="string">&quot;INFO&quot;</span>&gt;</span></span><br><span class="line">        <span class="tag">&lt;<span class="name">appender-ref</span> <span class="attr">ref</span>=<span class="string">&quot;fileAppender&quot;</span>/&gt;</span></span><br><span class="line">    <span class="tag">&lt;/<span class="name">logger</span>&gt;</span></span><br><span class="line"></span><br><span class="line"><span class="tag">&lt;/<span class="name">configuration</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<p><code>注意</code>：如果<code>agent</code>和<code>oap</code>服务不在同一台服务器上，需要在<code>/agent/config/agent.config</code>配置文件末尾添加如下配置：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">plugin.toolkit.log.grpc.reporter.server_host=$&#123;SW_GRPC_LOG_SERVER_HOST:10.10.10.1&#125;</span><br><span class="line">plugin.toolkit.log.grpc.reporter.server_port=$&#123;SW_GRPC_LOG_SERVER_PORT:11800&#125;</span><br><span class="line">plugin.toolkit.log.grpc.reporter.max_message_size=$&#123;SW_GRPC_LOG_MAX_MESSAGE_SIZE:10485760&#125;</span><br><span class="line">plugin.toolkit.log.grpc.reporter.upstream_timeout=$&#123;SW_GRPC_LOG_GRPC_UPSTREAM_TIMEOUT:30&#125;</span><br></pre></td></tr></table></figure>
+
+<p>配置分析如下：</p>
+<table>
+<thead>
+<tr>
+<th>配置名</th>
+<th>解释</th>
+<th>默认值</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>plugin.toolkit.log.transmit_formatted</td>
+<td>是否以格式化的格式传输记录的数据</td>
+<td>TRUE</td>
+</tr>
+<tr>
+<td>plugin.toolkit.log.grpc.reporter.server_host</td>
+<td>指定要向其报告日志数据的grpc服务器的主机</td>
+<td>127.0.0.1</td>
+</tr>
+<tr>
+<td>plugin.toolkit.log.grpc.reporter.server_port</td>
+<td>指定要向其报告日志数据的grpc服务器的端口</td>
+<td>11800</td>
+</tr>
+<tr>
+<td>plugin.toolkit.log.grpc.reporter.max_message_size</td>
+<td>指定grpc客户端要报告的日志数据的最大大小</td>
+<td>10485760</td>
+</tr>
+<tr>
+<td>plugin.toolkit.log.grpc.reporter.upstream_timeout</td>
+<td>客户端向上游发送数据时将超市多长时间，单位：秒</td>
+<td>30</td>
+</tr>
+</tbody></table>
+<h2 id="1-8-性能剖析"><a href="#1-8-性能剖析" class="headerlink" title="1.8 性能剖析"></a>1.8 性能剖析</h2><p><code>skywalking</code>在性能剖析方面真的是非常强大，提供到基于堆栈的分析结果，能够让运维人员一眼定位到问题。</p>
+<p>假如一个&#x2F;order&#x2F;list接口有超时，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@GetMapping(&quot;/list&quot;)</span></span><br><span class="line"><span class="keyword">public</span> List&lt;Order&gt; <span class="title function_">list</span><span class="params">()</span> <span class="keyword">throws</span> InterruptedException&#123;</span><br><span class="line">	Thread.sleep(<span class="number">2000</span>);</span><br><span class="line">	<span class="keyword">return</span> LongStream.of(<span class="number">1</span>,<span class="number">2</span>,<span class="number">3</span>).mapToObj(id-&gt;<span class="keyword">new</span> <span class="title class_">Order</span>(id,<span class="number">20231000L</span>,<span class="string">&quot;test&quot;</span>,<span class="string">&quot;test&quot;</span>)).collect(Collectors.toList());</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>上述代码中休眠了2秒，看看如何在<code>skywalking</code> 中定位这个问题。</p>
+<p>在性能剖析模块-&gt;新建任务-&gt;选择服务、填写端点、监控时间，操作如下图：<br><img src="/images/1710147079-10471af65ab13ccff95d4ac7725fd627.png" alt="图片"></p>
+<p>上图中选择了最大采样数为5，则直接访问5次：<a target="_blank" rel="noopener" href="http://localhost:1003/order/list%EF%BC%8C%E7%84%B6%E5%90%8E%E9%80%89%E6%8B%A9%E8%BF%99%E4%B8%AA%E4%BB%BB%E5%8A%A1%E5%B0%86%E4%BC%9A%E5%87%BA%E7%8E%B0%E7%9B%91%E6%8E%A7%E5%88%B0%E7%9A%84%E6%95%B0%E6%8D%AE%EF%BC%8C%E5%A6%82%E4%B8%8B%E5%9B%BE%EF%BC%9A">http://localhost:1003/order/list，然后选择这个任务将会出现监控到的数据，如下图：</a></p>
+<p><img src="/images/1710147079-336eb39939a9e94ce4741ac02dfb3e21.png" alt="图片"></p>
+<p>上图中可以看到{GET}&#x2F;order&#x2F;list这个接口上耗费了2秒以上，因此选择这个接口点击分析，可以看到详细的堆栈信息，如下图：</p>
+<p><img src="/images/1710147079-1c49472c75b924cbe77c909f9de4bb3d.png" alt="图片"><br>如何定位到睡眠2秒钟的那一行代码呢？直接往下翻，如下图：<br><img src="/images/1710147079-1a96780ac94a6e471c2a018feecdcda9.png" alt="图片"></p>
+<p>是不是很清楚了，在OrderController这个接口线程睡眠了两秒……..</p>
+<h2 id="1-9-监控告警"><a href="#1-9-监控告警" class="headerlink" title="1.9 监控告警"></a>1.9 监控告警</h2><p>对于服务的异常信息，比如接口有较长延迟，<code>skywalking</code>也做出了告警功能，如下图：<br><img src="/images/1710147079-c39811116bfc6f3416a7744cb38f36d9.png" alt="图片"></p>
+<p><code>skywalking</code>中有一些默认的告警规则，如下：</p>
+<ul>
+<li>最近3分钟内服务的平均响应时间超过1秒</li>
+<li>最近2分钟服务成功率低于80%</li>
+<li>最近3分钟90%服务响应时间超过1秒</li>
+<li>最近2分钟内服务实例的平均响应时间超过1秒</li>
+</ul>
+<p>当然除了以上四种，随着<code>Skywalking</code>不断迭代也会新增其他规则，这些规则的配置在<code>config/alarm-settings.yml</code>配置文件中，如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Sample alarm rules.</span></span><br><span class="line"><span class="attr">rules:</span></span><br><span class="line">  <span class="comment"># Rule unique name, must be ended with `_rule`.</span></span><br><span class="line">  <span class="attr">service_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_resp_time</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="number">3</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes.</span></span><br><span class="line">  <span class="attr">service_sla_rule:</span></span><br><span class="line">    <span class="comment"># Metrics value need to be long, double or int</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_sla</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&lt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">8000</span></span><br><span class="line">    <span class="comment"># The length of time to evaluate the metrics</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="comment"># How many times after the metrics match the condition, will trigger alarm</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">2</span></span><br><span class="line">    <span class="comment"># How many times of checks, the alarm keeps silence after alarm triggered, default as same as period.</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Successful</span> <span class="string">rate</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">lower</span> <span class="string">than</span> <span class="number">80</span><span class="string">%</span> <span class="string">in</span> <span class="number">2</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes</span></span><br><span class="line">  <span class="attr">service_resp_time_percentile_rule:</span></span><br><span class="line">    <span class="comment"># Metrics value need to be long, double or int</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_percentile</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span><span class="string">,1000,1000,1000,1000</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Percentile</span> <span class="string">response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">alarm</span> <span class="string">in</span> <span class="number">3</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes,</span> <span class="string">due</span> <span class="string">to</span> <span class="string">more</span> <span class="string">than</span> <span class="string">one</span> <span class="string">condition</span> <span class="string">of</span> <span class="string">p50</span> <span class="string">&gt;</span> <span class="number">1000</span><span class="string">,</span> <span class="string">p75</span> <span class="string">&gt;</span> <span class="number">1000</span><span class="string">,</span> <span class="string">p90</span> <span class="string">&gt;</span> <span class="number">1000</span><span class="string">,</span> <span class="string">p95</span> <span class="string">&gt;</span> <span class="number">1000</span><span class="string">,</span> <span class="string">p99</span> <span class="string">&gt;</span> <span class="number">1000</span></span><br><span class="line">  <span class="attr">service_instance_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_instance_resp_time</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">2</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> <span class="string">instance</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="number">2</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes</span></span><br><span class="line">  <span class="attr">database_access_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">database_access_resp_time</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">2</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">database</span> <span class="string">access</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="number">2</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes</span></span><br><span class="line">  <span class="attr">endpoint_relation_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">endpoint_relation_resp_time</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">2</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">endpoint</span> <span class="string">relation</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="number">2</span> <span class="string">minutes</span> <span class="string">of</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="attr">webhooks:</span></span><br><span class="line"><span class="comment">#  - http://127.0.0.1/notify/</span></span><br><span class="line"><span class="comment">#  - http://127.0.0.1/go-wechat/</span></span><br></pre></td></tr></table></figure>
+
+<p>每个规则都由相同的属性组成，这些属性的含义如下图：</p>
+<table>
+<thead>
+<tr>
+<th>属性</th>
+<th>含义</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>metrics-name</td>
+<td>oal脚本中度量名称</td>
+</tr>
+<tr>
+<td>threshold</td>
+<td>阈值，与metrics-name和下面的比较符号相匹配</td>
+</tr>
+<tr>
+<td>op</td>
+<td>比较操作符号，可以设定&gt;，&lt;，&#x3D;</td>
+</tr>
+<tr>
+<td>period</td>
+<td>多久检查一次当前的指标数据是否符合告警规则，单位：分钟</td>
+</tr>
+<tr>
+<td>count</td>
+<td>达到多少次后，发送告警消息</td>
+</tr>
+<tr>
+<td>silence-period</td>
+<td>在多久之内，忽略相同告警信息</td>
+</tr>
+<tr>
+<td>message</td>
+<td>告警消息内容</td>
+</tr>
+<tr>
+<td>include-names</td>
+<td>本规则告警生效服务列表</td>
+</tr>
+</tbody></table>
+<p>如果想要调整默认的规则，比如监控返回的信息，监控的参数等等，只需要改动上述配置文件中的参数即可。<br>当然除了以上默认的几种规则，<code>skywalking</code>还适配了一些钩子（<code>webhooks</code>）。其实就是相当于一个回调，一旦触发了上述规则告警，<code>skywalking</code>则会调用配置的<code>webhook</code>，这样开发者就可以定制一些处理方法，比如发送邮件、微信、钉钉通知运维人员处理。</p>
+<p>当然这个钩子也是有些规则的，如下：</p>
+<ul>
+<li>POST请求</li>
+<li>application&#x2F;json 接收数据</li>
+<li>接收的参数必须是AlarmMessage中指定的参数。</li>
+</ul>
+<p><code>注意</code>：<code>AlarmMessage</code> 这个类随着<code>skywalking</code> 版本的迭代可能出现不同，一定要到对应版本源码中去找到这个类，拷贝其中的属性。这个类在源码的路径：org.apache.skywalking.oap.server.core.alarm，如下图：</p>
+<p><img src="/images/1710147079-82f721bbf043ca9baa6ec309c9871487.png" alt="图片"></p>
+<p>新建一个告警模块：skywalking-alarm1004，其中利用<code>webhook</code>定义一个接口，如下：</p>
+<figure class="highlight java"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">@RestController</span></span><br><span class="line"><span class="meta">@RequestMapping(&quot;/alarm&quot;)</span></span><br><span class="line"><span class="meta">@Slf4j</span></span><br><span class="line"><span class="keyword">public</span> <span class="keyword">class</span> <span class="title class_">AlarmController</span>&#123;</span><br><span class="line">	<span class="comment">// skywalking回调触发方法</span></span><br><span class="line">	<span class="meta">@PostMapping(&quot;/receive&quot;)</span></span><br><span class="line">	<span class="keyword">public</span> <span class="keyword">void</span> <span class="title function_">receive</span><span class="params">(<span class="meta">@RequestBody</span> List&lt;AlarmMessage&gt; list)</span>&#123;</span><br><span class="line">		<span class="comment">//todo 此处可以填写发送邮件，微信，钉钉</span></span><br><span class="line">		log.info(<span class="string">&quot;------------------&quot;</span>);</span><br><span class="line">		log.info(JSON.toJSONString(list));</span><br><span class="line">	&#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>接口定制完成后，只需要在<code>config/alarm-settings.yml</code>配置文件中添加这个钩子，如下图：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">webhooks:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">http://127.0.0.1:1004/alarm/receive</span></span><br><span class="line"><span class="comment">#  - http://127.0.0.1/go-wechat/</span></span><br></pre></td></tr></table></figure>
+
+<p>好了，这就已经配置完成了，测试也很简单，还是调用上面案例中的睡眠两秒的接口：<a target="_blank" rel="noopener" href="http://localhost:1003/order/list%EF%BC%8C%E5%A4%9A%E8%B0%83%E7%94%A8%E5%87%A0%E6%AC%A1%EF%BC%8C%E5%88%99%E4%BC%9A%E8%A7%A6%E5%8F%91%E5%91%8A%E8%AD%A6%EF%BC%8C%E6%8E%A7%E5%88%B6%E5%8F%B0%E6%89%93%E5%8D%B0%E6%97%A5%E5%BF%97%E5%A6%82%E4%B8%8B%EF%BC%9A">http://localhost:1003/order/list，多调用几次，则会触发告警，控制台打印日志如下：</a><br><img src="/images/1710147079-3d4d94b105337527d0a50a664a43af79.png" alt="图片"></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/11/SkyWalking%E4%BD%BF%E7%94%A8%E8%AF%A6%E8%A7%A3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/11/%E5%A6%82%E4%BD%95%E5%9C%A8%E5%A4%9A%E4%B8%AA%E7%AB%AF%E5%8F%A3%E4%B8%8A%E8%BF%90%E8%A1%8CSSH%E6%9C%8D%E5%8A%A1/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">如何在多个端口上运行SSH服务</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
