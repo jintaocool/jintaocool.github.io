@@ -12811,4 +12811,15 @@ plugin_admin_external_manage_enabled = true
         <tag>Skywalking</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Linux查询top5 cpu使用率的进程并将其相关信息推送至pushgateway</title>
+    <url>/2024/03/12/Linux%E6%9F%A5%E8%AF%A2top5-cpu%E4%BD%BF%E7%94%A8%E7%8E%87%E7%9A%84%E8%BF%9B%E7%A8%8B%E5%B9%B6%E5%B0%86%E5%85%B6%E7%9B%B8%E5%85%B3%E4%BF%A1%E6%81%AF%E6%8E%A8%E9%80%81%E8%87%B3pushgateway/</url>
+    <content><![CDATA[<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">author lijintao</span></span><br><span class="line"></span><br><span class="line">counter=0</span><br><span class="line">server_ip=`ip -o route get to 8.8.8.8 | sed -n &#x27;s/.*src \([0-9.]\+\).*/\1/p&#x27;`</span><br><span class="line">PUSHGATEWAY_URL=&quot;http://10.250.5.15:32555/metrics/job/cpu_top/instance/$server_ip&quot;</span><br><span class="line"></span><br><span class="line">ps -eo user,pid,pcpu,pmem,args --sort=-pcpu | head -n 6 | grep -v &#x27;COMMAND&#x27; | while read -r line;do</span><br><span class="line">        user=$(echo &quot;$line&quot; | awk &#x27;&#123;print $1&#125;&#x27;)</span><br><span class="line">        pid=$(echo &quot;$line&quot; | awk &#x27;&#123;print $2&#125;&#x27;)</span><br><span class="line">        pcpu=$(echo &quot;$line&quot; | awk &#x27;&#123;print $3&#125;&#x27;)</span><br><span class="line">        pmem=$(echo &quot;$line&quot; | awk &#x27;&#123;print $4&#125;&#x27;)</span><br><span class="line">        command=$(echo &quot;$line&quot; | cut -d&#x27;/&#x27; -f2-)</span><br><span class="line">        ((counter+=1))</span><br><span class="line">        cat &lt;&lt;-EOF | curl --data-binary @- $PUSHGATEWAY_URL/cputop/$counter</span><br><span class="line">        # cputop</span><br><span class="line">        cputop&#123;ctop=&quot;$counter&quot;,ip=&quot;$server_ip&quot;,user=&quot;$user&quot;,pid=&quot;$pid&quot;,pcpu=&quot;$pcpu&quot;,pmem=&quot;$pmem&quot;,command=&quot;/$command&quot;&#125; 1</span><br><span class="line">EOF</span><br><span class="line">done</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Scripts</category>
+      </categories>
+      <tags>
+        <tag>Scripts</tag>
+      </tags>
+  </entry>
 </search>
