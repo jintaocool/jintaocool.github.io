@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>日志监控之Loki工具 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Logs-日志监控之Loki工具"
+  class="article article-type-Logs"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  日志监控之Loki工具
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/12/%E6%97%A5%E5%BF%97%E7%9B%91%E6%8E%A7%E4%B9%8BLoki%E5%B7%A5%E5%85%B7/" class="article-date">
+  <time datetime="2024-03-12T08:21:11.000Z" itemprop="datePublished">2024-03-12</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Logs/">Logs</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">21 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="1-1-引言"><a href="#1-1-引言" class="headerlink" title="1.1 引言"></a>1.1 引言</h2><p><code>Loki</code> 是一个轻量级的日志收集、分析的应用，采用的是<code>promtail</code>的方式来获取日志内容并送到loki里面进行存储，最终在<code>grafana</code>的<code>datasource</code>里面添加数据源进行日志的展示、查询。</p>
+<p>官方文档：<a target="_blank" rel="noopener" href="https://kubernetes.io/docs/concepts/security/pod-security-policy">https://kubernetes.io/docs/concepts/security/pod-security-policy</a></p>
+<p><code>loki</code>的持久化存储支持<code>azure、gcs、s3、swift、local</code>这5中类型，其中常用的是<code>s3、local</code>。另外，它还支持很多种日志搜集类型，像最常用的<code>logstash、fluentbit</code>也在官方支持的列表中。</p>
+<p>优点：</p>
+<ul>
+<li>支持的客户端，如<code>Promtail，Fluentbit，Fluentd，Vector，Logstash和Grafana Agent</code></li>
+<li>首选代理<code>Promtail</code>，可以多来源提取日志，包括本地日志文件，<code>systemd，Windows</code>事件日志，<code>Docker</code>日志记录驱动程序等</li>
+<li>没有日志格式要求，包括<code>JSON，XML，CSV，logfmt</code>，非结构化文本</li>
+<li>使用与查询指标相同的语法查询日志</li>
+<li>日志查询时允许动态筛选和转换日志行</li>
+<li>可以轻松地计算日志中的需要的指标</li>
+<li>引入时的最小索引意味着您可以在查询时动态地对日志进行切片和切块，以便在出现新问题时回答它们</li>
+<li>云原生支持，使用<code>Prometheus</code>形式抓取数据</li>
+</ul>
+<p>各日志收集组件简单对比</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>安装的组件</th>
+<th>优点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>ELK&#x2F;EFK</td>
+<td>elasticsearch、logstash， kibana、filebeat、kafka&#x2F;redis</td>
+<td>支持自定义grok正则解析复杂日志内容；dashboard支持主富的可视化展示</td>
+</tr>
+<tr>
+<td>Loki</td>
+<td>grafana、loki、promtail</td>
+<td>占用资源小；grafana原生支持；查询速度快</td>
+</tr>
+</tbody></table>
+<h2 id="1-2-Loki工作方式"><a href="#1-2-Loki工作方式" class="headerlink" title="1.2 Loki工作方式"></a>1.2 Loki工作方式</h2><h3 id="1-2-1-日志解析格式"><a href="#1-2-1-日志解析格式" class="headerlink" title="1.2.1 日志解析格式"></a>1.2.1 日志解析格式</h3><p><img src="/images/1710231105-75fd1137dc7b14a9a7a4d3a81411514a.png" alt="图片"><br>从上面的图中我们可以看到，它在解析日志的时候是以<code>index</code>为主的，<code>index</code>包括时间戳和<code>pod</code>的部分<code>label</code>（其他<code>label</code>为<code>filename</code>、<code>containers</code>等），其余的是日志内容。具体查询效果如下：<br><img src="/images/1710231105-6551f7a9da0e30dc51697776f87527c7.png" alt="在这里插入图片描述"><br><code>&#123;app=&quot;loki&quot;,namespace=&quot;kube-public&quot;&#125;</code>为索引<br><img src="/images/1710231105-827e70450946f6f3497959dc1842ce89.png" alt="在这里插入图片描述"></p>
+<h3 id="1-2-2-日志搜集架构模式"><a href="#1-2-2-日志搜集架构模式" class="headerlink" title="1.2.2 日志搜集架构模式"></a>1.2.2 日志搜集架构模式</h3><p><img src="/images/1710231105-9f1dab8878e9628ba52d303e4e0c4eda.png" alt="在这里插入图片描述"><br>在使用过程中，官方推荐使用<code>promtail</code>做为<code>agent</code>以<code>DaemonSet</code>方式部署在<code>kubernetes</code>的<code>worker</code>节点上搜集日志。另外也可以用上面提到的其他日志收集工具来收取，这篇文章在结尾处会附上其他工具的配置方式。</p>
+<h3 id="1-2-3-Loki部署模式"><a href="#1-2-3-Loki部署模式" class="headerlink" title="1.2.3 Loki部署模式"></a>1.2.3 Loki部署模式</h3><p><code>Loki</code>由许多组件微服务构建而成，微服务组件有5个。在这5个里面添加缓存用来把数据放起来加快查询。数据放在共享存储里面配置<code>memberlist_config</code>部分并在实例之间共享状态，将<code>Loki</code>进行无限横向扩展。</p>
+<p>在配置完<code>memberlist_config</code>部分后采用轮询的方式查找数据。为了使用方便官方把所有的微服务编译成一个二进制，可以通过命令行参数<code>-target</code>控制，支持<code>all、read、write</code>，我们在部署时根据日志量的大小可以指定不同模式</p>
+<ul>
+<li><code>all</code>（读写模式）<br>服务启动后，我们做的数据查询、数据写入都是来自这一个节点<br><img src="/images/1710231105-3b322018d5889ef0d117280c07afb17f.png" alt="在这里插入图片描述"></li>
+<li><code>read/write</code>（读写分离模式）<br>在读写分离模式下运行时<code>fronted-query</code>查询会将流量转发到<code>read</code>节点上。读节点上保留了<code>querier、ruler、fronted</code>，写节点上保留了<code>distributor、ingester</code><br><img src="/images/1710231105-3c45360b6ac526915280952fab6aa362.png" alt="在这里插入图片描述"></li>
+<li>微服务模式运行<br>微服务模式运行下，通过不同的配置参数启动为不同的角色，每一个进程都引用它的目标角色服务。<br><img src="/images/1710231105-4f4b33cda11626f4e77dec3946930de7.png" alt="在这里插入图片描述"></li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>组件名称</th>
+<th>功能</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>分发器&#x2F;调度器(distributor)</td>
+<td>验证数据合规:数据排序; hash一致性， QPS限制， 转发，数据副本保证不丢失</td>
+</tr>
+<tr>
+<td>收集器(ingester)</td>
+<td>时间戳排序: 文件系统支持: WAL预写</td>
+</tr>
+<tr>
+<td>查询前端 (query frontend)</td>
+<td>提供页面操作，向后端存储发出数据查询；查询队列 (query-queueing) 能够防止大数据量查询时触发0OM；查询分割 (query-split) 可以分割大批量查询最后进行数据聚台</td>
+</tr>
+<tr>
+<td>查询器Querier</td>
+<td>使用loggl语言在后端存储中查询日志</td>
+</tr>
+<tr>
+<td>缓存</td>
+<td>将查询到的日志缓存起来共后续使用，如果数据不完整重新查询缺失的数据</td>
+</tr>
+</tbody></table>
+<h2 id="1-3-服务端部署"><a href="#1-3-服务端部署" class="headerlink" title="1.3 服务端部署"></a>1.3 服务端部署</h2><p>在部署之前需要准备好一个k8s集群才行哦</p>
+<table>
+<thead>
+<tr>
+<th>应用</th>
+<th>镜像</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>loki</td>
+<td>grafana&#x2F;loki:2.5.0</td>
+</tr>
+<tr>
+<td>promtail</td>
+<td>grafana&#x2F;promtail:2.5.0</td>
+</tr>
+</tbody></table>
+<h3 id="1-3-1-AllInOne部署模式"><a href="#1-3-1-AllInOne部署模式" class="headerlink" title="1.3.1 AllInOne部署模式"></a>1.3.1 AllInOne部署模式</h3><h4 id="1-3-1-1-k8s部署"><a href="#1-3-1-1-k8s部署" class="headerlink" title="1.3.1.1 k8s部署"></a>1.3.1.1 k8s部署</h4><p>我们从github上下载的程序是没有配置文件的，需要提前将文件准备一份。这里提供了一份完整的<code>allInOne</code>配置文件，部分内容进行了优化。</p>
+<p>配置文件内容如下所示</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">auth_enabled:</span> <span class="literal">false</span></span><br><span class="line"><span class="attr">target:</span> <span class="string">all</span></span><br><span class="line"><span class="attr">ballast_bytes:</span> <span class="number">20480</span></span><br><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">grpc_listen_port:</span> <span class="number">9095</span></span><br><span class="line">  <span class="attr">http_listen_port:</span> <span class="number">3100</span></span><br><span class="line">  <span class="attr">graceful_shutdown_timeout:</span> <span class="string">20s</span></span><br><span class="line">  <span class="attr">grpc_listen_address:</span> <span class="string">&quot;0.0.0.0&quot;</span></span><br><span class="line">  <span class="attr">grpc_listen_network:</span> <span class="string">&quot;tcp&quot;</span></span><br><span class="line">  <span class="attr">grpc_server_max_concurrent_streams:</span> <span class="number">100</span></span><br><span class="line">  <span class="attr">grpc_server_max_recv_msg_size:</span> <span class="number">4194304</span></span><br><span class="line">  <span class="attr">grpc_server_max_send_msg_size:</span> <span class="number">4194304</span></span><br><span class="line">  <span class="attr">http_server_idle_timeout:</span> <span class="string">2m</span></span><br><span class="line">  <span class="attr">http_listen_address:</span> <span class="string">&quot;0.0.0.0&quot;</span></span><br><span class="line">  <span class="attr">http_listen_network:</span> <span class="string">&quot;tcp&quot;</span></span><br><span class="line">  <span class="attr">http_server_read_timeout:</span> <span class="string">30s</span></span><br><span class="line">  <span class="attr">http_server_write_timeout:</span> <span class="string">20s</span></span><br><span class="line">  <span class="attr">log_source_ips_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="comment"># http_path_prefix如果需要更改，在推送日志的时候前缀都需要加指定的内容</span></span><br><span class="line">  <span class="comment"># http_path_prefix: &quot;/&quot;</span></span><br><span class="line">  <span class="attr">register_instrumentation:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">log_format:</span> <span class="string">json</span></span><br><span class="line">  <span class="attr">log_level:</span> <span class="string">info</span></span><br><span class="line"><span class="attr">distributor:</span></span><br><span class="line">  <span class="attr">ring:</span></span><br><span class="line">    <span class="attr">heartbeat_timeout:</span> <span class="string">3s</span></span><br><span class="line">    <span class="attr">kvstore:</span></span><br><span class="line">      <span class="attr">prefix:</span> <span class="string">collectors/</span></span><br><span class="line">      <span class="attr">store:</span> <span class="string">memberlist</span></span><br><span class="line">      <span class="comment"># 需要提前创建好consul集群</span></span><br><span class="line">    <span class="comment">#   consul:</span></span><br><span class="line">    <span class="comment">#     http_client_timeout: 20s</span></span><br><span class="line">    <span class="comment">#     consistent_reads: true</span></span><br><span class="line">    <span class="comment">#     host: 127.0.0.1:8500</span></span><br><span class="line">    <span class="comment">#     watch_burst_size: 2</span></span><br><span class="line">    <span class="comment">#     watch_rate_limit: 2</span></span><br><span class="line"><span class="attr">querier:</span></span><br><span class="line">  <span class="attr">engine:</span></span><br><span class="line">    <span class="attr">max_look_back_period:</span> <span class="string">20s</span> </span><br><span class="line">    <span class="attr">timeout:</span> <span class="string">3m0s</span> </span><br><span class="line">  <span class="attr">extra_query_delay:</span> <span class="string">100ms</span> </span><br><span class="line">  <span class="attr">max_concurrent:</span> <span class="number">10</span> </span><br><span class="line">  <span class="attr">multi_tenant_queries_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">query_ingester_only:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">query_ingesters_within:</span> <span class="string">3h0m0s</span></span><br><span class="line">  <span class="attr">query_store_only:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">query_timeout:</span> <span class="string">5m0s</span></span><br><span class="line">  <span class="attr">tail_max_duration:</span> <span class="string">1h0s</span></span><br><span class="line"><span class="attr">query_scheduler:</span></span><br><span class="line">  <span class="attr">max_outstanding_requests_per_tenant:</span> <span class="number">2048</span></span><br><span class="line">  <span class="attr">grpc_client_config:</span></span><br><span class="line">    <span class="attr">max_recv_msg_size:</span> <span class="number">104857600</span></span><br><span class="line">    <span class="attr">max_send_msg_size:</span> <span class="number">16777216</span></span><br><span class="line">    <span class="attr">grpc_compression:</span> <span class="string">gzip</span></span><br><span class="line">    <span class="attr">rate_limit:</span> <span class="number">0</span></span><br><span class="line">    <span class="attr">rate_limit_burst:</span> <span class="number">0</span></span><br><span class="line">    <span class="attr">backoff_on_ratelimits:</span> <span class="literal">false</span></span><br><span class="line">    <span class="attr">backoff_config:</span></span><br><span class="line">      <span class="attr">min_period:</span> <span class="string">50ms</span></span><br><span class="line">      <span class="attr">max_period:</span> <span class="string">15s</span></span><br><span class="line">      <span class="attr">max_retries:</span> <span class="number">5</span> </span><br><span class="line">  <span class="attr">use_scheduler_ring:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">scheduler_ring:</span></span><br><span class="line">    <span class="attr">kvstore:</span></span><br><span class="line">      <span class="attr">store:</span> <span class="string">memberlist</span></span><br><span class="line">      <span class="attr">prefix:</span> <span class="string">&quot;collectors/&quot;</span></span><br><span class="line">    <span class="attr">heartbeat_period:</span> <span class="string">30s</span></span><br><span class="line">    <span class="attr">heartbeat_timeout:</span> <span class="string">1m0s</span></span><br><span class="line">    <span class="comment"># 默认第一个网卡的名称</span></span><br><span class="line">    <span class="comment"># instance_interface_names</span></span><br><span class="line">    <span class="comment"># instance_addr: 127.0.0.1</span></span><br><span class="line">    <span class="comment"># 默认server.grpc-listen-port</span></span><br><span class="line">    <span class="attr">instance_port:</span> <span class="number">9095</span></span><br><span class="line"><span class="attr">frontend:</span></span><br><span class="line">  <span class="attr">max_outstanding_per_tenant:</span> <span class="number">4096</span></span><br><span class="line">  <span class="attr">querier_forget_delay:</span> <span class="string">1h0s</span></span><br><span class="line">  <span class="attr">compress_responses:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">log_queries_longer_than:</span> <span class="string">2m0s</span></span><br><span class="line">  <span class="attr">max_body_size:</span> <span class="number">104857600</span></span><br><span class="line">  <span class="attr">query_stats_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">scheduler_dns_lookup_period:</span> <span class="string">10s</span> </span><br><span class="line">  <span class="attr">scheduler_worker_concurrency:</span> <span class="number">15</span></span><br><span class="line"><span class="attr">query_range:</span></span><br><span class="line">  <span class="attr">align_queries_with_step:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">cache_results:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">parallelise_shardable_queries:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">max_retries:</span> <span class="number">3</span></span><br><span class="line">  <span class="attr">results_cache:</span></span><br><span class="line">    <span class="attr">cache:</span></span><br><span class="line">      <span class="attr">enable_fifocache:</span> <span class="literal">false</span></span><br><span class="line">      <span class="attr">default_validity:</span> <span class="string">30s</span> </span><br><span class="line">      <span class="attr">background:</span></span><br><span class="line">        <span class="attr">writeback_buffer:</span> <span class="number">10000</span></span><br><span class="line">      <span class="attr">redis:</span></span><br><span class="line">        <span class="attr">endpoint:</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span><span class="string">:6379</span></span><br><span class="line">        <span class="attr">timeout:</span> <span class="string">1s</span></span><br><span class="line">        <span class="attr">expiration:</span> <span class="string">0s</span> </span><br><span class="line">        <span class="attr">db:</span> <span class="number">9</span></span><br><span class="line">        <span class="attr">pool_size:</span> <span class="number">128</span> </span><br><span class="line">        <span class="attr">password:</span> <span class="string">1521Qyx6^</span></span><br><span class="line">        <span class="attr">tls_enabled:</span> <span class="literal">false</span></span><br><span class="line">        <span class="attr">tls_insecure_skip_verify:</span> <span class="literal">true</span></span><br><span class="line">        <span class="attr">idle_timeout:</span> <span class="string">10s</span> </span><br><span class="line">        <span class="attr">max_connection_age:</span> <span class="string">8h</span></span><br><span class="line"><span class="attr">ruler:</span></span><br><span class="line">  <span class="attr">enable_api:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">enable_sharding:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">alertmanager_refresh_interval:</span> <span class="string">1m</span></span><br><span class="line">  <span class="attr">disable_rule_group_label:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">evaluation_interval:</span> <span class="string">1m0s</span></span><br><span class="line">  <span class="attr">flush_period:</span> <span class="string">3m0s</span></span><br><span class="line">  <span class="attr">for_grace_period:</span> <span class="string">20m0s</span></span><br><span class="line">  <span class="attr">for_outage_tolerance:</span> <span class="string">1h0s</span></span><br><span class="line">  <span class="attr">notification_queue_capacity:</span> <span class="number">10000</span></span><br><span class="line">  <span class="attr">notification_timeout:</span> <span class="string">4s</span></span><br><span class="line">  <span class="attr">poll_interval:</span> <span class="string">10m0s</span></span><br><span class="line">  <span class="attr">query_stats_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">remote_write:</span></span><br><span class="line">    <span class="attr">config_refresh_period:</span> <span class="string">10s</span></span><br><span class="line">    <span class="attr">enabled:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">resend_delay:</span> <span class="string">2m0s</span></span><br><span class="line">  <span class="attr">rule_path:</span> <span class="string">/rulers</span></span><br><span class="line">  <span class="attr">search_pending_for:</span> <span class="string">5m0s</span></span><br><span class="line">  <span class="attr">storage:</span></span><br><span class="line">    <span class="attr">local:</span></span><br><span class="line">      <span class="attr">directory:</span> <span class="string">/data/loki/rulers</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">configdb</span></span><br><span class="line">  <span class="attr">sharding_strategy:</span> <span class="string">default</span></span><br><span class="line">  <span class="attr">wal_cleaner:</span></span><br><span class="line">    <span class="attr">period:</span>  <span class="string">240h</span></span><br><span class="line">    <span class="attr">min_age:</span> <span class="string">12h0m0s</span></span><br><span class="line">  <span class="attr">wal:</span></span><br><span class="line">    <span class="attr">dir:</span> <span class="string">/data/loki/ruler_wal</span></span><br><span class="line">    <span class="attr">max_age:</span> <span class="string">4h0m0s</span></span><br><span class="line">    <span class="attr">min_age:</span> <span class="string">5m0s</span></span><br><span class="line">    <span class="attr">truncate_frequency:</span> <span class="string">1h0m0s</span></span><br><span class="line">  <span class="attr">ring:</span></span><br><span class="line">    <span class="attr">kvstore:</span></span><br><span class="line">      <span class="attr">store:</span> <span class="string">memberlist</span></span><br><span class="line">      <span class="attr">prefix:</span> <span class="string">&quot;collectors/&quot;</span></span><br><span class="line">    <span class="attr">heartbeat_period:</span> <span class="string">5s</span></span><br><span class="line">    <span class="attr">heartbeat_timeout:</span> <span class="string">1m0s</span></span><br><span class="line">    <span class="comment"># instance_addr: &quot;127.0.0.1&quot;</span></span><br><span class="line">    <span class="comment"># instance_id: &quot;miyamoto.en0&quot;</span></span><br><span class="line">    <span class="comment"># instance_interface_names: [&quot;en0&quot;,&quot;lo0&quot;]</span></span><br><span class="line">    <span class="attr">instance_port:</span> <span class="number">9500</span></span><br><span class="line">    <span class="attr">num_tokens:</span> <span class="number">100</span></span><br><span class="line"><span class="attr">ingester_client:</span></span><br><span class="line">  <span class="attr">pool_config:</span></span><br><span class="line">    <span class="attr">health_check_ingesters:</span> <span class="literal">false</span></span><br><span class="line">    <span class="attr">client_cleanup_period:</span> <span class="string">10s</span> </span><br><span class="line">    <span class="attr">remote_timeout:</span> <span class="string">3s</span></span><br><span class="line">  <span class="attr">remote_timeout:</span> <span class="string">5s</span> </span><br><span class="line"><span class="attr">ingester:</span></span><br><span class="line">  <span class="attr">autoforget_unhealthy:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">chunk_encoding:</span> <span class="string">gzip</span></span><br><span class="line">  <span class="attr">chunk_target_size:</span> <span class="number">1572864</span></span><br><span class="line">  <span class="attr">max_transfer_retries:</span> <span class="number">0</span></span><br><span class="line">  <span class="attr">sync_min_utilization:</span> <span class="number">3.5</span></span><br><span class="line">  <span class="attr">sync_period:</span> <span class="string">20s</span></span><br><span class="line">  <span class="attr">flush_check_period:</span> <span class="string">30s</span> </span><br><span class="line">  <span class="attr">flush_op_timeout:</span> <span class="string">10m0s</span></span><br><span class="line">  <span class="attr">chunk_retain_period:</span> <span class="string">1m30s</span></span><br><span class="line">  <span class="attr">chunk_block_size:</span> <span class="number">262144</span></span><br><span class="line">  <span class="attr">chunk_idle_period:</span> <span class="string">1h0s</span></span><br><span class="line">  <span class="attr">max_returned_stream_errors:</span> <span class="number">20</span></span><br><span class="line">  <span class="attr">concurrent_flushes:</span> <span class="number">3</span></span><br><span class="line">  <span class="attr">index_shards:</span> <span class="number">32</span></span><br><span class="line">  <span class="attr">max_chunk_age:</span> <span class="string">2h0m0s</span></span><br><span class="line">  <span class="attr">query_store_max_look_back_period:</span> <span class="string">3h30m30s</span></span><br><span class="line">  <span class="attr">wal:</span></span><br><span class="line">    <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">dir:</span> <span class="string">/data/loki/wal</span> </span><br><span class="line">    <span class="attr">flush_on_shutdown:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">checkpoint_duration:</span> <span class="string">15m</span></span><br><span class="line">    <span class="attr">replay_memory_ceiling:</span> <span class="string">2GB</span></span><br><span class="line">  <span class="attr">lifecycler:</span></span><br><span class="line">    <span class="attr">ring:</span></span><br><span class="line">      <span class="attr">kvstore:</span></span><br><span class="line">        <span class="attr">store:</span> <span class="string">memberlist</span></span><br><span class="line">        <span class="attr">prefix:</span> <span class="string">&quot;collectors/&quot;</span></span><br><span class="line">      <span class="attr">heartbeat_timeout:</span> <span class="string">30s</span> </span><br><span class="line">      <span class="attr">replication_factor:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">num_tokens:</span> <span class="number">128</span></span><br><span class="line">    <span class="attr">heartbeat_period:</span> <span class="string">5s</span> </span><br><span class="line">    <span class="attr">join_after:</span> <span class="string">5s</span> </span><br><span class="line">    <span class="attr">observe_period:</span> <span class="string">1m0s</span></span><br><span class="line">    <span class="comment"># interface_names: [&quot;en0&quot;,&quot;lo0&quot;]</span></span><br><span class="line">    <span class="attr">final_sleep:</span> <span class="string">10s</span> </span><br><span class="line">    <span class="attr">min_ready_duration:</span> <span class="string">15s</span></span><br><span class="line"><span class="attr">storage_config:</span></span><br><span class="line">  <span class="attr">boltdb:</span></span><br><span class="line">    <span class="attr">directory:</span> <span class="string">/data/loki/boltdb</span> </span><br><span class="line">  <span class="attr">boltdb_shipper:</span></span><br><span class="line">    <span class="attr">active_index_directory:</span> <span class="string">/data/loki/active_index</span></span><br><span class="line">    <span class="attr">build_per_tenant_index:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">cache_location:</span> <span class="string">/data/loki/cache</span> </span><br><span class="line">    <span class="attr">cache_ttl:</span> <span class="string">48h</span></span><br><span class="line">    <span class="attr">resync_interval:</span> <span class="string">5m</span></span><br><span class="line">    <span class="attr">query_ready_num_days:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">index_gateway_client:</span></span><br><span class="line">      <span class="attr">grpc_client_config:</span></span><br><span class="line">  <span class="attr">filesystem:</span></span><br><span class="line">    <span class="attr">directory:</span> <span class="string">/data/loki/chunks</span></span><br><span class="line"><span class="attr">chunk_store_config:</span></span><br><span class="line">  <span class="attr">chunk_cache_config:</span></span><br><span class="line">    <span class="attr">enable_fifocache:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">default_validity:</span> <span class="string">30s</span></span><br><span class="line">    <span class="attr">background:</span></span><br><span class="line">      <span class="attr">writeback_buffer:</span> <span class="number">10000</span></span><br><span class="line">    <span class="attr">redis:</span></span><br><span class="line">      <span class="attr">endpoint:</span> <span class="number">192.168</span><span class="number">.3</span><span class="number">.56</span><span class="string">:6379</span></span><br><span class="line">      <span class="attr">timeout:</span> <span class="string">1s</span></span><br><span class="line">      <span class="attr">expiration:</span> <span class="string">0s</span> </span><br><span class="line">      <span class="attr">db:</span> <span class="number">8</span> </span><br><span class="line">      <span class="attr">pool_size:</span> <span class="number">128</span> </span><br><span class="line">      <span class="attr">password:</span> <span class="string">1521Qyx6^</span></span><br><span class="line">      <span class="attr">tls_enabled:</span> <span class="literal">false</span></span><br><span class="line">      <span class="attr">tls_insecure_skip_verify:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">idle_timeout:</span> <span class="string">10s</span> </span><br><span class="line">      <span class="attr">max_connection_age:</span> <span class="string">8h</span></span><br><span class="line">    <span class="attr">fifocache:</span></span><br><span class="line">      <span class="attr">ttl:</span> <span class="string">1h</span></span><br><span class="line">      <span class="attr">validity:</span> <span class="string">30m0s</span></span><br><span class="line">      <span class="attr">max_size_items:</span> <span class="number">2000</span></span><br><span class="line">      <span class="attr">max_size_bytes:</span> <span class="string">500MB</span></span><br><span class="line">  <span class="attr">write_dedupe_cache_config:</span></span><br><span class="line">    <span class="attr">enable_fifocache:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">default_validity:</span> <span class="string">30s</span> </span><br><span class="line">    <span class="attr">background:</span></span><br><span class="line">      <span class="attr">writeback_buffer:</span> <span class="number">10000</span></span><br><span class="line">    <span class="attr">redis:</span></span><br><span class="line">      <span class="attr">endpoint:</span> <span class="number">127.0</span><span class="number">.0</span><span class="number">.1</span><span class="string">:6379</span></span><br><span class="line">      <span class="attr">timeout:</span> <span class="string">1s</span></span><br><span class="line">      <span class="attr">expiration:</span> <span class="string">0s</span> </span><br><span class="line">      <span class="attr">db:</span> <span class="number">7</span></span><br><span class="line">      <span class="attr">pool_size:</span> <span class="number">128</span> </span><br><span class="line">      <span class="attr">password:</span> <span class="string">1521Qyx6^</span></span><br><span class="line">      <span class="attr">tls_enabled:</span> <span class="literal">false</span></span><br><span class="line">      <span class="attr">tls_insecure_skip_verify:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">idle_timeout:</span> <span class="string">10s</span> </span><br><span class="line">      <span class="attr">max_connection_age:</span> <span class="string">8h</span></span><br><span class="line">    <span class="attr">fifocache:</span></span><br><span class="line">      <span class="attr">ttl:</span> <span class="string">1h</span></span><br><span class="line">      <span class="attr">validity:</span> <span class="string">30m0s</span></span><br><span class="line">      <span class="attr">max_size_items:</span> <span class="number">2000</span></span><br><span class="line">      <span class="attr">max_size_bytes:</span> <span class="string">500MB</span></span><br><span class="line">  <span class="attr">cache_lookups_older_than:</span> <span class="string">10s</span> </span><br><span class="line"><span class="comment"># 压缩碎片索引</span></span><br><span class="line"><span class="attr">compactor:</span></span><br><span class="line">  <span class="attr">shared_store:</span> <span class="string">filesystem</span></span><br><span class="line">  <span class="attr">shared_store_key_prefix:</span> <span class="string">index/</span></span><br><span class="line">  <span class="attr">working_directory:</span> <span class="string">/data/loki/compactor</span></span><br><span class="line">  <span class="attr">compaction_interval:</span> <span class="string">10m0s</span></span><br><span class="line">  <span class="attr">retention_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">retention_delete_delay:</span> <span class="string">2h0m0s</span></span><br><span class="line">  <span class="attr">retention_delete_worker_count:</span> <span class="number">150</span></span><br><span class="line">  <span class="attr">delete_request_cancel_period:</span> <span class="string">24h0m0s</span></span><br><span class="line">  <span class="attr">max_compaction_parallelism:</span> <span class="number">2</span></span><br><span class="line">  <span class="comment"># compactor_ring:</span></span><br><span class="line"><span class="attr">frontend_worker:</span></span><br><span class="line">  <span class="attr">match_max_concurrent:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">parallelism:</span> <span class="number">10</span></span><br><span class="line">  <span class="attr">dns_lookup_duration:</span> <span class="string">5s</span> </span><br><span class="line"><span class="comment"># runtime_config 这里没有配置任何信息</span></span><br><span class="line"><span class="comment"># runtime_config:</span></span><br><span class="line"><span class="attr">common:</span></span><br><span class="line">  <span class="attr">storage:</span></span><br><span class="line">    <span class="attr">filesystem:</span></span><br><span class="line">      <span class="attr">chunks_directory:</span> <span class="string">/data/loki/chunks</span></span><br><span class="line">      <span class="attr">fules_directory:</span> <span class="string">/data/loki/rulers</span></span><br><span class="line">  <span class="attr">replication_factor:</span> <span class="number">3</span></span><br><span class="line">  <span class="attr">persist_tokens:</span> <span class="literal">false</span></span><br><span class="line">  <span class="comment"># instance_interface_names: [&quot;en0&quot;,&quot;eth0&quot;,&quot;ens33&quot;]</span></span><br><span class="line"><span class="attr">analytics:</span></span><br><span class="line">  <span class="attr">reporting_enabled:</span> <span class="literal">false</span></span><br><span class="line"><span class="attr">limits_config:</span></span><br><span class="line">  <span class="attr">ingestion_rate_strategy:</span> <span class="string">global</span></span><br><span class="line">  <span class="attr">ingestion_rate_mb:</span> <span class="number">100</span></span><br><span class="line">  <span class="attr">ingestion_burst_size_mb:</span> <span class="number">18</span></span><br><span class="line">  <span class="attr">max_label_name_length:</span> <span class="number">2096</span></span><br><span class="line">  <span class="attr">max_label_value_length:</span> <span class="number">2048</span></span><br><span class="line">  <span class="attr">max_label_names_per_series:</span> <span class="number">60</span></span><br><span class="line">  <span class="attr">enforce_metric_name:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">max_entries_limit_per_query:</span> <span class="number">5000</span></span><br><span class="line">  <span class="attr">reject_old_samples:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">reject_old_samples_max_age:</span> <span class="string">168h</span></span><br><span class="line">  <span class="attr">creation_grace_period:</span> <span class="string">20m0s</span></span><br><span class="line">  <span class="attr">max_global_streams_per_user:</span> <span class="number">5000</span></span><br><span class="line">  <span class="attr">unordered_writes:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">max_chunks_per_query:</span> <span class="number">200000</span></span><br><span class="line">  <span class="attr">max_query_length:</span> <span class="string">721h</span></span><br><span class="line">  <span class="attr">max_query_parallelism:</span> <span class="number">64</span> </span><br><span class="line">  <span class="attr">max_query_series:</span> <span class="number">700</span></span><br><span class="line">  <span class="attr">cardinality_limit:</span> <span class="number">100000</span></span><br><span class="line">  <span class="attr">max_streams_matchers_per_query:</span> <span class="number">1000</span> </span><br><span class="line">  <span class="attr">max_concurrent_tail_requests:</span> <span class="number">10</span> </span><br><span class="line">  <span class="attr">ruler_evaluation_delay_duration:</span> <span class="string">3s</span> </span><br><span class="line">  <span class="attr">ruler_max_rules_per_rule_group:</span> <span class="number">0</span></span><br><span class="line">  <span class="attr">ruler_max_rule_groups_per_tenant:</span> <span class="number">0</span></span><br><span class="line">  <span class="attr">retention_period:</span> <span class="string">700h</span></span><br><span class="line">  <span class="attr">per_tenant_override_period:</span> <span class="string">20s</span> </span><br><span class="line">  <span class="attr">max_cache_freshness_per_query:</span> <span class="string">2m0s</span></span><br><span class="line">  <span class="attr">max_queriers_per_tenant:</span> <span class="number">0</span></span><br><span class="line">  <span class="attr">per_stream_rate_limit:</span> <span class="string">6MB</span></span><br><span class="line">  <span class="attr">per_stream_rate_limit_burst:</span> <span class="string">50MB</span></span><br><span class="line">  <span class="attr">max_query_lookback:</span> <span class="number">0</span></span><br><span class="line">  <span class="attr">ruler_remote_write_disabled:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">min_sharding_lookback:</span> <span class="string">0s</span></span><br><span class="line">  <span class="attr">split_queries_by_interval:</span> <span class="string">10m0s</span></span><br><span class="line">  <span class="attr">max_line_size:</span> <span class="string">30mb</span></span><br><span class="line">  <span class="attr">max_line_size_truncate:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">max_streams_per_user:</span> <span class="number">0</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># memberlist_conig模块配置gossip用于在分发服务器、摄取器和查询器之间发现和连接。</span></span><br><span class="line"><span class="comment"># 所有三个组件的配置都是唯一的，以确保单个共享环。</span></span><br><span class="line"><span class="comment"># 至少定义了1个join_members配置后，将自动为分发服务器、摄取器和ring 配置memberlist类型的kvstore</span></span><br><span class="line"><span class="attr">memberlist:</span></span><br><span class="line">  <span class="attr">randomize_node_name:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">stream_timeout:</span> <span class="string">5s</span> </span><br><span class="line">  <span class="attr">retransmit_factor:</span> <span class="number">4</span></span><br><span class="line">  <span class="attr">join_members:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">&#x27;loki-memberlist&#x27;</span></span><br><span class="line">  <span class="attr">abort_if_cluster_join_fails:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">advertise_addr:</span> <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span></span><br><span class="line">  <span class="attr">advertise_port:</span> <span class="number">7946</span></span><br><span class="line">  <span class="attr">bind_addr:</span> [<span class="string">&quot;0.0.0.0&quot;</span>]</span><br><span class="line">  <span class="attr">bind_port:</span> <span class="number">7946</span></span><br><span class="line">  <span class="attr">compression_enabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">dead_node_reclaim_time:</span> <span class="string">30s</span></span><br><span class="line">  <span class="attr">gossip_interval:</span> <span class="string">100ms</span></span><br><span class="line">  <span class="attr">gossip_nodes:</span> <span class="number">3</span></span><br><span class="line">  <span class="attr">gossip_to_dead_nodes_time:</span> <span class="number">3</span></span><br><span class="line">  <span class="comment"># join:</span></span><br><span class="line">  <span class="attr">leave_timeout:</span> <span class="string">15s</span></span><br><span class="line">  <span class="attr">left_ingesters_timeout:</span> <span class="string">3m0s</span> </span><br><span class="line">  <span class="attr">max_join_backoff:</span> <span class="string">1m0s</span></span><br><span class="line">  <span class="attr">max_join_retries:</span> <span class="number">5</span></span><br><span class="line">  <span class="attr">message_history_buffer_bytes:</span> <span class="number">4096</span></span><br><span class="line">  <span class="attr">min_join_backoff:</span> <span class="string">2s</span></span><br><span class="line">  <span class="comment"># node_name: miyamoto</span></span><br><span class="line">  <span class="attr">packet_dial_timeout:</span> <span class="string">5s</span></span><br><span class="line">  <span class="attr">packet_write_timeout:</span> <span class="string">5s</span> </span><br><span class="line">  <span class="attr">pull_push_interval:</span> <span class="string">100ms</span></span><br><span class="line">  <span class="attr">rejoin_interval:</span> <span class="string">10s</span></span><br><span class="line">  <span class="attr">tls_enabled:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">tls_insecure_skip_verify:</span> <span class="literal">true</span></span><br><span class="line"><span class="attr">schema_config:</span></span><br><span class="line">  <span class="attr">configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">from:</span> <span class="string">&quot;2020-10-24&quot;</span></span><br><span class="line">    <span class="attr">index:</span></span><br><span class="line">      <span class="attr">period:</span> <span class="string">24h</span></span><br><span class="line">      <span class="attr">prefix:</span> <span class="string">index_</span></span><br><span class="line">    <span class="attr">object_store:</span> <span class="string">filesystem</span></span><br><span class="line">    <span class="attr">schema:</span> <span class="string">v11</span></span><br><span class="line">    <span class="attr">store:</span> <span class="string">boltdb-shipper</span></span><br><span class="line">    <span class="attr">chunks:</span></span><br><span class="line">      <span class="attr">period:</span> <span class="string">168h</span></span><br><span class="line">    <span class="attr">row_shards:</span> <span class="number">32</span></span><br><span class="line"><span class="attr">table_manager:</span></span><br><span class="line">  <span class="attr">retention_deletes_enabled:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">retention_period:</span> <span class="string">0s</span></span><br><span class="line">  <span class="attr">throughput_updates_disabled:</span> <span class="literal">false</span></span><br><span class="line">  <span class="attr">poll_interval:</span> <span class="string">3m0s</span></span><br><span class="line">  <span class="attr">creation_grace_period:</span> <span class="string">20m</span></span><br><span class="line">  <span class="attr">index_tables_provisioning:</span></span><br><span class="line">    <span class="attr">provisioned_write_throughput:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">provisioned_read_throughput:</span> <span class="number">500</span></span><br><span class="line">    <span class="attr">inactive_write_throughput:</span> <span class="number">4</span></span><br><span class="line">    <span class="attr">inactive_read_throughput:</span> <span class="number">300</span></span><br><span class="line">    <span class="attr">inactive_write_scale_lastn:</span> <span class="number">50</span> </span><br><span class="line">    <span class="attr">enable_inactive_throughput_on_demand_mode:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">enable_ondemand_throughput_mode:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">inactive_read_scale_lastn:</span> <span class="number">10</span> </span><br><span class="line">    <span class="attr">write_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="comment"># role_arn:</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">inactive_write_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">read_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">inactive_read_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">  <span class="attr">chunk_tables_provisioning:</span></span><br><span class="line">    <span class="attr">enable_inactive_throughput_on_demand_mode:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">enable_ondemand_throughput_mode:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">provisioned_write_throughput:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">provisioned_read_throughput:</span> <span class="number">300</span></span><br><span class="line">    <span class="attr">inactive_write_throughput:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">inactive_write_scale_lastn:</span> <span class="number">50</span></span><br><span class="line">    <span class="attr">inactive_read_throughput:</span> <span class="number">300</span></span><br><span class="line">    <span class="attr">inactive_read_scale_lastn:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">write_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">inactive_write_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">read_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line">    <span class="attr">inactive_read_scale:</span></span><br><span class="line">      <span class="attr">enabled:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">target:</span> <span class="number">80</span></span><br><span class="line">      <span class="attr">out_cooldown:</span> <span class="number">1800</span></span><br><span class="line">      <span class="attr">min_capacity:</span> <span class="number">3000</span></span><br><span class="line">      <span class="attr">max_capacity:</span> <span class="number">6000</span></span><br><span class="line">      <span class="attr">in_cooldown:</span> <span class="number">1800</span></span><br><span class="line"><span class="attr">tracing:</span></span><br><span class="line">  <span class="attr">enabled:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
+
+<p><code>注意</code>：</p>
+<ul>
+<li><code>ingester.lifecycler.ring.replication_factor</code> 的值在单实例的情况下为1</li>
+<li><code>ingester.lifecycler.min_ready_duration</code>的值为15s，在启动后默认会显示15秒将状态变为<code>ready</code><br><img src="/images/1710231105-8808690f2f3ab3a15589e7ed487e0ffb.png" alt="在这里插入图片描述"></li>
+<li><code>memberlist.node_name</code>的值可以不用设置，默认是当前主机的名称</li>
+<li><code>memberlist.join_members</code>是一个列表，在有多个实例的情况下需要添加各个节点的<code>主机名/IP地址</code>。在<code>k8s</code>里面可以设置成一个service绑定到<code>StatefulSets</code></li>
+<li><code>query_range.results_cache.cache.enable_fifocache</code>建议设置为false，我这里设置成了true</li>
+<li><code>instance_interface_names</code>是一个列表，默认的为<code>[&quot;en0&quot;,&quot;eth0&quot;]</code>，可以根据需要设置对应的网卡名称，一般不需要进行特殊设置。</li>
+</ul>
+<h4 id="1-3-1-2-创建configmap"><a href="#1-3-1-2-创建configmap" class="headerlink" title="1.3.1.2 创建configmap"></a>1.3.1.2 创建configmap</h4><p>将上面的内容写入到一个文件——&gt;<code>loki-all.yaml</code>，把它作为一个<code>configmap</code>写入<code>k8s</code>集群。可以使用如下命令创建：</p>
+<blockquote>
+<p>kubectl create configmap –from-file .&#x2F;loki-all.yaml loki-all</p>
+</blockquote>
+<p>可以通过命令查看到已经创建好的<code>configmap</code>，具体操作详见下图<br><img src="/images/1710231105-9dd332128a8caca053226057979b4175.png" alt="在这里插入图片描述"></p>
+<h4 id="1-3-1-3-创建持久化存储"><a href="#1-3-1-3-创建持久化存储" class="headerlink" title="1.3.1.3 创建持久化存储"></a>1.3.1.3 创建持久化存储</h4><p>在k8s里面我们的数据是需要进行持久化的。<code>Loki</code>收集起来的日志信息对于业务来说是至关重要的，因此需要在容器重启的时候日志能够保留下来。<br>那么就需要用到<code>pv、pvc</code>，后端存储可以使用<code>nfs、glusterfs、hostPath、azureDisk、cephfs</code>等20种支持类型，这里因为没有对应的环境就采用了<code>hostPath</code>方式。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">PersistentVolume</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">hostPath:</span></span><br><span class="line">    <span class="attr">path:</span> <span class="string">/glusterfs/loki</span></span><br><span class="line">    <span class="attr">type:</span> <span class="string">DirectoryOrCreate</span></span><br><span class="line">  <span class="attr">capacity:</span></span><br><span class="line">    <span class="attr">storage:</span> <span class="string">1Gi</span></span><br><span class="line">  <span class="attr">accessModes:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">ReadWriteMany</span></span><br><span class="line"><span class="meta">---</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">PersistentVolumeClaim</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">accessModes:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="string">ReadWriteMany</span></span><br><span class="line">  <span class="attr">resources:</span></span><br><span class="line">    <span class="attr">requests:</span></span><br><span class="line">      <span class="attr">storage:</span> <span class="string">1Gi</span></span><br><span class="line">  <span class="attr">volumeName:</span> <span class="string">loki</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="1-3-1-4-创建应用"><a href="#1-3-1-4-创建应用" class="headerlink" title="1.3.1.4 创建应用"></a>1.3.1.4 创建应用</h4><p>准备好k8s的<code>StatefulSet</code>部署文件后就可以直接在集群里面创建应用了。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">StatefulSet</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">labels:</span></span><br><span class="line">    <span class="attr">app:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">podManagementPolicy:</span> <span class="string">OrderedReady</span></span><br><span class="line">  <span class="attr">replicas:</span> <span class="number">1</span></span><br><span class="line">  <span class="attr">selector:</span></span><br><span class="line">    <span class="attr">matchLabels:</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">template:</span></span><br><span class="line">    <span class="attr">metadata:</span></span><br><span class="line">      <span class="attr">annotations:</span></span><br><span class="line">        <span class="attr">prometheus.io/port:</span> <span class="string">http-metrics</span></span><br><span class="line">        <span class="attr">prometheus.io/scrape:</span> <span class="string">&quot;true&quot;</span></span><br><span class="line">      <span class="attr">labels:</span></span><br><span class="line">        <span class="attr">app:</span> <span class="string">loki</span></span><br><span class="line">    <span class="attr">spec:</span></span><br><span class="line">      <span class="attr">containers:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">args:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">-config.file=/etc/loki/loki-all.yaml</span></span><br><span class="line">        <span class="attr">image:</span> <span class="string">grafana/loki:2.5.0</span></span><br><span class="line">        <span class="attr">imagePullPolicy:</span> <span class="string">IfNotPresent</span></span><br><span class="line">        <span class="attr">livenessProbe:</span></span><br><span class="line">          <span class="attr">failureThreshold:</span> <span class="number">3</span></span><br><span class="line">          <span class="attr">httpGet:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/ready</span></span><br><span class="line">            <span class="attr">port:</span> <span class="string">http-metrics</span></span><br><span class="line">            <span class="attr">scheme:</span> <span class="string">HTTP</span></span><br><span class="line">          <span class="attr">initialDelaySeconds:</span> <span class="number">45</span></span><br><span class="line">          <span class="attr">periodSeconds:</span> <span class="number">10</span></span><br><span class="line">          <span class="attr">successThreshold:</span> <span class="number">1</span></span><br><span class="line">          <span class="attr">timeoutSeconds:</span> <span class="number">1</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">        <span class="attr">ports:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">3100</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">http-metrics</span></span><br><span class="line">          <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">9095</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">grpc</span></span><br><span class="line">          <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">7946</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">memberlist-port</span></span><br><span class="line">          <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">        <span class="attr">readinessProbe:</span></span><br><span class="line">          <span class="attr">failureThreshold:</span> <span class="number">3</span></span><br><span class="line">          <span class="attr">httpGet:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/ready</span></span><br><span class="line">            <span class="attr">port:</span> <span class="string">http-metrics</span></span><br><span class="line">            <span class="attr">scheme:</span> <span class="string">HTTP</span></span><br><span class="line">          <span class="attr">initialDelaySeconds:</span> <span class="number">45</span></span><br><span class="line">          <span class="attr">periodSeconds:</span> <span class="number">10</span></span><br><span class="line">          <span class="attr">successThreshold:</span> <span class="number">1</span></span><br><span class="line">          <span class="attr">timeoutSeconds:</span> <span class="number">1</span></span><br><span class="line">        <span class="attr">resources:</span></span><br><span class="line">          <span class="attr">requests:</span></span><br><span class="line">            <span class="attr">cpu:</span> <span class="string">500m</span></span><br><span class="line">            <span class="attr">memory:</span> <span class="string">500Mi</span></span><br><span class="line">          <span class="attr">limits:</span></span><br><span class="line">            <span class="attr">cpu:</span> <span class="string">500m</span></span><br><span class="line">            <span class="attr">memory:</span> <span class="string">500Mi</span></span><br><span class="line">        <span class="attr">securityContext:</span></span><br><span class="line">          <span class="attr">readOnlyRootFilesystem:</span> <span class="literal">true</span></span><br><span class="line">        <span class="attr">volumeMounts:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">mountPath:</span> <span class="string">/etc/loki</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">mountPath:</span> <span class="string">/data</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">storage</span></span><br><span class="line">      <span class="attr">restartPolicy:</span> <span class="string">Always</span></span><br><span class="line">      <span class="attr">securityContext:</span></span><br><span class="line">        <span class="attr">fsGroup:</span> <span class="number">10001</span></span><br><span class="line">        <span class="attr">runAsGroup:</span> <span class="number">10001</span></span><br><span class="line">        <span class="attr">runAsNonRoot:</span> <span class="literal">true</span></span><br><span class="line">        <span class="attr">runAsUser:</span> <span class="number">10001</span></span><br><span class="line">      <span class="attr">serviceAccount:</span> <span class="string">loki</span></span><br><span class="line">      <span class="attr">serviceAccountName:</span> <span class="string">loki</span></span><br><span class="line">      <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">emptyDir:</span> &#123;&#125;</span><br><span class="line">        <span class="attr">name:</span> <span class="string">tmp</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">        <span class="attr">configMap:</span></span><br><span class="line">          <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">persistentVolumeClaim:</span></span><br><span class="line">          <span class="attr">claimName:</span> <span class="string">loki</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">storage</span></span><br><span class="line"><span class="meta">---</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">loki-memberlist</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">ports:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">loki-memberlist</span></span><br><span class="line">      <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">      <span class="attr">port:</span> <span class="number">7946</span></span><br><span class="line">      <span class="attr">targetPort:</span> <span class="number">7946</span></span><br><span class="line">  <span class="attr">selector:</span></span><br><span class="line">    <span class="attr">kubepi.org/name:</span> <span class="string">loki</span></span><br><span class="line"><span class="meta">---</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">ports:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">loki</span></span><br><span class="line">      <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">      <span class="attr">port:</span> <span class="number">3100</span></span><br><span class="line">      <span class="attr">targetPort:</span> <span class="number">3100</span></span><br><span class="line">  <span class="attr">selector:</span></span><br><span class="line">    <span class="attr">kubepi.org/name:</span> <span class="string">loki</span></span><br></pre></td></tr></table></figure>
+
+<p>在上面的配置文件中我添加了一些<code>pod</code>级别的安全策略，这些安全策略还有集群级别的<code>PodSecurityPolicy</code>，防止因为漏洞的原因造成集群的整个崩溃</p>
+<h4 id="1-3-1-5-验证部署结果"><a href="#1-3-1-5-验证部署结果" class="headerlink" title="1.3.1.5 验证部署结果"></a>1.3.1.5 验证部署结果</h4><p><img src="/images/1710231105-8b054274339565a2578b7c700339bb88.png" alt="在这里插入图片描述"></p>
+<p>当看到上面的<code>Running</code>状态时可以通过API的方式看一下分发器是不是正常工作，当显示<code>Active</code>时正常才会正常分发日志流到收集器（<code>ingester</code>）<br><img src="/images/1710231105-12187d4e6077955d40170a37ec3eb721.png" alt="在这里插入图片描述"></p>
+<h3 id="1-3-2-裸机部署"><a href="#1-3-2-裸机部署" class="headerlink" title="1.3.2 裸机部署"></a>1.3.2 裸机部署</h3><p>将<code>loki</code>放到系统的<code>/bin/</code>目录下，准备<code>grafana-loki.service</code>控制文件重载系统服务列表</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[Unit]</span><br><span class="line">Description=Grafana Loki Log Ingester</span><br><span class="line">Documentation=https://grafana.com/logs/</span><br><span class="line">After=network-online.target</span><br><span class="line"></span><br><span class="line">[Service]</span><br><span class="line">ExecStart=/bin/loki --config.file /etc/loki/loki-all.yaml</span><br><span class="line">ExecReload=/bin/kill -s HUP $MAINPID</span><br><span class="line">ExecStop=/bin/kill -s TERM $MAINPID</span><br><span class="line"></span><br><span class="line">[Install]</span><br><span class="line">WantedBy=multi-user.target</span><br></pre></td></tr></table></figure>
+
+<p>重载系统列表命令，可以直接系统自动管理服务：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">systemctl daemon-reload</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动服务</span></span><br><span class="line">systemctl start grafana-loki</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">停止服务</span></span><br><span class="line">systemctl stop grafana-loki</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重载应用</span></span><br><span class="line">systemctl reload grafana-loki</span><br></pre></td></tr></table></figure>
+
+<h2 id="1-4-Promtail部署"><a href="#1-4-Promtail部署" class="headerlink" title="1.4 Promtail部署"></a>1.4 Promtail部署</h2><p>部署客户端收集日志时也需要创建一个配置文件，按照上面创建服务端的步骤创建。不同的是需要把日志内容<code>push</code>到服务端</p>
+<h3 id="1-4-1-k8s部署"><a href="#1-4-1-k8s部署" class="headerlink" title="1.4.1 k8s部署"></a>1.4.1 k8s部署</h3><h4 id="1-4-1-1-创建配置文件"><a href="#1-4-1-1-创建配置文件" class="headerlink" title="1.4.1.1 创建配置文件"></a>1.4.1.1 创建配置文件</h4><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">server:</span></span><br><span class="line">  <span class="attr">log_level:</span> <span class="string">info</span></span><br><span class="line">  <span class="attr">http_listen_port:</span> <span class="number">3101</span></span><br><span class="line"><span class="attr">clients:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">http://loki:3100/loki/api/v1/push</span></span><br><span class="line"><span class="attr">positions:</span></span><br><span class="line">  <span class="attr">filename:</span> <span class="string">/run/promtail/positions.yaml</span></span><br><span class="line"><span class="attr">scrape_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">job_name:</span> <span class="string">kubernetes-pods</span></span><br><span class="line">    <span class="attr">pipeline_stages:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">cri:</span> &#123;&#125;</span><br><span class="line">    <span class="attr">kubernetes_sd_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">role:</span> <span class="string">pod</span></span><br><span class="line">    <span class="attr">relabel_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">source_labels:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_controller_name</span></span><br><span class="line">        <span class="attr">regex:</span> <span class="string">([0-9a-z-.]+?)(-[0-9a-f]&#123;8,10&#125;)?</span></span><br><span class="line">        <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">__tmp_controller_name</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">source_labels:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_app_kubernetes_io_name</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_app</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__tmp_controller_name</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_name</span></span><br><span class="line">        <span class="attr">regex:</span> <span class="string">^;*([^;]+)(;.*)?$</span></span><br><span class="line">        <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">app</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">source_labels:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_app_kubernetes_io_instance</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_release</span></span><br><span class="line">        <span class="attr">regex:</span> <span class="string">^;*([^;]+)(;.*)?$</span></span><br><span class="line">        <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">instance</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">source_labels:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_app_kubernetes_io_component</span></span><br><span class="line">          <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_label_component</span></span><br><span class="line">        <span class="attr">regex:</span> <span class="string">^;*([^;]+)(;.*)?$</span></span><br><span class="line">        <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">component</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_node_name</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">node_name</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_namespace</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">namespace</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">replacement:</span> <span class="string">$1</span></span><br><span class="line">        <span class="attr">separator:</span> <span class="string">/</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">namespace</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">app</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">job</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_name</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">pod</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_container_name</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">container</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">replacement:</span> <span class="string">/var/log/pods/*$1/*.log</span></span><br><span class="line">        <span class="attr">separator:</span> <span class="string">/</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_uid</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_container_name</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">__path__</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">        <span class="attr">regex:</span> <span class="literal">true</span><span class="string">/(.*)</span></span><br><span class="line">        <span class="attr">replacement:</span> <span class="string">/var/log/pods/*$1/*.log</span></span><br><span class="line">        <span class="attr">separator:</span> <span class="string">/</span></span><br><span class="line">        <span class="attr">source_labels:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_annotationpresent_kubernetes_io_config_hash</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_annotation_kubernetes_io_config_hash</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">__meta_kubernetes_pod_container_name</span></span><br><span class="line">        <span class="attr">target_label:</span> <span class="string">__path__</span></span><br></pre></td></tr></table></figure>
+
+<p>用上面的内容创建一个configMap，方法同上</p>
+<h4 id="1-4-1-2-创建DaemonSet文件"><a href="#1-4-1-2-创建DaemonSet文件" class="headerlink" title="1.4.1.2 创建DaemonSet文件"></a>1.4.1.2 创建DaemonSet文件</h4><p><code>Promtail</code>是一个无状态应用不需要进行持久化存储只需要部署到集群里面就可以了，还是同样的准备<code>DaemonSets</code>创建文件。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">kind:</span> <span class="string">DaemonSet</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">promtail</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line">  <span class="attr">labels:</span></span><br><span class="line">    <span class="attr">app.kubernetes.io/instance:</span> <span class="string">promtail</span></span><br><span class="line">    <span class="attr">app.kubernetes.io/name:</span> <span class="string">promtail</span></span><br><span class="line">    <span class="attr">app.kubernetes.io/version:</span> <span class="number">2.5</span><span class="number">.0</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">selector:</span></span><br><span class="line">    <span class="attr">matchLabels:</span></span><br><span class="line">      <span class="attr">app.kubernetes.io/instance:</span> <span class="string">promtail</span></span><br><span class="line">      <span class="attr">app.kubernetes.io/name:</span> <span class="string">promtail</span></span><br><span class="line">  <span class="attr">template:</span></span><br><span class="line">    <span class="attr">metadata:</span></span><br><span class="line">      <span class="attr">labels:</span></span><br><span class="line">        <span class="attr">app.kubernetes.io/instance:</span> <span class="string">promtail</span></span><br><span class="line">        <span class="attr">app.kubernetes.io/name:</span> <span class="string">promtail</span></span><br><span class="line">    <span class="attr">spec:</span></span><br><span class="line">      <span class="attr">volumes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">          <span class="attr">configMap:</span></span><br><span class="line">            <span class="attr">name:</span> <span class="string">promtail</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">run</span></span><br><span class="line">          <span class="attr">hostPath:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/run/promtail</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">containers</span></span><br><span class="line">          <span class="attr">hostPath:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/var/lib/docker/containers</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">pods</span></span><br><span class="line">          <span class="attr">hostPath:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/var/log/pods</span></span><br><span class="line">      <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">promtail</span></span><br><span class="line">          <span class="attr">image:</span> <span class="string">docker.io/grafana/promtail:2.3.0</span></span><br><span class="line">          <span class="attr">args:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="string">&#x27;-config.file=/etc/promtail/promtail.yaml&#x27;</span></span><br><span class="line">          <span class="attr">ports:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">http-metrics</span></span><br><span class="line">              <span class="attr">containerPort:</span> <span class="number">3101</span></span><br><span class="line">              <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">          <span class="attr">env:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">HOSTNAME</span></span><br><span class="line">              <span class="attr">valueFrom:</span></span><br><span class="line">                <span class="attr">fieldRef:</span></span><br><span class="line">                  <span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line">                  <span class="attr">fieldPath:</span> <span class="string">spec.nodeName</span></span><br><span class="line">          <span class="attr">volumeMounts:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">config</span></span><br><span class="line">              <span class="attr">mountPath:</span> <span class="string">/etc/promtail</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">run</span></span><br><span class="line">              <span class="attr">mountPath:</span> <span class="string">/run/promtail</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">containers</span></span><br><span class="line">              <span class="attr">readOnly:</span> <span class="literal">true</span></span><br><span class="line">              <span class="attr">mountPath:</span> <span class="string">/var/lib/docker/containers</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">pods</span></span><br><span class="line">              <span class="attr">readOnly:</span> <span class="literal">true</span></span><br><span class="line">              <span class="attr">mountPath:</span> <span class="string">/var/log/pods</span></span><br><span class="line">          <span class="attr">readinessProbe:</span></span><br><span class="line">            <span class="attr">httpGet:</span></span><br><span class="line">              <span class="attr">path:</span> <span class="string">/ready</span></span><br><span class="line">              <span class="attr">port:</span> <span class="string">http-metrics</span></span><br><span class="line">              <span class="attr">scheme:</span> <span class="string">HTTP</span></span><br><span class="line">            <span class="attr">initialDelaySeconds:</span> <span class="number">10</span></span><br><span class="line">            <span class="attr">timeoutSeconds:</span> <span class="number">1</span></span><br><span class="line">            <span class="attr">periodSeconds:</span> <span class="number">10</span></span><br><span class="line">            <span class="attr">successThreshold:</span> <span class="number">1</span></span><br><span class="line">            <span class="attr">failureThreshold:</span> <span class="number">5</span></span><br><span class="line">          <span class="attr">imagePullPolicy:</span> <span class="string">IfNotPresent</span></span><br><span class="line">          <span class="attr">securityContext:</span></span><br><span class="line">            <span class="attr">capabilities:</span></span><br><span class="line">              <span class="attr">drop:</span></span><br><span class="line">                <span class="bullet">-</span> <span class="string">ALL</span></span><br><span class="line">            <span class="attr">readOnlyRootFilesystem:</span> <span class="literal">false</span></span><br><span class="line">            <span class="attr">allowPrivilegeEscalation:</span> <span class="literal">false</span></span><br><span class="line">      <span class="attr">restartPolicy:</span> <span class="string">Always</span></span><br><span class="line">      <span class="attr">serviceAccountName:</span> <span class="string">promtail</span></span><br><span class="line">      <span class="attr">serviceAccount:</span> <span class="string">promtail</span></span><br><span class="line">      <span class="attr">tolerations:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">key:</span> <span class="string">node-role.kubernetes.io/master</span></span><br><span class="line">          <span class="attr">operator:</span> <span class="string">Exists</span></span><br><span class="line">          <span class="attr">effect:</span> <span class="string">NoSchedule</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">key:</span> <span class="string">node-role.kubernetes.io/control-plane</span></span><br><span class="line">          <span class="attr">operator:</span> <span class="string">Exists</span></span><br><span class="line">          <span class="attr">effect:</span> <span class="string">NoSchedule</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="1-4-1-3-创建promtail应用"><a href="#1-4-1-3-创建promtail应用" class="headerlink" title="1.4.1.3 创建promtail应用"></a>1.4.1.3 创建promtail应用</h4><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -f promtail.yaml</span><br></pre></td></tr></table></figure>
+
+<p>使用上面这个命令创建后就可以看到服务已经创建好了。接下来就是在<code>Grafana</code>里面添加<code>DataSource</code>查看数据了。<br><img src="/images/1710231105-c2a99b4a7075887536cd3a47cbf8a334.png" alt="在这里插入图片描述"></p>
+<h3 id="1-4-2-裸机部署"><a href="#1-4-2-裸机部署" class="headerlink" title="1.4.2 裸机部署"></a>1.4.2 裸机部署</h3><p>如果是裸机部署的情况下，需要对上面的配置文件做一下稍微的改动，更改<code>clients</code>的地址就可以，文件存放到<code>/etc/loki/</code>下，例如改成：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">clients:</span><br><span class="line">  - url: http://ipaddress:port/loki/api/v1/push</span><br></pre></td></tr></table></figure>
+
+<p>添加系统开机启动配置，service配置文件存放位置<code>/usr/lib/systemd/system/loki-promtail.service</code>内容如下</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[Unit]</span><br><span class="line">Description=Grafana Loki Log Ingester</span><br><span class="line">Documentation=https://grafana.com/logs/</span><br><span class="line">After=network-online.target</span><br><span class="line"></span><br><span class="line">[Service]</span><br><span class="line">ExecStart=/bin/promtail --config.file /etc/loki/loki-promtail.yaml</span><br><span class="line">ExecReload=/bin/kill -s HUP $MAINPID</span><br><span class="line">ExecStop=/bin/kill -s TERM $MAINPID</span><br><span class="line"></span><br><span class="line">[Install]</span><br><span class="line">WantedBy=multi-user.target</span><br></pre></td></tr></table></figure>
+
+<p>启动方式同上面服务端部署内容</p>
+<h2 id="1-5-数据源"><a href="#1-5-数据源" class="headerlink" title="1.5 数据源"></a>1.5 数据源</h2><p>添加数据源，具体步骤: <code>Grafana-&gt;Setting-&gt;DataSources-&gt;AddDataSource-&gt;Loki</code></p>
+<p><code>注意</code>：<code>http</code>的<code>URL</code>地址，应用、服务部署在哪个<code>namespace</code>下，就需要指定它的<code>FQDN</code>地址，它的格式是<code>ServiceName.namespace</code>。如果默认在<code>default</code>下、创建的端口号是3100，就需要填写为<a href="http://loki:3100，这里为什么不写IP地址而写成服务的名字，是因为在k8s集群里面有个dns服务器会自动解析这个地址。">http://loki:3100，这里为什么不写IP地址而写成服务的名字，是因为在k8s集群里面有个dns服务器会自动解析这个地址。</a><br><img src="/images/1710231105-d2c84ee2d12d042cf335d1b87c64fad8.png" alt="在这里插入图片描述"></p>
+<p>查找日志信息<br><img src="/images/1710231105-6942365c0fd33faaccb388502905453c.png" alt="在这里插入图片描述"></p>
+<h2 id="1-6-其他客户端配置"><a href="#1-6-其他客户端配置" class="headerlink" title="1.6 其他客户端配置"></a>1.6 其他客户端配置</h2><h3 id="1-6-1-Logstash作为日志收集客户端"><a href="#1-6-1-Logstash作为日志收集客户端" class="headerlink" title="1.6.1 Logstash作为日志收集客户端"></a>1.6.1 Logstash作为日志收集客户端</h3><p>在启动<code>Logstash</code>后我们需要安装一个插件，可以通过这个命令安装<code>loki</code>的输出插件，安装完成之后可以在<code>logstash</code>的<code>output</code>中添加信息。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bin/logstash-plugin install logstash-output-loki</span><br></pre></td></tr></table></figure>
+
+<p>添加配置进行测试<br>完整的<code>logstash</code>配置信息，可以参考官网给出的内容<code>LogstashConfigFile</code></p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line">output &#123;</span><br><span class="line">  loki &#123;</span><br><span class="line">    [url =&gt; &quot;&quot; | default = none | required=true]</span><br><span class="line">    [tenant_id =&gt; string | default = nil | required=false]</span><br><span class="line">    [message_field =&gt; string | default = &quot;message&quot; | required=false]</span><br><span class="line">    [include_fields =&gt; array | default = [] | required=false]</span><br><span class="line">    [batch_wait =&gt; number | default = 1(s) | required=false]</span><br><span class="line">    [batch_size =&gt; number | default = 102400(bytes) | required=false]</span><br><span class="line">    [min_delay =&gt; number | default = 1(s) | required=false]</span><br><span class="line">    [max_delay =&gt; number | default = 300(s) | required=false]</span><br><span class="line">    [retries =&gt; number | default = 10 | required=false]</span><br><span class="line">    [username =&gt; string | default = nil | required=false]</span><br><span class="line">    [password =&gt; secret | default = nil | required=false]</span><br><span class="line">    [cert =&gt; path | default = nil | required=false]</span><br><span class="line">    [key =&gt; path | default = nil| required=false]</span><br><span class="line">    [ca_cert =&gt; path | default = nil | required=false]</span><br><span class="line">    [insecure_skip_verify =&gt; boolean | default = false | required=false]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>或者采用<code>logstash</code>的<code>http</code>输出模块，配置如下：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">output &#123;</span><br><span class="line">    http &#123;</span><br><span class="line">        format =&gt; &quot;json&quot;</span><br><span class="line">        http_method =&gt; &quot;post&quot;</span><br><span class="line">        content_type =&gt; &quot;application/json&quot;</span><br><span class="line">        connect_timeout =&gt; 10</span><br><span class="line">        url =&gt; &quot;http://loki:3100/loki/api/v1/push&quot;</span><br><span class="line">        message =&gt; &#x27;&quot;message&quot;:&quot;%&#123;message&#125;&quot;&#125;&#x27;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="1-7-Helm安装"><a href="#1-7-Helm安装" class="headerlink" title="1.7 Helm安装"></a>1.7 Helm安装</h2><p>如果想简便安装的话，可以采用<code>helm</code>来安装。<code>helm</code>将所有的安装步骤都进行了封装，简化了安装步骤。</p>
+<p>对于想详细了解k8s的人来说，helm不太适合。因为它封装后自动执行，<code>k8s</code>管理员不知道各组件之间是如何依赖的，可能会造成误区。</p>
+<p>废话不多说，下面开始helm安装：</p>
+<ul>
+<li>添加repo源<br><code>helm repo add grafana https://grafana.github.io/helm-charts</code></li>
+<li>更新源<br><code>helm repo update</code></li>
+<li>部署<br>默认配置<br><code>helm upgrade --install loki grafana/loki-simple-scalable</code><br>自定义namespace<br><code>helm upgrade --install loki --namespace=loki grafana/loki-simple-scalable</code><br>自定义配置信息<br><code>helm upgrade --install loki grafana/loki-simple-scalable --set &quot;key1=val1,key2=val2,...&quot;</code></li>
+</ul>
+<h2 id="1-8-故障解决方案"><a href="#1-8-故障解决方案" class="headerlink" title="1.8 故障解决方案"></a>1.8 故障解决方案</h2><h3 id="1-8-1-502-BadGateWay"><a href="#1-8-1-502-BadGateWay" class="headerlink" title="1.8.1 502 BadGateWay"></a>1.8.1 502 BadGateWay</h3><p>loki的地址填写不正确<br>在k8s里面，地址填写错误造成了502。检查一下loki的地址是否是以下内容：</p>
+<blockquote>
+<p><a target="_blank" rel="noopener" href="http://lokiservicename/">http://LokiServiceName</a><br><a target="_blank" rel="noopener" href="http://lokiservicename.namespace/">http://LokiServiceName.namespace</a><br><a target="_blank" rel="noopener" href="http://lokiservicename.namespace/">http://LokiServiceName.namespace</a>:ServicePort</p>
+</blockquote>
+<p><code>grafana和loki</code>在不同的节点上，检查一下节点间网络通信状态、防火墙策略</p>
+<h3 id="1-8-2-Ingester-not-ready-instance-xx-9095-in-state-JOINING"><a href="#1-8-2-Ingester-not-ready-instance-xx-9095-in-state-JOINING" class="headerlink" title="1.8.2 Ingester not ready: instance xx:9095 in state JOINING"></a>1.8.2 Ingester not ready: instance xx:9095 in state JOINING</h3><p>耐心等待一会，因为是<code>allInOne</code>模式程序启动需要一定的时间。</p>
+<h3 id="1-8-3-too-many-unhealthy-instances-in-the-ring"><a href="#1-8-3-too-many-unhealthy-instances-in-the-ring" class="headerlink" title="1.8.3 too many unhealthy instances in the ring"></a>1.8.3 too many unhealthy instances in the ring</h3><p>将<code>ingester.lifecycler.replication_factor</code>改为1，是因为这个设置不正确造成的。这个在启动的时候会设置为多个复制源，但当前只部署了一个所以在查看<code>label</code>的时候提示这个</p>
+<h3 id="1-8-4-Data-source-connected"><a href="#1-8-4-Data-source-connected" class="headerlink" title="1.8.4 Data source connected"></a>1.8.4 Data source connected</h3><p>Data source connected, but no labels received. Verify that Loki and Promtail is configured properly</p>
+<ul>
+<li><code>promtail</code>无法将收集到的日志发送给loki，许可检查一下<code>promtail</code>的输出是不是正常</li>
+<li><code>promtail</code>在loki还没有准备就绪的时候把日志发送过来了，但loki没有接收到。如果需要重新接收日志，需要删除positions.yaml文件，具体路径可以用find查找一下位置</li>
+<li><code>promtail</code>忽略了目标日志文件或者配置文件错误造成的无法正常启动</li>
+<li><code>promtail</code>无法在指定的位置发现日志文件</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/12/%E6%97%A5%E5%BF%97%E7%9B%91%E6%8E%A7%E4%B9%8BLoki%E5%B7%A5%E5%85%B7/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Logs/" rel="tag">Logs</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/12/Linux%E6%9F%A5%E8%AF%A2top5-cpu%E4%BD%BF%E7%94%A8%E7%8E%87%E7%9A%84%E8%BF%9B%E7%A8%8B%E5%B9%B6%E5%B0%86%E5%85%B6%E7%9B%B8%E5%85%B3%E4%BF%A1%E6%81%AF%E6%8E%A8%E9%80%81%E8%87%B3pushgateway/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Linux查询top5 cpu使用率的进程并将其相关信息推送至pushgateway</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
