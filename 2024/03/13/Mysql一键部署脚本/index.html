@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Mysql一键部署脚本 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Scripts-Mysql一键部署脚本"
+  class="article article-type-Scripts"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Mysql一键部署脚本
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/13/Mysql%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2%E8%84%9A%E6%9C%AC/" class="article-date">
+  <time datetime="2024-03-13T02:12:00.000Z" itemprop="datePublished">2024-03-13</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Scripts/">Scripts</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">22 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br><span class="line">482</span><br><span class="line">483</span><br><span class="line">484</span><br><span class="line">485</span><br><span class="line">486</span><br><span class="line">487</span><br><span class="line">488</span><br><span class="line">489</span><br><span class="line">490</span><br><span class="line">491</span><br><span class="line">492</span><br><span class="line">493</span><br><span class="line">494</span><br><span class="line">495</span><br><span class="line">496</span><br><span class="line">497</span><br><span class="line">498</span><br><span class="line">499</span><br><span class="line">500</span><br><span class="line">501</span><br><span class="line">502</span><br><span class="line">503</span><br><span class="line">504</span><br><span class="line">505</span><br><span class="line">506</span><br><span class="line">507</span><br><span class="line">508</span><br><span class="line">509</span><br><span class="line">510</span><br><span class="line">511</span><br><span class="line">512</span><br><span class="line">513</span><br><span class="line">514</span><br><span class="line">515</span><br><span class="line">516</span><br><span class="line">517</span><br><span class="line">518</span><br><span class="line">519</span><br><span class="line">520</span><br><span class="line">521</span><br><span class="line">522</span><br><span class="line">523</span><br><span class="line">524</span><br><span class="line">525</span><br><span class="line">526</span><br><span class="line">527</span><br><span class="line">528</span><br><span class="line">529</span><br><span class="line">530</span><br><span class="line">531</span><br><span class="line">532</span><br><span class="line">533</span><br><span class="line">534</span><br><span class="line">535</span><br><span class="line">536</span><br><span class="line">537</span><br><span class="line">538</span><br><span class="line">539</span><br><span class="line">540</span><br><span class="line">541</span><br><span class="line">542</span><br><span class="line">543</span><br><span class="line">544</span><br><span class="line">545</span><br><span class="line">546</span><br><span class="line">547</span><br><span class="line">548</span><br><span class="line">549</span><br><span class="line">550</span><br><span class="line">551</span><br><span class="line">552</span><br><span class="line">553</span><br><span class="line">554</span><br><span class="line">555</span><br><span class="line">556</span><br><span class="line">557</span><br><span class="line">558</span><br><span class="line">559</span><br><span class="line">560</span><br><span class="line">561</span><br><span class="line">562</span><br><span class="line">563</span><br><span class="line">564</span><br><span class="line">565</span><br><span class="line">566</span><br><span class="line">567</span><br><span class="line">568</span><br><span class="line">569</span><br><span class="line">570</span><br><span class="line">571</span><br><span class="line">572</span><br><span class="line">573</span><br><span class="line">574</span><br><span class="line">575</span><br><span class="line">576</span><br><span class="line">577</span><br><span class="line">578</span><br><span class="line">579</span><br><span class="line">580</span><br><span class="line">581</span><br><span class="line">582</span><br><span class="line">583</span><br><span class="line">584</span><br><span class="line">585</span><br><span class="line">586</span><br><span class="line">587</span><br><span class="line">588</span><br><span class="line">589</span><br><span class="line">590</span><br><span class="line">591</span><br><span class="line">592</span><br><span class="line">593</span><br></pre></td><td class="code"><pre><span class="line">#!<span class="regexp">/bin/</span>bash</span><br><span class="line">#<span class="comment">/*</span></span><br><span class="line"><span class="comment">#* @Author: xxx</span></span><br><span class="line"><span class="comment">#* @Date:   2023-05-10 10:20:37</span></span><br><span class="line"><span class="comment">#* @Last Modified by:   xxx</span></span><br><span class="line"><span class="comment">#* @Last Modified time: 2023-10-27 11:09:24</span></span><br><span class="line"><span class="comment">#*/</span></span><br><span class="line">################必读,非常重要##############</span><br><span class="line">#提前创建<span class="variable constant_">FTP</span>服务器将对应安装包、对应的my.<span class="property">cnf</span>、serice-example.<span class="property">sh</span>、<span class="variable constant_">PERCONA_TOOLKIT</span>包和<span class="variable constant_">PERCONA_XTRABACKUP</span>包</span><br><span class="line">#提前配置yum源，脚本执行时需要安装备份包，理论上脚本使用<span class="title class_">CentOS</span>,其余的操作系统使用需要调整。</span><br><span class="line">#数据库初始化时使用的不区分大小参数</span><br><span class="line">#脚本创建监控账号，在创建双主架构由于存在监控账号会报错&amp;更改密码会导致密码更换。</span><br><span class="line">#脚本对数据库并发做了优化，是基于作者(<span class="title class_">Nortrom</span>)理解自己做的，有不同看法欢迎优化修正。</span><br><span class="line">#innodb_buffer_cache大约占用物理内存总大小<span class="number">50</span>%多，并且更改了默认内存管理方式，使用jemalloc方式，此方式有一定的适用范围。</span><br><span class="line">#安装包统一下载*.<span class="property">tar</span>.<span class="property">xz</span>的包，例如:mysql-<span class="number">8.0</span><span class="number">.32</span>-linux-glibc2<span class="number">.12</span>-x86_64.<span class="property">tar</span>.<span class="property">xz</span>。</span><br><span class="line">#由于脚本测试环境空间紧张，全脚本未进行空间提前检查，务必包含根目录和安装部署空间分别大约5G空间。</span><br><span class="line">#<span class="number">2023</span>-<span class="number">10</span>-<span class="number">27</span>的新增慢日志查询功能存在若发生重启则部分日志会写到配置文件中默认的路径。</span><br><span class="line">###################################################################</span><br><span class="line">#新装失败清理命令参考:</span><br><span class="line">#rm -rf $INSTALL_BASE_DIR</span><br><span class="line">#rm -rf $INSTALL_REAL_DIR</span><br><span class="line">#rm -f /tmp/$MYSQL_INSTALL_PACKAGE</span><br><span class="line">#rm -rf /tmp/$MYSQL_VERSION</span><br><span class="line">#sh new_deploy8032ln.<span class="property">sh</span> --install_base_dir=<span class="regexp">/usr/</span>local/mysql1 --install_real_dir=<span class="regexp">/data/my</span>sql1 --instance_name=lh --port=<span class="number">3200</span> --server_id=<span class="number">9</span> --replica_ip=<span class="number">192.168</span><span class="number">.56</span><span class="number">.106</span> --source_ip=<span class="number">192.168</span><span class="number">.56</span><span class="number">.106</span> --source_port=<span class="number">3400</span></span><br><span class="line">######脚本变量######</span><br><span class="line"><span class="variable constant_">JOB_NAME</span>=<span class="string">&quot;deploy8034ln.sh&quot;</span></span><br><span class="line"><span class="variable constant_">CONFIGURE_FILE</span>=<span class="string">&quot;my8034.cnf&quot;</span></span><br><span class="line"><span class="variable constant_">MYSQL_VERSION</span>=<span class="string">&quot;mysql-8.0.34-linux-glibc2.12-x86_64&quot;</span></span><br><span class="line"><span class="variable constant_">MYSQL_INSTALL_PACKAGE</span>=$MYSQL_VERSION<span class="string">&quot;.tar.xz&quot;</span></span><br><span class="line"><span class="variable constant_">FTP_ADRESS</span>=<span class="string">&quot;10.250.4.102&quot;</span></span><br><span class="line"><span class="variable constant_">FTP_USER</span>=<span class="string">&quot;ftpuser&quot;</span></span><br><span class="line"><span class="variable constant_">FTP_PASSWORD</span>=<span class="string">&quot;E2wx3Q#A4r@v&quot;</span></span><br><span class="line"><span class="variable constant_">SLOWQUERY_COLLECT_FIAG</span>=<span class="number">0</span></span><br><span class="line"><span class="variable constant_">ADD_FLAG</span>=<span class="number">0</span></span><br><span class="line">#若<span class="variable constant_">MONITOR_USER</span>为空即<span class="variable constant_">MONITOR_USER</span>=<span class="string">&quot;&quot;</span>,将不执行创建监控账号以及配置防火墙。</span><br><span class="line"><span class="variable constant_">MONITOR_USER</span>=<span class="string">&quot;bmc&quot;</span></span><br><span class="line"><span class="variable constant_">MONITOR_PASSWD</span>=<span class="string">&quot;46&#125;_7e71D2&quot;</span></span><br><span class="line"><span class="variable constant_">MONITOR_USER_IP</span>=<span class="string">&quot;10.250.5.%&quot;</span></span><br><span class="line"><span class="variable constant_">MONITOR_IP_IPTABLES</span>=<span class="string">&quot;10.250.5.0/24&quot;</span></span><br><span class="line">#若<span class="variable constant_">REPLICA_IP</span>为空，则不执行主从账号创建</span><br><span class="line"><span class="variable constant_">MASTER_USER</span>=<span class="string">&quot;repluser&quot;</span></span><br><span class="line"><span class="variable constant_">MASTER_PASSWORD</span>=<span class="string">&quot;Repluser@123&quot;</span></span><br><span class="line">#####传参变量########</span><br><span class="line"><span class="variable constant_">INSTALL_BASE_DIR</span>=<span class="string">&quot;/usr/local/mysql&quot;</span></span><br><span class="line"><span class="variable constant_">INSTALL_REAL_DIR</span>=<span class="string">&quot;/usr/local/mysql&quot;</span></span><br><span class="line"><span class="variable constant_">INSTANCE_NAME</span>=<span class="string">&quot;example&quot;</span></span><br><span class="line"><span class="variable constant_">PASSWORD</span>=<span class="string">&quot;example&quot;</span></span><br><span class="line"><span class="variable constant_">PORT</span>=<span class="string">&quot;3306&quot;</span></span><br><span class="line"><span class="variable constant_">SERVER_ID</span>=<span class="string">&quot;1&quot;</span></span><br><span class="line"><span class="variable constant_">REPLICA_IP</span>=<span class="string">&quot;&quot;</span></span><br><span class="line"><span class="variable constant_">SOURCE_IP</span>=<span class="string">&quot;&quot;</span></span><br><span class="line"><span class="variable constant_">SOURCE_PORT</span>=<span class="string">&quot;&quot;</span></span><br><span class="line"><span class="variable constant_">EXPIRE_DAY</span>=<span class="string">&quot;30&quot;</span></span><br><span class="line"><span class="variable constant_">LOCAL_IPADDR</span>=<span class="string">&quot;&quot;</span></span><br><span class="line"><span class="variable constant_">ADD_MYSQL_DIR</span>=<span class="string">&quot;/usr/local/mysql&quot;</span></span><br><span class="line">####非<span class="title class_">Centos</span>源的包####</span><br><span class="line"><span class="variable constant_">PERCONA_TOOLKIT</span>=<span class="string">&quot;percona-toolkit-3.5.5-1.el7.x86_64.rpm&quot;</span></span><br><span class="line"><span class="variable constant_">PERCONA_XTRABACKUP</span>=<span class="string">&quot;percona-xtrabackup-80-8.0.34-29.1.el7.x86_64.rpm&quot;</span></span><br><span class="line">########slow_query_database######</span><br><span class="line"><span class="variable constant_">SLOWQUERY_DB_HOST</span>=<span class="string">&quot;10.250.5.145&quot;</span></span><br><span class="line"><span class="variable constant_">SLOWQUERY_DB_PORT</span>=<span class="string">&quot;3400&quot;</span></span><br><span class="line"><span class="variable constant_">SLOWQUERY_DB_USER</span>=<span class="string">&quot;slowlog_user&quot;</span></span><br><span class="line"><span class="variable constant_">SLOWQUERY_DB_PASSWORD</span>=<span class="string">&quot;LcYbZ#1ovNGb&quot;</span></span><br><span class="line"><span class="variable constant_">SLOWQUERY_DB_DATABASE</span>=<span class="string">&quot;archery&quot;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">usage ()&#123;</span><br><span class="line"></span><br><span class="line">        echo <span class="string">&quot;Usage:sh 基本名字.sh [OPTION]</span></span><br><span class="line"><span class="string">        --install_base_dir=xxxxx        指定数据库的安装路径,默认：/usr/local/mysql</span></span><br><span class="line"><span class="string">        --install_real_dir=xxxxx        指定数据库的实际软件安装路径,例如：/data/mysql</span></span><br><span class="line"><span class="string">        --instance_name=xxxx            指定实例名称</span></span><br><span class="line"><span class="string">        --port=xxxx                     指定端口名称,默认3306</span></span><br><span class="line"><span class="string">        --server_id=xxxx                指定server_id,默认1</span></span><br><span class="line"><span class="string">        --local_ipaddr=xxx.xxx.xxx.xxx  慢日志收集的标志位，若输入则执行慢日志收集，输入时请保证IP地址信息准确以便查询</span></span><br><span class="line"><span class="string">        --expire_day=xxxx               配置慢日志收集自动删除清除慢日志，默认30天</span></span><br><span class="line"><span class="string">        --replica_ip=xxx.xxx.xxx.xxx    指定备库IP地址,可选,务必保证正确</span></span><br><span class="line"><span class="string">        --source_ip=xxx.xxx.xxx.xxx     指定主库IP地址,可选,务必保证正确</span></span><br><span class="line"><span class="string">        --source_port=xxxx              指定主库端口号,可选,务必保证正确</span></span><br><span class="line"><span class="string">        --add_mysql_dir=xxxxxx          新增mysql实例,指定mysql程序路径&quot;</span></span><br><span class="line">        exit</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [ ! -n <span class="string">&quot;$INSTANCE_NAME&quot;</span> ]</span><br><span class="line">then </span><br><span class="line">        echo -e <span class="string">&quot;\nWarning :At last specify instance name\n&quot;</span></span><br><span class="line">        usage</span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">#生成随机密码</span><br><span class="line"></span><br><span class="line"><span class="keyword">function</span> <span class="title function_">random_pass</span>(<span class="params"></span>)&#123;</span><br><span class="line">        <span class="variable constant_">MATRIX</span>=<span class="string">&quot;0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz&quot;</span></span><br><span class="line">        <span class="variable constant_">LENGTH</span>=<span class="string">&quot;16&quot;</span></span><br><span class="line"><span class="keyword">while</span> [ <span class="string">&quot;$&#123;n:=1&#125;&quot;</span> -le <span class="string">&quot;$LENGTH&quot;</span> ]</span><br><span class="line"><span class="keyword">do</span></span><br><span class="line">        <span class="variable constant_">PASS</span>=<span class="string">&quot;$PASS$&#123;MATRIX:$(($RANDOM%$&#123;#MATRIX&#125;)):1&#125;&quot;</span></span><br><span class="line">        <span class="keyword">let</span> n+=<span class="number">1</span></span><br><span class="line">done</span><br><span class="line">        <span class="variable constant_">PASSWORD</span>=$PASS<span class="string">&quot;#9Mt&quot;</span></span><br><span class="line">&#125;</span><br><span class="line">random_pass</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#解析传入参数</span><br><span class="line"><span class="keyword">for</span> arg <span class="keyword">do</span></span><br><span class="line">        #echo $arg</span><br><span class="line">        val=<span class="string">`echo &quot;$arg&quot; | sed -e &#x27;s;^--[^=]*=;;&#x27;`</span></span><br><span class="line">        optname=<span class="string">`echo &quot;$arg&quot; | sed -e &#x27;s/^\(--[^=]*\)=.*$/\1/&#x27;`</span></span><br><span class="line">        <span class="keyword">case</span> <span class="string">&quot;$arg&quot;</span> <span class="keyword">in</span></span><br><span class="line">                --install_base_dir=*) <span class="variable constant_">INSTALL_BASE_DIR</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">                --install_real_dir=*) <span class="variable constant_">INSTALL_REAL_DIR</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">                --instance_name=*) <span class="variable constant_">INSTANCE_NAME</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">                --port=*) <span class="variable constant_">PORT</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">				--server_id=*) <span class="variable constant_">SERVER_ID</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">				--replica_ip=*) <span class="variable constant_">REPLICA_IP</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">				--source_ip=*) <span class="variable constant_">SOURCE_IP</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">				--source_port=*) <span class="variable constant_">SOURCE_PORT</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">                --add_mysql_dir=*) <span class="variable constant_">ADD_MYSQL_DIR</span>=<span class="string">&quot;$val&quot;</span> <span class="variable constant_">ADD_FLAG</span>=<span class="number">1</span> ;;</span><br><span class="line">                --expire_day=*) <span class="variable constant_">EXPIRE_DAY</span>=<span class="string">&quot;$val&quot;</span> ;;</span><br><span class="line">                --local_ipaddr=*) <span class="variable constant_">LOCAL_IPADDR</span>=<span class="string">&quot;$val&quot;</span> <span class="variable constant_">SLOWQUERY_COLLECT_FIAG</span>=<span class="number">1</span> ;;</span><br><span class="line">        esac</span><br><span class="line">        done</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [ <span class="string">&quot;$INSTANCE_NAME&quot;</span> == <span class="string">&quot;example&quot;</span> ]</span><br><span class="line">then</span><br><span class="line">        echo -e <span class="string">&quot;Warning:Please specify instance name\n&quot;</span></span><br><span class="line">        usage</span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">yum -y install lsof</span><br><span class="line">lsof -<span class="attr">i</span>:$PORT</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [ $? -eq <span class="number">0</span> ]</span><br><span class="line">then</span><br><span class="line">        echo -e <span class="string">&quot;\nWarning: the port $PORT has been used,please specify \n&quot;</span></span><br><span class="line">        usage</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#create user <span class="keyword">if</span> not exists</span><br><span class="line">user=mysql</span><br><span class="line">egrep <span class="string">&quot;^$user&quot;</span> /etc/passwd &gt;&amp; <span class="regexp">/dev/</span><span class="literal">null</span></span><br><span class="line"><span class="keyword">if</span> [ $? -ne <span class="number">0</span> ]</span><br><span class="line">then</span><br><span class="line">    useradd $user</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">#安装部分包，使用<span class="title class_">CentOS</span>。</span><br><span class="line">#yum -y install gcc gcc-c++ perl make kernel-headers kernel-devel</span><br><span class="line">#yum -y install perl-<span class="title class_">Data</span>-<span class="title class_">Dumper</span></span><br><span class="line">yum -y install libaio </span><br><span class="line">yum -y install bc screen</span><br><span class="line">#yum -y install jemalloc</span><br><span class="line">#下载定制包</span><br><span class="line">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD <span class="attr">ftp</span>:<span class="comment">//$FTP_ADRESS:/$PERCONA_TOOLKIT -P ./</span></span><br><span class="line">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD <span class="attr">ftp</span>:<span class="comment">//$FTP_ADRESS:/$PERCONA_XTRABACKUP -P ./</span></span><br><span class="line"></span><br><span class="line">#检查定制包及安装</span><br><span class="line"><span class="keyword">if</span> [ -e ./$PERCONA_TOOLKIT ]</span><br><span class="line">then  </span><br><span class="line">        yum -y install $PERCONA_TOOLKIT</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">        echo <span class="string">&quot;$PERCONA_TOOLKIT not exist,please check&quot;</span></span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [ -e ./$PERCONA_XTRABACKUP ]</span><br><span class="line">then  </span><br><span class="line">        yum -y install $PERCONA_XTRABACKUP</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">        echo <span class="string">&quot;$PERCONA_XTRABACKUP not exist,please check&quot;</span></span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#判断文件是否存在/usr/bin/jemalloc.<span class="property">sh</span>####</span><br><span class="line">#<span class="keyword">function</span> <span class="title function_">ld_preload</span>(<span class="params"></span>) &#123;</span><br><span class="line">#<span class="variable constant_">FILE_JEMALLOC</span>=<span class="regexp">/usr/</span>bin/jemalloc.<span class="property">sh</span></span><br><span class="line">#<span class="keyword">if</span> [[ -e <span class="string">&quot;$FILE_JEMALLOC&quot;</span> ]]</span><br><span class="line">#then</span><br><span class="line">#        cd /usr/bin/</span><br><span class="line">#        source jemalloc.<span class="property">sh</span></span><br><span class="line">#		echo -e <span class="string">&quot;\n source\n&quot;</span></span><br><span class="line">#<span class="keyword">else</span></span><br><span class="line">#        echo -e <span class="string">&quot;\n不存在\n&quot;</span></span><br><span class="line">#		exit</span><br><span class="line">#fi</span><br><span class="line"></span><br><span class="line">#判断env|grep <span class="variable constant_">LD_PRELOAD</span>是否有输出</span><br><span class="line">#env|grep <span class="variable constant_">LD_PRELOAD</span></span><br><span class="line">#<span class="keyword">if</span> [ $? -eq <span class="number">0</span> ]</span><br><span class="line">#then</span><br><span class="line">#        echo -e <span class="string">&quot;\nenv is Ok!\n&quot;</span></span><br><span class="line">#<span class="keyword">else</span></span><br><span class="line">#        echo -e <span class="string">&quot;\nWarning: env-LD_PRELOAD is not exit,please check!\n&quot;</span></span><br><span class="line">#		exit</span><br><span class="line">#fi</span><br><span class="line">#a=<span class="string">`env|grep LD_PRELOAD`</span></span><br><span class="line">#<span class="variable constant_">LD_PRELOAD</span>=$&#123;a#*=&#125;</span><br><span class="line">#&#125;</span><br><span class="line">#ld_preload</span><br><span class="line">#echo $LD_PRELOAD</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">######并发参数优化######</span><br><span class="line"><span class="variable constant_">MEMTOTAL</span>=<span class="string">`awk &#x27;($1 == &quot;MemTotal:&quot;)&#123;print $2/1048576&#125;&#x27; /proc/meminfo`</span></span><br><span class="line"><span class="variable constant_">INT_MEMTOTAL</span>=<span class="string">`echo &quot;scale=0;$MEMTOTAL/1&quot;|bc -l`</span></span><br><span class="line"><span class="variable constant_">BUFFERCACHE</span>=<span class="string">`echo &quot;scale=0;$INT_MEMTOTAL/2/1&quot;|bc -l`</span></span><br><span class="line"><span class="keyword">if</span> [ $BUFFERCACHE -le <span class="number">2</span> ]</span><br><span class="line">then</span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">1</span></span><br><span class="line">elif [ $BUFFERCACHE -gt <span class="number">2</span> ] &amp;&amp; [ $BUFFERCACHE -le <span class="number">4</span> ]</span><br><span class="line">then</span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">2</span></span><br><span class="line">elif [ $BUFFERCACHE -gt <span class="number">4</span> ] &amp;&amp; [ $BUFFERCACHE -le <span class="number">8</span> ]</span><br><span class="line">then</span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">4</span></span><br><span class="line">elif [ $BUFFERCACHE -gt <span class="number">8</span> ] &amp;&amp; [ $BUFFERCACHE -le <span class="number">16</span> ]</span><br><span class="line">then</span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">8</span></span><br><span class="line">elif [ $BUFFERCACHE -gt <span class="number">16</span> ] &amp;&amp; [ $BUFFERCACHE -le <span class="number">32</span> ]</span><br><span class="line">then</span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">16</span></span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">        <span class="variable constant_">INSTANCES_NUM</span>=<span class="number">32</span></span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line">#######<span class="variable constant_">COU</span>核心 并发能力#########</span><br><span class="line"><span class="variable constant_">CPUNUM</span>=<span class="string">`grep -c &quot;model name&quot; /proc/cpuinfo`</span></span><br><span class="line"><span class="variable constant_">CPU_N</span>=<span class="string">`echo &quot;scale=0;$CPUNUM/3/1&quot;|bc -l`</span></span><br><span class="line"><span class="keyword">if</span> [ $CPUNUM -gt <span class="number">4</span> ]</span><br><span class="line">then</span><br><span class="line">        </span><br><span class="line">		<span class="variable constant_">READ_NUM</span>=$((<span class="number">2</span>*<span class="variable constant_">CPU_N</span>))</span><br><span class="line">		<span class="variable constant_">WRITE_NUM</span>=$((<span class="variable constant_">CPUNUM</span>-<span class="variable constant_">READ_NUM</span>))</span><br><span class="line"><span class="keyword">else</span></span><br><span class="line">        <span class="variable constant_">READ_NUM</span>=<span class="number">4</span></span><br><span class="line">		<span class="variable constant_">WRITE_NUM</span>=<span class="number">4</span></span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">##########<span class="variable constant_">BUFFER_POOL_SIZE</span>###########</span><br><span class="line"><span class="variable constant_">MEM_TOTAL</span>=<span class="string">`awk &#x27;($1 == &quot;MemTotal:&quot;)&#123;print $2&#125;&#x27; /proc/meminfo`</span></span><br><span class="line"><span class="variable constant_">MULTI</span>=<span class="string">`echo &quot;scale=0;$MEM_TOTAL/(2*128*1024*$INSTANCES_NUM)&quot;|bc -l`</span></span><br><span class="line"><span class="variable constant_">BUFFER_SIZE</span>=$[($MULTI+<span class="number">1</span>)*(<span class="number">128</span>*<span class="number">1024</span>*$INSTANCES_NUM)*<span class="number">1024</span>]</span><br><span class="line"></span><br><span class="line">#新搭建mysql**************************************************</span><br><span class="line"></span><br><span class="line"><span class="title function_">install_new_mysql</span>(<span class="params"></span>) &#123;</span><br><span class="line">#检查路径&amp;&amp;判断文件</span><br><span class="line"><span class="keyword">if</span> [  -d <span class="string">&quot;$INSTALL_BASE_DIR&quot;</span> ]</span><br><span class="line">then</span><br><span class="line">        echo <span class="string">&quot;$INSTALL_BASE_DIR has already exist,can&#x27;t deploy mysql&quot;</span></span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [  -d <span class="string">&quot;$INSTALL_REAL_DIR&quot;</span> ]</span><br><span class="line">then</span><br><span class="line">        echo<span class="string">&quot; $INSTALL_REAL_DIR has already exist,can&#x27;t deploy mysql&quot;</span></span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> [ -e /tmp/$MYSQL_INSTALL_PACKAGE ]</span><br><span class="line">then</span><br><span class="line">        echo <span class="string">&quot;already exist /tmp/$MYSQL_INSTALL_PACKAGE,pleas check&quot;</span></span><br><span class="line">        exit</span><br><span class="line">fi</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">#创建路径</span><br><span class="line">mkdir -p $INSTALL_REAL_DIR  &amp;&amp; ln -s $INSTALL_REAL_DIR $INSTALL_BASE_DIR</span><br><span class="line">#mkdir -p $INSTALL_REAL_DIR</span><br><span class="line"></span><br><span class="line">#部署mysql文件,包括my.<span class="property">cnf</span>和serice-example文件</span><br><span class="line"></span><br><span class="line">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD <span class="attr">ftp</span>:<span class="comment">//$FTP_ADRESS:/$MYSQL_INSTALL_PACKAGE -P /tmp/</span></span><br><span class="line">tar -xvf /tmp/$MYSQL_INSTALL_PACKAGE -C  /tmp</span><br><span class="line">mv /tmp/$MYSQL_VERSION<span class="comment">/* $INSTALL_REAL_DIR</span></span><br><span class="line"><span class="comment">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD ftp://$FTP_ADRESS:/service-example.sh -P /$INSTALL_REAL_DIR</span></span><br><span class="line"><span class="comment">chown -R mysql:mysql $INSTALL_REAL_DIR</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#创建实例数据文件路径</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -d &quot;$INSTALL_BASE_DIR/data/$INSTANCE_NAME&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        echo &quot;$INSTALL_BASE_DIR/data/$INSTANCE_NAME has already exist.&quot;</span></span><br><span class="line"><span class="comment">        exit</span></span><br><span class="line"><span class="comment">else </span></span><br><span class="line"><span class="comment">        mkdir $INSTALL_BASE_DIR/data  </span></span><br><span class="line"><span class="comment">        mkdir $INSTALL_BASE_DIR/data/$INSTANCE_NAME</span></span><br><span class="line"><span class="comment">		$INSTALL_BASE_DIR/bin/mysqld --initialize-insecure --user=mysql --basedir=$INSTALL_BASE_DIR --datadir=$INSTALL_BASE_DIR/data/$INSTANCE_NAME --lower-case-table-names=1</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">        chown -R mysql:mysql $INSTALL_BASE_DIR/data/$INSTANCE_NAME</span></span><br><span class="line"><span class="comment">#拷贝个配置文件</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">mkdir $INSTALL_BASE_DIR/data/$INSTANCE_NAME/logfile</span></span><br><span class="line"><span class="comment">touch $INSTALL_BASE_DIR/data/$INSTANCE_NAME/logfile/mysql.err</span></span><br><span class="line"><span class="comment">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD ftp://$FTP_ADRESS:/$CONFIGURE_FILE -P $INSTALL_BASE_DIR/data</span></span><br><span class="line"><span class="comment">mv $INSTALL_BASE_DIR/data/$CONFIGURE_FILE $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#生成service-example文件内容。</span></span><br><span class="line"><span class="comment">if [ -e &quot;$INSTALL_BASE_DIR/service-example.sh&quot; ]</span></span><br><span class="line"><span class="comment">then  </span></span><br><span class="line"><span class="comment">        cp $INSTALL_BASE_DIR/service-example.sh $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo &quot;$INSTALL_BASE_DIR/service-example.sh not exist,please check&quot;</span></span><br><span class="line"><span class="comment">        exit</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">chown -R mysql:mysql $INSTALL_REAL_DIR</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#替换bin中脚本内容</span></span><br><span class="line"><span class="comment">sed -i &quot;s;cmdPath=.*;cmdPath=\&quot;$INSTALL_BASE_DIR/bin\&quot;;g&quot; $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;myPath=.*;myPath=\&quot;$INSTALL_BASE_DIR/data/$INSTANCE_NAME\&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;softPath=.*;softPath=\&quot;$INSTALL_BASE_DIR\&quot;;g&quot; $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;socketfile=.*;socketfile=\&quot;/tmp/mysql-$INSTANCE_NAME.sock\&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">chown mysql:mysql $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">chmod 750 $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#修改配置文件路径信息、端口信息</span></span><br><span class="line"><span class="comment">sed -i &quot;s/example/$INSTANCE_NAME/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s;/usr/local/mysql/;$INSTALL_BASE_DIR/;g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s;^port.*;port            = $PORT;g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#替换内存管理机制#</span></span><br><span class="line"><span class="comment">#sed -i &quot;s;LD_PRELOAD;$LD_PRELOAD;g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改读写参数和缓存池数量#</span></span><br><span class="line"><span class="comment">sed -i &quot;s/READ_NUM/$READ_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s/WRITE_NUM/$WRITE_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s/INSTANCES_NUM/$INSTANCES_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改server_id##</span></span><br><span class="line"><span class="comment">sed -i &quot;s/SERVER_NUM/$SERVER_ID/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改buffer_size###</span></span><br><span class="line"><span class="comment">sed -i &quot;s/BUFFER_SIZE/$BUFFER_SIZE/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#启动mysql实例</span></span><br><span class="line"><span class="comment">#HOST_NAME=`echo $HOSTNAME`</span></span><br><span class="line"><span class="comment">cd $INSTALL_BASE_DIR/bin &amp;&amp; sh service-$INSTANCE_NAME.sh start</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">while [ ! -e /tmp/mysql-$INSTANCE_NAME.sock ]</span></span><br><span class="line"><span class="comment">do</span></span><br><span class="line"><span class="comment">    echo &quot;starting mysql...&quot; </span></span><br><span class="line"><span class="comment">    sleep 1</span></span><br><span class="line"><span class="comment">done</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;select user,host from mysql.user;&quot;</span></span><br><span class="line"><span class="comment">#$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; IDENTIFIED BY &#x27;$MONITOR_PASSWD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">#$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;GRANT PROCESS, SHOW DATABASES, REPLICATION CLIENT, SHOW VIEW ON *.* TO &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">if [ -n &quot;$REPLICA_IP&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;repluser&#x27;@&#x27;$REPLICA_IP&#x27; identified by &#x27;Repluser@123&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;grant replication slave on *.* to &#x27;repluser&#x27;@&#x27;$REPLICA_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;$repluser&#x27;@&#x27;$REPLICA_IP&#x27; password expire never;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">		#iptables -I INPUT -s $REPLICA_IP -p tcp --dport $PORT -j ACCEPT</span></span><br><span class="line"><span class="comment">        firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;$REPLICA_IP&quot; port protocol=&quot;tcp&quot; port=&quot;$PORT&quot; accept&quot;</span></span><br><span class="line"><span class="comment">        firewall-cmd --reload</span></span><br><span class="line"><span class="comment">        #iptables-save</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo -e &quot;\n There is not replica node\n&quot;</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -n &quot;$SOURCE_IP&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -h$SOURCE_IP -urepluser -pRepluser@123 -P$SOURCE_PORT -e &quot;select 1 from dual;&quot; &gt;/dev/null 2&gt;&amp;1</span></span><br><span class="line"><span class="comment">		if [ $? == 0 ] ;then</span></span><br><span class="line"><span class="comment">		    $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;CHANGE MASTER TO MASTER_HOST=&#x27;$SOURCE_IP&#x27;,MASTER_USER=&#x27;$MASTER_USER&#x27;,MASTER_PASSWORD=&#x27;$MASTER_PASSWORD&#x27;,MASTER_PORT=$SOURCE_PORT,master_auto_position=1;&quot;</span></span><br><span class="line"><span class="comment">			$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;start slave;&quot;</span></span><br><span class="line"><span class="comment">			$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;show slave status\G;&quot;</span></span><br><span class="line"><span class="comment">		else</span></span><br><span class="line"><span class="comment">		    echo -e &quot;\nCan&#x27;t connect the source node!&quot;</span></span><br><span class="line"><span class="comment">			echo -e &quot;Manually run:CHANGE MASTER TO MASTER_HOST=&#x27;$SOURCE_IP&#x27;,MASTER_USER=$MASTER_USER,MASTER_PASSWORD=$MASTER_PASSWORD,MASTER_PORT=$SOURCE_PORT,master_auto_position=1;&quot;</span></span><br><span class="line"><span class="comment">			echo -e &quot;Manually run:start slave;\n&quot;</span></span><br><span class="line"><span class="comment">		fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo -e &quot;\n There is not source node\n&quot;</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -n &quot;$MONITOR_USER&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; IDENTIFIED BY &#x27;$MONITOR_PASSWD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;GRANT PROCESS, SHOW DATABASES, REPLICATION CLIENT, SHOW VIEW ON *.* TO &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; WITH MAX_USER_CONNECTIONS 3;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; password expire never;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        #搭配监控使用的</span></span><br><span class="line"><span class="comment">		#iptables -I INPUT -s $MONITOR_IP_IPTABLES -p tcp --dport $PORT -j ACCEPT</span></span><br><span class="line"><span class="comment">        firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;$MONITOR_IP_IPTABLES&quot; port protocol=&quot;tcp&quot; port=&quot;$PORT&quot; accept&quot;</span></span><br><span class="line"><span class="comment">        firewall-cmd --reload</span></span><br><span class="line"><span class="comment">        #iptables-save</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;select user,host from mysql.user;&quot;</span></span><br><span class="line"><span class="comment">$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;root&#x27;@&#x27;localhost&#x27; password expire never;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">$INSTALL_BASE_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;root&#x27;@&#x27;localhost&#x27; identified by &#x27;$PASSWORD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">sed -i &quot;s;my_pass=\&quot;\&quot;;my_pass=&quot;$PASSWORD&quot;;g&quot; $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#####配置慢日志收集功能########</span></span><br><span class="line"><span class="comment">if [ $SLOWQUERY_COLLECT_FIAG -eq 1 ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;my_port=\&quot;\&quot;;my_port=&quot;$PORT&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;local_ipaddr=\&quot;\&quot;;local_ipaddr=&quot;$LOCAL_IPADDR&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;expire_day=\&quot;\&quot;;expire_day=&quot;$EXPIRE_DAY&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;archery_db_host=\&quot;\&quot;;archery_db_host=&quot;$SLOWQUERY_DB_HOST&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;archery_db_port=\&quot;\&quot;;archery_db_port=&quot;$SLOWQUERY_DB_PORT&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;archery_db_user=\&quot;\&quot;;archery_db_user=&quot;$SLOWQUERY_DB_USER&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;archery_db_password=\&quot;\&quot;;archery_db_password=&quot;$SLOWQUERY_DB_PASSWORD&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        sed -i &quot;s;archery_db_database=\&quot;\&quot;;archery_db_database=&quot;$SLOWQUERY_DB_DATABASE&quot;;g&quot;  $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">        (crontab -u mysql -l ; echo &quot;1 0 * * * sh $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh switch_slowlog &gt;&gt;/tmp/switch_slowlog.log&quot;) | crontab -u mysql -</span></span><br><span class="line"><span class="comment">        (crontab -u mysql -l ; echo &quot;0 * * * * sh $INSTALL_BASE_DIR/bin/service-$INSTANCE_NAME.sh report_slowlog &gt;&gt;/tmp/report_slowlog.log&quot;) | crontab -u mysql -</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">echo &quot;Congratulations! Mysql has installed successfully~&quot;</span></span><br><span class="line"><span class="comment">echo &quot;Login command: $INSTALL_BASE_DIR/bin/mysql -uroot -p$PASSWORD -S /tmp/mysql-$INSTANCE_NAME.sock&quot;</span></span><br><span class="line"><span class="comment">echo &quot;Please contact user to confirm how to configure the firewall!&quot;</span></span><br><span class="line"><span class="comment">echo &quot;firewall-cmd --zone=public --add-port=$PORT/tcp --permanent&quot;</span></span><br><span class="line"><span class="comment">echo &quot;firewall-cmd --reload&quot;</span></span><br><span class="line"><span class="comment">echo &quot;list crontab for mysql,please check:&quot;</span></span><br><span class="line"><span class="comment">crontab -u mysql -l</span></span><br><span class="line"><span class="comment">rm -f /tmp/$MYSQL_INSTALL_PACKAGE</span></span><br><span class="line"><span class="comment">rm -rf /tmp/$MYSQL_VERSION</span></span><br><span class="line"><span class="comment">cd ~</span></span><br><span class="line"><span class="comment">rm -f ./$JOB_NAME</span></span><br><span class="line"><span class="comment">rm -f ./$PERCONA_TOOLKIT</span></span><br><span class="line"><span class="comment">rm -f ./$PERCONA_XTRABACKUP</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#搭建mysql完成</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#新增mysql 实例</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">add_mysql_instance()&#123;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -d $ADD_MYSQL_DIR ]</span></span><br><span class="line"><span class="comment">then </span></span><br><span class="line"><span class="comment">        if [ -d &quot;$ADD_MYSQL_DIR/bin&quot; ] &amp;&amp; [ -d &quot;$ADD_MYSQL_DIR/data&quot; ] &amp;&amp; [ -d &quot;$ADD_MYSQL_DIR/include&quot; ]</span></span><br><span class="line"><span class="comment">            then</span></span><br><span class="line"><span class="comment">                echo &quot;check dir ok&quot;</span></span><br><span class="line"><span class="comment">            else</span></span><br><span class="line"><span class="comment">                echo &quot;please check dir $ADD_MYSQL_DIR has mysql&quot;</span></span><br><span class="line"><span class="comment">                exit</span></span><br><span class="line"><span class="comment">        fi</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo &quot;$ADD_MYSQL_DIR not exist,plesse check&quot;</span></span><br><span class="line"><span class="comment">        exit</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -d &quot;$ADD_MYSQL_DIR/data/$INSTANCE_NAME&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        echo &quot;$ADD_MYSQL_DIR/data/$INSTANCE_NAME has already exist.&quot;</span></span><br><span class="line"><span class="comment">        exit</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">        mkdir $ADD_MYSQL_DIR/data/$INSTANCE_NAME</span></span><br><span class="line"><span class="comment">		chown -R mysql:mysql $ADD_MYSQL_DIR/data/$INSTANCE_NAME</span></span><br><span class="line"><span class="comment">		$INSTALL_REAL_DIR/bin/mysqld --initialize-insecure --user=mysql --basedir=$ADD_MYSQL_DIR --datadir=$ADD_MYSQL_DIR/data/$INSTANCE_NAME --lower-case-table-names=1</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">        </span></span><br><span class="line"><span class="comment">#拷贝个配置文件</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">mkdir $ADD_MYSQL_DIR/data/$INSTANCE_NAME/logfile</span></span><br><span class="line"><span class="comment">mkdir $ADD_MYSQL_DIR/data/$INSTANCE_NAME/bin #add liuhao</span></span><br><span class="line"><span class="comment">touch $INSTALL_REAL_DIR/data/$INSTANCE_NAME/logfile/mysql.err</span></span><br><span class="line"><span class="comment">wget --ftp-user=$FTP_USER --ftp-password=$FTP_PASSWORD ftp://$FTP_ADRESS:/$CONFIGURE_FILE -P $ADD_MYSQL_DIR/data</span></span><br><span class="line"><span class="comment">mv $ADD_MYSQL_DIR/data/$CONFIGURE_FILE $ADD_MYSQL_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">chown -R mysql:mysql $ADD_MYSQL_DIR/data/$INSTANCE_NAME</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#生成service-example文件内容。</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -e &quot;$ADD_MYSQL_DIR/service-example.sh&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        cp $ADD_MYSQL_DIR/service-example.sh $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo &quot;$ADD_MYSQL_DIR/bin/service-example.sh not exist,please check&quot;</span></span><br><span class="line"><span class="comment">        exit</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment">#替换bin中脚本内容</span></span><br><span class="line"><span class="comment">sed -i &quot;s;cmdPath=.*;cmdPath=\&quot;$ADD_MYSQL_DIR/bin\&quot;;g&quot; $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;myPath=.*;myPath=\&quot;$ADD_MYSQL_DIR/data/$INSTANCE_NAME\&quot;;g&quot;  $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;softPath=.*;softPath=\&quot;$ADD_MYSQL_DIR\&quot;;g&quot; $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">sed -i &quot;s;socketfile=.*;socketfile=\&quot;/tmp/mysql-$INSTANCE_NAME.sock\&quot;;g&quot;  $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">chown mysql:mysql $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">chmod 750 $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#替换配置文件内容</span></span><br><span class="line"><span class="comment">sed -i &quot;s/example/$INSTANCE_NAME/g&quot; $ADD_MYSQL_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s;/usr/local/mysql/;$ADD_MYSQL_DIR/;g&quot; $ADD_MYSQL_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s;^port.*;port            = $PORT;g&quot; $ADD_MYSQL_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#替换内存管理机制#</span></span><br><span class="line"><span class="comment">#sed -i &quot;s;LD_PRELOAD;$LD_PRELOAD;g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改读写参数和缓存池数量#</span></span><br><span class="line"><span class="comment">sed -i &quot;s/READ_NUM/$READ_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s/WRITE_NUM/$WRITE_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">sed -i &quot;s/INSTANCES_NUM/$INSTANCES_NUM/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改server_id##</span></span><br><span class="line"><span class="comment">sed -i &quot;s/SERVER_NUM/$SERVER_ID/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment">#修改buffer_size###</span></span><br><span class="line"><span class="comment">sed -i &quot;s/BUFFER_SIZE/$BUFFER_SIZE/g&quot; $INSTALL_BASE_DIR/data/$INSTANCE_NAME/my.cnf</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#启动mysql实例</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">cd $ADD_MYSQL_DIR/bin &amp;&amp; sh service-$INSTANCE_NAME.sh start</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">while [ ! -e /tmp/mysql-$INSTANCE_NAME.sock ]</span></span><br><span class="line"><span class="comment">do</span></span><br><span class="line"><span class="comment">    echo &quot;starting mysql...&quot; </span></span><br><span class="line"><span class="comment">    sleep 1</span></span><br><span class="line"><span class="comment">done</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;select user,host from mysql.user&quot;</span></span><br><span class="line"><span class="comment">#$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; IDENTIFIED BY &#x27;$MONITOR_PASSWD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">#$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;GRANT PROCESS, SHOW DATABASES, REPLICATION CLIENT, SHOW VIEW ON *.* TO &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">if [ -n &quot;$REPLICA_IP&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;repluser&#x27;@&#x27;$REPLICA_IP&#x27; identified by &#x27;Repluser@123&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;grant replication slave on *.* to &#x27;repluser&#x27;@&#x27;$REPLICA_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">		#iptables -I INPUT -s $REPLICA_IP -p tcp --dport $PORT -j ACCEPT</span></span><br><span class="line"><span class="comment">        firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;$REPLICA_IP&quot; port protocol=&quot;tcp&quot; port=&quot;$PORT&quot; accept&quot;</span></span><br><span class="line"><span class="comment">        firewall-cmd --reload</span></span><br><span class="line"><span class="comment">        #iptables-save</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo -e &quot;\n There is not replica node\n&quot;</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -n &quot;$SOURCE_IP&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $ADD_MYSQL_DIR/bin/mysql -h$SOURCE_IP -urepluser -pRepluser@123 -P$SOURCE_PORT -e &quot;select 1 from dual;&quot; &gt;/dev/null 2&gt;&amp;1</span></span><br><span class="line"><span class="comment">		if [ $? == 0 ] ;then</span></span><br><span class="line"><span class="comment">		    $ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;CHANGE MASTER TO MASTER_HOST=&#x27;$SOURCE_IP&#x27;,MASTER_USER=&#x27;$MASTER_USER&#x27;,MASTER_PASSWORD=&#x27;$MASTER_PASSWORD&#x27;,MASTER_PORT=$SOURCE_PORT,master_auto_position=1;&quot;</span></span><br><span class="line"><span class="comment">			$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;start slave;&quot;</span></span><br><span class="line"><span class="comment">			$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;show slave status\G;&quot;</span></span><br><span class="line"><span class="comment">		else</span></span><br><span class="line"><span class="comment">		    echo -e &quot;\n Can&#x27;t connect the source node!&quot;</span></span><br><span class="line"><span class="comment">			echo -e &quot;Manually runCHANGE MASTER TO MASTER_HOST=&#x27;$SOURCE_IP&#x27;,MASTER_USER=&#x27;$MASTER_USER&#x27;,MASTER_PASSWORD=&#x27;$MASTER_PASSWORD&#x27;,MASTER_PORT=$SOURCE_PORT,master_auto_position=1;&quot;</span></span><br><span class="line"><span class="comment">			echo -e &quot;Manually run:start slave;\n&quot;</span></span><br><span class="line"><span class="comment">			</span></span><br><span class="line"><span class="comment">		fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        echo -e &quot;\n There is not source node\n&quot;</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ -n &quot;$MONITOR_USER&quot; ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        $ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;create user &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27; IDENTIFIED BY &#x27;$MONITOR_PASSWD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        $ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;GRANT PROCESS, SHOW DATABASES, REPLICATION CLIENT, SHOW VIEW ON *.* TO &#x27;$MONITOR_USER&#x27;@&#x27;$MONITOR_USER_IP&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment">        #搭配监控使用的</span></span><br><span class="line"><span class="comment">        #iptables -I INPUT -s $MONITOR_IP_IPTABLES -p tcp --dport $PORT -j ACCEPT</span></span><br><span class="line"><span class="comment">        firewall-cmd --permanent --add-rich-rule=&quot;rule family=&quot;ipv4&quot; source address=&quot;$MONITOR_IP_IPTABLES&quot; port protocol=&quot;tcp&quot; port=&quot;$PORT&quot; accept&quot;</span></span><br><span class="line"><span class="comment">        firewall-cmd --reload</span></span><br><span class="line"><span class="comment">        #iptables-save</span></span><br><span class="line"><span class="comment">fi</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;select user,host from mysql.user&quot;</span></span><br><span class="line"><span class="comment">$ADD_MYSQL_DIR/bin/mysql -uroot -S /tmp/mysql-$INSTANCE_NAME.sock -e &quot;SET SQL_LOG_BIN = 0;alter user &#x27;root&#x27;@&#x27;localhost&#x27; identified by &#x27;$PASSWORD&#x27;;SET SQL_LOG_BIN = 1;&quot;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">sed -i &quot;s;my_pass=\&quot;\&quot;;my_pass=&quot;$PASSWORD&quot;;g&quot; $ADD_MYSQL_DIR/bin/service-$INSTANCE_NAME.sh</span></span><br><span class="line"><span class="comment">echo &quot;Congratulations! Mysql has installed successfully~&quot;</span></span><br><span class="line"><span class="comment">echo &quot;Login command: $ADD_MYSQL_DIR/bin/mysql -uroot -p$PASSWORD -S /tmp/mysql-$INSTANCE_NAME.sock&quot;</span></span><br><span class="line"><span class="comment">echo &quot;Please contact user to confirm how to configure the firewall!&quot;</span></span><br><span class="line"><span class="comment">echo &quot;firewall-cmd --zone=public --add-port=$PORT/tcp --permanent&quot;</span></span><br><span class="line"><span class="comment">echo &quot;firewall-cmd --reload&quot;</span></span><br><span class="line"><span class="comment">&#125;</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">############新增mysql 实例完成########################</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">if [ $ADD_FLAG -eq 0 ]</span></span><br><span class="line"><span class="comment">then</span></span><br><span class="line"><span class="comment">        install_new_mysql</span></span><br><span class="line"><span class="comment">else</span></span><br><span class="line"><span class="comment">        add_mysql_instance</span></span><br><span class="line"><span class="comment">fi</span></span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/13/Mysql%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2%E8%84%9A%E6%9C%AC/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Scripts/" rel="tag">Scripts</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/12/%E6%97%A5%E5%BF%97%E7%9B%91%E6%8E%A7%E4%B9%8BLoki%E5%B7%A5%E5%85%B7/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">日志监控之Loki工具</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
