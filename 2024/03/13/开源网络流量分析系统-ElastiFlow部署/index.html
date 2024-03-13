@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>开源网络流量分析系统-ElastiFlow部署 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="ELK-开源网络流量分析系统-ElastiFlow部署"
+  class="article article-type-ELK"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  开源网络流量分析系统-ElastiFlow部署
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/13/%E5%BC%80%E6%BA%90%E7%BD%91%E7%BB%9C%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90%E7%B3%BB%E7%BB%9F-ElastiFlow%E9%83%A8%E7%BD%B2/" class="article-date">
+  <time datetime="2024-03-13T07:15:10.000Z" itemprop="datePublished">2024-03-13</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/ELK/">ELK</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">930</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">4 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="ElastiFlow介绍"><a href="#ElastiFlow介绍" class="headerlink" title="ElastiFlow介绍"></a>ElastiFlow介绍</h2><p>ElastiFlow目前为开源的流量分析系统，可接收netflow、sflow和ipfix，同类商业软件参考solarwinds NTA</p>
+<p><img src="/images/1710314159-0985c0de9fc9d9a20472a1e29921011d.webp"></p>
+<h2 id="前置条件：安装docker和docker-compose"><a href="#前置条件：安装docker和docker-compose" class="headerlink" title="前置条件：安装docker和docker-compose"></a>前置条件：安装docker和docker-compose</h2><p>docker：（yum -y install docker-ce）</p>
+<p>docker-compose：（pip3 install docker-compose -i <a href="https://link.zhihu.com/?target=http://mirrors.aliyun.com/pypi/simple/">http://mirrors.aliyun.com/pypi/simple/</a> –trusted-host <a target="_blank" rel="noopener" href="http://pypi.aliyun.com)/">http://pypi.aliyun.com）</a></p>
+<h2 id="准备时间校对文件"><a href="#准备时间校对文件" class="headerlink" title="准备时间校对文件"></a>准备时间校对文件</h2><p>未配置可能导致Discover界面中的timestamp参数慢8小时</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cp</span> /usr/share/zoneinfo/Asia/Shanghai /etc/localtime</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;Asia/Shanghai&#x27;</span> &gt;/etc/timezone</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1710314159-11be3e4a7e71dfd6e9562927f226acee.webp"></p>
+<h2 id="准备docker-compose-yml文件"><a href="#准备docker-compose-yml文件" class="headerlink" title="准备docker-compose.yml文件"></a>准备docker-compose.yml文件</h2><p>使用docker-compose.yml部署，注意此文件需要单独放在业务文件盘符中，放置&#x2F;目录存放容器数据过大导致无法存储netflow数据。如：新建&#x2F;data文件夹，mount挂载新盘sdb</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">version:</span> <span class="string">&#x27;2.2&#x27;</span></span><br><span class="line"><span class="attr">services:</span></span><br><span class="line"><span class="comment"># ElasticSearch容器相关定义内容，做收集流的数据库</span></span><br><span class="line">  <span class="attr">elasticsearch:</span></span><br><span class="line">    <span class="comment"># 镜像名称</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elastic/elasticsearch:7.8.1</span></span><br><span class="line">    <span class="attr">privileged:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">environment:</span>  <span class="comment"># ES设置，这里并没有做集群</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">discovery.type=single-node</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">node.name=netdevops_es</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">cluster.name=netdevops_es_cluster</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">network.host=0.0.0.0</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">bootstrap.memory_lock=true</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;ES_JAVA_OPTS=-Xms4g -Xmx4g&quot;</span>   <span class="comment"># 资源控制，这里给了4g内存，可以根据自己的设备性能进行调整</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/usr/share/elasticsearch/data</span>  <span class="comment"># 数据持久化</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/timezone:/etc/timezone:ro</span>   <span class="comment"># 调整容器内的时间</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/localtime:/etc/localtime:ro</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">elastiflow_net</span>   <span class="comment"># 设置连接的网络</span></span><br><span class="line">    <span class="attr">ports:</span>   <span class="comment"># 端口映射</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;9200:9200&quot;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;9300:9300&quot;</span></span><br><span class="line">    <span class="attr">ulimits:</span></span><br><span class="line">      <span class="attr">memlock:</span></span><br><span class="line">        <span class="attr">soft:</span> <span class="number">-1</span></span><br><span class="line">        <span class="attr">hard:</span> <span class="number">-1</span></span><br><span class="line">      <span class="attr">nofile:</span></span><br><span class="line">        <span class="attr">soft:</span> <span class="number">65536</span></span><br><span class="line">        <span class="attr">hard:</span> <span class="number">65536</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line"><span class="comment"># 定义kibana容器，做最终的图形化界面呈现</span></span><br><span class="line">  <span class="attr">kibana:</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">elastic/kibana:7.8.1</span></span><br><span class="line">    <span class="attr">privileged:</span> <span class="literal">true</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">SERVER_NAME=netdevops_kibana</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">ELASTICSEARCH_URL=http://elasticsearch:9200</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">PATH_DATA=/usr/share/kibana/data</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">NODE_OPTIONS=&quot;--max_old_space_size=4096&quot;</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/usr/share/kibana/data</span>  <span class="comment"># 数据持久化</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/timezone:/etc/timezone:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/localtime:/etc/localtime:ro</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">elastiflow_net</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;5601:5601&quot;</span></span><br><span class="line">    <span class="attr">ulimits:</span></span><br><span class="line">      <span class="attr">memlock:</span></span><br><span class="line">        <span class="attr">soft:</span> <span class="number">-1</span></span><br><span class="line">        <span class="attr">hard:</span> <span class="number">-1</span></span><br><span class="line">    <span class="attr">depends_on:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;elasticsearch&quot;</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line">  <span class="comment"># 通过elastiflow做netflow流量收集</span></span><br><span class="line">  <span class="attr">elastiflow-logstash:</span></span><br><span class="line">    <span class="comment"># 镜像名称</span></span><br><span class="line">    <span class="attr">image:</span> <span class="string">robcowart/elastiflow-logstash:4.0.1</span></span><br><span class="line">    <span class="attr">container_name:</span> <span class="string">elastiflow-logstash</span></span><br><span class="line">    <span class="attr">volumes:</span>   <span class="comment"># 同步时间</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/timezone:/etc/timezone:ro</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">/etc/localtime:/etc/localtime:ro</span></span><br><span class="line">    <span class="attr">depends_on:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">elasticsearch</span></span><br><span class="line">    <span class="attr">networks:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">elastiflow_net</span></span><br><span class="line">    <span class="attr">ports:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;2055:2055/udp&quot;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;6343:6343/udp&quot;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">&quot;4739:4739/udp&quot;</span></span><br><span class="line">    <span class="attr">environment:</span></span><br><span class="line">      <span class="comment"># JVM Heap size - this MUST be at least 3GB (4GB preferred)</span></span><br><span class="line">      <span class="attr">LS_JAVA_OPTS:</span> <span class="string">&#x27;-Xms4g -Xmx4g&#x27;</span>  <span class="comment"># 调整内存</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># ElastiFlow global configuration</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_AGENT_ID:</span> <span class="string">elastiflow</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_GEOIP_CACHE_SIZE:</span> <span class="number">16384</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_GEOIP_LOOKUP:</span> <span class="string">&#x27;true&#x27;</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_ASN_LOOKUP:</span> <span class="string">&#x27;true&#x27;</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_OUI_LOOKUP:</span> <span class="string">&#x27;false&#x27;</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_POPULATE_LOGS:</span> <span class="string">&#x27;true&#x27;</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_KEEP_ORIG_DATA:</span> <span class="string">&#x27;true&#x27;</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_DEFAULT_APPID_SRCTYPE:</span> <span class="string">&#x27;__UNKNOWN&#x27;</span></span><br><span class="line">      <span class="comment"># 定义数据的地址和端口</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_ES_HOST:</span> <span class="string">&#x27;elasticsearch:9200&#x27;</span></span><br><span class="line">      <span class="comment">#ELASTIFLOW_ES_USER: &#x27;elastic&#x27;</span></span><br><span class="line">      <span class="comment">#ELASTIFLOW_ES_PASSWD: &#x27;changeme&#x27;</span></span><br><span class="line">      <span class="comment">#支持的三种流收集</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_NETFLOW_IPV4_PORT:</span> <span class="number">2055</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_NETFLOW_UDP_WORKERS:</span> <span class="number">2</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_NETFLOW_UDP_QUEUE_SIZE:</span> <span class="number">4096</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_NETFLOW_UDP_RCV_BUFF:</span> <span class="number">33554432</span></span><br><span class="line"></span><br><span class="line">      <span class="attr">ELASTIFLOW_SFLOW_IPV4_PORT:</span> <span class="number">6343</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_SFLOW_UDP_WORKERS:</span> <span class="number">2</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_SFLOW_UDP_QUEUE_SIZE:</span> <span class="number">4096</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_SFLOW_UDP_RCV_BUFF:</span> <span class="number">33554432</span></span><br><span class="line"></span><br><span class="line">      <span class="attr">ELASTIFLOW_IPFIX_UDP_IPV4_PORT:</span> <span class="number">4739</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_IPFIX_UDP_WORKERS:</span> <span class="number">2</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_IPFIX_UDP_QUEUE_SIZE:</span> <span class="number">4096</span></span><br><span class="line">      <span class="attr">ELASTIFLOW_IPFIX_UDP_RCV_BUFF:</span> <span class="number">33554432</span></span><br><span class="line">    <span class="attr">ulimits:</span></span><br><span class="line">      <span class="attr">memlock:</span></span><br><span class="line">        <span class="attr">soft:</span> <span class="number">-1</span></span><br><span class="line">        <span class="attr">hard:</span> <span class="number">-1</span></span><br><span class="line">    <span class="attr">restart:</span> <span class="string">always</span></span><br><span class="line"></span><br><span class="line"><span class="attr">networks:</span></span><br><span class="line">  <span class="attr">elastiflow_net:</span></span><br><span class="line">    <span class="attr">driver:</span> <span class="string">bridge</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="部署elasticflow"><a href="#部署elasticflow" class="headerlink" title="部署elasticflow"></a>部署elasticflow</h2><p>进入docker-compose.yml目录下使用如下命令部署容器：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> /data</span><br><span class="line"><span class="comment">#通过docker-compose部署应用</span></span><br><span class="line">docker-compose up -d</span><br><span class="line"></span><br><span class="line"><span class="comment">#查看容器状态</span></span><br><span class="line">docker-compose ps</span><br><span class="line">docker ps</span><br><span class="line"></span><br><span class="line"><span class="comment">#扩展了解命令</span></span><br><span class="line"><span class="comment">#进入容器命令行</span></span><br><span class="line">docker <span class="built_in">exec</span> -it -u root 8e3dd7826a33 /bin/bash</span><br><span class="line"></span><br><span class="line"><span class="comment">#停止应用，应用数据保存</span></span><br><span class="line">docker-compose stop</span><br><span class="line"></span><br><span class="line"><span class="comment">#停止并删除应用，应用数据不保存</span></span><br><span class="line">docker-compose down</span><br></pre></td></tr></table></figure>
+
+<p>等待少许时间后，通过游览器，输入网站进入图形化界面，浏览器输入服务器IP:5601，进入kibana</p>
+<p><img src="/images/1710314159-d73310deb83478e542cb5b183e95fc57.svg"></p>
+<h2 id="网络设备配置netflow和sflow"><a href="#网络设备配置netflow和sflow" class="headerlink" title="网络设备配置netflow和sflow"></a>网络设备配置netflow和sflow</h2><p>参考文章</p>
+<p><a target="_blank" rel="noopener" href="https://jintaocool.github.io/2024/03/13/%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87sflow%E9%85%8D%E7%BD%AE/">网络设备sflow配置</a></p>
+<h2 id="创建Kibana索引模式"><a href="#创建Kibana索引模式" class="headerlink" title="创建Kibana索引模式"></a>创建Kibana索引模式</h2><p><img src="/images/1710314159-5093f97f6203e1fc6794f64fa860b0f7.svg"></p>
+<p><img src="/images/1710314159-b97196dfaac00c4eba2610000128f769.svg"></p>
+<p><img src="/images/1710314159-8483645fb230085f9df644554bc11790.svg"></p>
+<p><img src="/images/1710314159-24ee6c20a04a19835ec8fbf9ff8ae1b3.svg"></p>
+<h2 id="导入官方dashboards模板"><a href="#导入官方dashboards模板" class="headerlink" title="导入官方dashboards模板"></a>导入官方dashboards模板</h2><p>（elastiflow.kibana.7.8.x.ndjson）导入完成后，可以在界面中看到多个dashboards信息。</p>
+<p><img src="/images/1710314159-74c2aa45861484257f739a48f07f51c7.svg"></p>
+<h2 id="查看Overview信息"><a href="#查看Overview信息" class="headerlink" title="查看Overview信息"></a>查看Overview信息</h2><p><img src="/images/1710314159-71933b7945e39950d8b5a7ee2b2fe0ee.svg"></p>
+<p><img src="/images/1710314159-cc960a0d0f66d7d836ec095bb2954391.svg"></p>
+<h2 id="优化内核参数"><a href="#优化内核参数" class="headerlink" title="优化内核参数"></a>优化内核参数</h2><p>netflow、sflow为udp数据，调整服务器udp接收缓存相关参数</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">vim /etc/sysctl.conf</span><br><span class="line"></span><br><span class="line">#网卡设备将请求放入队列的长度，默认1000，可选</span><br><span class="line">net.core.netdev_max_backlog=262144</span><br><span class="line"></span><br><span class="line">#udp缓冲区大小</span><br><span class="line">net.ipv4.udp_rmem_min=131072</span><br><span class="line">net.ipv4.udp_mem=2097152 4194304 8388608</span><br></pre></td></tr></table></figure>
+
+<h2 id="删除ES历史数据—供参考"><a href="#删除ES历史数据—供参考" class="headerlink" title="删除ES历史数据—供参考"></a>删除ES历史数据—供参考</h2><p>查询当前历史文件</p>
+<p>curl -XGET <a target="_blank" rel="noopener" href="http://0.0.0.0:9200//_cat/indics">http://0.0.0.0:9200/\_cat/indics</a>‘ | grep 2022.12.*</p>
+<p>删除历史文件</p>
+<p>curl -XDELETE <a target="_blank" rel="noopener" href="http://0.0.0.0:9200/elastiflow-4.0.1-2022.12./">http://0.0.0.0:9200/elastiflow-4.0.1-2022.12.\</a>*</p>
+<p><img src="/images/1710314159-deef31184056cad43281d36dc57e86f8.svg"></p>
+<h2 id="参考资料："><a href="#参考资料：" class="headerlink" title="参考资料："></a><strong>参考资料：</strong></h2><p>视频教程：<a href="https://link.zhihu.com/?target=https://www.bilibili.com/video/BV1HK4y1p7a8">https://www.bilibili.com/video/BV1HK4y1p7a8</a></p>
+<p>代码地址：<a href="https://link.zhihu.com/?target=https://gitee.com/qytang/ElasticFlow">https://gitee.com/qytang/ElasticFlow</a></p>
+<p>官方文档：<a href="https://link.zhihu.com/?target=https://docs.elastiflow.com/docs/">https://docs.elastiflow.com/docs/</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/13/%E5%BC%80%E6%BA%90%E7%BD%91%E7%BB%9C%E6%B5%81%E9%87%8F%E5%88%86%E6%9E%90%E7%B3%BB%E7%BB%9F-ElastiFlow%E9%83%A8%E7%BD%B2/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/ELK/" rel="tag">ELK</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/13/%E7%BD%91%E7%BB%9C%E8%AE%BE%E5%A4%87sflow%E9%85%8D%E7%BD%AE/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">网络设备sflow配置</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
