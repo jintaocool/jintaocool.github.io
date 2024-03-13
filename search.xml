@@ -13084,4 +13084,83 @@ plugin_admin_external_manage_enabled = true
         <tag>ELK</tag>
       </tags>
   </entry>
+  <entry>
+    <title>ELK ElasticFlow数据流分析图和部署</title>
+    <url>/2024/03/13/ELK-ElasticFlow%E6%95%B0%E6%8D%AE%E6%B5%81%E5%88%86%E6%9E%90%E5%9B%BE%E5%92%8C%E9%83%A8%E7%BD%B2/</url>
+    <content><![CDATA[<h2 id="一、ELK-ElasticFlow介绍和分析图"><a href="#一、ELK-ElasticFlow介绍和分析图" class="headerlink" title="一、ELK ElasticFlow介绍和分析图"></a>一、ELK ElasticFlow介绍和分析图</h2><h3 id="1、ElasticFlow的目的"><a href="#1、ElasticFlow的目的" class="headerlink" title="1、ElasticFlow的目的"></a>1、ElasticFlow的目的</h3><p>ElasticFlow利用sFlow等技术来收集网络中有关流量的信息，集流量收集、分析、报告于一体，深入了解流量与带宽的占用情况等用户最关心的问题，为全面了解企业的网络活动，合理有效分配和规划网络带宽提供科学的依据，保证企业的关键业务应用畅通运行。小结目的<strong>1、确定带宽使用者以及情况；****2、网络的流量&amp;协议可视化能力、调查问题的根源</strong></p>
+<h3 id="2、ElasticFlow分析图"><a href="#2、ElasticFlow分析图" class="headerlink" title="2、ElasticFlow分析图"></a>2、ElasticFlow分析图</h3><h4 id="2-1-Overview（总揽）"><a href="#2-1-Overview（总揽）" class="headerlink" title="2.1 Overview（总揽）"></a>2.1 Overview（总揽）</h4><p>图里发现10.88.3.1承担了28%的流量，追踪发现3.1是一个无线控制器，简单分析得知局域网的流量<strong>有线占据72%无线占据28%</strong></p>
+<p><img src="/images/1710314786-2bc8a6c1998d304c002c293f9a3fb18a.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知"></p>
+<h4 id="2-2-Top-N（排行）"><a href="#2-2-Top-N（排行）" class="headerlink" title="2.2 Top-N（排行）"></a>2.2 Top-N（排行）</h4><p>通过挖掘POP3接收SMTP发送Email协议情况、SSH判断连接servers是否符合情况和客户端流量</p>
+<p><img src="/images/1710314786-8435447038016beb4e5608979abe8b71.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_02"></p>
+<h4 id="2-3-Threats（威胁）"><a href="#2-3-Threats（威胁）" class="headerlink" title="2.3 Threats（威胁）"></a>2.3 Threats（威胁）</h4><p>接入TALOS团队对IP信誉进行评估</p>
+<p><img src="/images/1710314786-0c224cf6683e2b1af3e286a88787144b.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_03"></p>
+<h4 id="2-4-Flows（流）"><a href="#2-4-Flows（流）" class="headerlink" title="2.4 Flows（流）"></a>2.4 Flows（流）</h4><p>已知局域网10.88.35.15是台FTP服务器，通过flows得知今天谁访问过，<strong>统计周期内流量大小情况</strong></p>
+<p><img src="/images/1710314786-5a6f49d07e83d370aed29f48295d6ca8.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_04"></p>
+<p>已知局域网10.88.35.4是台AD服务器，通过flows得知与其交互情况，感知局域网的威胁</p>
+<p><img src="/images/1710314786-7f34c2c7deca13077dfabc245ce462b2.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_05"></p>
+<h4 id="2-5-Geo-IP（地理知识产权）"><a href="#2-5-Geo-IP（地理知识产权）" class="headerlink" title="2.5 Geo IP（地理知识产权）"></a>2.5 Geo IP（地理知识产权）</h4><p>目标地址的世界地理位置</p>
+<p><img src="/images/1710314786-b804a1b3263dfd9c5b4a544b7273ea9a.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_06"></p>
+<h4 id="2-6-AS-Traffic（自治系统流量）"><a href="#2-6-AS-Traffic（自治系统流量）" class="headerlink" title="2.6 AS Traffic（自治系统流量）"></a>2.6 AS Traffic（自治系统流量）</h4><p><img src="/images/1710314786-6178aa536322efea9834195ab4244115.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_07"></p>
+<h4 id="2-7-Exporters（网络接口流量）"><a href="#2-7-Exporters（网络接口流量）" class="headerlink" title="2.7 Exporters（网络接口流量）"></a>2.7 Exporters（网络接口流量）</h4><p>分析设备接口和总背板吞吐情况，<strong>入口Ingress Interfaces (bits&#x2F;s)、出口Egress Interfaces (bits&#x2F;s)</strong></p>
+<p><img src="/images/1710314786-d162aad75fbdb174b51011a94c490da7.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_08"></p>
+<h4 id="2-8-Traffic-Details（流量详细图）"><a href="#2-8-Traffic-Details（流量详细图）" class="headerlink" title="2.8 Traffic Details（流量详细图）"></a>2.8 Traffic Details（流量详细图）</h4><p>通过查看SSH协议判断servers和状态、通过查看3389审计远程主机合法性。<strong>统计周期时间轴流量情况</strong></p>
+<p><img src="/images/1710314786-b2af1d83da3a72e582df7016b012c751.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_09"></p>
+<h4 id="2-9-Flows-Records（流记录）"><a href="#2-9-Flows-Records（流记录）" class="headerlink" title="2.9 Flows Records（流记录）"></a>2.9 Flows Records（流记录）</h4><p>Flows的时间流水</p>
+<p><img src="/images/1710314786-7365b7d1df71110c3d54c83b141384e9.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_10"></p>
+<h2 id="二、ELK-ElasticFlow部署"><a href="#二、ELK-ElasticFlow部署" class="headerlink" title="二、ELK ElasticFlow部署"></a>二、ELK ElasticFlow部署</h2><h3 id="1、jdk环境和其他工具准备"><a href="#1、jdk环境和其他工具准备" class="headerlink" title="1、jdk环境和其他工具准备"></a>1、jdk环境和其他工具准备</h3><p>yum install java-openjdk-devel java-openjdk -y    # jdk<br>java -version<br>yum install git unzip net-tools lrzsz -y</p>
+<h3 id="2、下载elk安装包并安装"><a href="#2、下载elk安装包并安装" class="headerlink" title="2、下载elk安装包并安装"></a>2、下载elk安装包并安装</h3><p># 创建安装包和日志的存放目录<br>mkdir -p &#x2F;home&#x2F;apps&#x2F;elk<br>mkdir -p &#x2F;data&#x2F;elk<br>cd &#x2F;home&#x2F;apps&#x2F;elk<br># 下载安装包<br>wget <a href="https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch/-7.8.1/-x86/_64.rpm">https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch\-7.8.1\-x86\_64.rpm</a><br>wget <a href="https://artifacts.elastic.co/downloads/kibana/kibana/-7.8.1/-x86/_64.rpm">https://artifacts.elastic.co/downloads/kibana/kibana\-7.8.1\-x86\_64.rpm</a><br>wget <a href="https://artifacts.elastic.co/downloads/logstash/logstash/-7.8.1.rpm">https://artifacts.elastic.co/downloads/logstash/logstash\-7.8.1.rpm</a><br># 安装<br>rpm -ivh elasticsearch-7.8.1-x86_64.rpm kibana-7.8.1-x86_64.rpm logstash-7.8.1.rpm<br># 加入systemd管理，使其开机自启<br>systemctl daemon-reload<br>systemctl enable elasticsearch.service<br>systemctl enable kibana.service<br>systemctl enable logstash.service</p>
+<h3 id="3、修改配置文件"><a href="#3、修改配置文件" class="headerlink" title="3、修改配置文件"></a>3、修改配置文件</h3><p>vim &#x2F;etc&#x2F;elasticsearch&#x2F;elasticsearch.yml</p>
+<p>检查配置文件关键配置如下,<strong>通过esc+dG批量删除且粘贴下述内容</strong></p>
+<p>[root@testhost elk]# grep -v “^$\|^#” &#x2F;etc&#x2F;elasticsearch&#x2F;elasticsearch.yml<br>cluster.name: elastiflow<br>node.name: elastiflow<br>path.data: &#x2F;data&#x2F;elk&#x2F;elasticsearch<br>path.logs: &#x2F;var&#x2F;log&#x2F;elasticsearch<br>bootstrap.memory_lock: true<br>network.host: 0.0.0.0<br>http.port: 9200<br>action.destructive_requires_name: true<br>indices.query.bool.max_clause_count: 8192<br>search.max_buckets: 250000<br>discovery.type: single-node</p>
+<p>修改es的jvm配置</p>
+<p>​<code>​vim /etc/elasticsearch/jvm.options​</code>​检查配置文件关键配置如下</p>
+<p>-Xms4g<br>-Xmx4g</p>
+<p>修改kibana配置文件​<code>​vim /etc/kibana/kibana.yml​</code>​</p>
+<p>server.host: “0.0.0.0”<br>elasticsearch.hosts: [“<a href="http://localhost:9200"\]">http://localhost:9200&quot;\]</a></p>
+<h3 id="4、启动服务"><a href="#4、启动服务" class="headerlink" title="4、启动服务"></a>4、启动服务</h3><p>顺序启动</p>
+<p>systemctl restart elasticsearch.service<br>systemctl status elasticsearch.service<br>systemctl restart kibana.service<br>systemctl status kibana.service</p>
+<h3 id="5、安装logstash-plugin"><a href="#5、安装logstash-plugin" class="headerlink" title="5、安装logstash plugin"></a>5、安装logstash plugin</h3><p>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-codec-sflow<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-codec-netflow<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-input-udp<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-input-tcp<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-filter-dns<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-filter-geoip<br>&#x2F;usr&#x2F;share&#x2F;logstash&#x2F;bin&#x2F;logstash-plugin install logstash-filter-translate</p>
+<h3 id="6、logstash中的elastiflow模块下载部署"><a href="#6、logstash中的elastiflow模块下载部署" class="headerlink" title="6、logstash中的elastiflow模块下载部署"></a>6、logstash中的elastiflow模块下载部署</h3><p>git clone <a href="https://github.com/robcowart/elastiflow.git">https://github.com/robcowart/elastiflow.git</a><br>wget <a href="https://github.com/robcowart/elastiflow/archive/master.zip">https://github.com/robcowart/elastiflow/archive/master.zip</a><br>unzip master.zip<br>cp -a &#x2F;home&#x2F;apps&#x2F;elk&#x2F;elastiflow-master&#x2F;logstash&#x2F;elastiflow&#x2F;. &#x2F;etc&#x2F;logstash&#x2F;elastiflow&#x2F;<br>cp -a &#x2F;home&#x2F;apps&#x2F;elk&#x2F;elastiflow-master&#x2F;logstash.service.d&#x2F;. &#x2F;etc&#x2F;systemd&#x2F;system&#x2F;logstash.service.d&#x2F;<br>sz &#x2F;home&#x2F;apps&#x2F;elk&#x2F;elastiflow-master&#x2F;kibana&#x2F;elastiflow.kibana.7.8.x.ndjson    # 把kibana模板保存到宿主机，后面步骤需要在kibana页面中导入此模板文件</p>
+<p>修改logstash jvm配置文件​<code>​vim /etc/logstash/jvm.options​</code>​（此项很重要，需要把jvm堆改大，否则logstash启动会报OOM）</p>
+<p>[root@testhost elk]# grep -v “^$\|^#” &#x2F;etc&#x2F;logstash&#x2F;jvm.options<br>-Xms4g<br>-Xmx4g<br>-XX:+UseConcMarkSweepGC<br>-XX:CMSInitiatingOccupancyFraction=75<br>-XX:+UseCMSInitiatingOccupancyOnly<br>-Djava.awt.headless=true<br>-Dfile.encoding=UTF-8<br>-Djruby.compile.invokedynamic=true<br>-Djruby.jit.threshold=0<br>-Djruby.regexp.interruptible=true<br>-XX:+HeapDumpOnOutOfMemoryError<br>-Djava.security.egd=file:&#x2F;dev&#x2F;urandom<br>-Dlog4j2.isThreadContextMapInheritable=true</p>
+<p>修改管道配置文件​<code>​vim /etc/logstash/pipelines.yml​</code>​</p>
+<p># This file is where you define your pipelines. You can define multiple.<br># For more information on multiple pipelines, see the documentation:<br>#   <a href="https://www.elastic.co/guide/en/logstash/current/multiple-pipelines.html">https://www.elastic.co/guide/en/logstash/current/multiple-pipelines.html</a>  </p>
+<p>#- pipeline.id: main<br>#  path.config: “&#x2F;etc&#x2F;logstash&#x2F;conf.d&#x2F;*.conf”  </p>
+<p>- pipeline.id: elastiflow<br>  path.config: “&#x2F;etc&#x2F;logstash&#x2F;elastiflow&#x2F;conf.d&#x2F;*.conf”</p>
+<p>执行logstash系统脚本​<code>​/usr/share/logstash/bin/system-install​</code>​启动logstash并设置开机自启</p>
+<p>systemctl daemon-reload<br>systemctl enable logstash<br>systemctl start logstash.service</p>
+<h3 id="7、其他测试项"><a href="#7、其他测试项" class="headerlink" title="7、其他测试项"></a>7、其他测试项</h3><p>systemctl stop firewalld.service<br>systemctl disable firewalld.service  </p>
+<p># 临时禁用selinux<br>setenforce 0</p>
+<p>测试es：curl <a href="http://0.0.0.0:9200/">http://0.0.0.0:9200</a></p>
+<p><img src="/images/1710314786-be1f80233c07a097e381b34613cbbfc9.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_11"></p>
+<p>检查端口：netstat -antupl |grep java</p>
+<p><img src="/images/1710314786-f679dd0d7e697cb6017596a79253cac5.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_12"></p>
+<p>检查日志：tailf &#x2F;var&#x2F;log&#x2F;logstash&#x2F;logstash-plain.log</p>
+<p><img src="/images/1710314786-9dc63ed43b7b465173be57e39b94c680.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_13"></p>
+<p>elasticflow各协议的端口查看：</p>
+<p>grep -i sflow &#x2F;etc&#x2F;systemd&#x2F;system&#x2F;logstash.service.d&#x2F;elastiflow.conf    # 只查看sflow相关端口和配置</p>
+<p><img src="/images/1710314786-4f19617754b2b0cd25b430daf1e06d25.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_14"></p>
+<h3 id="8、kibana配置"><a href="#8、kibana配置" class="headerlink" title="8、kibana配置"></a>8、kibana配置</h3><p>浏览器打开http:&#x2F;&#x2F;{此处输入部署服务器地址}:5601</p>
+<p><img src="/images/1710314786-0a84c1dc26135e99844fb8bd4eb9c407.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_15"></p>
+<p>导入第六步kibana模板</p>
+<p><img src="/images/1710314786-8ec3e11c91fe23b07e9f72eb7b966b59.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_16"></p>
+<p>高级设置</p>
+<p><img src="/images/1710314786-6c8f8c482c770c7da5eb5a6e54666ba2.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_17"></p>
+<p>过滤器是否默认具有全局状态(被固定)</p>
+<p><img src="/images/1710314786-05a5f439af80ce8c4b56c29d7e8f5fdc.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_18"></p>
+<p>URL有时会变得太大，一些浏览器无法处理。为了解决这个问题，我们正在测试将部分URL存储在会话存储中是否有帮助</p>
+<p><img src="/images/1710314786-bb681050c99a4b961f242e43ea48bd59.png" alt="   ELK ElasticFlow数据流分析图和部署_网络可视化_19"></p>
+<h2 id="三、交换机配置（H3C）"><a href="#三、交换机配置（H3C）" class="headerlink" title="三、交换机配置（H3C）"></a>三、交换机配置（H3C）</h2><p><img src="/images/1710314786-7ce1f571fd9f3ce6e2f3c43ac3590591.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_20"></p>
+<p># 全局sflow配置<br>sflow agent ip X.X.X.X  #此处我不确定配置网关接口是否可行，实际情况我通过loopback来实现，比较安全<br>sflow source ip X.X.X.X  #可选项，缺省情况下，设备使用路由决定的源IP地址作为sFlow报文的源IP地址<br>sflow collector 1 ip X.X.X.X{应为ElasticFlow地址} description “TestCollector”<br>sflow sampling-rate 1000  </p>
+<p># 接口下应用sflow配置（int G&amp;H&amp;X&amp;T）<br>sflow flow collector 1<br>sflow sampling-rate 1000<br>sflow counter collector 1<br>sflow counter interval 60  </p>
+<p># 查看sflow状态<br>&lt;H3C&gt;dis sflow</p>
+<p><img src="/images/1710314786-76340ab347e6dfd8e30f6a2c81fb377c.png" alt="   ELK ElasticFlow数据流分析图和部署_流量安全感知_21"></p>
+]]></content>
+      <categories>
+        <category>ELK</category>
+      </categories>
+      <tags>
+        <tag>ELK</tag>
+      </tags>
+  </entry>
 </search>
