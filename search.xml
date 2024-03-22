@@ -13364,4 +13364,18 @@ plugin_admin_external_manage_enabled = true
         <tag>Zabbix</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Zabbix飞书告警脚本</title>
+    <url>/2024/03/22/Zabbix%E9%A3%9E%E4%B9%A6%E5%91%8A%E8%AD%A6%E8%84%9A%E6%9C%AC/</url>
+    <content><![CDATA[<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#!/usr/bin/python3</span></span><br><span class="line"><span class="comment">#author Lijintao</span></span><br><span class="line"><span class="comment">#time 2020-02-02</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"><span class="keyword">import</span> json</span><br><span class="line"><span class="keyword">import</span> sys</span><br><span class="line"><span class="keyword">import</span> os</span><br><span class="line"><span class="keyword">import</span> datetime</span><br><span class="line"></span><br><span class="line"><span class="comment">#webhook地址粘贴进url内</span></span><br><span class="line">url = <span class="string">&quot;https://open.feishu.cn/open-apis/bot/v2/hook/1925869c-6098-47d8-ba92-a8c1eb2aa73c&quot;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">send_message</span>(<span class="params">message</span>):</span><br><span class="line">    payload_message = &#123;</span><br><span class="line">        <span class="string">&quot;msg_type&quot;</span>: <span class="string">&quot;text&quot;</span>,</span><br><span class="line">        <span class="string">&quot;content&quot;</span>: &#123;</span><br><span class="line">            <span class="string">&quot;text&quot;</span>: message</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    headers = &#123;</span><br><span class="line">        <span class="string">&#x27;Content-Type&#x27;</span>: <span class="string">&#x27;application/json&#x27;</span></span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    response = requests.request(<span class="string">&quot;POST&quot;</span>, url, headers=headers, data=json.dumps(payload_message))</span><br><span class="line">    <span class="keyword">return</span> response</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    text = sys.argv[<span class="number">1</span>]</span><br><span class="line">    send_message(text)</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1711093562-c970daea199e65d9948b113e187c7245.png"></p>
+]]></content>
+      <categories>
+        <category>Zabbix</category>
+      </categories>
+      <tags>
+        <tag>Zabbix</tag>
+      </tags>
+  </entry>
 </search>
