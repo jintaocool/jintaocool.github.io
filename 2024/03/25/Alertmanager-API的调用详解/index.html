@@ -1,0 +1,838 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Alertmanager API的调用详解 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Alertmanager-Alertmanager-API的调用详解"
+  class="article article-type-Alertmanager"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Alertmanager API的调用详解
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/25/Alertmanager-API%E7%9A%84%E8%B0%83%E7%94%A8%E8%AF%A6%E8%A7%A3/" class="article-date">
+  <time datetime="2024-03-25T06:59:48.000Z" itemprop="datePublished">2024-03-25</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Alertmanager/">Alertmanager</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="【0】解决思路分析"><a href="#【0】解决思路分析" class="headerlink" title="【0】解决思路分析"></a>【0】解决思路分析</h2><p><strong>需求：我需要每天屏蔽某个时间段的某些告警项</strong></p>
+<p>　　比如：凌晨4点会异地备份，导致流量报警，我想屏蔽每天4点-4点30分的该告警项</p>
+<p><strong>思路：</strong></p>
+<p>　　<strong>直接操作是没有这个步骤的，曲线救国吧；</strong></p>
+<p>（1）定时任务，每天凌晨四点的 silences</p>
+<p>（2）定时任务中使用 alertmanager api 来建设</p>
+<h2 id="【1】API"><a href="#【1】API" class="headerlink" title="【1】API"></a>【1】API</h2><p>官网：<a target="_blank" rel="noopener" href="https://www.kancloud.cn/pshizhsysu/prometheus/1872669">https://www.kancloud.cn/pshizhsysu/prometheus/1872669</a></p>
+<h3 id="API-Version"><a href="#API-Version" class="headerlink" title="API Version"></a>API Version</h3><p>AlertManager有两套API，v1与v2，不过两套API的内部逻辑基本是一致的，调用哪套都没有关系。v1没有相关的文档，不过我们可以找到v2的相关文档。<br>API-v2的swagger文件的链接为：</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/blob/master/api/v2/openapi.yaml">https://github.com/prometheus/alertmanager/blob/master/api/v2/openapi.yaml</a></p>
+<p>把这个文件的内容拷贝到 <a target="_blank" rel="noopener" href="https://editor.swagger.io/">https://editor.swagger.io</a> 里面，便可以查看API。下面罗列了v2版本的所有API：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Alert</span></span><br><span class="line">GET    /api/v2/alerts</span><br><span class="line">POST   /api/v2/alerts</span><br><span class="line"></span><br><span class="line"><span class="comment"># AlertGroup</span></span><br><span class="line">GET    /api/v2/alerts/groups  </span><br><span class="line"></span><br><span class="line"><span class="comment"># General</span></span><br><span class="line">GET    /api/v2/status</span><br><span class="line"></span><br><span class="line"><span class="comment"># Receiver</span></span><br><span class="line">GET    /api/v2/receivers</span><br><span class="line"></span><br><span class="line"><span class="comment"># Silence</span></span><br><span class="line">GET    /api/v2/silences</span><br><span class="line">POST   /api/v2/silences</span><br><span class="line">GET    /api/v2/silence/&#123;silenceID&#125;</span><br><span class="line">DELETE /api/v2/silence/&#123;silenceID&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中最重要的是Alert与AlertGroup的那三个API，接下来我们详细地讲解一下</p>
+<h3 id="（1-1）获取现有告警信息"><a href="#（1-1）获取现有告警信息" class="headerlink" title="（1.1）获取现有告警信息"></a>（1.1）获取现有告警信息</h3><p>使用其中提供的url：<strong><a target="_blank" rel="noopener" href="http://127.0.0.1:9090/api/v1/alerts">http://127.0.0.1:9090/api/v1/alerts</a></strong> ，可以获取到报警的json信息，即可获得json的格式</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">[&#123;&quot;annotations&quot;:</span><br><span class="line">&#123;&quot;description&quot;:</span><br><span class="line">&quot;localhost:9100 of job exporter has been down for more than 5 minutes.&quot;,</span><br><span class="line">&quot;summary&quot;:&quot;Instance localhost:9100 down&quot;&#125;,</span><br><span class="line">&quot;endsAt&quot;:&quot;2021-11-25T08:13:56.026Z&quot;,</span><br><span class="line">&quot;fingerprint&quot;:&quot;d44e90ffc89b2ea1&quot;,</span><br><span class="line">&quot;receivers&quot;:[&#123;&quot;name&quot;:&quot;mail&quot;&#125;],</span><br><span class="line">&quot;startsAt&quot;:&quot;2021-11-25T07:36:11.026Z&quot;,</span><br><span class="line">&quot;status&quot;:&#123;&quot;inhibitedBy&quot;:[],&quot;silencedBy&quot;:[],&quot;state&quot;:&quot;active&quot;&#125;,</span><br><span class="line">&quot;updatedAt&quot;:&quot;2021-11-25T16:09:56.030+08:00&quot;,</span><br><span class="line">&quot;generatorURL&quot;:&quot;http://localhost.localdomain:9090/graph?g0.expr=up+%3D%3D+0\u0026g0.tab=1&quot;,</span><br><span class="line">&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;InstanceDown&quot;,&quot;instance&quot;:&quot;localhost:9100&quot;,&quot;job&quot;:&quot;exporter&quot;,&quot;severity&quot;:&quot;page&quot;&#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure>
+
+<h3 id="（1-2）手动发送告警信息"><a href="#（1-2）手动发送告警信息" class="headerlink" title="（1.2）手动发送告警信息"></a>（1.2）手动发送告警信息</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">alerts1=&#x27;[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example1&quot;</span><br><span class="line">     &#125;,</span><br><span class="line">     &quot;annotations&quot;: &#123;</span><br><span class="line">        &quot;info&quot;: &quot;The disk sda1 is running full&quot;,</span><br><span class="line">        &quot;summary&quot;: &quot;please check the instance example1&quot;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sdb2&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example2&quot;</span><br><span class="line">     &#125;,</span><br><span class="line">     &quot;annotations&quot;: &#123;</span><br><span class="line">        &quot;info&quot;: &quot;The disk sdb2 is running full&quot;,</span><br><span class="line">        &quot;summary&quot;: &quot;please check the instance example2&quot;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example3&quot;,</span><br><span class="line">       &quot;severity&quot;: &quot;critical&quot;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example3&quot;,</span><br><span class="line">       &quot;severity&quot;: &quot;warning&quot;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;</span><br><span class="line">]&#x27;</span><br><span class="line"></span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9093/api/v1/alerts</span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9094/api/v1/alerts</span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9095/api/v1/alerts</span><br></pre></td></tr></table></figure>
+
+<p>相关具体：编写好的json文件可以使用curl语句进行测试</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">curl -i -k -H &quot;Content-type: application/json&quot; -X POST -d</span><br><span class="line">[&#123;&quot;annotations&quot;:</span><br><span class="line">&#123;&quot;description&quot;:</span><br><span class="line">&quot;localhost:9100 of job exporter has been down for more than 5 minutes.&quot;,</span><br><span class="line">&quot;summary&quot;:&quot;Instance localhost:9100 down&quot;&#125;,</span><br><span class="line">&quot;endsAt&quot;:&quot;2021-11-25T08:13:56.026Z&quot;,</span><br><span class="line">&quot;fingerprint&quot;:&quot;d44e90ffc89b2ea1&quot;,</span><br><span class="line">&quot;receivers&quot;:[&#123;&quot;name&quot;:&quot;mail&quot;&#125;],</span><br><span class="line">&quot;startsAt&quot;:&quot;2021-11-25T07:36:11.026Z&quot;,</span><br><span class="line">&quot;status&quot;:&#123;&quot;inhibitedBy&quot;:[],&quot;silencedBy&quot;:[],&quot;state&quot;:&quot;active&quot;&#125;,</span><br><span class="line">&quot;updatedAt&quot;:&quot;2021-11-25T16:09:56.030+08:00&quot;,</span><br><span class="line">&quot;generatorURL&quot;:&quot;http://localhost.localdomain:9090/graph?g0.expr=up+%3D%3D+0\u0026g0.tab=1&quot;,</span><br><span class="line">&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;InstanceDown&quot;,&quot;instance&quot;:&quot;localhost:9100&quot;,&quot;job&quot;:&quot;exporter&quot;,&quot;severity&quot;:&quot;page&quot;&#125;</span><br><span class="line">&#125;]</span><br><span class="line">&quot;http://192.168.217.22:9093/api/v1/alerts&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="POST-api-v2-alerts"><a href="#POST-api-v2-alerts" class="headerlink" title="POST /api/v2/alerts"></a><code>POST /api/v2/alerts</code></h3><p>Body参数示例如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;labels&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;annotations&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;generatorURL&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">    <span class="string">&quot;startsAt&quot;</span>: <span class="string">&quot;2020-01-01T00:00:00.000+08:00&quot;</span>, <span class="comment"># optional</span></span><br><span class="line">    <span class="string">&quot;endsAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span> <span class="comment"># optional</span></span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>Body参数是一个数组，里面是一个个的告警。其中startsAt与endsAt是可选参数，且格式必须是上面的那种，不能是时间戳。</p>
+<h3 id="GET-api-v2-alerts"><a href="#GET-api-v2-alerts" class="headerlink" title="GET /api/v2/alerts"></a><code>GET /api/v2/alerts</code></h3><p>Query参数如下，以下参数用来过滤告警</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>类型</th>
+<th>默认值</th>
+<th>是否必须</th>
+<th>其他说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>active</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>silenced</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>inhibited</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>unprocessed</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>array[string]</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>string</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<p>其返回值如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;labels&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;annotations&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;generatorURL&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">    <span class="string">&quot;startsAt&quot;</span>: <span class="string">&quot;2020-01-01T00:00:00.000+08:00&quot;</span>, </span><br><span class="line">    <span class="string">&quot;endsAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span>,</span><br><span class="line">    <span class="string">&quot;updatedAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span>,</span><br><span class="line">    <span class="string">&quot;fingerprint&quot;</span>: <span class="string">&quot;string&quot;</span></span><br><span class="line">    <span class="string">&quot;receivers&quot;</span>: [&#123;<span class="string">&quot;name&quot;</span>: <span class="string">&quot;string&quot;</span>&#125;, ...],</span><br><span class="line">    <span class="string">&quot;status&quot;</span>: &#123;</span><br><span class="line">      <span class="string">&quot;state&quot;</span>: <span class="string">&quot;active&quot;</span>, <span class="comment"># active, unprocessed, ...</span></span><br><span class="line">      <span class="string">&quot;silencedBy&quot;</span>: [<span class="string">&quot;string&quot;</span>, ...],</span><br><span class="line">      <span class="string">&quot;inhibitedBy&quot;</span>: [<span class="string">&quot;string&quot;</span>, ...]</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<h3 id="GET-api-v2-alerts-groups"><a href="#GET-api-v2-alerts-groups" class="headerlink" title="GET /api/v2/alerts/groups"></a><code>GET /api/v2/alerts/groups</code></h3><p>Query参数如下，以下参数用来过滤告警</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>类型</th>
+<th>默认值</th>
+<th>是否必须</th>
+<th>其他说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>active</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>silenced</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>inhibited</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>unprocessed</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>array[string]</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>string</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<p>其返回值如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123; </span><br><span class="line">    &quot;labels&quot;: &#123;&quot;label&quot;: &quot;value&quot;, ...&#125;,</span><br><span class="line">    &quot;receiver&quot;: &#123;&quot;name&quot;: &quot;string&quot;&#125;,  # 注意与alert的receivers的区别</span><br><span class="line">    &quot;alerts&quot;: [alert1, alert2, ...]  # alert的Json结构与 `GET /api/v2/alerts` 返回值中的结构一致</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【2】API使用实践"><a href="#【2】API使用实践" class="headerlink" title="【2】API使用实践"></a>【2】API使用实践</h2><p>参考：<a target="_blank" rel="noopener" href="https://www.kancloud.cn/pshizhsysu/prometheus/1874907">https://www.kancloud.cn/pshizhsysu/prometheus/1874907</a></p>
+<h3 id="（2-1）基本案例"><a href="#（2-1）基本案例" class="headerlink" title="（2.1）基本案例"></a>（2.1）基本案例</h3><p>构造测试数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"># 构造测试数据</span><br><span class="line"></span><br><span class="line">aa=&#x27;[</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;Labels&quot;: &#123;</span><br><span class="line">            &quot;alertname&quot;: &quot;NodeCpuPressure&quot;,</span><br><span class="line">            &quot;IP&quot;: &quot;192.168.2.101&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;Annotations&quot;: &#123;</span><br><span class="line">            &quot;summary&quot;: &quot;NodeCpuPressure, IP: 192.168.2.101, Value: 90%, Threshold: 85%&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;StartsAt&quot;: &quot;2020-02-17T23:00:00.000+08:00&quot;, </span><br><span class="line">        &quot;EndsAt&quot;: &quot;2023-02-18T23:00:00.000+08:00&quot;</span><br><span class="line">    &#125;</span><br><span class="line">]&#x27;</span><br><span class="line"></span><br><span class="line"># 执行 POST</span><br><span class="line">curl http://127.0.0.1:9093/api/v2/alerts -XPOST -H&#x27;Content-Type: application/json&#x27; -d&quot;$aa&quot; </span><br></pre></td></tr></table></figure>
+
+<p> 如果是使用V1版本，可以不用加  <strong>-H’Content-Type: application&#x2F;json’</strong></p>
+<p>　　<strong><img src="/images/1711349860-af74ef47af191bc00908adf4b053a0c0.png"></strong></p>
+<p> 怎么取消掉？把结束时间修改一下就好了；</p>
+<p>我们可以通过  <strong>curl -X GET localhost:9093&#x2F;api&#x2F;v2&#x2F;alerts</strong>  获取</p>
+<p>　　<img src="/images/1711349860-e6e31ef0e1e0121dfc1a341229be632d.png"></p>
+<p> 然后修改其时间</p>
+<p>　　<img src="/images/1711349860-895164c070e0232ec711f67d968741f2.png"></p>
+<p> 然后我们在上述的<strong>操作前：</strong></p>
+<p>　　活跃且没被静默的 Alert</p>
+<p>　　　　<img src="/images/1711349860-13e5383b99fabf29877a5697c9cd969e.png"></p>
+<p> 操作后：</p>
+<p>　　　　<img src="/images/1711349860-03943a80ce43cc25b68ec4af960dfcf0.png"></p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【3】最佳实践（定时静默）"><a href="#【3】最佳实践（定时静默）" class="headerlink" title="【3】最佳实践（定时静默）"></a>【3】最佳实践（定时静默）</h2><p>注意，静默条目所生成、显示的时间是UTC时间</p>
+<h3 id="（3-1）立马构造出故障的告警信息"><a href="#（3-1）立马构造出故障的告警信息" class="headerlink" title="（3.1）立马构造出故障的告警信息"></a>（3.1）立马构造出故障的告警信息</h3><p>　　<img src="/images/1711349860-9d54e75ae63971d18c70fe01dec7744e.png"></p>
+<p> 　　<img src="/images/1711349860-ffb0d646b50cdc01603613501e786d7c.png"></p>
+<p>　　<img src="/images/1711349860-7369c2a0dafbf048af1c874bc871d63a.png"></p>
+<h3 id="（3-2）构建好静默，获取静默语句"><a href="#（3-2）构建好静默，获取静默语句" class="headerlink" title="（3.2）构建好静默，获取静默语句"></a>（3.2）构建好静默，获取静默语句</h3><p>　　<img src="/images/1711349860-98201952371c9a5c85b5c4d8266e4c0a.png"></p>
+<p>　　<img src="/images/1711349860-33d88cf511f076415f5fbdf90425a292.png"></p>
+<p>最终结果：</p>
+<p>　　<img src="/images/1711349860-081639642bce120a504a063b7dd8dd69.png"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">curl &#x27;127.0.0.1:9093/api/v2/silences&#x27; \</span><br><span class="line">  -H &#x27;Connection: keep-alive&#x27; \</span><br><span class="line">  -H &#x27;User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36&#x27; \</span><br><span class="line">  -H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">  -H &#x27;Accept: */*&#x27; \</span><br><span class="line">  -H &#x27;Origin: http://127.0.0.1:9093&#x27; \</span><br><span class="line">  -H &#x27;Referer: http://127.0.0.1:9093/&#x27; \</span><br><span class="line">  -H &#x27;Accept-Language: zh-CN,zh;q=0.9&#x27; \</span><br><span class="line">  -H &#x27;Cookie: grafana_session=a504e4a78501efe7009fa8b7587d5fb4&#x27; \</span><br><span class="line">  --data-raw &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;127.0.0.1:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;测试_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;测试数据库鸭[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">  --compressed \</span><br><span class="line">  --insecure</span><br></pre></td></tr></table></figure>
+
+<h3 id="（3-3）使用生成静默规则"><a href="#（3-3）使用生成静默规则" class="headerlink" title="（3.3）使用生成静默规则"></a>（3.3）使用生成静默规则</h3><p>V1方式</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http://127.0.0.1:9093/api/v1/silences -d&#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞 吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;47.103.57.124:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;test&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;test库[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; </span><br></pre></td></tr></table></figure>
+
+<p>V2 方式，就必须要加 -H</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">curl &#x27;127.0.0.1:9093/api/v2/silences&#x27; \-H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">  --data &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;127.0.0.1:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;测试_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;测试库[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">  --compressed \</span><br><span class="line">  --insecure</span><br></pre></td></tr></table></figure>
+
+<p>　　<img src="/images/1711349860-886c6e6c4ad5f99a1cc62064f57bf177.png"></p>
+<h3 id="（3-4）自动化脚本"><a href="#（3-4）自动化脚本" class="headerlink" title="（3.4）自动化脚本"></a>（3.4）自动化脚本</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">now_date=`date +%F --date=&quot;-1 day&quot;`</span><br><span class="line">curl &#x27;http://127.0.0.1:9093/api/v2/silences&#x27; \</span><br><span class="line">-H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">--data &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;47.103.57.124:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;金游世界_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;8833主库_详细对局[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;&#x27;$&#123;now_date&#125;&#x27;T20:10:45.446Z&quot;,&quot;endsAt&quot;:&quot;&#x27;$&#123;now_date&#125;&#x27;T20:40:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">--compressed --insecure</span><br></pre></td></tr></table></figure> 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/25/Alertmanager-API%E7%9A%84%E8%B0%83%E7%94%A8%E8%AF%A6%E8%A7%A3/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Alertmanager/" rel="tag">Alertmanager</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/22/Zabbix%E5%BE%AE%E4%BF%A1%E9%80%9A%E7%9F%A5%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix微信通知脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

@@ -13392,4 +13392,189 @@ plugin_admin_external_manage_enabled = true
         <tag>Zabbix</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Alertmanager API的调用详解</title>
+    <url>/2024/03/25/Alertmanager-API%E7%9A%84%E8%B0%83%E7%94%A8%E8%AF%A6%E8%A7%A3/</url>
+    <content><![CDATA[<h2 id="【0】解决思路分析"><a href="#【0】解决思路分析" class="headerlink" title="【0】解决思路分析"></a>【0】解决思路分析</h2><p><strong>需求：我需要每天屏蔽某个时间段的某些告警项</strong></p>
+<p>　　比如：凌晨4点会异地备份，导致流量报警，我想屏蔽每天4点-4点30分的该告警项</p>
+<p><strong>思路：</strong></p>
+<p>　　<strong>直接操作是没有这个步骤的，曲线救国吧；</strong></p>
+<p>（1）定时任务，每天凌晨四点的 silences</p>
+<p>（2）定时任务中使用 alertmanager api 来建设</p>
+<h2 id="【1】API"><a href="#【1】API" class="headerlink" title="【1】API"></a>【1】API</h2><p>官网：<a href="https://www.kancloud.cn/pshizhsysu/prometheus/1872669">https://www.kancloud.cn/pshizhsysu/prometheus/1872669</a></p>
+<h3 id="API-Version"><a href="#API-Version" class="headerlink" title="API Version"></a>API Version</h3><p>AlertManager有两套API，v1与v2，不过两套API的内部逻辑基本是一致的，调用哪套都没有关系。v1没有相关的文档，不过我们可以找到v2的相关文档。<br>API-v2的swagger文件的链接为：</p>
+<p><a href="https://github.com/prometheus/alertmanager/blob/master/api/v2/openapi.yaml">https://github.com/prometheus/alertmanager/blob/master/api/v2/openapi.yaml</a></p>
+<p>把这个文件的内容拷贝到 <a href="https://editor.swagger.io/">https://editor.swagger.io</a> 里面，便可以查看API。下面罗列了v2版本的所有API：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># Alert</span></span><br><span class="line">GET    /api/v2/alerts</span><br><span class="line">POST   /api/v2/alerts</span><br><span class="line"></span><br><span class="line"><span class="comment"># AlertGroup</span></span><br><span class="line">GET    /api/v2/alerts/groups  </span><br><span class="line"></span><br><span class="line"><span class="comment"># General</span></span><br><span class="line">GET    /api/v2/status</span><br><span class="line"></span><br><span class="line"><span class="comment"># Receiver</span></span><br><span class="line">GET    /api/v2/receivers</span><br><span class="line"></span><br><span class="line"><span class="comment"># Silence</span></span><br><span class="line">GET    /api/v2/silences</span><br><span class="line">POST   /api/v2/silences</span><br><span class="line">GET    /api/v2/silence/&#123;silenceID&#125;</span><br><span class="line">DELETE /api/v2/silence/&#123;silenceID&#125;</span><br></pre></td></tr></table></figure>
+
+<p>其中最重要的是Alert与AlertGroup的那三个API，接下来我们详细地讲解一下</p>
+<h3 id="（1-1）获取现有告警信息"><a href="#（1-1）获取现有告警信息" class="headerlink" title="（1.1）获取现有告警信息"></a>（1.1）获取现有告警信息</h3><p>使用其中提供的url：<strong><a href="http://127.0.0.1:9090/api/v1/alerts">http://127.0.0.1:9090/api/v1/alerts</a></strong> ，可以获取到报警的json信息，即可获得json的格式</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[&#123;&quot;annotations&quot;:</span><br><span class="line">&#123;&quot;description&quot;:</span><br><span class="line">&quot;localhost:9100 of job exporter has been down for more than 5 minutes.&quot;,</span><br><span class="line">&quot;summary&quot;:&quot;Instance localhost:9100 down&quot;&#125;,</span><br><span class="line">&quot;endsAt&quot;:&quot;2021-11-25T08:13:56.026Z&quot;,</span><br><span class="line">&quot;fingerprint&quot;:&quot;d44e90ffc89b2ea1&quot;,</span><br><span class="line">&quot;receivers&quot;:[&#123;&quot;name&quot;:&quot;mail&quot;&#125;],</span><br><span class="line">&quot;startsAt&quot;:&quot;2021-11-25T07:36:11.026Z&quot;,</span><br><span class="line">&quot;status&quot;:&#123;&quot;inhibitedBy&quot;:[],&quot;silencedBy&quot;:[],&quot;state&quot;:&quot;active&quot;&#125;,</span><br><span class="line">&quot;updatedAt&quot;:&quot;2021-11-25T16:09:56.030+08:00&quot;,</span><br><span class="line">&quot;generatorURL&quot;:&quot;http://localhost.localdomain:9090/graph?g0.expr=up+%3D%3D+0\u0026g0.tab=1&quot;,</span><br><span class="line">&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;InstanceDown&quot;,&quot;instance&quot;:&quot;localhost:9100&quot;,&quot;job&quot;:&quot;exporter&quot;,&quot;severity&quot;:&quot;page&quot;&#125;</span><br><span class="line">&#125;]</span><br></pre></td></tr></table></figure>
+
+<h3 id="（1-2）手动发送告警信息"><a href="#（1-2）手动发送告警信息" class="headerlink" title="（1.2）手动发送告警信息"></a>（1.2）手动发送告警信息</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">alerts1=&#x27;[</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example1&quot;</span><br><span class="line">     &#125;,</span><br><span class="line">     &quot;annotations&quot;: &#123;</span><br><span class="line">        &quot;info&quot;: &quot;The disk sda1 is running full&quot;,</span><br><span class="line">        &quot;summary&quot;: &quot;please check the instance example1&quot;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sdb2&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example2&quot;</span><br><span class="line">     &#125;,</span><br><span class="line">     &quot;annotations&quot;: &#123;</span><br><span class="line">        &quot;info&quot;: &quot;The disk sdb2 is running full&quot;,</span><br><span class="line">        &quot;summary&quot;: &quot;please check the instance example2&quot;</span><br><span class="line">      &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example3&quot;,</span><br><span class="line">       &quot;severity&quot;: &quot;critical&quot;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    &quot;labels&quot;: &#123;</span><br><span class="line">       &quot;alertname&quot;: &quot;DiskRunningFull&quot;,</span><br><span class="line">       &quot;dev&quot;: &quot;sda1&quot;,</span><br><span class="line">       &quot;instance&quot;: &quot;example3&quot;,</span><br><span class="line">       &quot;severity&quot;: &quot;warning&quot;</span><br><span class="line">     &#125;</span><br><span class="line">  &#125;</span><br><span class="line">]&#x27;</span><br><span class="line"></span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9093/api/v1/alerts</span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9094/api/v1/alerts</span><br><span class="line">curl -XPOST -d&quot;$alerts1&quot; http://localhost:9095/api/v1/alerts</span><br></pre></td></tr></table></figure>
+
+<p>相关具体：编写好的json文件可以使用curl语句进行测试</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">curl -i -k -H &quot;Content-type: application/json&quot; -X POST -d</span><br><span class="line">[&#123;&quot;annotations&quot;:</span><br><span class="line">&#123;&quot;description&quot;:</span><br><span class="line">&quot;localhost:9100 of job exporter has been down for more than 5 minutes.&quot;,</span><br><span class="line">&quot;summary&quot;:&quot;Instance localhost:9100 down&quot;&#125;,</span><br><span class="line">&quot;endsAt&quot;:&quot;2021-11-25T08:13:56.026Z&quot;,</span><br><span class="line">&quot;fingerprint&quot;:&quot;d44e90ffc89b2ea1&quot;,</span><br><span class="line">&quot;receivers&quot;:[&#123;&quot;name&quot;:&quot;mail&quot;&#125;],</span><br><span class="line">&quot;startsAt&quot;:&quot;2021-11-25T07:36:11.026Z&quot;,</span><br><span class="line">&quot;status&quot;:&#123;&quot;inhibitedBy&quot;:[],&quot;silencedBy&quot;:[],&quot;state&quot;:&quot;active&quot;&#125;,</span><br><span class="line">&quot;updatedAt&quot;:&quot;2021-11-25T16:09:56.030+08:00&quot;,</span><br><span class="line">&quot;generatorURL&quot;:&quot;http://localhost.localdomain:9090/graph?g0.expr=up+%3D%3D+0\u0026g0.tab=1&quot;,</span><br><span class="line">&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;InstanceDown&quot;,&quot;instance&quot;:&quot;localhost:9100&quot;,&quot;job&quot;:&quot;exporter&quot;,&quot;severity&quot;:&quot;page&quot;&#125;</span><br><span class="line">&#125;]</span><br><span class="line">&quot;http://192.168.217.22:9093/api/v1/alerts&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="POST-api-v2-alerts"><a href="#POST-api-v2-alerts" class="headerlink" title="POST /api/v2/alerts"></a><code>POST /api/v2/alerts</code></h3><p>Body参数示例如下：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;labels&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;annotations&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;generatorURL&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">    <span class="string">&quot;startsAt&quot;</span>: <span class="string">&quot;2020-01-01T00:00:00.000+08:00&quot;</span>, <span class="comment"># optional</span></span><br><span class="line">    <span class="string">&quot;endsAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span> <span class="comment"># optional</span></span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p>Body参数是一个数组，里面是一个个的告警。其中startsAt与endsAt是可选参数，且格式必须是上面的那种，不能是时间戳。</p>
+<h3 id="GET-api-v2-alerts"><a href="#GET-api-v2-alerts" class="headerlink" title="GET /api/v2/alerts"></a><code>GET /api/v2/alerts</code></h3><p>Query参数如下，以下参数用来过滤告警</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>类型</th>
+<th>默认值</th>
+<th>是否必须</th>
+<th>其他说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>active</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>silenced</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>inhibited</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>unprocessed</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>array[string]</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>string</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<p>其返回值如下：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;labels&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;annotations&quot;</span>: &#123;<span class="string">&quot;label&quot;</span>: <span class="string">&quot;value&quot;</span>, ...&#125;,</span><br><span class="line">    <span class="string">&quot;generatorURL&quot;</span>: <span class="string">&quot;string&quot;</span>,</span><br><span class="line">    <span class="string">&quot;startsAt&quot;</span>: <span class="string">&quot;2020-01-01T00:00:00.000+08:00&quot;</span>, </span><br><span class="line">    <span class="string">&quot;endsAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span>,</span><br><span class="line">    <span class="string">&quot;updatedAt&quot;</span>: <span class="string">&quot;2020-01-01T01:00:00.000+08:00&quot;</span>,</span><br><span class="line">    <span class="string">&quot;fingerprint&quot;</span>: <span class="string">&quot;string&quot;</span></span><br><span class="line">    <span class="string">&quot;receivers&quot;</span>: [&#123;<span class="string">&quot;name&quot;</span>: <span class="string">&quot;string&quot;</span>&#125;, ...],</span><br><span class="line">    <span class="string">&quot;status&quot;</span>: &#123;</span><br><span class="line">      <span class="string">&quot;state&quot;</span>: <span class="string">&quot;active&quot;</span>, <span class="comment"># active, unprocessed, ...</span></span><br><span class="line">      <span class="string">&quot;silencedBy&quot;</span>: [<span class="string">&quot;string&quot;</span>, ...],</span><br><span class="line">      <span class="string">&quot;inhibitedBy&quot;</span>: [<span class="string">&quot;string&quot;</span>, ...]</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<h3 id="GET-api-v2-alerts-groups"><a href="#GET-api-v2-alerts-groups" class="headerlink" title="GET /api/v2/alerts/groups"></a><code>GET /api/v2/alerts/groups</code></h3><p>Query参数如下，以下参数用来过滤告警</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>类型</th>
+<th>默认值</th>
+<th>是否必须</th>
+<th>其他说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>active</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>silenced</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>inhibited</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>unprocessed</td>
+<td>bool</td>
+<td>true</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>array[string]</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>string</td>
+<td>无</td>
+<td>optional</td>
+<td>-</td>
+</tr>
+</tbody></table>
+<p>其返回值如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[</span><br><span class="line">  &#123; </span><br><span class="line">    &quot;labels&quot;: &#123;&quot;label&quot;: &quot;value&quot;, ...&#125;,</span><br><span class="line">    &quot;receiver&quot;: &#123;&quot;name&quot;: &quot;string&quot;&#125;,  # 注意与alert的receivers的区别</span><br><span class="line">    &quot;alerts&quot;: [alert1, alert2, ...]  # alert的Json结构与 `GET /api/v2/alerts` 返回值中的结构一致</span><br><span class="line">  &#125;,</span><br><span class="line">  ...</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【2】API使用实践"><a href="#【2】API使用实践" class="headerlink" title="【2】API使用实践"></a>【2】API使用实践</h2><p>参考：<a href="https://www.kancloud.cn/pshizhsysu/prometheus/1874907">https://www.kancloud.cn/pshizhsysu/prometheus/1874907</a></p>
+<h3 id="（2-1）基本案例"><a href="#（2-1）基本案例" class="headerlink" title="（2.1）基本案例"></a>（2.1）基本案例</h3><p>构造测试数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># 构造测试数据</span><br><span class="line"></span><br><span class="line">aa=&#x27;[</span><br><span class="line">    &#123;</span><br><span class="line">        &quot;Labels&quot;: &#123;</span><br><span class="line">            &quot;alertname&quot;: &quot;NodeCpuPressure&quot;,</span><br><span class="line">            &quot;IP&quot;: &quot;192.168.2.101&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;Annotations&quot;: &#123;</span><br><span class="line">            &quot;summary&quot;: &quot;NodeCpuPressure, IP: 192.168.2.101, Value: 90%, Threshold: 85%&quot;</span><br><span class="line">        &#125;,</span><br><span class="line">        &quot;StartsAt&quot;: &quot;2020-02-17T23:00:00.000+08:00&quot;, </span><br><span class="line">        &quot;EndsAt&quot;: &quot;2023-02-18T23:00:00.000+08:00&quot;</span><br><span class="line">    &#125;</span><br><span class="line">]&#x27;</span><br><span class="line"></span><br><span class="line"># 执行 POST</span><br><span class="line">curl http://127.0.0.1:9093/api/v2/alerts -XPOST -H&#x27;Content-Type: application/json&#x27; -d&quot;$aa&quot; </span><br></pre></td></tr></table></figure>
+
+<p> 如果是使用V1版本，可以不用加  <strong>-H’Content-Type: application&#x2F;json’</strong></p>
+<p>　　<strong><img src="/images/1711349860-af74ef47af191bc00908adf4b053a0c0.png"></strong></p>
+<p> 怎么取消掉？把结束时间修改一下就好了；</p>
+<p>我们可以通过  <strong>curl -X GET localhost:9093&#x2F;api&#x2F;v2&#x2F;alerts</strong>  获取</p>
+<p>　　<img src="/images/1711349860-e6e31ef0e1e0121dfc1a341229be632d.png"></p>
+<p> 然后修改其时间</p>
+<p>　　<img src="/images/1711349860-895164c070e0232ec711f67d968741f2.png"></p>
+<p> 然后我们在上述的<strong>操作前：</strong></p>
+<p>　　活跃且没被静默的 Alert</p>
+<p>　　　　<img src="/images/1711349860-13e5383b99fabf29877a5697c9cd969e.png"></p>
+<p> 操作后：</p>
+<p>　　　　<img src="/images/1711349860-03943a80ce43cc25b68ec4af960dfcf0.png"></p>
+<p><a href="#_labelTop">回到顶部</a></p>
+<h2 id="【3】最佳实践（定时静默）"><a href="#【3】最佳实践（定时静默）" class="headerlink" title="【3】最佳实践（定时静默）"></a>【3】最佳实践（定时静默）</h2><p>注意，静默条目所生成、显示的时间是UTC时间</p>
+<h3 id="（3-1）立马构造出故障的告警信息"><a href="#（3-1）立马构造出故障的告警信息" class="headerlink" title="（3.1）立马构造出故障的告警信息"></a>（3.1）立马构造出故障的告警信息</h3><p>　　<img src="/images/1711349860-9d54e75ae63971d18c70fe01dec7744e.png"></p>
+<p> 　　<img src="/images/1711349860-ffb0d646b50cdc01603613501e786d7c.png"></p>
+<p>　　<img src="/images/1711349860-7369c2a0dafbf048af1c874bc871d63a.png"></p>
+<h3 id="（3-2）构建好静默，获取静默语句"><a href="#（3-2）构建好静默，获取静默语句" class="headerlink" title="（3.2）构建好静默，获取静默语句"></a>（3.2）构建好静默，获取静默语句</h3><p>　　<img src="/images/1711349860-98201952371c9a5c85b5c4d8266e4c0a.png"></p>
+<p>　　<img src="/images/1711349860-33d88cf511f076415f5fbdf90425a292.png"></p>
+<p>最终结果：</p>
+<p>　　<img src="/images/1711349860-081639642bce120a504a063b7dd8dd69.png"></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">curl &#x27;127.0.0.1:9093/api/v2/silences&#x27; \</span><br><span class="line">  -H &#x27;Connection: keep-alive&#x27; \</span><br><span class="line">  -H &#x27;User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/98.0.4758.102 Safari/537.36&#x27; \</span><br><span class="line">  -H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">  -H &#x27;Accept: */*&#x27; \</span><br><span class="line">  -H &#x27;Origin: http://127.0.0.1:9093&#x27; \</span><br><span class="line">  -H &#x27;Referer: http://127.0.0.1:9093/&#x27; \</span><br><span class="line">  -H &#x27;Accept-Language: zh-CN,zh;q=0.9&#x27; \</span><br><span class="line">  -H &#x27;Cookie: grafana_session=a504e4a78501efe7009fa8b7587d5fb4&#x27; \</span><br><span class="line">  --data-raw &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;127.0.0.1:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;测试_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;测试数据库鸭[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">  --compressed \</span><br><span class="line">  --insecure</span><br></pre></td></tr></table></figure>
+
+<h3 id="（3-3）使用生成静默规则"><a href="#（3-3）使用生成静默规则" class="headerlink" title="（3.3）使用生成静默规则"></a>（3.3）使用生成静默规则</h3><p>V1方式</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">curl -X POST http://127.0.0.1:9093/api/v1/silences -d&#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞 吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;47.103.57.124:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;test&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;test库[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; </span><br></pre></td></tr></table></figure>
+
+<p>V2 方式，就必须要加 -H</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">curl &#x27;127.0.0.1:9093/api/v2/silences&#x27; \-H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">  --data &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;127.0.0.1:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;测试_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;测试库[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;2022-03-17T07:44:45.446Z&quot;,&quot;endsAt&quot;:&quot;2022-03-17T09:44:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">  --compressed \</span><br><span class="line">  --insecure</span><br></pre></td></tr></table></figure>
+
+<p>　　<img src="/images/1711349860-886c6e6c4ad5f99a1cc62064f57bf177.png"></p>
+<h3 id="（3-4）自动化脚本"><a href="#（3-4）自动化脚本" class="headerlink" title="（3.4）自动化脚本"></a>（3.4）自动化脚本</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">now_date=`date +%F --date=&quot;-1 day&quot;`</span><br><span class="line">curl &#x27;http://127.0.0.1:9093/api/v2/silences&#x27; \</span><br><span class="line">-H &#x27;Content-Type: application/json&#x27; \</span><br><span class="line">--data &#x27;&#123;&quot;matchers&quot;:[&#123;&quot;name&quot;:&quot;alertname&quot;,&quot;value&quot;:&quot;磁盘读吞吐过高&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;instance&quot;,&quot;value&quot;:&quot;47.103.57.124:9182&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;job&quot;,&quot;value&quot;:&quot;金游世界_win&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;name&quot;,&quot;value&quot;:&quot;8833主库_详细对局[47.103.57.124]&quot;,&quot;isRegex&quot;:false&#125;,&#123;&quot;name&quot;:&quot;severity&quot;,&quot;value&quot;:&quot;warning&quot;,&quot;isRegex&quot;:false&#125;],&quot;startsAt&quot;:&quot;&#x27;$&#123;now_date&#125;&#x27;T20:10:45.446Z&quot;,&quot;endsAt&quot;:&quot;&#x27;$&#123;now_date&#125;&#x27;T20:40:45.446Z&quot;,&quot;createdBy&quot;:&quot;guochaoqun&quot;,&quot;comment&quot;:&quot;tmp&quot;,&quot;id&quot;:null&#125;&#x27; \</span><br><span class="line">--compressed --insecure</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Alertmanager</category>
+      </categories>
+      <tags>
+        <tag>Alertmanager</tag>
+      </tags>
+  </entry>
 </search>
