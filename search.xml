@@ -13577,4 +13577,275 @@ plugin_admin_external_manage_enabled = true
         <tag>Alertmanager</tag>
       </tags>
   </entry>
+  <entry>
+    <title>为SkyWalking构建Grafana Dashboard以及PromQL使用介绍</title>
+    <url>/2024/03/27/%E4%B8%BASkyWalking%E6%9E%84%E5%BB%BAGrafana-Dashboard%E4%BB%A5%E5%8F%8APromQL%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/</url>
+    <content><![CDATA[<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>Apache SkyWalking 作为分布式系统的应用性能监控工具，提供了对云原生架构下的分布式系统的监控、跟踪、诊断能力。<a href="https://prometheus.io/docs/introduction/overview/#what-is-prometheus">Prometheus</a> 是一个开源系统监控和警报工具包，具有活跃的生态系统。特别是 Prometheus 指标通过 <a href="https://prometheus.io/docs/instrumenting/exporters/#exporters-and-integrations">导出器和集成</a> 得到广泛支持。 <a href="https://prometheus.io/docs/prometheus/latest/querying/basics/#querying-prometheus">PromQL</a> 作为 Prometheus 查询语言，包含一组表达式并公开 HTTP API 以读取指标。</p>
+<p><a href="https://opentelemetry.io/ecosystem/integrations/">SkyWalking 支持通过 OpenTelemetry 收集器</a> 摄取 Prometheus 指标，并通过这些指标的聚合计算提供多种系统监控，例如 Linux 监控和 Kubernetes 监控。SkyWalking 已经为用户提供了 <a href="https://skywalking.apache.org/docs/main/next/en/ui/readme/">原生 UI</a> 和 <a href="https://skywalking.apache.org/docs/main/next/en/api/query-protocol/">GraphQL API</a>。但为了提供更广泛的生态整合能力，从 9.4.0 开始，它提供了 PromQL 服务，已经支持 PromQL 的第三方系统或可视化平台（如 Grafana），可以通过它获取指标。SkyWalking 用户在与不同系统集成时将从中受益。</p>
+<h2 id="SkyWalking-中的-PromQL-服务是什么？"><a href="#SkyWalking-中的-PromQL-服务是什么？" class="headerlink" title="SkyWalking 中的 PromQL 服务是什么？"></a>SkyWalking 中的 PromQL 服务是什么？</h2><p>PromQL 服务是 SkyWalking 原生 GraphQL 查询之上的查询引擎，具有由 Prometheus 表达式提供支持的附加查询阶段计算能力。它可以接受 PromQL HTTP API 请求，解析 Prometheus 表达式，并在 Prometheus 指标和 SkyWalking 指标之间进行转换。</p>
+<p><img src="/images/1711522546-776a63ec599c97b39885b16460874859.png"></p>
+<p>PromQL 服务遵循 PromQL 的所有协议和语法，用户可以像使用 PromQL 一样使用它。由于 SkyWalking 在度量分类、格式、存储等方面与 Prometheus 有根本不同，因此 PromQL 服务不必实现完整的 PromQL 功能。<a href="https://skywalking.apache.org/docs/main/next/en/api/promql-service/#promql-service">有关详细信息</a>，请参阅文档。</p>
+<h2 id="SkyWalking-基本概念"><a href="#SkyWalking-基本概念" class="headerlink" title="SkyWalking 基本概念"></a>SkyWalking 基本概念</h2><p>以下是用户使用 PromQL 服务需要了解的一些基本概念和与 Prometheus 的区别： Prometheus 指标指定命名格式和结构，实际指标名称和标签由客户端提供商确定，并存储详细信息。用户使用 PromQL 中的表达式聚合和计算指标。与 Prometheus 不同，SkyWalking 的度量机制是围绕以下具有层次结构的核心概念构建的：</p>
+<ul>
+<li><p>层（Layer）：表示计算机科学中的一个抽象框架，如 Operating System（OS_LINUX 层）、Kubernetes（k8s 层）。该层将是从不同技术检测到的不同服务的所有者。<a href="https://github.com/apache/skywalking/blob/master/oap-server/server-core/src/main/java/org/apache/skywalking/oap/server/core/analysis/Layer.java">可以在此处</a></p>
+<p>找到所有层定义。</p>
+</li>
+<li><p>服务：表示一组 &#x2F; 一组工作负载，它为传入请求提供相同的行为。</p>
+</li>
+<li><p>服务实例：服务组中的单个工作负载。</p>
+</li>
+<li><p>端点：传入请求的服务路径。</p>
+</li>
+<li><p>进程：操作系统进程。在某些场景下，<code>service instance</code> 不是一个进程，比如一个 Kubernetes Pod 可能包含多个进程。</p>
+</li>
+</ul>
+<p>Metric 名称和属性（标签）由 SkyWalking OAP 服务器根据数据源以及 OAL 和 MAL 配置。SkyWalking 提供了对时间序列指标进行下采样（down-sampling），并生成不同时间段数据（分钟、小时、天）的能力。</p>
+<p>SkyWalking 指标流如下：</p>
+<p><img src="/images/1711522546-685870d2c8d9eb23023376f4505c9579.png"></p>
+<h3 id="流量"><a href="#流量" class="headerlink" title="流量"></a>流量</h3><ul>
+<li>Service&#x2F;ServiceRelation&#x2F;Instance&#x2F;ServiceInstanceRelation&#x2F;Endpoint&#x2F;EndpointRelation&#x2F;Process&#x2F;ProcessRelation 的元数据。包括名称、层、属性、它们之间的关系等。</li>
+</ul>
+<h3 id="指标"><a href="#指标" class="headerlink" title="指标"></a>指标</h3><ul>
+<li>名称（Name）：指标名称，来自 OAL 和 MAL 的配置。</li>
+<li>实体（Entity）：表示指标的归属，用于查询。一个 Entity 根据 <code>Scope</code> 不同会包含如下信息： Scope 代表指标级别，在查询阶段代表 Scope catalog，Scope catalog 为所有的 scope 提供了高维的分类，层次结构。</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Scope</th>
+<th>实体信息</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Service</td>
+<td>服务（包括图层信息）</td>
+</tr>
+<tr>
+<td>ServiceInstance</td>
+<td>服务、服务实例</td>
+</tr>
+<tr>
+<td>Endpoint</td>
+<td>服务、端点</td>
+</tr>
+<tr>
+<td>ServiceRelation</td>
+<td>服务，目标服务</td>
+</tr>
+<tr>
+<td>ServiceInstanceRelation</td>
+<td>服务实例、目标服务实例</td>
+</tr>
+<tr>
+<td>EndpointRelation</td>
+<td>端点、目标端点</td>
+</tr>
+<tr>
+<td>Process</td>
+<td>服务、服务实例、流程</td>
+</tr>
+<tr>
+<td>ProcessRelation</td>
+<td>进程、服务实例、DestProcess</td>
+</tr>
+</tbody></table>
+<ul>
+<li>值：</li>
+</ul>
+<ol>
+<li>单值：long</li>
+<li>标签值：文本，<code>label1,value1|label2,value2|...</code> ，例如 <code>L2 aggregation,5000 | L1 aggregation,8000</code></li>
+</ol>
+<ul>
+<li>TimeBucket：时间精确到分钟、小时、天</li>
+</ul>
+<h2 id="如何使用-PromQL-服务"><a href="#如何使用-PromQL-服务" class="headerlink" title="如何使用 PromQL 服务"></a>如何使用 PromQL 服务</h2><h3 id="设置"><a href="#设置" class="headerlink" title="设置"></a>设置</h3><p>PromQL 服务在 v9.4.0 之后默认开启，不需要额外配置。例如，可以使用 OAP 环境变量配置默认端口：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">restHost: $&#123;SW_PROMQL_REST_HOST:0.0.0.0&#125;</span><br><span class="line">restPort: $&#123;SW_PROMQL_REST_PORT:9090&#125;</span><br><span class="line">restContextPath: $&#123;SW_PROMQL_REST_CONTEXT_PATH:/&#125;</span><br><span class="line">restMaxThreads: $&#123;SW_PROMQL_REST_MAX_THREADS:200&#125;</span><br><span class="line">restIdleTimeOut: $&#123;SW_PROMQL_REST_IDLE_TIMEOUT:30000&#125;</span><br><span class="line">restAcceptQueueSize: $&#123;SW_PROMQL_REST_QUEUE_SIZE:0&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="使用-Prometheus-表达式"><a href="#使用-Prometheus-表达式" class="headerlink" title="使用 Prometheus 表达式"></a>使用 Prometheus 表达式</h3><p>PromQL 通过 Prometheus 表达式匹配指标。这是一个典型的 Prometheus 指标。</p>
+<p><img src="/images/1711522546-9e58c999de935d66f0b4e4c0bc90b855.png"></p>
+<p>为了匹配指标，Prometheus 表达式如下：</p>
+<p><img src="/images/1711522546-896cfba9767b6d894ef6ff589b5050a3.png"></p>
+<p>在 PromQL 服务中，这些保留的标签将被解析为度量名称和实体信息字段以及用于查询的其他标签。映射如下。</p>
+<table>
+<thead>
+<tr>
+<th>SkyWalking 概念</th>
+<th>Prometheus 表达</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指标名称</td>
+<td>指标名称</td>
+</tr>
+<tr>
+<td>层</td>
+<td>标签</td>
+</tr>
+<tr>
+<td>服务</td>
+<td>标签</td>
+</tr>
+<tr>
+<td>服务实例</td>
+<td>标签 &lt;服务实例&gt;</td>
+</tr>
+<tr>
+<td>端点</td>
+<td>标签</td>
+</tr>
+<tr>
+<td>……</td>
+<td>……</td>
+</tr>
+</tbody></table>
+<p>例如，以下表达式用于匹配查询指标：service_cpm、service_instance_cpm、endpoint_cpm</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">service_cpm &#123;service=&#x27;agent::songs&#x27;, layer=&#x27;GENERAL&#x27;&#125;</span><br><span class="line">service_instance_cpm &#123;service=&#x27;agent::songs&#x27;, service_instance=&#x27;agent::songs_instance_1&#x27;, layer=&#x27;GENERAL&#x27;&#125;</span><br><span class="line">endpoint_cpm &#123;service=&#x27;agent::songs&#x27;, endpoint=&#x27;GET:/songs&#x27;, layer=&#x27;GENERAL&#x27;&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="典型查询示例"><a href="#典型查询示例" class="headerlink" title="典型查询示例"></a>典型查询示例</h3><p>在这里，我们将 <a href="https://skywalking.apache.org/docs/skywalking-showcase/next/readme/">SkyWalking Showcase</a> 部署作为 Playground 来演示如何使用 PromQL 获取 SkyWalking 指标。</p>
+<p><img src="/images/1711522546-71cbfc99362d62a74d4885219f1e9b04.png"></p>
+<p>以下示例可用于通过 PromQL 服务查询服务的元数据和指标。</p>
+<h3 id="获取指标名称"><a href="#获取指标名称" class="headerlink" title="获取指标名称"></a>获取指标名称</h3><p>查询：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">http://localhost:9099/api/v1/label/__name__/values</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;success&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="string">&quot;meter_mysql_instance_qps&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;service_cpm&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;envoy_cluster_up_rq_active&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;instance_jvm_class_loaded_class_count&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;k8s_cluster_memory_requests&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;meter_vm_memory_used&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;meter_apisix_sv_bandwidth_unmatched&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="string">&quot;meter_vm_memory_total&quot;</span><span class="punctuation">,</span></span><br><span class="line">        ...</span><br><span class="line">    <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="选择一个指标并获取标签"><a href="#选择一个指标并获取标签" class="headerlink" title="选择一个指标并获取标签"></a>选择一个指标并获取标签</h3><p>查询：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">http://localhost:9099/api/v1/labels?match []=service_cpm</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;success&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="string">&quot;layer&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="string">&quot;service&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="string">&quot;top_n&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="string">&quot;order&quot;</span></span><br><span class="line">  <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="从特定层获取服务"><a href="#从特定层获取服务" class="headerlink" title="从特定层获取服务"></a>从特定层获取服务</h3><p>查询：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">http://127.0.0.1:9099/api/v1/series?match []=service_traffic &#123;layer=&#x27;GENERAL&#x27;&#125;&amp;start=1677479336&amp;end=1677479636</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;success&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_traffic&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::songs&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_traffic&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::recommendation&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_traffic&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::app&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_traffic&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::gateway&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="punctuation">&#123;</span><span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_traffic&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::frontend&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="查询服务的特定指标"><a href="#查询服务的特定指标" class="headerlink" title="查询服务的特定指标"></a>查询服务的特定指标</h3><p>查询：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">http://127.0.0.1:9099/api/v1/query?query=service_cpm &#123;service=&#x27;agent::songs&#x27;, layer=&#x27;GENERAL&#x27;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>结果：</p>
+<figure class="highlight json"><table><tr><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;success&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;data&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;resultType&quot;</span><span class="punctuation">:</span> <span class="string">&quot;vector&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;result&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">      <span class="punctuation">&#123;</span><span class="attr">&quot;metric&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">          <span class="attr">&quot;__name__&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_cpm&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;layer&quot;</span><span class="punctuation">:</span> <span class="string">&quot;GENERAL&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;Service&quot;</span><span class="punctuation">,</span></span><br><span class="line">          <span class="attr">&quot;service&quot;</span><span class="punctuation">:</span> <span class="string">&quot;agent::songs&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span><span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">          <span class="number">1679559960</span><span class="punctuation">,</span></span><br><span class="line">          <span class="string">&quot;6&quot;</span></span><br><span class="line">        <span class="punctuation">]</span></span><br><span class="line">      <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>关于<code>range query</code>和不同的<code>metrics type for query</code> 可以参考 <a href="https://skywalking.apache.org/docs/main/next/en/api/promql-service">这里的</a> 文档。</p>
+<h2 id="构建-Grafana-Dashboard"><a href="#构建-Grafana-Dashboard" class="headerlink" title="构建 Grafana Dashboard"></a>构建 Grafana Dashboard</h2><p>从上面我们知道了 PromQL 服务的机制和查询方式，现在我们可以为上面的服务示例构建 Grafana Dashboard。<strong>注</strong>：以下所有配置均基于 Grafana 9.1.0 版本。</p>
+<p>SkyWalking Showcase 提供了 <code>General Service</code> 和 <code>Service Mesh</code> 层等 Dashboard 文件，我们可以通过导入 Dashboard JSON 文件快速为层服务创建 Dashboard。</p>
+<p>部署 Grafana 应用程序后，请按照以下步骤操作：</p>
+<h3 id="配置数据源"><a href="#配置数据源" class="headerlink" title="配置数据源"></a>配置数据源</h3><p>首先，我们需要创建一个数据源： 在数据源配置面板中，选择 <code>Prometheus</code> 并设置 URL 为 OAP 服务器地址，默认端口为 <code>9090</code>。 <code>SkyWalking</code> 如果有多个 Prometheus 数据源，请在此处设置数据源名称。</p>
+<p><img src="/images/1711522546-4427454a16c2252fa4f7578cffeaa245.jpg"></p>
+<h3 id="导入-Dashboard-文件"><a href="#导入-Dashboard-文件" class="headerlink" title="导入 Dashboard 文件"></a>导入 Dashboard 文件</h3><ol>
+<li><p>创建一个名为 <code>SkyWalking</code> 的 Dashboard 文件夹。</p>
+<p><img src="/images/1711522546-ff175d741806ea5261e02bc5184f6b3f.jpg"></p>
+</li>
+<li><p>将 Dashboard 文件导入到 Grafana 中，有两种获取文件的方式：</p>
+<ol>
+<li>来自 <a href="https://github.com/apache/skywalking-showcase/tree/main/deploy/platform/config/promql/dashboards">SkyWalking Showcase</a></li>
+<li>转到 SkyWaking Demo：<a href="https://skywalking.apache.org/#demo">在 Grafana 上预览指标</a>，并将其从 <code>General Service</code> Dashboard 导出。</li>
+</ol>
+<p><img src="/images/1711522546-9ca6755767185ad3bb46736de9381ed9.jpg"></p>
+</li>
+<li><p>完毕！现在我们可以看到 Dashboard 正在运行，服务位于下拉列表中，指标显示在面板上。</p>
+<p><img src="/images/1711522546-89fcb53315c10ab58cd3d2b6116942f8.jpg"></p>
+</li>
+</ol>
+<p>这是一种简单的构建方式，但是如果我们想要自定义它，我们需要知道它是如何工作的。</p>
+<h3 id="Dashboard-的工作原理"><a href="#Dashboard-的工作原理" class="headerlink" title="Dashboard 的工作原理"></a>Dashboard 的工作原理</h3><h3 id="Dashboard-设置"><a href="#Dashboard-设置" class="headerlink" title="Dashboard 设置"></a>Dashboard 设置</h3><p>打开 <code>Settings-Variables</code> 我们可以看到如下变量：</p>
+<p><img src="/images/1711522546-6400fe669e5c16d7f611ebeb70cc70eb.jpg"></p>
+<p>让我们看看每个变量的作用：</p>
+<ol>
+<li><p><strong>$DS_SkyWalking</strong></p>
+<p>这是一个数据源 ty 变量，它指定了之前定义为 <code>SkyWalking</code> 的 Prometheus 数据源。</p>
+<p><img src="/images/1711522546-5ee5fc056f0a2885cf66819702a4afc7.jpg"></p>
+</li>
+<li><p><strong>$layer</strong></p>
+<p>这是一个常量类型，因为在 ‘General Service’ Dashboard 中，所有服务都属于 ‘GENERAL’ 层，因此可以在每个查询中直接使用它们。注意，当您自定义其他层时，必须在 <code>Layer</code> 上面定义该值。</p>
+<p><img src="/images/1711522546-5b3782f187b1f4b4753a699a60fb8c0c.jpg"></p>
+</li>
+<li><p><strong>$service</strong></p>
+<p>查询类型变量，为下拉列表获取该层下的所有服务名称。</p>
+<p>查询表达式：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">label_values (service_traffic &#123;layer=&#x27;$layer&#x27;&#125;, service)</span><br></pre></td></tr></table></figure>
+
+<p>查询表达式将查询 HTTP API <code>/api/v1/series</code>，以获取 <code>$layer</code> 中服务元数据，并根据标签（服务）提取服务名称。</p>
+<p><img src="/images/1711522546-46a8b91787686ea08c4dda3661012cf8.jpg"></p>
+</li>
+<li><p><strong>$service_instance</strong></p>
+<p>与 <code>$service</code> 一样，是一个查询变量，用于在下拉列表中选择服务的所有实例。</p>
+<p>查询表达式：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">label_values (instance_traffic &#123;layer=&#x27;$layer&#x27;, service=&#x27;$service&#x27;&#125;, service_instance)</span><br></pre></td></tr></table></figure>
+
+<p>这里的查询表达式不仅指定了 <code>$layer</code> 还包含 <code>$service</code> 变量，用于关联下拉列表的服务。</p>
+</li>
+<li><p><strong>$endpoint</strong></p>
+<p>与 <code>$service</code> 一样，是一个查询变量，用于在下拉列表中选择服务的所有端点。</p>
+<p>查询表达式：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">label_values (endpoint_traffic &#123;layer=&#x27;$layer&#x27;, service=&#x27;$service&#x27;, keyword=&#x27;$endpoint_keyword&#x27;, limit=&#x27;$endpoint_limit&#x27;&#125;, endpoint)</span><br></pre></td></tr></table></figure>
+
+<p>此处的查询表达式指定 <code>$layer</code> 和 <code>$service</code> 用于与下拉列表的服务相关联的。并且还接受 <code>$endpoint_keyword</code> 和 <code>$endpoint_limit</code> 变量作为过滤条件。</p>
+</li>
+<li><p><strong>$endpoint_keyword</strong></p>
+<p>一个文本类型的变量，用户可以输入它来过滤 <code>$endpoint</code> 的返回值。</p>
+<p><img src="/images/1711522546-439b95348cb6cf2efa34c6b97b43189a.jpg"></p>
+</li>
+<li><p><strong>$endpoint_limit</strong></p>
+<p>自定义类型，用户可以选择它以限制返回端点的最大数量。</p>
+<p><img src="/images/1711522546-f914907cd2b4a25fdfc1f1080c1fa72a.jpg"></p>
+</li>
+</ol>
+<h3 id="Dashboard-配置"><a href="#Dashboard-配置" class="headerlink" title="Dashboard 配置"></a>Dashboard 配置</h3><p>这个 Dashboard 上有几个典型的指标面板，让我们看看它是如何配置的。</p>
+<h3 id="普通值指标"><a href="#普通值指标" class="headerlink" title="普通值指标"></a>普通值指标</h3><p>选择 <code>Time series chart</code> 面板 <code>Service Apdex</code> 并单击 <code>edit。</code></p>
+<p><img src="/images/1711522546-6704e89b53b4d7828d44afb9b9210223.jpg"></p>
+<ol>
+<li><p>查询表达式</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">service_apdex &#123;service=&#x27;$service&#x27;, layer=&#x27;$layer&#x27;&#125; / 10000</span><br></pre></td></tr></table></figure>
+
+<p>指标范围为 <code>Service</code>，添加 <code>service</code> 和 <code>layer</code> 标签用于匹配，label 值使用上面配置的变量。该计算 <code>Divided by 10000</code> 用于匹配结果单位。查询文档可以参考 <a href="https://skywalking.apache.org/docs/main/next/en/api/promql-service/#common-value-metrics">这里</a>。</p>
+</li>
+<li><p>设置 <code>Query options --&gt; Min interval = 1m</code>，因为 SkyWalking 中的指标最小时间段是 1m。</p>
+</li>
+<li><p>设置 <code>Connect null values --&gt; AlwaysShow points --&gt; Always</code>，因为当查询间隔大于 1 小时或 1 天时，SkyWalking 返回小时 &#x2F; 天步长指标值。</p>
+</li>
+</ol>
+<h3 id="标签值指标"><a href="#标签值指标" class="headerlink" title="标签值指标"></a>标签值指标</h3><p>选择 <code>Time series chart</code> 面板 <code>Service Response Time Percentile</code> 并单击 <code>edit</code>。</p>
+<p><img src="/images/1711522546-83d246d015620cf13553e6840725265d.jpg"></p>
+<ol>
+<li><p>查询表达式</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">service_percentile &#123;service=&#x27;$service&#x27;, layer=&#x27;$layer&#x27;, labels=&#x27;0,1,2,3,4&#x27;, relabels=&#x27;P50,P75,P90,P95,P99&#x27;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>指标范围为 <code>Service</code>，添加 <code>service</code> 和 <code>layer</code> 标签用于匹配，label 值使用上面配置的变量。添加 <code>labels=&#39;0,1,2,3,4&#39;</code> 过滤结果标签，并添加 <code>relabels=&#39;P50,P75,P90,P95,P99&#39;</code> 重命名结果标签。查询文档可以参考 <a href="https://skywalking.apache.org/docs/main/next/en/api/promql-service/#labeled-value-metrics">这里</a>。</p>
+</li>
+<li><p>设置 <code>Query options --&gt; Min interval = 1m</code>，因为 SkyWalking 中的指标最小时间段是 1m。</p>
+</li>
+<li><p>设置 <code>Connect null values --&gt; AlwaysShow points --&gt; Always</code>，因为当查询间隔 &gt; 1 小时或 1 天时，SkyWalking 返回小时 &#x2F; 天步长指标值。</p>
+</li>
+<li><p>设置 <code>Legend</code> 为 <code>&#123;&#123;label&#125;&#125;</code> 来展示。</p>
+</li>
+</ol>
+<h3 id="排序指标"><a href="#排序指标" class="headerlink" title="排序指标"></a>排序指标</h3><p>选择 <code>Time series chart</code> 面板 <code>Service Response Time Percentile</code> 并单击 <code>edit</code>。</p>
+<p><img src="/images/1711522546-fad5a93f6e82a5fff359257da35561aa.jpg"></p>
+<ol>
+<li><p>查询表达式</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">service_instance_cpm &#123;parent_service=&#x27;$service&#x27;, layer=&#x27;$layer&#x27;, top_n=&#x27;10&#x27;, order=&#x27;DES&#x27;&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该表达式用于查询服务下的排序指标，因此添加标签 <code>parent_service</code> 和 <code>layer</code> 进行匹配。添加 <code>top_n=&#39;10&#39;</code> 和 <code>order=&#39;DES&#39;</code> 过滤结果。查询文档可以参考 <a href="https://skywalking.apache.org/docs/main/next/en/api/promql-service/#sort-metrics">这里</a>。</p>
+</li>
+<li><p>设置 <code>Query options --&gt; Min interval = 1m</code>，因为 SkyWalking 中的指标最小时间段是 1m。</p>
+</li>
+<li><p>设置 <code>Calculation --&gt; Latest*</code>。</p>
+</li>
+<li><p>设置 <code>Legend</code> 为 <code>&#123;&#123;service_instance&#125;&#125;</code> 来展示。</p>
+</li>
+</ol>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>在这篇文章中，我们介绍了 SkyWalking 中的 PromQL 服务是什么以及它的背景。详细介绍了 PromQL 服务的使用方法和 SkyWalking 相关的基本概念，展示了如何使用 PromQL 服务为 SkyWalking 构建 Grafana Dashboard。</p>
+<p>未来，将会有更多的集成利用这个协议，比如 CI&#x2F;CD、HPA（缩放）等。</p>
+]]></content>
+      <categories>
+        <category>Skywalking</category>
+      </categories>
+      <tags>
+        <tag>Skywalking</tag>
+      </tags>
+  </entry>
 </search>
