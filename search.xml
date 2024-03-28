@@ -13980,4 +13980,48 @@ plugin_admin_external_manage_enabled = true
         <tag>Linux</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Linux添加自定义服务（service文件）</title>
+    <url>/2024/03/28/Linux%E6%B7%BB%E5%8A%A0%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9C%8D%E5%8A%A1%EF%BC%88service%E6%96%87%E4%BB%B6%EF%BC%89/</url>
+    <content><![CDATA[<p>Linux系统中也有“服务”这一说法，通过服务我们可以便捷地管理一些程序功能，也可以作为程序开机自启的一个手段之一。今天我来分享一下如何创建自己简易的Linux服务。</p>
+<h2 id="1，新建服务文件"><a href="#1，新建服务文件" class="headerlink" title="1，新建服务文件"></a>1，新建服务文件</h2><p>每一个服务在Linux有它自己的对应的配置文件，这个文件可以通过文本编辑器编辑，扩展名为<code>xxx.servive</code>（xxx为服务名称）。这些文件位于<code>/usr/lib/systemd/system</code>目录下。</p>
+<p>在这个目录下新建service文件即可创建我们的服务。文件的内容结构如下：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="section">[Unit]</span></span><br><span class="line"><span class="attr">Description</span>=服务描述</span><br><span class="line"><span class="attr">After</span>=服务依赖（再这些服务后启动本服务）</span><br><span class="line"></span><br><span class="line"><span class="section">[Service]</span></span><br><span class="line"><span class="attr">Type</span>=服务类型</span><br><span class="line"><span class="attr">ExecStart</span>=启动命令</span><br><span class="line"><span class="attr">ExecStop</span>=终止命令</span><br><span class="line"><span class="attr">ExecReload</span>=重启命令</span><br><span class="line"></span><br><span class="line"><span class="section">[Install]</span></span><br><span class="line"><span class="attr">WantedBy</span>=服务安装设置</span><br></pre></td></tr></table></figure>
+
+<p>可见服务配置文件分为<code>[Unit]</code>、<code>[Service]</code>和<code>[Install]</code>三大部分。</p>
+<p>一般来说有些值是固定的，没有特殊需要我们直接套用即可。例如<code>[Unit]</code>中<code>After</code>的值一般是：<code>network.target remote-fs.target nss-lookup.target</code>。</p>
+<p><code>[Install]</code>的<code>WantedBy</code>一般是<code>multi-user.target</code>。</p>
+<p><code>[Service]</code>中是主要内容。</p>
+<p>Type的值有以下几个：</p>
+<ul>
+<li><code>simple</code>：这是默认的值，指定了ExecStart设置后，simple就是默认的Type设置除非指定Type。simple使用ExecStart创建的进程作为服务的主进程，在此设置下systemd会立即启动服务。</li>
+<li><code>forking</code>：如果使用了这个值，则ExecStart的脚本启动后会调用fork()函数创建一个进程作为其启动的一部分。当初始化完成，父进程会退出。子进程会继续作为主进程执行。</li>
+<li><code>oneshot</code>：类似simple，但是在systemd启动之前，进程就会退出。这是一次性的行为。可能还需要设置RemainAfterExit&#x3D;yes，以便systemd认为j进程退出后仍然处于激活状态。</li>
+<li><code>dbus</code>：也和simple很相似，该配置期待或设置一个name值，通过设置BusName&#x3D;设置name即可。</li>
+<li><code>notify</code>：同样地，与simple相似的配置。顾名思义，该设置会在守护进程启动的时候发送推送消息。</li>
+</ul>
+<p>其实常用的就是<code>simple</code>和<code>forking</code>了。一般来说我们的程序是应用程序前台使用就用<code>simple</code>，后台&#x2F;守护进程一般是<code>forking</code>。</p>
+<p>然后就是启动&#x2F;停止&#x2F;重启命令，注意这个命令里面调用的程序必须全部使用绝对路径。</p>
+<p>例如，我的服务器上的redis的Service配置：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="section">[Unit]</span></span><br><span class="line"><span class="attr">Description</span>=Redis-Server</span><br><span class="line"><span class="attr">After</span>=network.target remote-fs.target nss-lookup.target</span><br><span class="line"></span><br><span class="line"><span class="section">[Service]</span></span><br><span class="line"><span class="attr">Type</span>=forking</span><br><span class="line"><span class="attr">ExecStart</span>=/opt/Redis-<span class="number">6.2</span>.<span class="number">1</span>/redis-server /root/RedisData/redis-conf.conf</span><br><span class="line"><span class="attr">ExecStop</span>=kill -<span class="number">9</span> $(pidof redis-server)</span><br><span class="line"><span class="attr">ExecReload</span>=kill -<span class="number">9</span> $(pidof redis-server) &amp;&amp; /opt/Redis-<span class="number">6.2</span>.<span class="number">1</span>/redis-server /root/RedisData/redis-conf.conf</span><br><span class="line"></span><br><span class="line"><span class="section">[Install]</span></span><br><span class="line"><span class="attr">WantedBy</span>=multi-user.target</span><br></pre></td></tr></table></figure>
+
+<p>因为redis一般作为后台程序运行所以Type填forking。<code>kill -9 $(pidof redis-server)</code>命令的意思是：先用<code>pidof</code>命令获取指定名称进程的pid再把这个结果传给<code>kill</code>命令终止对应进程。平时终止特定名称的进程时也可以这么写。</p>
+<p>其实除此之外，service文件还有很多配置项，这里只写出了常用必要的，满足日常需求，其余可以自行搜索学习，这里不再过多赘述。</p>
+<h2 id="2，启动-停止-重启我们的服务"><a href="#2，启动-停止-重启我们的服务" class="headerlink" title="2，启动&#x2F;停止&#x2F;重启我们的服务"></a>2，启动&#x2F;停止&#x2F;重启我们的服务</h2><p>刚刚建立好了我们的服务配置，现在就可以使用了！在此之前需要先使用下列命令让系统重新读取所有服务文件：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">systemctl daemon-reload</span><br></pre></td></tr></table></figure>
+
+<p>然后通过以下命令操控服务：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 启动服务</span></span><br><span class="line">service 服务名 start</span><br><span class="line"></span><br><span class="line"><span class="comment"># 终止服务</span></span><br><span class="line">service 服务名 stop</span><br><span class="line"></span><br><span class="line"><span class="comment"># 重启服务</span></span><br><span class="line">service 服务名 restart</span><br></pre></td></tr></table></figure>
+
+<p>那么注意服务名就是我们刚刚创建的服务配置文件service文件的文件名（不包括扩展名），例如我的服务文件是<code>redis-server.service</code>，那么我的服务名是<code>redis-server</code>。</p>
+<p>其实我们执行启动服务命令时，就会执行我们刚刚配置文件中<code>ExecStart</code>的值的命令，同样终止、重启会对应执行配置文件中<code>ExecStop</code>、<code>ExecReload</code>的值的命令。</p>
+<h2 id="3，启用-禁用开机自启"><a href="#3，启用-禁用开机自启" class="headerlink" title="3，启用&#x2F;禁用开机自启"></a>3，启用&#x2F;禁用开机自启</h2><p>通过以下命令启用&#x2F;禁用开机自启动：</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 启用开机自启</span></span><br><span class="line">systemctl <span class="built_in">enable</span> 服务名</span><br><span class="line"></span><br><span class="line"><span class="comment"># 禁用开机自启</span></span><br><span class="line">systemctl <span class="built_in">disable</span> 服务名</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Linux</category>
+      </categories>
+      <tags>
+        <tag>Linux</tag>
+      </tags>
+  </entry>
 </search>
