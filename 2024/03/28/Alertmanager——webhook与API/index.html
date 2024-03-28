@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Alertmanager——webhook与API |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Alertmanager-Alertmanager——webhook与API"
+  class="article article-type-Alertmanager"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Alertmanager——webhook与API
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/03/28/Alertmanager%E2%80%94%E2%80%94webhook%E4%B8%8EAPI/" class="article-date">
+  <time datetime="2024-03-28T08:23:40.000Z" itemprop="datePublished">2024-03-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Alertmanager/">Alertmanager</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">15 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="alertmanager简介与部署"><a href="#alertmanager简介与部署" class="headerlink" title="alertmanager简介与部署"></a>alertmanager简介与部署</h2><h3 id="alertmanager简介"><a href="#alertmanager简介" class="headerlink" title="alertmanager简介"></a>alertmanager简介</h3><p>整个监控系统中，prometheus只负责将数据采集和生成告警信息，而告警信息的处理是由Alertmanager负责处理。<br>在Prometheus中定义好告警规则后，Prometheus会周期性的对告警规则进行计算，如果满足告警触发条件就会向Alertmanager发送告警信息。<br>Alertmanager负责接收并处理来自Prometheus Server的告警信息。对这些告警信息进行进一步的处理，比如当接收到大量重复告警时能够消除重复的告警信息，同时对告警信息进行分组并且路由到正确的通知方，Prometheus内置了对邮件、Slack、webhook等多种通知方式的支持，同时AlertManager还提供了静默和告警抑制机制来对告警通知行为进行优化。<br><img src="/images/1711614152-cf76c1aa35e07367da410b3c5a8407e8.png" alt="image.png"><br>关于alertmanager详细介绍可参考以下文章</p>
+<ul>
+<li>《Alertmanager——基础入门》：<a target="_blank" rel="noopener" href="https://www.cuiliangblog.cn/detail/article/34">https://www.cuiliangblog.cn/detail/article/34</a></li>
+<li>《Alertmanager——配置详解》：<a target="_blank" rel="noopener" href="https://www.cuiliangblog.cn/detail/article/35">https://www.cuiliangblog.cn/detail/article/35</a></li>
+</ul>
+<h3 id="alertmanager部署"><a href="#alertmanager部署" class="headerlink" title="alertmanager部署"></a>alertmanager部署</h3><p>为方便后续演示与程序调用alertmanager API，此处以docker方式部署为例演示，并将告警路由时间参数调至最小。</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建目录与默认配置文件</span></span><br><span class="line"><span class="string">➜</span>  <span class="string">mkdir</span> <span class="string">alertmanager</span></span><br><span class="line"><span class="string">➜</span>  <span class="string">cd</span> <span class="string">alertmanager</span></span><br><span class="line"><span class="string">➜</span>  <span class="string">cat</span> <span class="string">alertmanager.yml</span> </span><br><span class="line"><span class="attr">route:</span></span><br><span class="line">  <span class="attr">group_by:</span> [<span class="string">&#x27;alertname&#x27;</span>]</span><br><span class="line">  <span class="attr">group_wait:</span> <span class="string">1s</span></span><br><span class="line">  <span class="attr">group_interval:</span> <span class="string">1s</span></span><br><span class="line">  <span class="attr">repeat_interval:</span> <span class="string">1h</span></span><br><span class="line">  <span class="attr">receiver:</span> <span class="string">&#x27;webhook&#x27;</span></span><br><span class="line"><span class="attr">receivers:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&#x27;webhook&#x27;</span></span><br><span class="line">  <span class="attr">webhook_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">&#x27;http://192.168.8.20:5001&#x27;</span></span><br><span class="line"><span class="comment"># 运行docker容器</span></span><br><span class="line"><span class="string">➜</span>  <span class="string">docker</span> <span class="string">run</span> <span class="string">-d</span> <span class="string">-p</span> <span class="number">9093</span><span class="string">:9093</span> <span class="string">--name</span> <span class="string">alertmanager</span> <span class="string">-v</span> <span class="string">$PWD/alertmanager.yml:/etc/alertmanager/alertmanager.yml</span> <span class="string">-v</span> <span class="string">$PWD/data:/alertmanager</span> <span class="string">prom/alertmanager:latest</span></span><br></pre></td></tr></table></figure>
+
+<p>也可以在k8s中部署Alertmanager，详细内容参考以下文章<br>《thanos高可用prometheus集群部署》：<a target="_blank" rel="noopener" href="https://www.cuiliangblog.cn/detail/article/30">https://www.cuiliangblog.cn/detail/article/30</a></p>
+<h2 id="Alertmanager-webhook"><a href="#Alertmanager-webhook" class="headerlink" title="Alertmanager webhook"></a>Alertmanager webhook</h2><h3 id="使用场景"><a href="#使用场景" class="headerlink" title="使用场景"></a>使用场景</h3><ul>
+<li>自定义告警媒介：虽然Alertmanager内置了对邮件、Slack、PagerDuty、OpsGenie、VictorOps、telegram等工具的通知集成，但是对于国内环境，大家使用最多的还是企业微信、钉钉、飞书、公有云短信电话等方式，所以要想实现自定义告警媒介通知，就需要使用webhook功能，开发自定义程序实现。</li>
+<li>告警历史记录：Alertmanager UI界面只显示当前激活的告警，对于已恢复的历史告警记录，就无法从Alertmanager中查询到。可以通过webhook每次收到告警通知时做记录，写入数据库或ES中，最后通过grafana制作 dashboard可以从多个标签纬度分析历史告警记录，突显出运维工作的高频故障与薄弱环节，为后续运维工作优化提供参考。</li>
+<li>告警通知升级：Alertmanager目前只提供了repeat_inteval参数对于未恢复的告警超过指定时间重复通知，如果想实现告警事件默认短信通知，超过2小时未处理改为电话通知，就可以通过webhook来实现。</li>
+</ul>
+<h3 id="webhook配置"><a href="#webhook配置" class="headerlink" title="webhook配置"></a>webhook配置</h3><p>回到alertmanager.yaml配置，默认的配置中使用的就是webhook</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">route:</span></span><br><span class="line">  <span class="attr">group_by:</span> [<span class="string">&#x27;alertname&#x27;</span>]</span><br><span class="line">  <span class="attr">group_wait:</span> <span class="string">1s</span></span><br><span class="line">  <span class="attr">group_interval:</span> <span class="string">1s</span></span><br><span class="line">  <span class="attr">repeat_interval:</span> <span class="string">1h</span> </span><br><span class="line">  <span class="attr">receiver:</span> <span class="string">&#x27;web.hook&#x27;</span> <span class="comment"># 接收组名，与下面的receivers组名对应</span></span><br><span class="line"><span class="attr">receivers:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&#x27;web.hook&#x27;</span></span><br><span class="line">  <span class="attr">webhook_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">&#x27;http://127.0.0.1:5001/&#x27;</span> <span class="comment"># webhook地址</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="webhook程序"><a href="#webhook程序" class="headerlink" title="webhook程序"></a>webhook程序</h3><p>此webhook的功能就是接收Alertmanager推送的告警事件，解析获取内容，格式化数据后调用告警媒介发送通知。</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request</span><br><span class="line"><span class="keyword">from</span> log <span class="keyword">import</span> logger</span><br><span class="line"><span class="keyword">from</span> datetime <span class="keyword">import</span> datetime, timedelta</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">send_content</span>(<span class="params">content, team</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    对接其他告警媒介发送内容</span></span><br><span class="line"><span class="string">    :param content:发送内容</span></span><br><span class="line"><span class="string">    :param team:通知组</span></span><br><span class="line"><span class="string">    :return:</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    logger.info(<span class="string">&quot;开始发送告警，发送内容%s发送组%s&quot;</span> % (content, team))</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/&#x27;</span>, methods=[<span class="string">&quot;POST&quot;</span>]</span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">index</span>():</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    对接alert manager，解析告警内容，推送至自定义告警媒介</span></span><br><span class="line"><span class="string">    :return: success</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    req = request.json</span><br><span class="line">    logger.info(<span class="string">&quot;接收到告警事件通知，内容为:%s&quot;</span> % req)</span><br><span class="line">    <span class="keyword">for</span> alert <span class="keyword">in</span> req[<span class="string">&#x27;alerts&#x27;</span>]:</span><br><span class="line">        status = <span class="string">&#x27;&#x27;</span></span><br><span class="line">        <span class="keyword">if</span> alert[<span class="string">&#x27;status&#x27;</span>] == <span class="string">&#x27;firing&#x27;</span>:</span><br><span class="line">            status = <span class="string">&quot;告警触发&quot;</span></span><br><span class="line">        <span class="keyword">elif</span> alert[<span class="string">&#x27;status&#x27;</span>] == <span class="string">&#x27;resolved&#x27;</span>:</span><br><span class="line">            status = <span class="string">&quot;告警恢复&quot;</span></span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            <span class="keyword">pass</span></span><br><span class="line">        job = alert[<span class="string">&#x27;labels&#x27;</span>][<span class="string">&#x27;job&#x27;</span>] </span><br><span class="line">        team = alert[<span class="string">&#x27;labels&#x27;</span>][<span class="string">&#x27;team&#x27;</span>] </span><br><span class="line">        severity = alert[<span class="string">&#x27;labels&#x27;</span>][<span class="string">&#x27;severity&#x27;</span>] </span><br><span class="line">        description = alert[<span class="string">&#x27;annotations&#x27;</span>][<span class="string">&#x27;description&#x27;</span>] </span><br><span class="line">        name = alert[<span class="string">&#x27;labels&#x27;</span>][<span class="string">&#x27;alertname&#x27;</span>] </span><br><span class="line">        time_obj = datetime.strptime(alert[<span class="string">&#x27;startsAt&#x27;</span>][:<span class="number">19</span>], <span class="string">&#x27;%Y-%m-%dT%H:%M:%S&#x27;</span>) + timedelta(hours=<span class="number">8</span>)</span><br><span class="line">        time = datetime.strftime(time_obj, <span class="string">&#x27;%Y-%m-%d %H:%M:%S&#x27;</span>)</span><br><span class="line">        content = <span class="string">&quot;=========&#123;0&#125;=========\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警名称：&#123;1&#125;\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警类型：&#123;2&#125;\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警级别：&#123;3&#125;\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警小组：&#123;4&#125;\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警时间：&#123;5&#125;\n&quot;</span> \</span><br><span class="line">                  <span class="string">&quot;告警内容：&#123;6&#125;&quot;</span>.<span class="built_in">format</span>(status, name, job, severity, team, time, description)</span><br><span class="line">        send_content(content, team)</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&quot;success!&quot;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/health&#x27;</span></span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">healthy</span>():</span><br><span class="line">    <span class="keyword">return</span> <span class="string">&#x27;ok&#x27;</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    app.run()</span><br></pre></td></tr></table></figure>
+
+<h3 id="告警数据样例"><a href="#告警数据样例" class="headerlink" title="告警数据样例"></a>告警数据样例</h3><p>运行服务后，通过控制台打印的内容可知，告警触发时，Alertmanager推送的数据内容如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;receiver&quot;</span><span class="punctuation">:</span> <span class="string">&quot;webhook&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;firing&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;alerts&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;status&quot;</span><span class="punctuation">:</span> <span class="string">&quot;firing&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;labels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;alertname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;group&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elasticsearch&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;instance&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;job&quot;</span><span class="punctuation">:</span> <span class="string">&quot;blackbox_exporter_tcp&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;severity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;warning&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;team&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elk&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;annotations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elasticsearch 192.168.10.55:9200 service port is unavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;summary&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service port unavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span></span><br><span class="line">      <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;startsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-07-08T09:16:01.979669601Z&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;endsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;0001-01-01T00:00:00Z&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;generatorURL&quot;</span><span class="punctuation">:</span> <span class="string">&quot;/graph?g0.expr=probe_success%7Binstance%3D~%22%28%5C%5Cd%2B.%29%7B4%7D%5C%5Cd%2B%22%7D+%3D%3D+0&amp;g0.tab=1&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;fingerprint&quot;</span><span class="punctuation">:</span> <span class="string">&quot;1e43318d4e7834f1&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;groupLabels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;alertname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;commonLabels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;alertname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;group&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elasticsearch&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;instance&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;job&quot;</span><span class="punctuation">:</span> <span class="string">&quot;blackbox_exporter_tcp&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;severity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;warning&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;team&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elk&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;commonAnnotations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elasticsearch 192.168.10.55:9200 service port is unavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;summary&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service port unavailable&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;truncatedAlerts&quot;</span><span class="punctuation">:</span> <span class="number">0</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>告警恢复时，推送的数据格式内容如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  <span class="attr">&quot;receiver&quot;:</span> <span class="string">&quot;webhook&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;status&quot;:</span> <span class="string">&quot;resolved&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;alerts&quot;:</span> [</span><br><span class="line">      &#123;</span><br><span class="line">          <span class="attr">&quot;status&quot;:</span> <span class="string">&quot;resolved&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;labels&quot;:</span> &#123;</span><br><span class="line">              <span class="attr">&quot;alertname&quot;:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;group&quot;:</span> <span class="string">&quot;elasticsearch&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;instance&quot;:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;job&quot;:</span> <span class="string">&quot;blackbox_exporter_tcp&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;severity&quot;:</span> <span class="string">&quot;warning&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;team&quot;:</span> <span class="string">&quot;elk&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;annotations&quot;:</span> &#123;</span><br><span class="line">              <span class="attr">&quot;description&quot;:</span> <span class="string">&quot;elasticsearch 192.168.10.55:9200 service port is unavailable&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;summary&quot;:</span> <span class="string">&quot;service port unavailable&quot;</span>,</span><br><span class="line">              <span class="attr">&quot;value&quot;:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span></span><br><span class="line">          &#125;,</span><br><span class="line">          <span class="attr">&quot;startsAt&quot;:</span> <span class="string">&quot;2023-07-08T09:16:31.979669601Z&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;endsAt&quot;:</span> <span class="string">&quot;2023-07-08T09:17:31.979669601Z&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;generatorURL&quot;:</span> <span class="string">&quot;/graph?g0.expr=probe_success%7Binstance%3D~%22%28%5C%5Cd%2B.%29%7B4%7D%5C%5Cd%2B%22%7D+%3D%3D+0&amp;g0.tab=1&quot;</span>,</span><br><span class="line">          <span class="attr">&quot;fingerprint&quot;:</span> <span class="string">&quot;fdc02ded56786bca&quot;</span></span><br><span class="line">      &#125;</span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">&quot;groupLabels&quot;:</span> &#123;</span><br><span class="line">      <span class="attr">&quot;alertname&quot;:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;commonLabels&quot;:</span> &#123;</span><br><span class="line">      <span class="attr">&quot;alertname&quot;:</span> <span class="string">&quot;ServicePortUnavailable&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;group&quot;:</span> <span class="string">&quot;elasticsearch&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;instance&quot;:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;job&quot;:</span> <span class="string">&quot;blackbox_exporter_tcp&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;severity&quot;:</span> <span class="string">&quot;warning&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;team&quot;:</span> <span class="string">&quot;elk&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;commonAnnotations&quot;:</span> &#123;</span><br><span class="line">      <span class="attr">&quot;description&quot;:</span> <span class="string">&quot;elasticsearch 192.168.10.55:9200 service port is unavailable&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;summary&quot;:</span> <span class="string">&quot;service port unavailable&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;value&quot;:</span> <span class="string">&quot;192.168.10.55:9200&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="attr">&quot;externalURL&quot;:</span> <span class="string">&quot;http://alertmanager-55b94ccc7d-7psb2:9093&quot;</span>,</span><br><span class="line">  <span class="attr">&quot;truncatedAlerts&quot;:</span> <span class="number">0</span></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h2 id="Alertmanager-API"><a href="#Alertmanager-API" class="headerlink" title="Alertmanager API"></a>Alertmanager API</h2><h3 id="接口文档"><a href="#接口文档" class="headerlink" title="接口文档"></a>接口文档</h3><p>官方地址：<a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/blob/main/api/v2/openapi.yaml">https://github.com/prometheus/alertmanager/blob/main/api/v2/openapi.yaml</a><br>apifox地址：<a target="_blank" rel="noopener" href="https://apifox.com/apidoc/shared-d39e7f21-9992-4d0e-9ab8-65aa169d6be5">https://apifox.com/apidoc/shared-d39e7f21-9992-4d0e-9ab8-65aa169d6be5</a></p>
+<h3 id="接口概述"><a href="#接口概述" class="headerlink" title="接口概述"></a>接口概述</h3><p>由接口文档可知，Alertmanager的API接口主要分为以下几类<br><img src="/images/1711614152-baeb991bf117fd6250ca7f2582ac0aa5.png" alt="image.png"><br>&#x2F;status:获取Alertmanager实例及其集群的当前状态<br>&#x2F;receivers:获取所有接收者的列表(通知集成的名称)<br>&#x2F;silence:新增、删除告警静默规则<br>&#x2F;alerts:查询、新增告警事件<br>&#x2F;alerts&#x2F;groups:获取警报组列表<br>接下来我们选取几个常用的接口演示使用</p>
+<h2 id="新增告警事件"><a href="#新增告警事件" class="headerlink" title="新增告警事件"></a>新增告警事件</h2><h3 id="使用场景-1"><a href="#使用场景-1" class="headerlink" title="使用场景"></a>使用场景</h3><p>例如现在有一个定时任务备份脚本，如果备份脚本执行失败时，我们希望收到告警推送通知。如果单独对这个脚本开发exporter或者部署pushgateway推送指标就显得小题大做了，而且我们不需要在Prometheus中存储历史数据，此时就可以调用Alertmanager的API接口，完成告警事件推送。</p>
+<h3 id="请求格式"><a href="#请求格式" class="headerlink" title="请求格式"></a>请求格式</h3><p>请求方式：POST<br>请求地址：&#x2F;api&#x2F;v2&#x2F;alerts<br>请求示例：请求内容是一个数组，里面是多个的告警内容。其中只有labels是必填参数，其他都是可选。时间参数默认值为当前时间的整时，如果传参时间格式必须是标准UTC时间。</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">  <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;labels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;label&quot;</span><span class="punctuation">:</span> <span class="string">&quot;value&quot;</span><span class="punctuation">,</span> ...<span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;annotations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span><span class="attr">&quot;label&quot;</span><span class="punctuation">:</span> <span class="string">&quot;value&quot;</span><span class="punctuation">,</span> ...<span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;generatorURL&quot;</span><span class="punctuation">:</span> <span class="string">&quot;string&quot;</span><span class="punctuation">,</span> # 可选</span><br><span class="line">    <span class="attr">&quot;startsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-01-01T00:00:00.00Z&quot;</span><span class="punctuation">,</span> # 可选</span><br><span class="line">    <span class="attr">&quot;endsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-01-01T00:00:00.00Z&quot;</span> # 可选</span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  ...</span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="请求示例"><a href="#请求示例" class="headerlink" title="请求示例"></a>请求示例</h3><p>请求内容如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span></span><br><span class="line">    <span class="punctuation">&#123;</span></span><br><span class="line">        <span class="attr">&quot;startsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-07-07T07:07:07.00Z&quot;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;labels&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;alertname&quot;</span><span class="punctuation">:</span> <span class="string">&quot;NodeStatusDown&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;job&quot;</span><span class="punctuation">:</span> <span class="string">&quot;node-exporter&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;severity&quot;</span><span class="punctuation">:</span> <span class="string">&quot;warning&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;team&quot;</span><span class="punctuation">:</span> <span class="string">&quot;server&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">        <span class="attr">&quot;annotations&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;description&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.2 host down more than 5 minutes&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;summary&quot;</span><span class="punctuation">:</span> <span class="string">&quot;node status down&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;192.168.10.2&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<p>使用curl命令请求</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST -H <span class="string">&#x27;content-type:application/json&#x27;</span> -d <span class="string">&#x27;[&#123;&quot;startsAt&quot;:&quot;2023-07-07T07:07:07.00Z&quot;,&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;NodeStatusDown&quot;,&quot;job&quot;:&quot;node-exporter&quot;,&quot;severity&quot;:&quot;warning&quot;,&quot;team&quot;:&quot;server&quot;&#125;,&quot;annotations&quot;:&#123;&quot;description&quot;:&quot;192.168.10.2 host down more than 5 minutes&quot;,&quot;summary&quot;:&quot;node status down&quot;,&quot;value&quot;:&quot;192.168.10.2&quot;&#125;&#125;]&#x27;</span> 127.0.0.1:9093/api/v2/alerts</span><br></pre></td></tr></table></figure>
+
+<p>查看Alertmanager UI，已经收到了告警事件<br><img src="/images/1711614152-643044406af5cc93d72c4706bf6eff60.png" alt="image.png"><br>如果想要主动推送告警恢复通知，只需要传入一个历史的endsAt时间即可</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST -H <span class="string">&#x27;content-type:application/json&#x27;</span> -d <span class="string">&#x27;[&quot;startsAt&quot;:&quot;2023-07-07T07:07:07.00Z&quot;,&quot;endsAt&quot;:&quot;2023-07-07T08:08:08.00Z&quot;,&quot;labels&quot;:&#123;&quot;alertname&quot;:&quot;NodeStatusDown&quot;,&quot;job&quot;:&quot;node-exporter&quot;,&quot;severity&quot;:&quot;warning&quot;,&quot;team&quot;:&quot;server&quot;&#125;,&quot;annotations&quot;:&#123;&quot;description&quot;:&quot;192.168.10.2 host down more than 5 minutes&quot;,&quot;summary&quot;:&quot;node status down&quot;,&quot;value&quot;:&quot;192.168.10.2&quot;&#125;&#125;]&#x27;</span> 127.0.0.1:9093/api/v2/alerts</span><br></pre></td></tr></table></figure>
+
+<h2 id="查询告警事件"><a href="#查询告警事件" class="headerlink" title="查询告警事件"></a>查询告警事件</h2><h3 id="使用场景-2"><a href="#使用场景-2" class="headerlink" title="使用场景"></a>使用场景</h3><p>获取当前激活状态的告警列表，可以传多个参数过滤匹配。可以在每天下班前查询所有未处理的告警，推送事件广播，提示大家及时处理告警事件。</p>
+<h3 id="请求格式-1"><a href="#请求格式-1" class="headerlink" title="请求格式"></a>请求格式</h3><p>请求方式：GET<br>请求地址：&#x2F;api&#x2F;v2&#x2F;alerts<br>请求参数</p>
+<table>
+<thead>
+<tr>
+<th>参数名</th>
+<th>类型</th>
+<th>说明</th>
+<th>是否必填</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>active</td>
+<td>string</td>
+<td>查询激活的告警</td>
+<td>否</td>
+</tr>
+<tr>
+<td>silenced</td>
+<td>string</td>
+<td>查询静默的告警</td>
+<td>否</td>
+</tr>
+<tr>
+<td>inhibited</td>
+<td>string</td>
+<td>查询抑制的告警</td>
+<td>否</td>
+</tr>
+<tr>
+<td>unprocessed</td>
+<td>string</td>
+<td>查询未处理的告警</td>
+<td>否</td>
+</tr>
+<tr>
+<td>filter</td>
+<td>array</td>
+<td>按指定标签查询告警</td>
+<td>否</td>
+</tr>
+<tr>
+<td>receiver</td>
+<td>string</td>
+<td>查询告警接收组</td>
+<td>否</td>
+</tr>
+</tbody></table>
+<h3 id="请求示例-1"><a href="#请求示例-1" class="headerlink" title="请求示例"></a>请求示例</h3><p>先在Alertmanager中添加两条测试告警数据<br><img src="/images/1711614152-dc08a568a550bd4dd9c69c0de0a83dd7.png" alt="image.png"></p>
+<ul>
+<li>获取所有激活的告警</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://127.0.0.1:9093/api/v2/alerts?active=true</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1711614152-f8cec1f0fffd0ac885430e06c637a046.png" alt="image.png"></p>
+<ul>
+<li>获取team为server，且状态为激活的告警</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl http://127.0.0.1:9093/api/v2/alerts?active=true&amp;filter=team=%22server%22</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1711614152-5e9f3b2ac8f471a707c9a2fee79d4a26.png" alt="image.png"></p>
+<h2 id="新增告警静默规则"><a href="#新增告警静默规则" class="headerlink" title="新增告警静默规则"></a>新增告警静默规则</h2><h3 id="使用场景-3"><a href="#使用场景-3" class="headerlink" title="使用场景"></a>使用场景</h3><p>某些自动化场景下，例如批量依次重启服务器升级内核版本，在此期间就会收到大量的告警事件。可是在执行自动化脚本第一步时通过请求API接口自动添加告警静默规则，待脚本执行完成后再自动取消静默规则。<br>或者在告警事件平台与工单系统集成后，某些告警故障无法立即解决，例如服务器硬件故障等待工程师处理时，就可以在工单系统点击暂缓处理按钮，调用Alertmanager API时间告警事件的临时静默。</p>
+<h3 id="请求格式-2"><a href="#请求格式-2" class="headerlink" title="请求格式"></a>请求格式</h3><p>请求方式：POST<br>请求地址：&#x2F;api&#x2F;v2&#x2F;silences<br>请求参数：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    &quot;id&quot;: &quot;string&quot;, # 可选</span><br><span class="line">    &quot;matchers&quot;: [   # 必填，需要静默的告警规则标签</span><br><span class="line">        &#123;</span><br><span class="line">            &quot;name&quot;: &quot;string&quot;,  # 标签键</span><br><span class="line">            &quot;value&quot;: &quot;string&quot;, # 标签值</span><br><span class="line">            &quot;isRegex&quot;: true,   # 是否为正则表达式</span><br><span class="line">            &quot;isEqual&quot;: true    # 可选，默认true</span><br><span class="line">        &#125;</span><br><span class="line">    ],</span><br><span class="line">    &quot;startsAt&quot;: &quot;2019-08-24T14:15:22Z&quot;, # 必填，静默生效开始时间</span><br><span class="line">    &quot;endsAt&quot;: &quot;2019-08-24T14:15:22Z&quot;, # 必填，静默失效时间</span><br><span class="line">    &quot;createdBy&quot;: &quot;string&quot;, # 必填，创建者</span><br><span class="line">    &quot;comment&quot;: &quot;string&quot; # 必填，创建说明备注</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="请求示例-2"><a href="#请求示例-2" class="headerlink" title="请求示例"></a>请求示例</h3><p>请求内容如下：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;matchers&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span></span><br><span class="line">        <span class="punctuation">&#123;</span></span><br><span class="line">            <span class="attr">&quot;isRegex&quot;</span><span class="punctuation">:</span> <span class="literal"><span class="keyword">false</span></span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;team&quot;</span><span class="punctuation">,</span></span><br><span class="line">            <span class="attr">&quot;value&quot;</span><span class="punctuation">:</span> <span class="string">&quot;elk&quot;</span></span><br><span class="line">        <span class="punctuation">&#125;</span></span><br><span class="line">    <span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;startsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-07-07T07:07:00Z&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;endsAt&quot;</span><span class="punctuation">:</span> <span class="string">&quot;2023-08-08T08:08:00Z&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;createdBy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;cuiliang&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;comment&quot;</span><span class="punctuation">:</span> <span class="string">&quot;test API&quot;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>通过API请求工具请求接口数据，返回成功状态码<br><img src="/images/1711614152-d4e35468c3f41b7ebac31c4a3854aa19.png" alt="image.png"><br>接下来查看Alertmanager UI中的静默信息，发现已经成功添加静默规则<br><img src="/images/1711614152-6104724bdac395bb25db04b7962955a0.png" alt="image.png"></p>
+<h2 id="查询与删除告警静默规则"><a href="#查询与删除告警静默规则" class="headerlink" title="查询与删除告警静默规则"></a>查询与删除告警静默规则</h2><p>我们通过调用API接口，创建了两条告警静默规则，并将team&#x3D;elk的静默规则设置为失效状态，效果如下：<br><img src="/images/1711614152-304e66cba9eec081827089a814f3c2f8.png" alt="image.png">  </p>
+<h3 id="查询所有告警静默规则"><a href="#查询所有告警静默规则" class="headerlink" title="查询所有告警静默规则"></a>查询所有告警静默规则</h3><p>请求方式：GET<br>请求地址：&#x2F;api&#x2F;v2&#x2F;silences<br>默认会返回所有静默规则，包括失效状态的规则<br><img src="/images/1711614152-70f435bf225efdc0dd512a60798ae7c7.png" alt="image.png"></p>
+<h3 id="查询指定标签的静默规则"><a href="#查询指定标签的静默规则" class="headerlink" title="查询指定标签的静默规则"></a>查询指定标签的静默规则</h3><p>请求方式：GET<br>请求地址：&#x2F;api&#x2F;v2&#x2F;silences<br>请求参数：filter:[team&#x3D;elk]<br><img src="/images/1711614152-58e3e06fd8c9b3b032a5e44353869c9e.png" alt="image.png"></p>
+<h3 id="查询指定ID的静默规则"><a href="#查询指定ID的静默规则" class="headerlink" title="查询指定ID的静默规则"></a>查询指定ID的静默规则</h3><p>例如查询id为5d5f1ed3-9033-4a70-92c6-1d93eeaa08db的规则信息<br><img src="/images/1711614152-f02a5141dfba62821f6c87d5f90d7c2e.png" alt="image.png"></p>
+<h3 id="删除告警静默规则"><a href="#删除告警静默规则" class="headerlink" title="删除告警静默规则"></a>删除告警静默规则</h3><p>例如删除id为876586b6-1a06-4713-a096-8d5a9f4ffa8a的规则信息<br><img src="/images/1711614152-360f3f685d7ab8bb8aae9b56dcf2cee2.png" alt="image.png"><br>删除静默规则本质是是把状态为active的变为expired状态，并不会真正删除规则。对于已经是expired状态的规则，无法进行删除操作。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/03/28/Alertmanager%E2%80%94%E2%80%94webhook%E4%B8%8EAPI/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Alertmanager/" rel="tag">Alertmanager</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/28/Linux%E6%A3%80%E6%B5%8B%E6%96%87%E4%BB%B6%E5%8F%98%E5%8C%96%E5%B9%B6%E6%89%A7%E8%A1%8C%E5%8A%A8%E4%BD%9C%E7%9A%84%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Linux检测文件变化并执行动作的脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
