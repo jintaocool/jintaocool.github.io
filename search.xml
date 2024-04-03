@@ -14269,4 +14269,158 @@ plugin_admin_external_manage_enabled = true
         <tag>Oracle</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Ansible的安装和使用</title>
+    <url>/2024/04/03/Ansible%E7%9A%84%E5%AE%89%E8%A3%85%E5%92%8C%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="一、Ansible安装"><a href="#一、Ansible安装" class="headerlink" title="一、Ansible安装"></a>一、Ansible安装</h2><p>Ansible的安装方法主要有以下三种：</p>
+<h3 id="1-1-yum使用EPEL源安装"><a href="#1-1-yum使用EPEL源安装" class="headerlink" title="1.1 yum使用EPEL源安装"></a>1.1 yum使用EPEL源安装</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">$ mv /etc/yum.repos.d/epel.repo /etc/yum.repos.d/epel.repo.backup</span><br><span class="line">$ mv /etc/yum.repos.d/epel-testing.repo /etc/yum.repos.d/epel-testing.repo.backup</span><br><span class="line">$ wget -O /etc/yum.repos.d/epel.repo https://mirrors.aliyun.com/repo/epel-7.repo</span><br><span class="line">$ yum clean all &amp;&amp; yum makecache</span><br><span class="line"></span><br><span class="line"># 可以使用以下三种方式查看ansible包的信息</span><br><span class="line">$ yum info ansible</span><br><span class="line">$ yum list ansible</span><br><span class="line">$ yum list | grep ansible</span><br><span class="line">ansible.noarch                                                      2.9.27-1.el7                                                  epel</span><br><span class="line">ansible-collection-microsoft-sql.noarch                             1.1.0-1.el8                                                   AppStream</span><br><span class="line">ansible-collection-redhat-rhel_mgmt.noarch                          1.0.0-2.el8                                                   AppStream</span><br><span class="line">ansible-doc.noarch                                                  2.9.27-1.el7                                                  epel</span><br><span class="line">ansible-freeipa.noarch                                              0.3.8-1.el8                                                   AppStream</span><br><span class="line">ansible-freeipa-tests.noarch                                        0.3.8-1.el8                                                   AppStream</span><br><span class="line">ansible-inventory-grapher.noarch                                    2.4.4-1.el7                                                   epel</span><br><span class="line">ansible-lint.noarch                                                 3.5.1-1.el7                                                   epel</span><br><span class="line">ansible-openstack-modules.noarch                                    0-20140902git79d751a.el7                                      epel</span><br><span class="line">ansible-pcp.noarch                                                  2.2.1-1.el8                                                   AppStream</span><br><span class="line">ansible-python3.noarch                                              2.9.27-1.el7                                                  epel</span><br><span class="line">ansible-review.noarch                                               0.13.4-1.el7                                                  epel</span><br><span class="line">ansible-test.noarch                                                 2.9.27-1.el7                                                  epel</span><br><span class="line">centos-release-ansible-29.noarch                                    1-2.el8                                                       extras</span><br><span class="line">kubernetes-ansible.noarch                                           0.6.0-0.1.gitd65ebd5.el7                                      epel</span><br><span class="line">python2-ansible-runner.noarch                                       1.0.1-1.el7                                                   epel</span><br><span class="line">python2-ansible-tower-cli.noarch                                    3.3.9-1.el7                                                   epel</span><br><span class="line">vim-ansible.noarch                                                  3.2-1.el7</span><br><span class="line"></span><br><span class="line"># 安装ansible</span><br><span class="line">$ yum -y install ansible</span><br><span class="line">$ ansible --version</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-编译安装"><a href="#1-2-编译安装" class="headerlink" title="1.2 编译安装"></a>1.2 编译安装</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">$ yum -y install python-jinja2 PyYAML python-paramiko python-babel python-crypto</span><br><span class="line"></span><br><span class="line"># 需要提前安装Python环境(略)</span><br><span class="line">$ wget https://releases.ansible.com/ansible/ansible-2.9.27.tar.gz</span><br><span class="line">$ tar xf ansible-2.9.27.tar.gz</span><br><span class="line">$ cd ansible-2.9.27</span><br><span class="line">$ ls -al</span><br><span class="line">total 160</span><br><span class="line">drwxr-xr-x  2 root root  4096 May 25 05:18 bin</span><br><span class="line">drwxr-xr-x  2 root root  4096 May 25 05:18 changelogs</span><br><span class="line">drwxr-xr-x  3 root root  4096 May 25 05:18 contrib</span><br><span class="line">-rw-r--r--  1 root root 35148 May 25 05:18 COPYING</span><br><span class="line">drwxr-xr-x  6 root root  4096 May 25 05:18 docs</span><br><span class="line">drwxr-xr-x  3 root root  4096 May 25 05:18 examples</span><br><span class="line">drwxr-xr-x  3 root root  4096 May 25 05:18 hacking</span><br><span class="line">drwxr-xr-x  3 root root  4096 May 25 05:18 lib</span><br><span class="line">drwxr-xr-x  2 root root  4096 May 25 05:18 licenses</span><br><span class="line">-rw-r--r--  1 root root 13840 May 25 05:18 Makefile</span><br><span class="line">-rw-r--r--  1 root root  1731 May 25 05:18 MANIFEST.in</span><br><span class="line">drwxr-xr-x 10 root root  4096 May 25 05:18 packaging</span><br><span class="line">-rw-r--r--  1 root root  7724 May 25 05:18 PKG-INFO</span><br><span class="line">-rw-r--r--  1 root root  5175 May 25 05:18 README.rst</span><br><span class="line">-rw-r--r--  1 root root   351 May 25 05:18 requirements.txt</span><br><span class="line">-rw-r--r--  1 root root 12949 May 25 05:18 setup.py</span><br><span class="line">-rw-r--r--  1 root root 28352 May 25 05:18 SYMLINK_CACHE.json</span><br><span class="line">drwxr-xr-x  7 root root  4096 May 25 05:18 test</span><br><span class="line">$ python setup.py build</span><br><span class="line">$ python setup.py install</span><br><span class="line"></span><br><span class="line">$ mkdir /etc/ansible</span><br><span class="line">$ cp -r examples/* /etc/ansible</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-3-Git-源码安装"><a href="#1-3-Git-源码安装" class="headerlink" title="1.3 Git 源码安装"></a>1.3 Git 源码安装</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">$ git clone https://github.com/ansible/ansible.git</span><br><span class="line">$ cd ansible</span><br><span class="line">$ git checkout stable-2.9</span><br><span class="line">Updating files: 100% (19674/19674), done.</span><br><span class="line">Branch &#x27;stable-2.9&#x27; set up to track remote branch &#x27;stable-2.9&#x27; from &#x27;origin&#x27;.</span><br><span class="line">Switched to a new branch &#x27;stable-2.9&#x27;</span><br><span class="line">$ source ./hacking/env-setup</span><br></pre></td></tr></table></figure>
+
+<h3 id="1-4-pip安装"><a href="#1-4-pip安装" class="headerlink" title="1.4 pip安装"></a>1.4 pip安装</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">$ yum install python-pip python-devel</span><br><span class="line">$ yum install gcc glibc-devel zibl-devel rpm-bulid openss1-devel </span><br><span class="line">$ pip install -U pip </span><br><span class="line">$ pip install ansible --upgrade</span><br></pre></td></tr></table></figure>
+
+<h2 id="二、Ansible相关文件说明"><a href="#二、Ansible相关文件说明" class="headerlink" title="二、Ansible相关文件说明"></a>二、Ansible相关文件说明</h2><h3 id="2-1-配置文件"><a href="#2-1-配置文件" class="headerlink" title="2.1 配置文件"></a>2.1 配置文件</h3><ul>
+<li><p><code>/etc/ansible/ansible.cfg</code> ：主配置文件，配置ansible工作特性；  </p>
+</li>
+<li><p><code>/etc/ansible/hosts</code> ：主机清单文件，管理的目标主机地址清单；  </p>
+</li>
+<li><p><code>/etc/ansible/roles/</code> ：存放角色的目录。</p>
+</li>
+</ul>
+<h3 id="2-2-主配置文件介绍"><a href="#2-2-主配置文件介绍" class="headerlink" title="2.2 主配置文件介绍"></a>2.2 主配置文件介绍</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[defaults]</span><br><span class="line">#inventory = /etc/ansible/hosts  # 主机列表配置文件</span><br><span class="line">#library =/usr/share/my_modules/ # 库文件存放目录</span><br><span class="line">#remote_tmp = $HOME/.ansible/tmp # 临时py命令文件存放在远程主机目录</span><br><span class="line">#local_tmp = $HOME/.ansible/tmp  # 本机的临时命令执行目录</span><br><span class="line">#forks = 5                       # 默认并发数</span><br><span class="line">#sudo_user = root                # 默认sudo用户</span><br><span class="line">#ask_sudo_pass = True            # 每次执行ansible命令是否询间ssh密码</span><br><span class="line">#ask_pass = True                 # 是否询问密码</span><br><span class="line">#remote_port = 22                # 默认的远程登录端口</span><br><span class="line">host_key_checking = False        # 检查对应服务器的host_key，建议取消注释</span><br><span class="line">log_path=/var/log/ansible.log    # 日志文件，建议启用</span><br><span class="line">#module_name = command           # 默认模块，可以修改为shell模块</span><br></pre></td></tr></table></figure>
+
+<p>以上只是一小部分关于default的相关配置，还有其他更多的配置这里暂时不一一列举。因为ansible的大部分参数都可以保持默认，无需更改。但是当你的被管理机器数量增加以后，建议将forks数量适当的调整。</p>
+<p><strong>温馨提示：</strong>由于Ansible不是一个服务，所以更改完配置后无无需进行重启操作(也没提供重启的操作方法),改完配置立即生效。</p>
+<h3 id="2-3-Inventory主机清单文件"><a href="#2-3-Inventory主机清单文件" class="headerlink" title="2.3 Inventory主机清单文件"></a>2.3 Inventory主机清单文件</h3><p>主机清单文件，用大白话讲其实就是被整合在一个文件中的一组或者多组被管控的节点。默认情况下，该清单文件为：<code>/etc/ansible/hosts</code>，通常我们可能会根据项目需求，起一个见名知意的其他名称，或者也会直接在每一套我们需要组织的项目根目录下存放一个hosts的清单文件。</p>
+<p>Inventory主机清单文件可以有多个，在使用plyabook时可以手动通过<code>-i</code> 参数指定你需要使用的清单文件名称。</p>
+<p>Inventory文件遵循了<code>ini</code>配置文件的风格，一个section就表示一组隶属于同一个分组的被管理机器。目标被管理节点默认均被视为使用SSH的22端口，但是当部分节点使用非22端口号时，也可以在清单文件中进行指定。</p>
+<p>被管理节点可以是以IP的形式写在清单文件中，也可以使用域名的形式。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[sites]</span><br><span class="line">172.16.0.10</span><br><span class="line">172.16.0.11</span><br><span class="line"></span><br><span class="line">[appsrvs]</span><br><span class="line">192.168.66.[1:30]</span><br><span class="line"></span><br><span class="line">[nginx]</span><br><span class="line">nginx1.ayunw.cn</span><br><span class="line">nginx2.ayunw.cn</span><br><span class="line"></span><br><span class="line">[apache]</span><br><span class="line">apache1.ayunw.cn:2333</span><br><span class="line">apache2.ayunw.cn</span><br><span class="line"></span><br><span class="line">[nginxsrvs]</span><br><span class="line">nginx[10:20].ayunw.cn</span><br><span class="line"></span><br><span class="line">[dbservers]</span><br><span class="line">redis1.ayunw.cn</span><br><span class="line">redis2.ayunw.cn</span><br><span class="line"></span><br><span class="line">[dbsrvs]</span><br><span class="line">mysql-[a:z].ayunw.cn</span><br></pre></td></tr></table></figure>
+
+<h2 id="三、实战演练"><a href="#三、实战演练" class="headerlink" title="三、实战演练"></a>三、实战演练</h2><h3 id="3-1-环境介绍"><a href="#3-1-环境介绍" class="headerlink" title="3.1 环境介绍"></a>3.1 环境介绍</h3><p>我这里包括ansible主控机和另外两个被管理机器。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[root@ansible-server ~]# cat /etc/ansible/hosts</span><br><span class="line">[webservers]</span><br><span class="line">192.168.66.[151:153]</span><br><span class="line"></span><br><span class="line">[dbservers]</span><br><span class="line">192.168.66.151</span><br><span class="line"></span><br><span class="line">[appservers]</span><br><span class="line">192.168.66.[152:153]</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-Ansible相关命令工具"><a href="#3-2-Ansible相关命令工具" class="headerlink" title="3.2 Ansible相关命令工具"></a>3.2 Ansible相关命令工具</h3><ul>
+<li><p><code>/usr/bin/ansible</code> ：主提序，临时命令执行工具  </p>
+</li>
+<li><p><code>/usr/bin/ansible-doc</code> ：查看配置文档，模块功能查看工具  </p>
+</li>
+<li><p><code>/us/bin/ansible-galaxy</code>：下载&#x2F;上传优秀代码或Roles模块的自网平台  </p>
+</li>
+<li><p><code>/usr/bin/ansible-playbook</code>：定制自动化任务，编排剧本工具  </p>
+</li>
+<li><p><code>/usr/bin/ansible-pull</code>：远程执行命令的工具  </p>
+</li>
+<li><p><code>/usr/bin/ansible-vault</code>：文件加密工具  </p>
+</li>
+<li><p><code>/usr/bin/ansible-console</code>：基于Console界面与用户交互的执行工具</p>
+</li>
+</ul>
+<p>以上命令，最常用的两个：<code>ansible</code>和<code>ansible-playbook</code>，这两个命令就是ansible用来实现批量管里的关键。</p>
+<ul>
+<li><p>ansible命令通常用于一次性或者临时的任务，一般一条命令即可实现任务。通常我们称这种方式为：ad-hoc；  </p>
+</li>
+<li><p>ansible-playbook主要是应用于针对大型项目的部署，需要通过多个yaml格式的文件(以yaml或者yml结尾)组合使用，所以一般需要进行提前规划目录，整合yaml文件。</p>
+</li>
+</ul>
+<p>接下来介绍几个比较常用的命令。</p>
+<h3 id="3-2-1-ansible-doc"><a href="#3-2-1-ansible-doc" class="headerlink" title="3.2.1 ansible-doc"></a>3.2.1 ansible-doc</h3><p>该命令主要用于显示针对某个模块的使用方法的帮助信息。如果忘记了模块或者模块的用法，可以通过该命令快速查看。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">ansible-doc [options][module...]</span><br><span class="line"># 列出可用模块</span><br><span class="line">-l，--list</span><br><span class="line"># 显示指定模块的playbook片段</span><br><span class="line">-s，--snippet</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">如：</span><br><span class="line"># 列出所有模块</span><br><span class="line">ansible-doc -l</span><br><span class="line"> </span><br><span class="line"># 查看指定模块帮助用法</span><br><span class="line">ansible-doc copy</span><br><span class="line"> </span><br><span class="line"># 查看指定模块帮助用法[简化版的帮助]</span><br><span class="line">ansible-doc -s copy</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意：</strong> 在使用ansible批量管理操作之前，需要先对所有主机做一个免密认证，以确保每个被管理节点都能在ansible管理节点上通过ssh协议免密登录到被管理节点。</p>
+<p>免密的三种实现方式：</p>
+<ul>
+<li><p>基于ssh-keygen + shell + sshpass`方法实现  </p>
+</li>
+<li><p>基于<code>expect</code>实现;  </p>
+</li>
+<li><p>基于<code>ansible-playbook</code>实现。</p>
+</li>
+</ul>
+<p>ad-hoc 方式常用参数说明：</p>
+<ul>
+<li><p><code>--version</code> ：显示版本  </p>
+</li>
+<li><p><code>-m module</code> ：指定模块，默认为command  </p>
+</li>
+<li><p><code>-V</code> ：详细过程-vv -vvv更详细  </p>
+</li>
+<li><p><code>--list-hosts</code> ：显示主机列表，可简写–list  </p>
+</li>
+<li><p><code>-k，--ask-pass</code> ：提示输入ssh连接密码，默认key验证  </p>
+</li>
+<li><p><code>-C，--check</code> ：检查，并不执行  </p>
+</li>
+<li><p><code>-T，--timeout=TIMEOUT</code> ：执行命令的超时时间，默认10s  </p>
+</li>
+<li><p><code>-u，--user=REMOTE_USER</code> ：执行远程执行的用户  </p>
+</li>
+<li><p><code>-b，--become</code> ：代替旧版的sudo切换  </p>
+</li>
+<li><p><code>--become-user=USERNAME</code> ：指定sudo的runas用户，默认为root  </p>
+</li>
+<li><p><code>-K，--ask-become-pass</code> ：提示输入sudo时的口令</p>
+</li>
+</ul>
+<p><strong>通配符</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">ansible &quot;*&quot;-m ping </span><br><span class="line">ansible 192.168.1.* -m ping </span><br><span class="line">ansible &quot;srvs&quot; -m ping</span><br><span class="line"> </span><br><span class="line">[root@ansible-server ~]# ansible &quot;*&quot; --list-hosts</span><br><span class="line">  hosts (3):</span><br><span class="line">    192.168.66.151</span><br><span class="line">    192.168.66.152</span><br><span class="line">    192.168.66.153</span><br></pre></td></tr></table></figure>
+
+<p><strong>逻辑或</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">ansible &quot;websrvs:appsrvs&quot; -m ping </span><br><span class="line">ansible &quot;192.168.66.151:192.168.66.152&quot; -m ping</span><br></pre></td></tr></table></figure>
+
+<p><strong>逻辑与</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line"># 在websrvs组并且在dbsrvs组中的主机</span><br><span class="line">ansible &quot;webservers:&amp;dbservers&quot; -m ping</span><br><span class="line"> </span><br><span class="line">192.168.66.151 | SUCCESS =&gt; &#123;</span><br><span class="line">    &quot;ansible_facts&quot;: &#123;</span><br><span class="line">        &quot;discovered_interpreter_python&quot;: &quot;/usr/bin/python&quot;</span><br><span class="line">    &#125;, </span><br><span class="line">    &quot;changed&quot;: false, </span><br><span class="line">    &quot;ping&quot;: &quot;pong&quot;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>逻辑非</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line"># 在websrvs组，但不在dbsrvs组中的主机</span><br><span class="line"># 注意：此处为单引号</span><br><span class="line">ansible &#x27;webservers:!dbservers&#x27; -m ping</span><br></pre></td></tr></table></figure>
+
+<p><strong>正则</strong></p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">ansible &quot;webservers:&amp;dbservers&quot; -m ping</span><br><span class="line">ansible &quot;~(web|db)servers&quot; -m ping</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-2-ansible执行命令过程"><a href="#3-2-2-ansible执行命令过程" class="headerlink" title="3.2.2 ansible执行命令过程"></a>3.2.2 ansible执行命令过程</h3><ul>
+<li><p>加载自己的配置文件默认 <code>/etc/ansible/ansible.cfg</code>，如果指定了你自定义的清单文件，则从自己的清单文件中查找被管理主机  </p>
+</li>
+<li><p>加载自己对应的模块文件，如：<code>command</code></p>
+</li>
+<li><p>通过ansible将模块或命令生成对应的临时py文件，并将该文件传输至远程服务器的对应执行用户 <code>$HOME/.ansible/tmp/ansible-tmp-数字/XXX.PY</code>文件  </p>
+</li>
+<li><p>给文件+x执行  </p>
+</li>
+<li><p>执行并返回结果  </p>
+</li>
+<li><p>删除临时py文件，退出</p>
+</li>
+</ul>
+<p>可以通过加参数 <code>-v</code> 或者 <code>-vvv</code>列出详细的执行过程(可以多加几个v参数)。</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[root@ansible-server ~]# ansible &quot;~(web|db)servers&quot; -vvv -m ping &gt; ansible.log</span><br><span class="line">[root@ansible-server ~]# grep &quot;chmod&quot; ansible.log</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-3-ansible执行后颜色描述"><a href="#3-2-3-ansible执行后颜色描述" class="headerlink" title="3.2.3 ansible执行后颜色描述"></a>3.2.3 ansible执行后颜色描述</h3><p>默认情况下是以下三种颜色：</p>
+<ul>
+<li><p>绿色：表示成功  </p>
+</li>
+<li><p>黄色：修改了远程文件后并执行成功  </p>
+</li>
+<li><p>红色：表示执行失败</p>
+</li>
+</ul>
+<p>但是在ansible配置文件中可以定义颜色，如下：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[root@ansible-server ~]# vim /etc/ansible/ansible.cfg</span><br><span class="line">[colors]</span><br><span class="line">#highlight = white</span><br><span class="line">#verbose = blue</span><br><span class="line">#warn = bright purple</span><br><span class="line">#error = red</span><br><span class="line">#debug = dark gray</span><br><span class="line">#deprecate = purple</span><br><span class="line">#skip = cyan</span><br><span class="line">#unreachable = red</span><br><span class="line">#ok = green</span><br><span class="line">#changed = yellow</span><br><span class="line">#diff_add = green</span><br><span class="line">#diff_remove = red</span><br><span class="line">#diff_lines = cyan</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-4-Ansible-playbook示例"><a href="#3-2-4-Ansible-playbook示例" class="headerlink" title="3.2.4 Ansible-playbook示例"></a>3.2.4 Ansible-playbook示例</h3><figure class="highlight text"><table><tr><td class="code"><pre><span class="line">[root@ansible-server ~]# cat echo-demo.yml</span><br><span class="line">---</span><br><span class="line">- hosts: all</span><br><span class="line">  remote_user: root</span><br><span class="line">  tasks:</span><br><span class="line">    - name: echo demo</span><br><span class="line">      command: echo &quot;第一个 ansible-playbook 示例&quot;</span><br><span class="line"> </span><br><span class="line">[root@ansible-server ~]# ansible-playbook echo-demo.yml</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-5-ansible-vault"><a href="#3-2-5-ansible-vault" class="headerlink" title="3.2.5 ansible-vault"></a>3.2.5 ansible-vault</h3><p>该工具用于对yaml文件进行加解密，格式如下：</p>
+<figure class="highlight text"><table><tr><td class="code"><pre><span class="line">ansible-vault [create|decrypt|edit|encrypt|rekey|view]</span><br><span class="line"></span><br><span class="line">如：</span><br><span class="line">ansible-vault encrypt echo-demo.yml  # 加密</span><br><span class="line">ansible-vault view echo-demo.yml    # 查看</span><br><span class="line">ansible-vault decrypt echo-demo.yml  # 解密</span><br><span class="line">ansible-vault edit echo-demo.yml    # 编辑加密文件</span><br><span class="line">ansible-vault create echo-demo.yml  # 创建新文件</span><br></pre></td></tr></table></figure>
+
+<p>ansible是一个简单高效且很强大的工具，它的功能远不止于此。而那些不常用的命令工具，本文也暂不介绍，学习了不用也是在浪费自己的时间。如果有兴趣的话可以去官网或者其他站点查阅资料了解更多适合自己的信息</p>
+<p>一名常年穿梭于Google、阿里、百度、腾讯的一线运维从业者。是&lt;&lt;运维开发故事&gt;&gt;公众号的成员之一。不定期分享技术干货和对技术的理解与感悟。</p>
+]]></content>
+      <categories>
+        <category>Ansible</category>
+      </categories>
+      <tags>
+        <tag>Ansible</tag>
+      </tags>
+  </entry>
 </search>
