@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Oracle RAC某节点v$asm_disk查询卡住分析处理 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Oracle-Oracle-RAC某节点v-asm-disk查询卡住分析处理"
+  class="article article-type-Oracle"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Oracle RAC某节点v$asm_disk查询卡住分析处理
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/03/Oracle-RAC%E6%9F%90%E8%8A%82%E7%82%B9v-asm-disk%E6%9F%A5%E8%AF%A2%E5%8D%A1%E4%BD%8F%E5%88%86%E6%9E%90%E5%A4%84%E7%90%86/" class="article-date">
+  <time datetime="2024-04-03T02:59:18.000Z" itemprop="datePublished">2024-04-03</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Oracle/">Oracle</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>主题：</strong>RAC某节点v$asm_disk查询hang分析处理<br><strong>环境：</strong>Oracle 11.2.0.3 RAC<br><strong>故障描述：</strong>RAC环境2个节点，节点1查询v$asm_disk正常返回结果，节点2查询v$asm_disk就会一直hang，查询会话对应event是ASM file metadata operation.</p>
+<h2 id="1-初步判断"><a href="#1-初步判断" class="headerlink" title="1.初步判断"></a>1.初步判断</h2><p>首先连接节点1，查询v$asm_disk没有问题：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">--节点1查询v$asm_disk都没有问题</span><br><span class="line">SQL&gt; show parameter name</span><br><span class="line">SQL&gt; select path from v$asm_disk;</span><br><span class="line"></span><br><span class="line">PATH</span><br><span class="line">------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</span><br><span class="line">/dev/oracleasm/disks/DATADISK</span><br><span class="line">/dev/oracleasm/disks/FRADISK</span><br><span class="line">/dev/oracleasm/disks/CRSDISK1</span><br><span class="line">/dev/oracleasm/disks/CRSDISK3</span><br><span class="line">/dev/oracleasm/disks/CRSDISK2</span><br></pre></td></tr></table></figure>
+
+<p>然后连接节点2，查询v$asm_disk就一直hang</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">SQL</span><span class="operator">&gt;</span> <span class="keyword">select</span> path <span class="keyword">from</span> v$asm_disk;</span><br><span class="line">hang住一直无结果返回..</span><br></pre></td></tr></table></figure>
+
+<p>故障重现，确认客户描述故障现场属实。</p>
+<p>既然是hang住，自然去查该会话的等待事件是什么？是否有阻塞会话？</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">SQL&gt; select sid, serial#, inst_id, sql_id, event, p1,p2,p3, machine, username, blocking_session from gv$session where wait_class# &lt;&gt; 6;</span><br><span class="line"></span><br><span class="line">       SID    SERIAL#    INST_ID SQL_ID        EVENT                                       P1         P2         P3 MACHINE              USERNAME                       BLOCKING_SESSION</span><br><span class="line">---------- ---------- ---------- ------------- ----------------------------------- ---------- ---------- ---------- -------------------- ------------------------------ ----------------</span><br><span class="line"></span><br><span class="line">      289      33911          2 b5tshv0auyqm0 ASM file metadata operation               6229          9          0 newdb2               SYS</span><br></pre></td></tr></table></figure>
+
+<p>发现等待事件是“ASM file metadata operation”，BLOCKING_SESSION为空，表明并没有阻塞会话。</p>
+<p>此时查了下MOS，初步怀疑是asm_diskstring配置有问题，或是对应的磁盘权限有什么异常。但实际排查并未发现异常。<br>两个节点asm实例的参数设置都一样；对应目录下的磁盘等权限等也一致。</p>
+<ol>
+<li>两个节点asm实例的参数设置都一样</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">--节点1：</span><br><span class="line">SQL&gt; show parameter asm</span><br><span class="line"></span><br><span class="line">NAME                                 TYPE        VALUE</span><br><span class="line">------------------------------------ ----------- ------------------------------</span><br><span class="line">asm_diskgroups                       string      DATADG, FRADG, CRSDG_NEW</span><br><span class="line">asm_diskstring                       string      /dev/oracleasm/disks/*</span><br><span class="line">asm_power_limit                      integer     1</span><br><span class="line">asm_preferred_read_failure_groups    string</span><br><span class="line">SQL&gt;</span><br><span class="line"></span><br><span class="line">--节点2 一样的：</span><br><span class="line">SQL&gt; show parameter asm</span><br><span class="line"></span><br><span class="line">NAME                                 TYPE        VALUE</span><br><span class="line">------------------------------------ ----------- ------------------------------</span><br><span class="line">asm_diskgroups                       string      DATADG, FRADG, CRSDG_NEW</span><br><span class="line">asm_diskstring                       string      /dev/oracleasm/disks/*</span><br><span class="line">asm_power_limit                      integer     1</span><br><span class="line">asm_preferred_read_failure_groups    string</span><br></pre></td></tr></table></figure>
+
+<ol start="2">
+<li>对应目录下的磁盘等权限等也一致</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">[grid@newdb1 ~]$ ls -l /dev/oracleasm/disks/</span><br><span class="line">total 0</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 11 Jan 29 15:05 CRSDISK1</span><br><span class="line">brw-rw---- 1 grid asmadmin 253,  9 Jan 29 15:05 CRSDISK2</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 10 Jan 29 15:05 CRSDISK3</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 14 Jan 29 15:05 DATADISK</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 13 Jan 29 15:05 FRADISK</span><br><span class="line">[grid@newdb1 ~]$</span><br><span class="line"></span><br><span class="line">[grid@newdb2 ~]$ ls -l /dev/oracleasm/disks/</span><br><span class="line">total 0</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 21 Jan 29 15:05 CRSDISK1</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 18 Jan 29 15:05 CRSDISK2</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 19 Jan 29 15:05 CRSDISK3</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 22 Jan 29 15:05 DATADISK</span><br><span class="line">brw-rw---- 1 grid asmadmin 253, 20 Jan 29 15:05 FRADISK</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-深入分析"><a href="#2-深入分析" class="headerlink" title="2.深入分析"></a>2.深入分析</h2><p>在故障节点2上使用oradebug获取short_stack以及SSD 266，然后进行深入分析。</p>
+<p>首先获取上面289,33911会话的spid：</p>
+<p>select p.spid<br>from v$process p, v$session s<br>where p.addr &#x3D; s.paddr<br>and s.sid &#x3D; &amp;sid<br>and s.serial# &#x3D; &serial;</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">SQL&gt; select p.spid</span><br><span class="line">  2    from v$process p, v$session s</span><br><span class="line">  3   where p.addr = s.paddr</span><br><span class="line">  4     and s.sid = &amp;sid</span><br><span class="line">  5     and s.serial# = &amp;serial;</span><br><span class="line">Enter value for sid: 289</span><br><span class="line">old   4:    and s.sid = &amp;sid</span><br><span class="line">new   4:    and s.sid = 289</span><br><span class="line">Enter value for serial: 33911</span><br><span class="line">old   5:    and s.serial# = &amp;serial</span><br><span class="line">new   5:    and s.serial# = 33911</span><br><span class="line"></span><br><span class="line">SPID</span><br><span class="line">------------------------</span><br><span class="line">8763</span><br><span class="line"></span><br><span class="line">SQL&gt; !ps -ef|grep 8763</span><br><span class="line">oracle    8763  8762  0 16:31 ?        00:00:00 oraclenewdb2 (DESCRIPTION=(LOCAL=YES)(ADDRESS=(PROTOCOL=beq)))</span><br><span class="line">grid      9639     1  0 16:35 ?        00:00:00 oracle+ASM2_user8763_newdb2 (DESCRIPTION=(LOCAL=YES)(ADDRESS=(PROTOCOL=beq)))</span><br><span class="line">oracle   12022  9750  0 16:43 pts/2    00:00:00 /bin/bash -c ps -ef|grep 8763</span><br><span class="line">oracle   12024 12022  0 16:43 pts/2    00:00:00 grep 8763</span><br></pre></td></tr></table></figure>
+
+<p>然后使用oradebug 跟踪8763进程，获取short_stack和SSD 266：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">SQL&gt; oradebug setospid 8763</span><br><span class="line">Oracle pid: 68, Unix process pid: 8763, image: oracle@newdb2 (TNS V1-V3)</span><br><span class="line">SQL&gt; oradebug unlimit</span><br><span class="line">Statement processed.</span><br><span class="line">SQL&gt; oradebug short_stack</span><br><span class="line">ksedsts()+461&lt;-ksdxfstk()+32&lt;-ksdxcb()+1876&lt;-sspuser()+112&lt;-__sighandler()&lt;-read()+14&lt;-ntpfprd()+115&lt;-nsbasic_brc()+376&lt;-nsbrecv()+69&lt;-nioqrc()+485&lt;-ttcdrv()+1461&lt;-nioqwa()+61&lt;-upirtrc()+1385&lt;-kpurcsc()+98&lt;-kpuexec()+10807&lt;-OCIStmtExecute()+39&lt;-kfdDskTableCb4Db()+4492&lt;-kfdDskTableCbInternal()+301&lt;-kfdDskTableCb()+56&lt;-qerfxFetch()+2210&lt;-rwsfcd()+103&lt;-qerhjFetch()+3187&lt;-opifch2()+2995&lt;-kpoal8()+2939&lt;-opiodr()+916&lt;-ttcpip()+2242&lt;-opitsk()+1673&lt;-opiino()+966&lt;-opiodr()+916&lt;-opidrv()+570&lt;-sou2o()+103&lt;-opimai_real()+133&lt;-ssthrdmain()+252&lt;-main()+201&lt;-__libc_start_main()+253&lt;-_start()+36</span><br><span class="line">SQL&gt; oradebug dump systemstate 266</span><br><span class="line">Statement processed.</span><br><span class="line">SQL&gt; oradebug tracefile_name</span><br><span class="line">/home/app/oracle/diag/rdbms/newdg/newdb2/trace/newdb2_ora_8763.trc</span><br><span class="line">SQL&gt;</span><br></pre></td></tr></table></figure>
+
+<p>从获取到的trc文件中，并没有找到有用的线索。至此问题陷入僵局。</p>
+<h2 id="3-峰回路转"><a href="#3-峰回路转" class="headerlink" title="3.峰回路转"></a>3.峰回路转</h2><p>回过头来想之前的解决过程，发现虽然查询v$asm_disk这类操作是在db层，但是本质确实asm实例的管理资源，去查asm实例是否有阻塞呢？</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">--ASM INSTANCE</span><br><span class="line"><span class="keyword">set</span> lines <span class="number">350</span> trimspool <span class="keyword">on</span> pages <span class="number">300</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">select</span> sid, state, <span class="keyword">event</span>, seconds_in_wait, blocking_session</span><br><span class="line"><span class="keyword">from</span>   v$<span class="function">session</span></span><br><span class="line"><span class="function"><span class="keyword">where</span>  blocking_session <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">null</span></span></span><br><span class="line"><span class="function"><span class="keyword">or</span> sid <span class="title">in</span> (<span class="params"><span class="keyword">select</span> blocking_session</span></span></span><br><span class="line"><span class="params"><span class="function">           <span class="keyword">from</span>   v$session</span></span></span><br><span class="line"><span class="params"><span class="function">           <span class="keyword">where</span>  blocking_session <span class="keyword">is</span> <span class="keyword">not</span> <span class="literal">null</span></span>)</span></span><br><span class="line"><span class="function">order <span class="keyword">by</span> sid</span>;</span><br></pre></td></tr></table></figure>
+
+<p>在故障节点2的asm实例上查询：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">SQL&gt; set lines 350 trimspool on pages 300</span><br><span class="line">SQL&gt;</span><br><span class="line">SQL&gt; select sid, state, event, seconds_in_wait, blocking_session</span><br><span class="line">  2  from   v$session</span><br><span class="line">  3  where  blocking_session is not null</span><br><span class="line">  4  or sid in (select blocking_session</span><br><span class="line">  5             from   v$session</span><br><span class="line">  6             where  blocking_session is not null)</span><br><span class="line">  7  order by sid;</span><br><span class="line"></span><br><span class="line">       SID STATE               EVENT                                                            SECONDS_IN_WAIT BLOCKING_SESSION</span><br><span class="line">---------- ------------------- ---------------------------------------------------------------- --------------- ----------------</span><br><span class="line">       128 WAITING             enq: DD - contention                                                      542311             1702</span><br><span class="line">       380 WAITING             enq: DD - contention                                                     2159938             1702</span><br><span class="line">       442 WAITING             enq: DD - contention                                                     2159098             1702</span><br><span class="line">       506 WAITING             enq: DD - contention                                                     2158258             1702</span><br><span class="line">       569 WAITING             enq: DD - contention                                                      713509             1702</span><br><span class="line">       632 WAITING             enq: DD - contention                                                     2156578             1702</span><br><span class="line">       695 WAITING             enq: DD - contention                                                     2155738             1702</span><br><span class="line">       758 WAITING             enq: DD - contention                                                     1108924             1702</span><br><span class="line">       821 WAITING             enq: DD - contention                                                     2142990             1702</span><br><span class="line">       884 WAITING             enq: DD - contention                                                     2139901             1702</span><br><span class="line">       947 WAITING             enq: DD - contention                                                     2136286             1702</span><br><span class="line">      1010 WAITING             enq: DD - contention                                                     2078621             1702</span><br><span class="line">      1073 WAITING             enq: DD - contention                                                     1845020             1702</span><br><span class="line">      1135 WAITING             GPnP Get Item                                                            2161258</span><br><span class="line">      1136 WAITING             enq: DD - contention                                                     1844671             1702</span><br><span class="line">      1199 WAITING             enq: DD - contention                                                     1844394             1702</span><br><span class="line">      1263 WAITING             enq: DD - contention                                                     1844065             1702</span><br><span class="line">      1325 WAITING             enq: DD - contention                                                     1843549             1702</span><br><span class="line">      1388 WAITING             enq: DD - contention                                                     1471932             1702</span><br><span class="line">      1451 WAITING             enq: DD - contention                                                     1641694             1702</span><br><span class="line">      1514 WAITING             enq: DD - contention                                                     1641426             1702</span><br><span class="line">      1577 WAITING             enq: DD - contention                                                     1572189             1702</span><br><span class="line">      1640 WAITING             enq: DD - contention                                                     1501765             1702</span><br><span class="line">      1702 WAITING             rdbms ipc reply                                                                0             1135</span><br><span class="line">      1703 WAITING             enq: DD - contention                                                      896552             1702</span><br><span class="line">      1765 WAITING             enq: DD - contention                                                     2161018             1702</span><br><span class="line">      1766 WAITING             enq: DD - contention                                                      893474             1702</span><br><span class="line">      1829 WAITING             enq: DD - contention                                                       11782             1702</span><br><span class="line">      1892 WAITING             enq: DD - contention                                                        5041             1702</span><br><span class="line">      1955 WAITING             enq: DD - contention                                                        3357             1702</span><br><span class="line"></span><br><span class="line">30 rows selected.</span><br></pre></td></tr></table></figure>
+
+<p>果然看到很多阻塞，EVENT为”enq: DD - contention”的都是被1702会话阻塞，而1702会话又是被1135会话阻塞，1135会话的event是”GPnP Get Item”。<br>看两个会话的详细信息：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> sid,</span><br><span class="line">       SERIAL<span class="meta">#,</span></span><br><span class="line">       sql_id,</span><br><span class="line">       <span class="keyword">event</span>,</span><br><span class="line">       MACHINE,</span><br><span class="line">       PROGRAM,</span><br><span class="line">       username,</span><br><span class="line">       blocking_session <span class="keyword">from</span>   v$session <span class="keyword">where</span> sid = <span class="number">1702</span>;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="keyword">select</span> sid,</span><br><span class="line">       SERIAL<span class="meta">#,</span></span><br><span class="line">       sql_id,</span><br><span class="line">       <span class="keyword">event</span>,</span><br><span class="line">       MACHINE,</span><br><span class="line">       PROGRAM,</span><br><span class="line">       username,</span><br><span class="line">       blocking_session <span class="keyword">from</span>   v$session <span class="keyword">where</span> sid = <span class="number">1135</span>;</span><br></pre></td></tr></table></figure>
+
+<p>结果如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">SQL&gt; select sid,</span><br><span class="line">  2         SERIAL#,</span><br><span class="line">  3         sql_id,</span><br><span class="line">  4         event,</span><br><span class="line">  5         MACHINE,</span><br><span class="line">  6         PROGRAM,</span><br><span class="line">  7         username,</span><br><span class="line">  8         blocking_session from   v$session where sid = 1702;</span><br><span class="line"></span><br><span class="line">       SID    SERIAL# SQL_ID        EVENT                                                            MACHINE                                                          PROGRAM                                       USERNAME                BLOCKING_SESSION</span><br><span class="line">---------- ---------- ------------- ---------------------------------------------------------------- ---------------------------------------------------------------- ------------------------------------------------ ------------------------------ ----------------</span><br><span class="line">      1702      15127 b8a2pdbq3p2mj rdbms ipc reply                                                  newdb2                                                           oracle@newdb2 (TNS V1-V3)                     SYS                                         1135</span><br><span class="line"></span><br><span class="line">SQL&gt;  select sid,</span><br><span class="line">  2         SERIAL#,</span><br><span class="line">  3         sql_id,</span><br><span class="line">  4         event,</span><br><span class="line">  5         MACHINE,</span><br><span class="line">  6         PROGRAM,</span><br><span class="line">  7         username,</span><br><span class="line">  8         blocking_session from   v$session where sid = 1135;</span><br><span class="line"></span><br><span class="line">       SID    SERIAL# SQL_ID        EVENT                                                            MACHINE                                                          PROGRAM                                       USERNAME                BLOCKING_SESSION</span><br><span class="line">---------- ---------- ------------- ---------------------------------------------------------------- ---------------------------------------------------------------- ------------------------------------------------ ------------------------------ ----------------</span><br><span class="line">      1135          1               GPnP Get Item                                                    newdb2                                                           oracle@newdb2 (RBAL)</span><br></pre></td></tr></table></figure>
+
+<p>找到最终的原因：GPnP Get Item .</p>
+<h2 id="4-解决问题"><a href="#4-解决问题" class="headerlink" title="4.解决问题"></a>4.解决问题</h2><p>有了上面的信息，再次查询MOS就可以匹配到</p>
+<ul>
+<li>Diskgroup Mount Hangs with RBAL Waiting on ‘GPnP Get Item’ and ‘enq: DD - contention’ (文档 ID 1375505.1)</li>
+<li>“crsctl check cluster -all” command gives CRS-4404, CRS-4405 errors (文档 ID 1392934.1)</li>
+</ul>
+<p>参照MOS解决方案：</p>
+<blockquote>
+<ol>
+<li>Use the following command as root on Compute Node 3 to identify the current gpnpd.bin process:<br>ps -ef | grep gpnpd.bin</li>
+</ol>
+<p>This will give you an output similar to:<br>ps -ef | grep pnp<br>oracle 31422 1 0 2011 ? 00:05:40 &#x2F;u01&#x2F;app&#x2F;11.2.0.2&#x2F;grid&#x2F;bin&#x2F;gpnpd.bin</p>
+<p>Please note the process ID number</p>
+<ol>
+<li><p>Use the following command on Compute Node 3 to stop the current gpnpd.bin process:<br>kill -HUP</p>
+</li>
+<li><p>After a few moments, gpnpd.bin should be automatically restarted by GI, run the command from step # 1 to verify that a new gpnpd.bin process exists</p>
+</li>
+</ol>
+</blockquote>
+<p>实际操作如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line">[root@newdb2 dev]# ps -ef | grep gpnpd.bin</span><br><span class="line">grid      9835     1  0  2017 ?        00:23:19 /home/app/11.2.0/grid/bin/gpnpd.bin</span><br><span class="line">root     26300 28772  0 17:43 pts/0    00:00:00 grep gpnpd.bin</span><br><span class="line">[root@newdb2 dev]# kill -HUP  9835</span><br><span class="line">You have mail in /var/spool/mail/root</span><br><span class="line">[root@newdb2 dev]#</span><br><span class="line">[root@newdb2 dev]# ps -ef | grep gpnpd.bin</span><br><span class="line">grid     26740     1  1 17:45 ?        00:00:00 /home/app/11.2.0/grid/bin/gpnpd.bin</span><br><span class="line">root     26762 28772  0 17:45 pts/0    00:00:00 grep gpnpd.bin</span><br><span class="line">[root@newdb2 dev]# su - grid</span><br><span class="line">[grid@newdb2 ~]$ sqlplus / as sysasm</span><br><span class="line"></span><br><span class="line">SQL*Plus: Release 11.2.0.3.0 Production on Mon Jan 29 17:46:02 2018</span><br><span class="line"></span><br><span class="line">Copyright (c) 1982, 2011, Oracle.  All rights reserved.</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Connected to:</span><br><span class="line">Oracle Database 11g Enterprise Edition Release 11.2.0.3.0 - 64bit Production</span><br><span class="line">With the Real Application Clusters and Automatic Storage Management options</span><br><span class="line"></span><br><span class="line">SQL&gt; set lines 350 trimspool on pages 300</span><br><span class="line">SQL&gt;</span><br><span class="line">SQL&gt; select sid, state, event, seconds_in_wait, blocking_session</span><br><span class="line">  2  from   v$session</span><br><span class="line">  3  where  blocking_session is not null</span><br><span class="line">  4  or sid in (select blocking_session</span><br><span class="line">  5             from   v$session</span><br><span class="line">  6             where  blocking_session is not null)</span><br><span class="line">  7  order by sid;</span><br><span class="line"></span><br><span class="line">no rows selected</span><br><span class="line"></span><br><span class="line">SQL&gt; select path from v$asm_disk;</span><br><span class="line"></span><br><span class="line">PATH</span><br><span class="line">----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------</span><br><span class="line">/dev/oracleasm/disks/FRADISK</span><br><span class="line">/dev/oracleasm/disks/DATADISK</span><br><span class="line">/dev/oracleasm/disks/CRSDISK3</span><br><span class="line">/dev/oracleasm/disks/CRSDISK2</span><br><span class="line">/dev/oracleasm/disks/CRSDISK1</span><br><span class="line"></span><br><span class="line">SQL&gt;</span><br></pre></td></tr></table></figure>
+
+<p>至此，故障节点的ASM实例的阻塞消失，再次验证查询v$asm_disk已经恢复正常，故障算是完美解决。</p>
+<p><strong>后记：</strong></p>
+<ul>
+<li>1.实际上起初的解决思路出现偏差，ASM的问题就应该直接从ASM实例找原因，而之前都是在DB层分析，自然没有得到好的结果。这一点很值得自己反思。</li>
+<li>2.最开始接到这个case是建议找停机时间直接重启节点2，这个方案简单粗暴且不需要深入分析问题，从最终解决方案看到，这种方法也是可以解决问题的。但恰恰由于客户坚持不能重启，反倒因此而学到了更多的技能点。</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/03/Oracle-RAC%E6%9F%90%E8%8A%82%E7%82%B9v-asm-disk%E6%9F%A5%E8%AF%A2%E5%8D%A1%E4%BD%8F%E5%88%86%E6%9E%90%E5%A4%84%E7%90%86/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Oracle/" rel="tag">Oracle</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/03/28/%E4%BB%8Ealertmanager-A-%E5%AF%BC%E5%87%BA%E9%9D%99%E9%BB%98%E9%85%8D%E7%BD%AE%E5%B9%B6%E5%AF%BC%E5%85%A5-alertmanager-B-%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">从alertmanager A 导出静默配置并导入 alertmanager B 脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
