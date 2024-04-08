@@ -14423,4 +14423,40 @@ plugin_admin_external_manage_enabled = true
         <tag>Ansible</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Centos7配置安装Docker</title>
+    <url>/2024/04/08/Centos7%E9%85%8D%E7%BD%AE%E5%AE%89%E8%A3%85Docker/</url>
+    <content><![CDATA[<h2 id="一、安装前的环境配置"><a href="#一、安装前的环境配置" class="headerlink" title="一、安装前的环境配置"></a>一、安装前的环境配置</h2><ol>
+<li><h3 id="检查自己版本，必须是centos7以及以上版本-cat-etc-redhat-release"><a href="#检查自己版本，必须是centos7以及以上版本-cat-etc-redhat-release" class="headerlink" title="检查自己版本，必须是centos7以及以上版本 cat&#x2F;etc&#x2F;redhat-release"></a>检查自己版本，必须是centos7以及以上版本 cat&#x2F;etc&#x2F;redhat-release</h3></li>
+<li><h3 id="卸载旧版本（如果之前没有安装过，这步可以忽略）"><a href="#卸载旧版本（如果之前没有安装过，这步可以忽略）" class="headerlink" title="卸载旧版本（如果之前没有安装过，这步可以忽略）"></a>卸载旧版本（如果之前没有安装过，这步可以忽略）</h3><ul>
+<li><pre><code class="csharp">    yum remove docker \
+    docker-client \
+    docker-client-latest \
+    docker-common \
+    docker-latest \
+    docker-latest-logrotate \
+    docker-logrotate \
+    docker-engine
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">        </span><br><span class="line">3.  ### yum 安装gcc相关</span><br><span class="line">    </span><br><span class="line">    *   在此之前,请确保你的centos7可以联网,比方说 `curl www.baidu.com`,要是能接收数据就说明可以联网</span><br><span class="line">    *   `yum -y install gcc`</span><br><span class="line">    *   `yum -y install gcc-c++`</span><br><span class="line">4.  ### 安装需要的软件包</span><br><span class="line">    </span><br><span class="line">    *   我们采用从仓库安装的方法,先安装仓库:`yum install -y yum-utils`</span><br><span class="line">5.  ### 设置镜像源</span><br><span class="line">    </span><br><span class="line">    *   设置国内的镜像源,这里以阿里云为例:`yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo`</span><br><span class="line">6.  ### 更新yum软件包索引</span><br><span class="line">    </span><br><span class="line">    *   `yum makecache fast`</span><br><span class="line"></span><br><span class="line">## 二、安装docker</span><br><span class="line"></span><br><span class="line">1.  ### 安装docker engine</span><br><span class="line">    </span><br><span class="line">    *   `yum install docker-ce docker-ce-cli http://containerd.io docker-compose-plugin`</span><br><span class="line"></span><br><span class="line">*   ![](images/1712570109-279e74ab0c6bbf3de9f37e2a5b2460d1.png)</span><br><span class="line">    </span><br><span class="line">*   输入y.就开始正常安装了。遇到需要输入的地方。就输入y</span><br><span class="line">    </span><br><span class="line">*   出现如下,则安装完毕</span><br><span class="line">    </span><br><span class="line">*   ![](images/1712570109-cdfbce589025cc7f7a2df292a2a9a450.png)</span><br><span class="line">    </span><br><span class="line"></span><br><span class="line">## 三、检验</span><br><span class="line"></span><br><span class="line">1.  ### 启动docker</span><br><span class="line">    </span><br><span class="line">    *   `systemctl start docker`:启动docker,没有报错和任何提示</span><br><span class="line">    *   `docker version`:查看docker版本</span><br><span class="line"></span><br><span class="line">![](images/1712570109-179a893f9b0e6470d0c6ef4f49cc830d.png)</span><br><span class="line"></span><br><span class="line">![](images/1712570109-8c3b513272bf1a0f3f8d005e20c25b62.png)</span><br><span class="line"></span><br><span class="line">## 四、额外</span><br><span class="line"></span><br><span class="line">1.  ### 卸载</span><br><span class="line">    </span><br><span class="line">    *   ```bash</span><br><span class="line">            systemctl stop docker</span><br><span class="line">            yum remove docker-ce docker-ce-clie [http://containerd.io](https://link.zhihu.com/?target=http%3A//containerd.io)</span><br><span class="line">            rm -rf /var/lib/docker</span><br><span class="line">            rm -rf /var/lib/containerd</span><br></pre></td></tr></table></figure>
+</code></pre>
+</li>
+</ul>
+</li>
+<li><h3 id="设置开机启动"><a href="#设置开机启动" class="headerlink" title="设置开机启动"></a>设置开机启动</h3><ul>
+<li><code>systemctl enable docker.service</code></li>
+</ul>
+</li>
+<li><h3 id="关闭开机启动"><a href="#关闭开机启动" class="headerlink" title="关闭开机启动"></a>关闭开机启动</h3><ul>
+<li><code>systemctl disable docker.service</code></li>
+</ul>
+</li>
+</ol>
+]]></content>
+      <categories>
+        <category>Docker</category>
+      </categories>
+      <tags>
+        <tag>Docker</tag>
+      </tags>
+  </entry>
 </search>
