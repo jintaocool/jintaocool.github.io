@@ -14632,4 +14632,73 @@ plugin_admin_external_manage_enabled = true
         <tag>Github</tag>
       </tags>
   </entry>
+  <entry>
+    <title>极客时间课程下载器</title>
+    <url>/2024/04/09/%E6%9E%81%E5%AE%A2%E6%97%B6%E9%97%B4%E8%AF%BE%E7%A8%8B%E4%B8%8B%E8%BD%BD%E5%99%A8/</url>
+    <content><![CDATA[<h1 id="GitHub-nicoxiang-geektime-downloader-极客时间课程下载器，支持下载极客时间专栏-视频课-每日一课-大厂实践-训练营视频"><a href="#GitHub-nicoxiang-geektime-downloader-极客时间课程下载器，支持下载极客时间专栏-视频课-每日一课-大厂实践-训练营视频" class="headerlink" title="GitHub - nicoxiang&#x2F;geektime-downloader: 极客时间课程下载器，支持下载极客时间专栏&#x2F;视频课&#x2F;每日一课&#x2F;大厂实践&#x2F;训练营视频"></a>GitHub - nicoxiang&#x2F;geektime-downloader: 极客时间课程下载器，支持下载极客时间专栏&#x2F;视频课&#x2F;每日一课&#x2F;大厂实践&#x2F;训练营视频</h1><p>地址：<a href="https://github.com/nicoxiang/geektime-downloader">https://github.com/nicoxiang/geektime-downloader</a></p>
+<h1 id="geektime-downloader"><a href="#geektime-downloader" class="headerlink" title="geektime-downloader"></a>geektime-downloader</h1><p><a href="#geektime-downloader"></a></p>
+<p>geektime-downloader 支持下载极客时间专栏(PDF&#x2F;Markdown&#x2F;音频)&#x2F;视频课&#x2F;每日一课&#x2F;大厂实践&#x2F;训练营视频。</p>
+<p><a href="https://goreportcard.com/report/github.com/nicoxiang/geektime-downloader"><img src="/assets/1712628213-6511881bc11d1f8ee4629d0a8bc3ffeb.svg" alt="go report card" title="go report card"></a> <a href="https://opensource.org/licenses/MIT"><img src="/assets/1712628213-f13b63c3d509eb02244aa1f2853b59d1.svg" alt="MIT license"></a></p>
+<h2 id="Usage"><a href="#Usage" class="headerlink" title="Usage"></a>Usage</h2><p><a href="#usage"></a></p>
+<h3 id="Prerequisites"><a href="#Prerequisites" class="headerlink" title="Prerequisites"></a>Prerequisites</h3><p><a href="#prerequisites"></a></p>
+<ul>
+<li>Chrome installed</li>
+</ul>
+<h3 id="Install-form-source"><a href="#Install-form-source" class="headerlink" title="Install form source"></a>Install form source</h3><p><a href="#install-form-source"></a></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line"># Go 1.16+</span><br><span class="line">go install github.com/nicoxiang/geektime-downloader@latest</span><br><span class="line"></span><br><span class="line"># Go version &lt; 1.16</span><br><span class="line">go get -u github.com/nicoxiang/geektime-downloader@latest</span><br></pre></td></tr></table></figure>
+
+<h3 id="Download-binary-files"><a href="#Download-binary-files" class="headerlink" title="Download binary files"></a>Download binary files</h3><p><a href="#download-binary-files"></a></p>
+<p>See <a href="https://github.com/nicoxiang/geektime-downloader/releases">release page</a></p>
+<h3 id="Sample"><a href="#Sample" class="headerlink" title="Sample"></a>Sample</h3><p><a href="#sample"></a></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">## Windows 为例</span><br><span class="line">## Windows 推荐使用 Windows Terminal 打开</span><br><span class="line"></span><br><span class="line">## 账号密码方式登录（常用）</span><br><span class="line">&gt; geektime-downloader.exe -u &quot;phone number&quot;</span><br><span class="line">## cookie 方式登录</span><br><span class="line">&gt; geektime-downloader.exe --gcid &quot;gcid&quot; --gcess &quot;gcess&quot;</span><br></pre></td></tr></table></figure>
+
+<h3 id="Help"><a href="#Help" class="headerlink" title="Help"></a>Help</h3><p><a href="#help"></a></p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">## Windows 为例</span><br><span class="line">&gt; geektime-downloader.exe -h</span><br><span class="line"></span><br><span class="line">Geektime-downloader is used to download geek time lessons</span><br><span class="line"></span><br><span class="line">Usage:</span><br><span class="line">  geektime-downloader [flags]</span><br><span class="line"></span><br><span class="line">Flags:</span><br><span class="line">      --comments         是否需要专栏的第一页评论 (default true)</span><br><span class="line">  -f, --folder string    专栏和视频课的下载目标位置 (default &quot;&quot;)</span><br><span class="line">      --gcess string     极客时间 cookie 值 gcess</span><br><span class="line">      --gcid string      极客时间 cookie 值 gcid</span><br><span class="line">  -h, --help             help for geektime-downloader</span><br><span class="line">      --output int       专栏的输出内容(1pdf,2markdown,4audio)可自由组合 (default 1)</span><br><span class="line">  -u, --phone string     你的极客时间账号(手机号)</span><br><span class="line">  -q, --quality string   下载视频清晰度(ld标清,sd高清,hd超清) (default &quot;sd&quot;)</span><br><span class="line">      --wait-seconds int   Chrome生成PDF前的等待页面加载时间, 单位为秒, 默认8秒 (default 8)</span><br></pre></td></tr></table></figure>
+
+<h2 id="Note"><a href="#Note" class="headerlink" title="Note"></a>Note</h2><p><a href="#note"></a></p>
+<h3 id="文件下载目标位置"><a href="#文件下载目标位置" class="headerlink" title="文件下载目标位置"></a>文件下载目标位置</h3><p><a href="#%E6%96%87%E4%BB%B6%E4%B8%8B%E8%BD%BD%E7%9B%AE%E6%A0%87%E4%BD%8D%E7%BD%AE"></a></p>
+<p>文件下载目标位置可以通过 help 查看。默认情况下 Windows 位于 %USERPROFILE%&#x2F;geektime-downloader 下；Unix, 包括 macOS, 位于 $HOME&#x2F;geektime-downloader 下</p>
+<h3 id="如何查看课程-ID"><a href="#如何查看课程-ID" class="headerlink" title="如何查看课程 ID?"></a>如何查看课程 ID?</h3><p><a href="#%E5%A6%82%E4%BD%95%E6%9F%A5%E7%9C%8B%E8%AF%BE%E7%A8%8B-id"></a></p>
+<p><strong>普通课程：</strong></p>
+<p>打开极客时间<a href="https://time.geekbang.org/resource">课程列表页</a>，选择你想要查看的课程，在新打开的课程详情 Tab 页，查看 URL 最后的数字，例如下面的链接中 100056701 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://time.geekbang.org/column/intro/100056701</span><br></pre></td></tr></table></figure>
+
+<p><strong>训练营课程：</strong></p>
+<p>打开极客时间<a href="https://u.geekbang.org/schedule">训练营课程列表页</a>，选择你想要查看的课程，在新打开的课程详情 Tab 页，查看 URL <code>lesson/</code>后的数字，例如下面的链接中 419 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://u.geekbang.org/lesson/419?article=535616</span><br></pre></td></tr></table></figure>
+
+<p><strong>每日一课课程：</strong></p>
+<p>选择你想要下载的视频，查看 URL <code>dailylesson/detail/</code>后的数字，例如下面的链接中 100122405 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://time.geekbang.org/dailylesson/detail/100122405</span><br></pre></td></tr></table></figure>
+
+<p><strong>大厂案例课程：</strong></p>
+<p>选择你想要下载的视频，查看 URL <code>qconplus/detail/</code>后的数字，例如下面的链接中 100110494 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://time.geekbang.org/qconplus/detail/100110494</span><br></pre></td></tr></table></figure>
+
+<p><strong>公开课课程：</strong></p>
+<p>选择你想要下载的视频，查看 URL <code>opencourse/intro/</code> 或 <code>opencourse/videointro/</code>后的数字，例如下面的链接中 100546701 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://time.geekbang.org/opencourse/videointro/100546701</span><br></pre></td></tr></table></figure>
+
+<p><strong>其他：</strong></p>
+<p>打开极客时间<a href="https://time.geekbang.org/dashboard/course">我的课程-其他</a>，选择你想要查看的会议，在新打开的会议详情 Tab 页，查看 URL <code>course/intro/</code> 最后的数字，例如下面的链接中 100551201 就是课程 ID：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">https://time.geekbang.org/course/intro/100551201</span><br></pre></td></tr></table></figure>
+
+<h3 id="为什么我下载的PDF是空白页"><a href="#为什么我下载的PDF是空白页" class="headerlink" title="为什么我下载的PDF是空白页?"></a>为什么我下载的PDF是空白页?</h3><p><a href="#%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%91%E4%B8%8B%E8%BD%BD%E7%9A%84pdf%E6%98%AF%E7%A9%BA%E7%99%BD%E9%A1%B5"></a></p>
+<p>首先下载课程请保证VPN已关闭。在此前提下如果仍然出现空白页情况，说明后台Chrome网页加载速度较慢，可以尝试加大–wait-seconds参数，保证页面完全加载完成后再开始生成PDF。</p>
+<h3 id="如何下载专栏的-Markdown-格式和文章音频"><a href="#如何下载专栏的-Markdown-格式和文章音频" class="headerlink" title="如何下载专栏的 Markdown 格式和文章音频?"></a>如何下载专栏的 Markdown 格式和文章音频?</h3><p><a href="#%E5%A6%82%E4%BD%95%E4%B8%8B%E8%BD%BD%E4%B8%93%E6%A0%8F%E7%9A%84-markdown-%E6%A0%BC%E5%BC%8F%E5%92%8C%E6%96%87%E7%AB%A0%E9%9F%B3%E9%A2%91"></a></p>
+<p>默认情况下载专栏的输出内容只有 PDF，可以通过 –output 参数按需选择是否需要下载 Markdown 格式和文章音频。比如 –output 3 就是下载 PDF 和 Markdown；–output 6 就是下载 Markdown 和音频；–output 7 就是下载所有。</p>
+<p>Markdown 格式虽然显示效果上不及 PDF，但优势为可以显示完整的代码块（PDF 代码块在水平方向太长时会有缺失）并保留了原文中的超链接。</p>
+<p>现在部分新课程的专栏文章中会包含视频，如课程《Kubernetes 入门实战课》等，目前程序会自动下载文章所包含的视频，视频目录在文章所在目录的子目录 videos 下，此类文章PDF的下载会耗费更多时间，请耐心等待。</p>
+<h3 id="退出程序和继续下载"><a href="#退出程序和继续下载" class="headerlink" title="退出程序和继续下载"></a>退出程序和继续下载</h3><p><a href="#%E9%80%80%E5%87%BA%E7%A8%8B%E5%BA%8F%E5%92%8C%E7%BB%A7%E7%BB%AD%E4%B8%8B%E8%BD%BD"></a></p>
+<p>Ctrl + C 退出程序。如果选择“下载所有”后中断程序，可重新进入程序继续下载。</p>
+<h3 id="隐私相关"><a href="#隐私相关" class="headerlink" title="隐私相关"></a>隐私相关</h3><p><a href="#%E9%9A%90%E7%A7%81%E7%9B%B8%E5%85%B3"></a></p>
+<p>通过密码登录的情况下，为了避免多次登录账户，会在目录 <a href="https://pkg.go.dev/os#UserConfigDir">UserConfigDir</a>&#x2F;geektime-downloader 下存放用户的登录 cookie，如果不是在自己的电脑上执行，建议在使用完毕程序后手动删除</p>
+]]></content>
+      <categories>
+        <category>Github</category>
+      </categories>
+      <tags>
+        <tag>Github</tag>
+      </tags>
+  </entry>
 </search>
