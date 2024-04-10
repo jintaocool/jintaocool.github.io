@@ -1,0 +1,1069 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana相关功能使用介绍 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana相关功能使用介绍"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana相关功能使用介绍
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/10/Grafana%E7%9B%B8%E5%85%B3%E5%8A%9F%E8%83%BD%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2024-04-10T01:53:30.000Z" itemprop="datePublished">2024-04-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">11.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">44 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="一、grafana版本升级"><a href="#一、grafana版本升级" class="headerlink" title="一、grafana版本升级"></a>一、grafana版本升级</h3><h4 id="1-1-还是先跟着官网简单走一波"><a href="#1-1-还是先跟着官网简单走一波" class="headerlink" title="1.1  还是先跟着官网简单走一波"></a>1.1  还是先跟着官网简单走一波</h4><p>      建议经常升级Grafana，以获取最新的修补程序和增强功能。 为了实现这一点，Grafana升级向后兼容，并且升级过程简单快捷。升级通常是安全的（在许多次要版本和一个主要版本之间），并且仪表板和图形看起来相同。 在某些情况下，可能会有一些小的重大更改，如发行说明和变更日志中所述（<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana/blob/master/CHANGELOG.md%EF%BC%89%E3%80%82">https://github.com/grafana/grafana/blob/master/CHANGELOG.md）。</a></p>
+<p>更新插件：</p>
+<p>     升级后，强烈建议更新所有插件，因为新版本的Grafana会使旧插件停止正常工作。可以使用更新所有插件：grafana-cli plugins update-all</p>
+<p>数据库备份：</p>
+<p>      在升级之前，最好备份你的Grafana数据库。 这将确保你始终可以回滚到以前的版本。 在启动过程中，Grafana将自动迁移数据库架构（如果有更改或新表）。 有时，如果你以后要降级，可能会导致问题。</p>
+<p>sqlite：</p>
+<p>      如果使用sqlite，则只需备份grafana.db文件。它通常位于Unix系统上的&#x2F;var&#x2F;lib&#x2F;grafana&#x2F;grafana.db中。 如果不确定使用哪个数据库以及将其存储在哪里，请检查grafana配置文件。 如果使用二进制tar&#x2F;zip将grafana安装到自定义位置，则通常在&lt;grafana_install_dir&gt;&#x2F;data中。</p>
+<p>mysql：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">backup:</span><br><span class="line">&gt; mysqldump -u root -p[root_password] [grafana] &gt; grafana_backup.sql</span><br><span class="line">restore:</span><br><span class="line">&gt; mysql -u root -p grafana &lt; grafana_backup.sql</span><br></pre></td></tr></table></figure>
+
+<p>postgres：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">backup:</span><br><span class="line">&gt; pg_dump grafana &gt; grafana_backup</span><br><span class="line">restore:</span><br><span class="line">&gt; psql grafana &lt; grafana_backup</span><br></pre></td></tr></table></figure>
+
+<p>升级：</p>
+<p>      升级到v6.0。如果你有带有script tags的文本面板，则由于新设置（默认情况下不允许未经处理的HTML），它们将不再起作用。</p>
+<p>从二进制.tar文件升级：</p>
+<p>     如果下载了二进制.tar.gz软件包，则只需下载并解压缩新软件包并覆盖所有现有文件即可。但是，这可能会覆盖你的配置更改。建议你将自定义配置更改保存在名为&lt;grafana_install_dir&gt;&#x2F;conf&#x2F;custom.ini的文件中。 这使你可以升级Grafana，而不必担心丢失配置更改。</p>
+<p>Centos &#x2F; RHEL：</p>
+<p>      如果通过下载RPM软件包安装了Grafana，则只需遵循相同的安装指南并执行相同的yum install或rpm -i命令，但使用新软件包即可。它将升级你的Grafana安装包。如果你使用了grafana的YUM存储库：sudo yum update grafana</p>
+<p>Docker：</p>
+<p>     这只是一个示例，详细信息取决于你配置grafana容器的方式。</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">docker pull grafana</span><br><span class="line">docker stop my-grafana-container</span><br><span class="line">docker rm my-grafana-container</span><br><span class="line">docker run --name=my-grafana-container --restart=always -v /var/lib/grafana:/var/lib/grafana</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-2-实践升级一下"><a href="#1-2-实践升级一下" class="headerlink" title="1.2  实践升级一下"></a>1.2  实践升级一下</h4><p>#说是实践升级一下，其实咱们已经看了上面的介绍升级还是很简单的。我是编译安装的，我就按照编译安装的升级方式来了。</p>
+<p><img src="/images/1712713881-274efc6148d6fbcebb9520c1ec64edad.png" alt="image.png"></p>
+<p>#从上图可以看到我都是软连接的方式，所以我升级就是下载软件包解压然后拷贝过来相关的目录然后重启下服务就行。</p>
+<p>#首先是数据库的保存上面有，选择了什么类型的数据库就保存一下以防万一。</p>
+<p># tar zxf grafana-6.5.2.linux-amd64.tar.gz</p>
+<p>#kill -9 `ps -aux|grep grafana.ini|grep -v grep|awk {‘print $2’}`</p>
+<p>#ln -snf grafana-6.5.2 grafana</p>
+<p>#cp -f  grafana-6.3.5&#x2F;conf&#x2F;grafana.ini  grafana&#x2F;conf&#x2F;</p>
+<p># cp grafana-6.3.5&#x2F;conf&#x2F;ldap.toml  grafana&#x2F;conf&#x2F;   #如果做了ldap的认证还要做这步操作</p>
+<p>#cp -rf grafana-6.3.5&#x2F;data grafana&#x2F;</p>
+<p>#&#x2F;application&#x2F;grafana&#x2F;bin&#x2F;grafana-cli plugins update-all</p>
+<p>#cd &#x2F;application&#x2F;grafana&#x2F; &amp;&amp; .&#x2F;bin&#x2F;grafana-server -config .&#x2F;conf&#x2F;grafana.ini &amp;</p>
+<p>#再打开grafana就可以看到升级成最新版了，这个就不截图了。</p>
+<h3 id="二、Grafana高可用"><a href="#二、Grafana高可用" class="headerlink" title="二、Grafana高可用"></a>二、Grafana高可用</h3><h4 id="2-1-还是先跟着官网翻译一波"><a href="#2-1-还是先跟着官网翻译一波" class="headerlink" title="2.1 还是先跟着官网翻译一波"></a>2.1 还是先跟着官网翻译一波</h4><p>       设置Grafana以获得高可用性非常简单。 只需要一个共享数据库来存储仪表板，用户和其他持久数据。 因此，默认的嵌入式SQLite数据库将无法工作，将不得不切换到MySQL或Postgres。</p>
+<p><img src="/images/1712713881-5efcba116d9fd75758deec43c16a31ca.png" alt="image.png"></p>
+<p>Alerting：</p>
+<p>当前，警报支持有限形式的高可用性。 从v4.2.0开始，运行多个服务器时将删除警报通知。这意味着所有警报都在每台服务器上执行，但是警报通知每个警报仅发送一次。 Grafana不支持服务器之间的负载分配。</p>
+<p>User sessions：</p>
+<p>        在Grafana 6.2之后，无需配置会话存储，因为默认情况下将使用该数据库。 如果要从数据库中卸载登录会话数据，则可以配置remote_cache。</p>
+<p>        要考虑的第二件事是如何处理用户会话以及如何在Grafana前面配置负载均衡器。 Grafana支持两种存储会话数据的方式：本地存储在磁盘上或数据库&#x2F;缓存服务器中。 如果要将会话存储在磁盘上，则可以在负载均衡器中使用Sticky会话。 如果希望将会话数据存储在数据库&#x2F;缓存服务器中，则可以在负载均衡器中使用任何无状态路由策略（轮循或最少连接）。</p>
+<p>Sticky sessions：</p>
+<p>       使用粘性会话，一个用户的所有流量将始终发送到同一服务器。 这意味着与会话相关的数据可以存储在磁盘上，而不是存储在共享数据库上。 这是Grafana的默认行为，如果只希望多个服务器进行故障转移，则这是一个很好的解决方案，因为它需要的工作量最少。</p>
+<p>Stateless sessions：</p>
+<p>      还可以选择将会话数据存储在Redis&#x2F;Memcache&#x2F;Postgres&#x2F;MySQL中,这意味着负载均衡器可以将用户发送到任何Grafana服务器，而无需登录每个服务器。 这需要操作员多做一些工作，但使你能够删除&#x2F;添加grafana服务器而不会影响用户体验。 如果你使用MySQL&#x2F;Postgres进行会话存储，则首先需要一个表来存储会话数据。</p>
+<p>     对于Grafana本身，将会话数据存储在磁盘还是数据库&#x2F;redis&#x2F;memcache上并不重要。但是建议使用数据库&#x2F;redis &#x2F;memcache，因为它可以更轻松地管理grafana服务器。</p>
+<h4 id="2-2-实践配置一下"><a href="#2-2-实践配置一下" class="headerlink" title="2.2 实践配置一下"></a>2.2 实践配置一下</h4><p>首先要配置使用mysql数据库：</p>
+<p>Bash</p>
+<figure class="highlight vbnet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">[database]</span><br><span class="line"># You can configure the database connection <span class="keyword">by</span> specifying type, host, name, user <span class="built_in">and</span> password</span><br><span class="line"># <span class="keyword">as</span> separate properties <span class="built_in">or</span> <span class="keyword">as</span> <span class="keyword">on</span> <span class="type">string</span> <span class="keyword">using</span> the url <span class="keyword">property</span>.</span><br><span class="line"></span><br><span class="line"># Either <span class="string">&quot;mysql&quot;</span>, <span class="string">&quot;postgres&quot;</span> <span class="built_in">or</span> <span class="string">&quot;sqlite3&quot;</span>, it<span class="comment">&#x27;s your choice</span></span><br><span class="line">type = mysql</span><br><span class="line">host = <span class="number">192.168</span>.<span class="number">1.101</span></span><br><span class="line">name = grafana</span><br><span class="line">user = grafana</span><br><span class="line"># <span class="keyword">If</span> the password contains # <span class="built_in">or</span> ; you have <span class="keyword">to</span> wrap it <span class="keyword">with</span> triple quotes. Ex <span class="string">&quot;&quot;&quot;#password;&quot;&quot;&quot;</span></span><br><span class="line">password = grafana</span><br></pre></td></tr></table></figure>
+
+<p>#上面的配置很好理解哈，选择数据库类型为mysql类型，选择数据库的地址和用户名和密码，然后启动grafana就可以了，相关表会自动创建：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">&gt;use grafana;</span><br><span class="line">&gt;show tables;   #可以看到下面生成了很多表</span><br><span class="line">alert</span><br><span class="line">alert_notification</span><br><span class="line">alert_notification_state</span><br><span class="line">alert_rule_tag</span><br><span class="line">annotation</span><br><span class="line">annotation_tag</span><br><span class="line">api_key</span><br><span class="line">cache_data</span><br><span class="line">dashboard</span><br><span class="line">dashboard_acl</span><br><span class="line">dashboard_provisioning</span><br><span class="line">dashboard_snapshot</span><br><span class="line">dashboard_tag</span><br><span class="line">dashboard_version</span><br><span class="line">data_source</span><br><span class="line">login_attempt</span><br><span class="line">migration_log</span><br><span class="line">org</span><br><span class="line">org_user</span><br><span class="line">playlist</span><br><span class="line">playlist_item</span><br><span class="line">plugin_setting</span><br><span class="line">preferences</span><br><span class="line">quota</span><br><span class="line">server_lock</span><br><span class="line">session</span><br><span class="line">star</span><br><span class="line">tag</span><br><span class="line">team</span><br><span class="line">team_member</span><br><span class="line">temp_user</span><br><span class="line">test_data</span><br><span class="line">user</span><br><span class="line">user_auth</span><br><span class="line">user_auth_token</span><br></pre></td></tr></table></figure>
+
+<p>然后创建一个session表(如果没有这个session表的情况下，但是现在新版的已经有这个session表了)：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">&gt;use `grafana`;</span><br><span class="line">&gt;CREATE TABLE `session` (</span><br><span class="line">    `key`       CHAR(16) NOT NULL,</span><br><span class="line">    `data`      BLOB,</span><br><span class="line">    `expiry`    INT(11) UNSIGNED NOT NULL,</span><br><span class="line">    PRIMARY KEY (`key`)</span><br><span class="line">) ENGINE=MyISAM DEFAULT CHARSET=utf8;</span><br></pre></td></tr></table></figure>
+
+<p># vim conf&#x2F;grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[session]</span><br><span class="line">provider = mysql</span><br><span class="line">provider_config = grafana:grafana@tcp(192.168.1.101:3306)/grafana</span><br><span class="line">cookie_name = grafana_sess</span><br><span class="line">cookie_secure = false</span><br><span class="line">session_life_time = 86400</span><br></pre></td></tr></table></figure>
+
+<p>#特别注意6.2版本中已经删除了session选项，改为了remote_cache选项，如下面的配置：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">#################################### Cache server #############################</span><br><span class="line">[remote_cache]</span><br><span class="line"># Either &quot;redis&quot;, &quot;memcached&quot; or &quot;database&quot; default is &quot;database&quot;</span><br><span class="line">type = database</span><br><span class="line"></span><br><span class="line"># cache connectionstring options</span><br><span class="line"># database: will use Grafana primary database.</span><br><span class="line"># redis: config like redis server e.g. `addr=127.0.0.1:6379,pool_size=100,db=0,ssl=false`. Only addr is required. ssl may be &#x27;true&#x27;, &#x27;false&#x27;, or &#x27;insecure&#x27;.</span><br><span class="line"># memcache: 127.0.0.1:11211</span><br><span class="line">connstr = mysql账号:mysql密码@tcp(mysql地址:3306)/grafana</span><br></pre></td></tr></table></figure>
+
+<p>#然后重启grafana就能共享会话了。</p>
+<p>#这里要记录一下我其实并没实现共享会话的效果,我看着官网配置很简单，但是怎么也实现不了会话共享的效果，我用其他方式实现了会话共享，如果成功的大哥们可以指正下我哪里错了…….</p>
+<h4 id="2-3-迁移导出sqlite3数据到mysql"><a href="#2-3-迁移导出sqlite3数据到mysql" class="headerlink" title="2.3 迁移导出sqlite3数据到mysql"></a>2.3 迁移导出sqlite3数据到mysql</h4><p>#假如你一开始没有考虑高可用方案后面才用起来的，可能一开始用的是sqlite3数据库，可能你已经搞了很多dashboard有很多用户之类的。那么这时候你说让大家才重新登陆一下或者新环境照着旧环境再来一遍就显得有点不合适了，这时候就需要数据库迁移了。而sqlite3跟mysql还是有些区别的，我们需要做一些调整。</p>
+<p>#我这里还是有点偷懒的成分的，首先我是把所有的建表语句什么的全不要我只要insert语句，先在新环境用grafana和mysql创建完完整的数据表。</p>
+<p>在旧环境导出sql文件：</p>
+<p># sqlite3 grafana.db</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">sqlite&gt; .output /tmp/grafana_dump.sql</span><br><span class="line">sqlite&gt; .dump</span><br><span class="line">sqlite&gt; .exit</span><br></pre></td></tr></table></figure>
+
+<p>#修改导出的sql文件：</p>
+<p>#首先第一步就是把INSERT语句单独的过滤出来。</p>
+<p>#然后呢就是把无用的往表里面INSERT初始信息的语句删除掉，因为我们mysql表里面已经有这些数据了。</p>
+<p>#然后呢就要执行类似于：sed -i ‘s#”dashboard”#`dashboard`#’ grafana_dump.sql   #将””变成``这样导入mysql的时候才不会报错。</p>
+<p>#再然后呢就是进行数据库导入了，然后根据导入的报错信息再具体排查吧。</p>
+<p># cat grafana_dump.sql|grep -o “INSERT INTO.* VALUES”|sort -nr|uniq   #这是我导入mysql的文件，多余INSERT语句都没要，就留了这些</p>
+<p>Bash</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `<span class="keyword">user</span>` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `user_auth` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `temp_user` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `team` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `team_member` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `tag` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `star` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `preferences` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `org_user` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `data_source` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `dashboard_version` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `dashboard` <span class="keyword">VALUES</span></span><br><span class="line"><span class="keyword">INSERT</span> <span class="keyword">INTO</span> `dashboard_tag` <span class="keyword">VALUES</span></span><br></pre></td></tr></table></figure>
+
+<p>#另外user表的插入admin的语句和org表的插入Main Org表的语句肯定是要去掉的，可以在导入报错中逐步的删除点mysql表中已存在的数据。</p>
+<h3 id="三、Grafana开启LDAP认证"><a href="#三、Grafana开启LDAP认证" class="headerlink" title="三、Grafana开启LDAP认证"></a>三、Grafana开启LDAP认证</h3><h4 id="3-1-grafana开启LDAP认证"><a href="#3-1-grafana开启LDAP认证" class="headerlink" title="3.1 grafana开启LDAP认证"></a>3.1 grafana开启LDAP认证</h4><p>#当一个公司系统多了就会做集中认证，所以我们grafana也得是集中认证的一部分。</p>
+<p># vim grafana.ini   #下面的意思很简单就不多做解释了</p>
+<p>Bash</p>
+<figure class="highlight coffeescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span> Auth LDAP <span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">###</span></span><br><span class="line"><span class="comment">[auth.ldap]</span></span><br><span class="line"><span class="comment">enabled = true</span></span><br><span class="line"><span class="comment">config_file = conf/ldap.toml</span></span><br><span class="line"><span class="comment">allow_sign_up = true</span></span><br></pre></td></tr></table></figure>
+
+<p># vim ldap.toml   #上面已经引用了ldap.toml并开启了ldap认证，所以这里就要配置此文件了</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line">[[servers]]</span><br><span class="line"># LDAP服务器主机（指定多个主机,空格分隔）</span><br><span class="line">host = &quot;ldap.51niux.com&quot;</span><br><span class="line">#如果use_ssl = true，则默认端口为389或636</span><br><span class="line">port = 389</span><br><span class="line">#如果ldap服务器支持TLS，则设置为true</span><br><span class="line">use_ssl = false</span><br><span class="line">#如果使用STARTTLS模式连接ldap服务器，则设置为true（以不安全的方式创建连接，然后升级为使用TLS的安全连接）</span><br><span class="line">start_tls = false</span><br><span class="line">#如果要跳过ssl证书验证，请设置为true</span><br><span class="line">ssl_skip_verify = false</span><br><span class="line"># set to the path to your root CA certificate or leave unset to use system defaults</span><br><span class="line"># root_ca_cert = &quot;/path/to/certificate.crt&quot;</span><br><span class="line"># Authentication against LDAP servers requiring client certificates</span><br><span class="line"># client_cert = &quot;/path/to/client.crt&quot;</span><br><span class="line"># client_key = &quot;/path/to/client.key&quot;</span><br><span class="line"></span><br><span class="line">#搜索用户绑定dn</span><br><span class="line">bind_dn = &quot;cn=ro,dc=51niux,dc=com&quot;</span><br><span class="line">#搜索用户绑定密码，如果密码包含＃或; 必须用三引号引起来。 例如&quot;&quot;&quot;#password;&quot;&quot;&quot;</span><br><span class="line">bind_password = &#x27;51niux.com&#x27;</span><br><span class="line"></span><br><span class="line">#用户搜索过滤器，例如&quot;（cn =％s）&quot;或“”（sAMAccountName =％s）&quot; &quot;或&quot;（uid =％s）&quot;</span><br><span class="line">search_filter = &quot;(cn=%s)&quot;</span><br><span class="line"></span><br><span class="line">#用户搜索的范围</span><br><span class="line">search_base_dns = [&quot;ou=users,dc=51niux,dc=com&quot;]</span><br></pre></td></tr></table></figure>
+
+<p>#好了，配置好ldap认证之后重启服务就好了。当然你也可能遇到一些问题，可以先不要放到后台启动呢，将服务放到前台启动进行查看，基本按照我这么配就OK了，当然也要检查你跟ldap服务是否能够连上，如果连上了还不行可以直接用ldap命令试试。</p>
+<h4 id="3-2-ldap用户权限保持"><a href="#3-2-ldap用户权限保持" class="headerlink" title="3.2 ldap用户权限保持"></a>3.2 ldap用户权限保持</h4><p>#开启了ldap之后你可能会发现一个问题，比如给某个ldap分配了admin角色或者edit角色，但是退出再登陆或者重新登录就角色就消失了。那比如我想给我运维团队的小伙伴admin角色给其他的人一些edit角色，只能每次重新授权或者共用一个admin账户或者创建本地用户吗？显然有更好的办法：</p>
+<p># vim ldap.toml</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">## Map ldap groups to grafana org roles</span><br><span class="line">#[[servers.group_mappings]]</span><br><span class="line">#group_dn = &quot;cn=admins,dc=grafana,dc=org&quot;</span><br><span class="line">#org_role = &quot;Admin&quot;</span><br><span class="line">## To make user an instance admin  (Grafana Admin) uncomment line below</span><br><span class="line">## grafana_admin = true</span><br><span class="line">## The Grafana organization database id, optional, if left out the default org (id 1) will be used</span><br><span class="line">## org_id = 1</span><br><span class="line">#</span><br><span class="line">#[[servers.group_mappings]]</span><br><span class="line">#group_dn = &quot;cn=users,dc=grafana,dc=org&quot;</span><br><span class="line">#org_role = &quot;Editor&quot;</span><br><span class="line">#</span><br><span class="line">#[[servers.group_mappings]]</span><br><span class="line">## If you want to match all (or no ldap groups) then you can use wildcard</span><br><span class="line">#group_dn = &quot;*&quot;</span><br><span class="line">#org_role = &quot;Viewer&quot;</span><br></pre></td></tr></table></figure>
+
+<p>#如上面所示，我们将关于ldap的映射全注释掉，不开启此功能，这样每次用户登陆的时候就不会映射对应的角色，那么授权也就不会变来变去。</p>
+<h3 id="四、Grafana开启匿名登录"><a href="#四、Grafana开启匿名登录" class="headerlink" title="四、Grafana开启匿名登录"></a>四、Grafana开启匿名登录</h3><p>#当然实际生产过程中，可能需要将grafana的监控图嵌套到其他的平台里面去，这时候可以考虑开启来宾用户访问，当然也叫匿名登录。</p>
+<p># vim  grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight coffeescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">######</span> Anonymous Auth <span class="comment">######</span><span class="comment">######</span><span class="comment">######</span><span class="comment">####</span></span><br><span class="line"><span class="comment">[auth.anonymous]</span></span><br><span class="line"><span class="comment">#启用匿名访问，默认是false的</span></span><br><span class="line"><span class="comment">enabled = true</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#指定应用于未经身份验证的用户的组织名称</span></span><br><span class="line"><span class="comment">org_name = Main Org.</span></span><br><span class="line"><span class="comment"></span></span><br><span class="line"><span class="comment">#指定未经身份验证的用户的角色</span></span><br><span class="line"><span class="comment">org_role = Viewer</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712713881-b2187d5bdd631178410ddc4c017f3275.png" alt="image.png"></p>
+<p>#好再次重启服务，这样当直接访问grafana的时候就不要登录，我们默认就是Views角色就可以看到允许Views角色可以看到的dashboard了。</p>
+<p>#好的，这样就带来了两个问题，第一个问题，那么是不是谁都可以来把grafana嵌套到它的程序页面中，第二个问题因为grafana随着持续的深入所要展示的图标越来越多，不同的人应该看到不同的图，或者说人家一登录你的页面你有100张图而人家实际就关心一张图，所以又不能摊大饼的去展示。</p>
+<h4 id="4-1-如何嵌套grafana界面"><a href="#4-1-如何嵌套grafana界面" class="headerlink" title="4.1 如何嵌套grafana界面"></a>4.1 如何嵌套grafana界面</h4><p>#这里就一个简单的demo了</p>
+<p>#vim test.html</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">&lt;!DOCTYPE html&gt;</span><br><span class="line">&lt;html lang=&quot;en&quot;&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">    &lt;meta charset=&quot;UTF-8&quot;&gt;</span><br><span class="line">    &lt;title&gt;Title&lt;/title&gt;</span><br><span class="line"></span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;</span><br><span class="line">    &lt;div style=&quot;width: 100%;height: 860px;&quot;&gt;</span><br><span class="line">        &lt;iframe id=&#x27;orbitIframe&#x27;src=&quot;http://grafana.51niux.com/d/andAtAbie/k8s-jian-kong?orgId=1&amp;refresh=5m&amp;from=now-12h&amp;to=now&amp;var-Cluster=51niux-test01&amp;var-Namespace=51niux&amp;var-Pod=51niux-pod-test-01&quot; width=&quot;100%&quot; height=&quot;100%&quot; frameborder=&quot;0&quot; align=&quot;center&quot;&gt;&lt;/iframe&gt;</span><br><span class="line">    &lt;/div&gt;</span><br><span class="line">&lt;/body&gt;</span><br><span class="line">&lt;/html&gt;</span><br></pre></td></tr></table></figure>
+
+<p>#这就是嵌套的简单demo了，这样当访问你的页面就可以把grafana某个pod监控的页面嵌套到你的页面了，当然你也可以在你的页面进行其他指标的选择。</p>
+<h4 id="4-2-如何防止别人嵌套"><a href="#4-2-如何防止别人嵌套" class="headerlink" title="4.2 如何防止别人嵌套"></a>4.2 如何防止别人嵌套</h4><p>#这手段就很多了，可以基于IP层面做限制，只允许指定的IP可以访问你的80端口，但是基于IP也不太好，因为办公网之类的面也很大的。</p>
+<p>#前面我们不是用nginx做了反向代理了吗？可以把nginx用起来。</p>
+<p># vim &#x2F;application&#x2F;nginx&#x2F;conf&#x2F;nginx.conf</p>
+<p>Bash</p>
+<figure class="highlight puppet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#表示该页面可以在相同域名页面的 frame 中展示。</span></span><br><span class="line">add_header X-Frame-Options SAMEORIGIN;</span><br><span class="line"></span><br><span class="line"><span class="keyword">server</span> &#123;</span><br></pre></td></tr></table></figure>
+
+<p>#这样你就可以结合nginx本身的deny外加这个响应头过滤来进行防护。</p>
+<p>X-Frame-Options 响应头：X-Frame-Options HTTP 响应头是用来给浏览器指示允许一个页面可否在 <frame>, <iframe> 或者 <object> 中展现的标记。网站可以使用此功能，来确保自己网站的内容没有被嵌到别人的网站中去，也从而避免了点击劫持 (clickjacking) 的攻击。</p>
+<p>X-Frame-Options 有三个值:</p>
+<p>Bash</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">DENY：表示该页面不允许在 frame 中展示，即便是在相同域名的页面中嵌套也不允许。</span><br><span class="line">SAMEORIGIN：表示该页面可以在相同域名页面的 frame 中展示。</span><br><span class="line">ALLOW<span class="operator">-</span><span class="keyword">FROM</span> uri：表示该页面可以在指定来源的 frame 中展示。</span><br></pre></td></tr></table></figure>
+
+<h4 id="4-3-如何解决开启匿名登录之后的访问问题"><a href="#4-3-如何解决开启匿名登录之后的访问问题" class="headerlink" title="4.3 如何解决开启匿名登录之后的访问问题"></a>4.3 如何解决开启匿名登录之后的访问问题</h4><p>#首先要提到的一点就是如果开启了匿名登录之后啊存在一个体验上面的小问题，就是默认登录进来只能看到一些基本能看到的吗，当别人给你发个链接如果不在权限范围之内呢就会提示此页面没有权限，这时候就要注意一下是否没有登录，就需要点击下页面的左下角进行登录，因为如果就算你没有登录（如果不开启匿名登录打开主页的时候是需要你登录验证的）也不会有登录验证，很多不经常使用的人可能会出现这个误区。</p>
+<p>#前面我们已经提到了，默认登录就是给Views角色这也是最低的权限了只能进行查看，但是当我们开启匿名登录之后呢，就算不用登录也可以获取到Views的角色，那么就会带来我们如何保证所结合不同的数据源做的dashboard展示面向不同的用户呢？</p>
+<p>#首先我们要知道的当你创建目录的时候默认就是Views用户拥有浏览权限，然后dashboard就会集成目录权限，意思也很直白就是当你给了目录Views觉得可以进行查看的话，你dashboard就不能吧这个Views角色给删除掉了，只能再次基础上进行新的添加操作。</p>
+<p>好了既然知道了这个大概的逻辑就好办了，grafana还有一个Teams用户组功能，那么我们可以这样：将要不用登录就可以查看到的Dashboard放到一个目录下或者某一个目录下面，将那些要向不同的人群展示的Dashboard放到其他没有Views的目录下，这样你就可以通过Teams进行灵活的权限把控了，当然就算不开启匿名登录我们也是需要这个进行灵活把控的，只不过多了一步将目录的Views角色去掉的操作。</p>
+<p>当然这也只是我想到的比较好的办法，如果大家有更好的办法可以提出来，大家一起学习下。</p>
+<h3 id="五、image-rendering"><a href="#五、image-rendering" class="headerlink" title="五、image_rendering"></a>五、image_rendering</h3><h4 id="5-1-部署image-rendering插件"><a href="#5-1-部署image-rendering插件" class="headerlink" title="5.1 部署image_rendering插件"></a>5.1 部署image_rendering插件</h4><p>      Grafana支持将面板和仪表板渲染为PNG图像。渲染图像时，PNG图像会临时写入文件系统，即Grafana数据目录的子目录png。后台作业每10分钟运行一次，并将删除临时图像。 可以通过配置temp-data-lifetime设置来配置在删除图像之前应存储多长时间。</p>
+<p>Requirements（要求）：</p>
+<p>      渲染图像可能需要大量内存，主要是因为在后台启动的“browser instances”负责实际渲染。 此外，如果要并行渲染多个图像，则肯定具有更大的内存占用空间。 最小可用内存建议为1GB。</p>
+<p>Rendering methods(渲染安装和使用方式):</p>
+<p>安装：</p>
+<p># yum install zip -y</p>
+<p>#yum -y install gcc gcc-c++ make flex bison gperf ruby openssl-devel freetype-devel fontconfig-devel libicu-devel sqlite-devel libpng-devel libjpeg-devel</p>
+<p>#yum  install libXcomposite libXdamage libXtst cups libXScrnSaver pango atk adwaita-cursor-theme adwaita-icon-theme at at-spi2-atk at-spi2-core cairo-gobject colord-libs dconf desktop-file-utils ed emacs-filesystem gdk-pixbuf2 glib-networking gnutls gsettings-desktop-schemas gtk-update-icon-cache gtk3 hicolor-icon-theme jasper-libs json-glib libappindicator-gtk3 libdbusmenu libdbusmenu-gtk3 libepoxy liberation-fonts liberation-narrow-fonts liberation-sans-fonts liberation-serif-fonts libgusb libindicator-gtk3 libmodman libproxy libsoup libwayland-cursor libwayland-egl libxkbcommon m4 mailx nettle patch psmisc redhat-lsb-core redhat-lsb-submod-security rest spax time trousers xdg-utils xkeyboard-config -y</p>
+<p>#wget <a target="_blank" rel="noopener" href="https://nodejs.org/dist/v12.13.1/node-v12.13.1-linux-x64.tar.xz" title="https://nodejs.org/dist/v12.13.1/node-v12.13.1-linux-x64.tar.xz">https://nodejs.org/dist/v12.13.1/node-v12.13.1-linux-x64.tar.xz</a>   </p>
+<p># tar xf node-v12.13.1-linux-x64.tar.xz   #环境变量自己配置了哈就不在这体现了</p>
+<p># node -v   #先用这个node版本吧，用最新的v12.14.0发现有问题，node的安装前面有讲</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">v12.13.1</span><br></pre></td></tr></table></figure>
+
+<p># npm config set registry <a target="_blank" rel="noopener" href="http://registry.npm.taobao.org/" title="http://registry.npm.taobao.org">http://registry.npm.taobao.org</a>  #配置taobao为源</p>
+<p>#cd &#x2F;application&#x2F;grafana&#x2F;data&#x2F;plugins&#x2F;</p>
+<h1 id="git-clone-https-github-com-grafana-grafana-image-renderer-git"><a href="#git-clone-https-github-com-grafana-grafana-image-renderer-git" class="headerlink" title="git clone https://github.com/grafana/grafana-image-renderer.git"></a>git clone <a target="_blank" rel="noopener" href="https://github.com/grafana/grafana-image-renderer.git" title="https://github.com/grafana/grafana-image-renderer.git">https://github.com/grafana/grafana-image-renderer.git</a></h1><p>#cd grafana-image-renderer</p>
+<p>#export GF_RENDERER_PLUGIN_IGNORE_HTTPS_ERRORS&#x3D;true</p>
+<p>#构建前端</p>
+<p># npm install -g yarn</p>
+<p># yum -y install bzip2</p>
+<p># yarn install –pure-lockfile</p>
+<p># npm run build</p>
+<p>#编译安装grafana-image-renderer</p>
+<p># make deps &amp;&amp; make build_package ARCH&#x3D;linux-x64-glibc</p>
+<p># npm install -g node-pre-gyp node-gyp</p>
+<p># npm install  </p>
+<p># yarn install –pure-lockfile </p>
+<p># yarn run build</p>
+<p># node build&#x2F;app.js server –port&#x3D;8081    #启动测试一下如果没问题使用nohup的方式放到后台启动。</p>
+<p># netstat  -lntup|grep 8081   #查看一下有此端口</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">tcp6       0      0 :::8081                 :::*                    LISTEN      18030/node</span><br></pre></td></tr></table></figure>
+
+<p>#更新配置文件</p>
+<p># vim grafana.ini  #修改完重启grafana服务</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[rendering]</span><br><span class="line">#Rendering服务器的地址可远端也可以本地,下面不要配置localhost可能会出现域名解析找不到host问题，可以写成127.0.0.1</span><br><span class="line">server_url =  http://192.168.1.101:8081/render</span><br><span class="line">#将渲染的图片返回给哪个grafana服务器可远端也可以本地</span><br><span class="line">callback_url = http://192.168.1.101:3000/</span><br></pre></td></tr></table></figure>
+
+<p>PhantomJS：</p>
+<p>       从Grafana v6.4开始不推荐使用PhantomJS，并将在以后的版本中将其删除。 请迁移到Grafana image renderer plugin or remote rendering service。</p>
+<p>       自Grafana v2.x以来，PhantomJS是唯一受支持的默认图像渲染器，并且随Grafana一起提供。请注意，ARM不包含PhantomJS二进制文件。 为此，需要确保在tools&#x2F;phantomjs&#x2F;phantomjs二进制文件可用。</p>
+<p>Alerting and render limits：</p>
+<p>      警报通知可以包括图像，但是同时渲染许多图像可能会使运行渲染器的服务器过载。 </p>
+<p># vim grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[alerting]</span><br><span class="line">#此限制将保护服务器免受渲染超负荷的影响，并确保快速发送通知。</span><br><span class="line">concurrent_render_limit = 5</span><br></pre></td></tr></table></figure>
+
+<p>Troubleshooting（故障排除,如果没问题可不设置）：</p>
+<p>启用调试日志消息以在Grafana配置文件中进行渲染，并检查Grafana服务器日志。</p>
+<p># vim grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[<span class="built_in">log</span>]</span><br><span class="line">filters = rendering:<span class="built_in">debug</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="5-2-将截图存储于远端（单纯的举个例子没必要非要用）"><a href="#5-2-将截图存储于远端（单纯的举个例子没必要非要用）" class="headerlink" title="5.2 将截图存储于远端（单纯的举个例子没必要非要用）"></a>5.2 将截图存储于远端（单纯的举个例子没必要非要用）</h4><p>#既然已经理解了PhantomJS和grafana-image-renderer就是将某一个时刻某个panel当时的状态做成一个截图，这个截图用来做什么用呢？比如可以在报警的时候发出去可以把图片加载着一起发出去又或者可以将当时的状态记录到本地或者远端供程序调用。</p>
+<p># vim conf&#x2F;grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">[external_image_storage]</span><br><span class="line"># You can choose between (s3, webdav, gcs, azure_blob, local)，默认就是local就是存储在本地的data/png/下面</span><br><span class="line">provider = webdav</span><br><span class="line">[external_image_storage.webdav]</span><br><span class="line">url = https://dav.jianguoyun.com/dav/grafana</span><br><span class="line">username = grafana@51niux.com</span><br><span class="line">password = 51niux.com</span><br><span class="line">public_url = #这里就是坚果云分享链接也就是不需要账号密码的url地址，特别注意的当本地的图片上传到坚果云时候图片名称会发生变化，</span><br><span class="line">#比如你本地的图片名称是YECmbmO34A76tfE6Viig.png但是跑到坚果云上面之后是WcPcszYzEw91kaQ6l6fB.png，但是它会把这个url地址吐回来，</span><br><span class="line">#这时候比如你这里选择的是图片存储到远端，那么报警消息里面加载的图片的url地址就是你设置的这个public_url+此图片上传到坚果云的名称。</span><br></pre></td></tr></table></figure>
+
+<p>#可以看到我们grafana触发截图操作的时候，比如报警的时候就会本地产生一份截图然后上传到你指定的远端一份截图。这就相当于把报警那个时刻的具体指标图形给抓拍截图了。</p>
+<h3 id="六、ALerting"><a href="#六、ALerting" class="headerlink" title="六、ALerting"></a>六、ALerting</h3><p>      Grafana中的警报允许你将规则附加到仪表板面板。 保存仪表板时，Grafana会将警报规则提取到单独的警报规则存储中，并安排它们进行评估。在图形面板的警报选项卡中，可以配置应评估警报规则的频率以及警报更改状态并触发其通知所需的条件。</p>
+<h4 id="6-1-配置Grafana-prometheus使用钉钉报警"><a href="#6-1-配置Grafana-prometheus使用钉钉报警" class="headerlink" title="6.1 配置Grafana+prometheus使用钉钉报警"></a>6.1 配置Grafana+prometheus使用钉钉报警</h4><p>#邮件报警就不说了，修改# vim grafana.ini 的[smtp]下面。</p>
+<p>#好钉钉报警我们这里采用钉钉群组报警，那么就是创建钉钉机器人，然后就会得到hook链接。</p>
+<p>配置Notification Channels：</p>
+<p>配置文件[server]修改：</p>
+<p><img src="/images/1712713881-9b30fda0c33944e62b8bc709af535910.png" alt="image.png"></p>
+<p>#上图为link类型的测试消息。</p>
+<p>#好现在存在一个问题，现在你点开钉钉群的连接会发现跳转到了<a href="http://localhost:3000开头的一个URL地址完全打不开嘛。">http://localhost:3000开头的一个URL地址完全打不开嘛。</a></p>
+<p># vim grafana.ini</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[server]</span><br><span class="line">#协议类型</span><br><span class="line">protocol = http</span><br><span class="line">#面向公众的域名，用于从浏览器访问grafana</span><br><span class="line">domain = grafana.51niux.com</span><br><span class="line">#完整的公开网址</span><br><span class="line">#root_url = %(protocol)s://%(domain)s:%(http_port)s/   #这是原来默认的，但是我们已经用Nginx做了代理就可以用下面的了</span><br><span class="line">root_url = %(protocol)s://%(domain)s</span><br></pre></td></tr></table></figure>
+
+<p>#这样报警发出去是一个链接，然后是以<a target="_blank" rel="noopener" href="http://grafana.51niux.com开头的,这样大家点开你钉钉消息就可以打开一个页面了./">http://grafana.51niux.com开头的，这样大家点开你钉钉消息就可以打开一个页面了。</a></p>
+<h4 id="6-2-针对钉钉报警消息我们具体来说一说"><a href="#6-2-针对钉钉报警消息我们具体来说一说" class="headerlink" title="6.2 针对钉钉报警消息我们具体来说一说"></a>6.2 针对钉钉报警消息我们具体来说一说</h4><p>#这里先不要关心怎么去触发报警，先要明确这个加载图片怎么用，也就是钉钉报警Include image怎么来实现。</p>
+<p># vim grafana.ini   #我们就用默认截图存储到本地就好,特别注意provider一定要给一个类型比如local，不然你会发现你的报警不加载图片。</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[external_image_storage]</span><br><span class="line">provider = local</span><br></pre></td></tr></table></figure>
+
+<p>先说不启动grafana-image-renderer：</p>
+<p>#我们先假设我们没有按照上面的方式配置grafana-image-renderer插件，还是用的默认的PhantomJS。</p>
+<p>#然后我们现在选择了加载图片然后试着触发一个报警，然后等了好长时间你发现你并没有收到报警，然后查看日志发现有报错：</p>
+<p># tail -f &#x2F;application&#x2F;grafana&#x2F;data&#x2F;log&#x2F;grafana.log</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">INFO[12-31|17:49:01] Rendering                                logger=rendering path=&quot;d-solo/T3IZTHYZz/new-dashboard-copy?orgId=1&amp;panelId=2&quot;</span><br><span class="line">t=2019-12-31T17:49:01+0800 lvl=info msg=Rendering logger=rendering path=&quot;d-solo/T3IZTHYZz/new-dashboard-copy?orgId=1&amp;panelId=2&quot;</span><br><span class="line">INFO[12-31|17:49:31] Rendering timed out                      logger=rendering</span><br><span class="line">EROR[12-31|17:49:31] Failed to upload alert panel image.      logger=alerting.notifier error=&quot;Timeout error. You can set timeout in seconds with &amp;timeout url parameter&quot;</span><br><span class="line">t=2019-12-31T17:49:31+0800 lvl=info msg=&quot;Rendering timed out&quot; logger=rendering</span><br><span class="line">t=2019-12-31T17:49:31+0800 lvl=eror msg=&quot;Failed to upload alert panel image.&quot; logger=alerting.notifier error=&quot;Timeout error. You can set timeout in seconds with &amp;timeout url parameter&quot;</span><br><span class="line">......省略中间内容</span><br><span class="line">EROR[12-31|17:49:31] Failed to send DingDing                  logger=alerting.notifier.dingding error=&quot;context deadline exceeded&quot; dingding=钉钉报警</span><br><span class="line">EROR[12-31|17:49:31] failed to send notification              logger=alerting.notifier uid=1CQspNLZz error=&quot;context deadline exceeded&quot;</span><br><span class="line">EROR[12-31|17:49:31] failed to send notification              logger=alerting.notifier uid=1CQspNLZz error=&quot;context deadline exceeded&quot;</span><br></pre></td></tr></table></figure>
+
+<p>#啥意思呢，其实也很简单就是当你触发报警的时候，grafana根据触发报警的面板当时的状态往后台提交想做个截图然后一并随着报警消息发送出去，结果等的都超时了也没有得到返回，于是乎整条报警消息就发送失败了。</p>
+<p>#然后你把Include image关闭掉发现报警可以发出来了，所以如果你想加载图片报警的话在grafana6.4以后的版本就要进行grafana-image-renderer插件的安装了。</p>
+<p>先说Link形式：</p>
+<p><img src="/images/1712713881-8a5e3c49c6c575744c6108739a0e7b2f.png" alt="image.png"></p>
+<p>#所有警报通知都包含一个指向Grafana实例中已触发警报的链接。 该网址基于Grafana中的域设置，你点下消息就会跳转到grafana报警的页面。</p>
+<p>#通过上面的截图可以看到，Link模式是可以直接将图片加载到消息中的，但是图太小了……，然后其实可以看下第三张图，其实下面还是有内容的就是说的哪个机器触发报警的值是多少，当然如果你数据众多也就显示一条，需要你点开这个报警连接跳转到报警的页面来仔细的查看。</p>
+<p>#那么消息中的图片是哪来的呢？</p>
+<p>#可以看到当报警触发的时候先触发了一个报警</p>
+<p>t&#x3D;2019-12-31T18:04:01+0800 lvl&#x3D;info msg&#x3D;”New state change” logger&#x3D;alerting.resultHandler ruleId&#x3D;1 newState&#x3D;alerting prev state&#x3D;ok</p>
+<p>#然后下面可以看到截图插件给我们返回了一个图片的url地址</p>
+<p>t&#x3D;2019-12-31T18:04:03+0800 lvl&#x3D;info msg&#x3D;”uploaded screenshot of alert to external image store” logger&#x3D;alerting.notifier url&#x3D;<a target="_blank" rel="noopener" href="http://grafana.51niux.com/public/img/attachments/P6NL1pA0Q7BV3FJrCdtp.png">http://grafana.51niux.com/public/img/attachments/P6NL1pA0Q7BV3FJrCdtp.png</a> </p>
+<p>#然后下面就是把这条消息发送出去了</p>
+<p>t&#x3D;2019-12-31T18:04:03+0800 lvl&#x3D;info msg&#x3D;”Sending dingding” logger&#x3D;alerting.notifier.dingding</p>
+<p>t&#x3D;2019-12-31T18:04:03+0800 lvl&#x3D;info msg&#x3D;”messageUrl:dingtalk:&#x2F;&#x2F;dingtalkclient&#x2F;page&#x2F;link?pc_slide&#x3D;false&amp;url&#x3D;需要点开的grafana的报警的url地址” logger&#x3D;alerting.notifier.dingding</p>
+<p>然后再说钉钉的actionCard形式：</p>
+<p><img src="/images/1712713881-0cb2bfb503fe8e724c817079faf8921b.png" alt="image.png"></p>
+<p>#可以看到首先你无法从这个消息体里面看到这是一个警告还是恢复状态，当然在群外面看群消息里面的表示是可以看到的。其实从报警消息中也可以理解为是报警还是恢复的，如果是报警的话会有提示什么实例触发了报警，如果是恢复的话就会像上图只有标题什么都不显示。其次呢就是这个图片你看不到，那怎么办呢？怎么来显示这个图片呢？</p>
+<p>#很简单就是配置文件domain这里配置一个公网的IP或者你grafana本身的域名就是公网的，这样返回的那个图片的URL地址自然就是公网的自然可以被访问了。</p>
+<p>#上面就是将我们的grafana配置文件中的domain变成公网地址之后的效果，虽然是可以跟着消息一起放出来的，但是其实是两部分，消息是一部分图片是另一部分，我这种图片看着密密麻麻是想上百个容器的数据图，所以当报警出来的时候图片哪里是先从空白变为有图因为要加载会。</p>
+<p>#Link方式呢如果报警的信息太多的话不会将报警信息全部显示出来，需要点击链接进入到grafana界面进行具体的查看的。比如可以点击grafana的State history来查看都有哪些实例触发了报警。而actionCard是可以把哪些实例触发了报警都列在报警消息中的。</p>
+<p>#可以看到Link这种情况只需要你的网络跟grafana的网络是想通的就能看到消息中的图片，但是actionCard这种方式呢需要配置公网。</p>
+<h4 id="6-3-报警规则的配置"><a href="#6-3-报警规则的配置" class="headerlink" title="6.3  报警规则的配置"></a>6.3  报警规则的配置</h4><p>视觉阀值和报警规则是互斥的：</p>
+<p><img src="/images/1712713881-99840b59f7e87fdcff627bc15919d6b8.png" alt="image.png"></p>
+<p>#首先要了解开启了Alert，视觉阈值选项就会禁用。要重新启用视觉阈值，必须从此面板中删除警报规则。</p>
+<p>Alter之Rule：</p>
+<p><img src="/images/1712713881-c5fab20af75e5dc156b7e3f57e136f8f.png" alt="image.png"></p>
+<p>#主要是for的理解：如果警报规则具有配置的For，并且查询到了阀值状态，它将首先从OK转到Pending。 Grafana从“OK”转到“待定Pending”将不会发送任何通知。 警报规则的触发时间超过“持续时间”后，它将更改为“Alerting”并发送警报通知。</p>
+<p>#比如上面我们设置了一个For是1m的持续时间，当每分钟检查的时候发现触发了阀值，如果持续一分钟还未解决就会报警出来。</p>
+<p>#那么问题来了如果你For设置2m或者5m之类的持续时间，那么恢复的时候会遵从这个持续时间吗，显然恢复是不遵从这个For时间的，当下次循环检查的时候没问题就会变为OK状态并进行恢复报警。当然恢复也没有其他监控系统的单独的恢复报警设置。</p>
+<p>Alter之Conditions(条件)：</p>
+<p>WHEN判断有：last(),avg(),min(),max(),sum(),count(),median(),diff(),percent_diff(),count_non_null()  #这里其实是grafana内置的一些运算函数，有的可能一眼就知道怎么回事有些就比较蒙圈了。</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">count()  #数据点数（在单位时间里去抓取了几次metric）。</span><br><span class="line">median()  #MEDIAN 函数是一种计算机函数，能够返回给定数值的中值，中值是在一组数值中居于中间的数值，如果参数集合中包含偶数个数字，函数 MEDIAN 将返回位于中间的两个数的平均值。</span><br><span class="line">diff()  #起始值和最终值之间的差异</span><br><span class="line">percent_diff()  #起始值与最终值之差/起始值与最终值的平均值*100</span><br><span class="line">count_non_null()  #value不为空的count</span><br></pre></td></tr></table></figure>
+
+<p>#count通常是指(单位时间内的)metric数据的数量(例如，名称为qps的metric，在过去1分钟内，每隔15s去获取1次qps的值，那么过去1分钟的count(qps)就是5)，如果数据源是ElasticSearch，这个count通常指单位时间内的日志条目(日志数量)。但是如果数据源是Prometheus的的话，由于Prometheus的配置文件指定了每隔多久去抓取1次数据，因此count的数量比较固定。</p>
+<p>然后中间有个阀值的类型：</p>
+<p>Bash</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">IS ABOVE  <span class="meta">#在什么值以上也就是大于某个值</span></span><br><span class="line">IS BELOW  <span class="meta">#在什么值下面也就是小于某个值</span></span><br><span class="line">IS OUTSIDE RANGE  <span class="meta">#在两个值的范围以外</span></span><br><span class="line">IS WITHIN RANGE  <span class="meta">#在两个值的范围内</span></span><br><span class="line">HAS NO VALUE  <span class="meta">#没有值</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712713881-5925bb1f5409d6fe325b490e7b3480a3.png" alt="image.png"></p>
+<p>query(A, 5m, now): 字母定义从“Metrics”选项卡执行的查询,比如我们只有一条metrics查询语句就是A，如果你又加了一条查询语句那么就会有B。 后两个参数定义时间范围5m，即现在到之前的的5分钟。 你也可以设置成从10m开始，now为2m，以定义10分钟前到2分钟前的时间范围。 如果你要忽略最后2分钟的数据，这将很有用。</p>
+<p>警报规则中使用的查询不能包含任何模板变量。 目前，仅支持条件之间的AND和OR运算符，并且它们是串行执行的。 例如，有3个条件，其顺序如下：condition：A（评估为：TRUE）或condition：B（评估为：FALSE）AND condition：C（评估为：TRUE），因此结果将计算为 ((TRUE OR FALSE) AND TRUE) &#x3D; TRUE。</p>
+<p>Multiple Series:</p>
+<p>    如果查询返回多个序列，则将针对每个序列评估聚合函数和阈值检查。 Grafana当前不执行的是每个系列的跟踪警报规则状态。 这具有以下场景中详细介绍的含义。</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">查询的警报条件返回2个系列：server1和server2</span><br><span class="line">server1系列导致警报规则触发并切换到状态警报</span><br><span class="line">通知随消息一起发送：负载峰值（server1）</span><br><span class="line">在对同一警报规则的子序列评估中，server2系列也会导致警报规则触发</span><br><span class="line">由于警报规则已处于警报状态，因此不会发送新的通知。</span><br></pre></td></tr></table></figure>
+
+<p>       因此，从上述情况中可以看到，如果规则已经处于Alerting状态，则其他系列导致警报触发时，Grafana不会发出通知。 为了改善对返回多个系列的查询的支持，计划在将来的版本中跟踪每个系列的状态。从Grafana v5.3开始，可以配置要发送的警报提醒。 当警报继续触发时，这将发送其他通知。 如果其他系列（例如上例中的server2）也导致触发警报规则，则它们将包含在提醒通知中。 根据你正在使用的通知渠道，可以利用此功能来识别导致警报触发的new&#x2F;existing的系列series。</p>
+<p>Clustering：</p>
+<p>       当前，警报支持有限形式的高可用性。 从Grafana v4.2.0开始，运行多个服务器时将删除警报通知。 这意味着所有警报都在每台服务器上执行，但是由于重复数据删除逻辑，不会发送重复的警报通知。 未来将引入适当的警报负载平衡。</p>
+<p>Execution（执行）：</p>
+<p>       警报规则在Grafana核心的一部分的调度程序和查询执行引擎的Grafana后端中进行评估。 目前仅支持某些数据源。 它们包括Graphite，Prometheus，InfluxDB，Elasticsearch，Stackdriver，Cloudwatch，Azure Monitor，MySQL，PostgreSQL，MSSQL，OpenTSDB，Oracle和Azure Data Explorer。Azure Monitor的警报支持仅在Grafana v6.0及更高版本中可用。</p>
+<p>Alter之No Data &amp; Error Handling：</p>
+<p>No Data &#x2F; Null values(无数据&#x2F;空值)：</p>
+<p>      可以配置规则评估引擎应如何处理不返回数据或仅返回空值的查询。</p>
+<p>Bash</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">NoData   <span class="meta">#将警报规则状态设置为NoData</span></span><br><span class="line">Alerting   <span class="meta">#将警报规则状态设置为“Alerting”</span></span><br><span class="line">Keep Last State  <span class="meta">#保持当前警报规则状态，无论状态如何。</span></span><br><span class="line">OK  <span class="meta">#将警报规则状态设置为OK</span></span><br></pre></td></tr></table></figure>
+
+<p>执行错误或超时</p>
+<p>       最后一个选项告诉你如何处理执行或超时错误。</p>
+<p>Bash</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">Alerting    <span class="meta">#将警报规则状态设置为“Alerting”</span></span><br><span class="line">Keep Last State    <span class="meta">#保持当前警报规则状态，无论状态如何。</span></span><br></pre></td></tr></table></figure>
+
+<p>      如果有一个不可靠的时间序列存储库，该存储库中的查询有时会超时或随机失败，则可以将此选项设置为Keep Last State以便基本忽略它们。</p>
+<p>#下图是我们把数据源去掉之类的查看一下没有数据的报警状态：</p>
+<p>Notifications：</p>
+<p>      在警报选项卡中，还可以指定警报规则通知以及有关警报规则的详细消息。 该消息可以包含任何内容，有关如何解决问题的信息，指向Runbook的链接等。实际的通知已配置并在多个警报之间共享。 </p>
+<p> <img src="/images/1712713881-459d1114d3dabdaa02afba2d5515fc52.png" alt="image.png"></p>
+<p>#注意这个Message只是一个固定的内容，比如你监控容器，容器报警了，消息中还会在此固定内容下面显示都哪些容器触发报警了，当然消息太多的话并不会完全显示。   </p>
+<p>Use alert rule tags in notifications（在通知中使用警报规则标签）：</p>
+<p>       上图其实在界面下面还有Tags一栏，仅在Grafana v6.3 +中可用。Grafana可以在通知中包含标签列表（key&#x2F;value）。 称为警报规则标签，可与从时间序列中解析出的标签进行对比。 当前仅支持Prometheus Alertmanager通知程序。这是一项可选功能。 可以在不使用警报规则标签的情况下获得通知。</p>
+<p>Troubleshooting（故障排除）：</p>
+<p>     可以做的第一级故障排除是单击“Test Rule”按钮。 将获得结果，可以扩展到可以查看查询返回的原始数据的位置。还可以通过检查grafana服务器日志来完成进一步的故障排除。 如果不是错误或出于某种原因，日志中没有任何内容，则可以为某些相关组件启用调试日志记录。 这是在Grafana的ini配置文件中完成的。该示例显示了在对警报进行故障排除时可能相关的记录器。</p>
+<p>Bash</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">[<span class="built_in">log</span>]</span><br><span class="line">filters = alerting.scheduler:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.engine:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.resultHandler:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.evalHandler:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.evalContext:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.extractor:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.notifier:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.notifier.slack:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.notifier.pagerduty:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.notifier.email:<span class="built_in">debug</span> \</span><br><span class="line">          alerting.notifier.webhook:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.graphite:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.prometheus:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.opentsdb:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.influxdb:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.elasticsearch:<span class="built_in">debug</span> \</span><br><span class="line">          tsdb.elasticsearch.client:<span class="built_in">debug</span> \</span><br></pre></td></tr></table></figure>
+
+<p>如果要记录发送到TSDB的原始查询和日志中的原始响应，还必须将grafana.ini选项app_mode设置为development。</p>
+<h4 id="6-4-Notifications"><a href="#6-4-Notifications" class="headerlink" title="6.4 Notifications"></a>6.4 Notifications</h4><p>查看当前总的报警状态：</p>
+<p>#上图右边那个一个暂停图片很好理解就是禁用此报警，另一个齿轮就是重新配置此条报警。</p>
+<p>重复报警：</p>
+<p>#默认报警规则触发后，只报一次，不会重复报警，如果你想重复报警的话就需要在你所创建的消息channels里面进行设置了。</p>
+<p>#要特别注意重复报警的间隔不能比再次检查的时间频率要短。当再次报警的时候State history那里只会显示第一次报警的时间，Alter Rules那里也只会显示最后一次报警的时间，当然如果你加载图片的话，重复报警消息就只有问题消息不会再加载图片了。</p>
+<p>Send reminders（发送提醒）：</p>
+<p>     仅在Grafana v5.3及更高版本中可用。选中此选项时，将为触发的警报发送其他通知（提醒）。 可以使用秒数，分钟（m）或小时（h）（例如30s，3m，5m或1h等）指定发送提醒的频率。重要提示：评估规则后，将发送警报提醒。 因此，永远不要比配置的警报规则评估间隔更频繁地发送提醒。这些示例显示了发送触发警报的提醒的频率和时间。</p>
+<table>
+<thead>
+<tr>
+<th>Alert rule evaluation interval<br><br>警报规则评估间隔</th>
+<th>Send reminders every<br><br>每次发送提醒</th>
+<th>Reminder sent every (after last alert notification)<br><br>每次提醒发送（最后一次警报通知后）</th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>30s</code></td>
+<td><code>15s</code></td>
+<td>~30 seconds</td>
+</tr>
+<tr>
+<td><code>1m</code></td>
+<td><code>5m</code></td>
+<td>~5 minutes</td>
+</tr>
+<tr>
+<td><code>5m</code></td>
+<td><code>15m</code></td>
+<td>~15 minutes</td>
+</tr>
+<tr>
+<td><code>6m</code></td>
+<td><code>20m</code></td>
+<td>~24 minutes</td>
+</tr>
+<tr>
+<td><code>1h</code></td>
+<td><code>15m</code></td>
+<td>~1 hour</td>
+</tr>
+<tr>
+<td><code>1h</code></td>
+<td><code>2h</code></td>
+<td>~2 hours</td>
+</tr>
+</tbody></table>
+<p>Metrics from the alert engine（警报引擎的指标）</p>
+<p>        警报引擎发布有关其自身的一些内部指标。</p>
+<table>
+<thead>
+<tr>
+<th>Description</th>
+<th>Type</th>
+<th>Metric name</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Total number of alerts（警报总数）</td>
+<td>counter</td>
+<td><code>alerting.active_alerts</code></td>
+</tr>
+<tr>
+<td>Alert execution result（警报执行结果）</td>
+<td>counter</td>
+<td><code>alerting.result</code></td>
+</tr>
+<tr>
+<td>Notifications sent counter（通知发送计数）</td>
+<td>counter</td>
+<td><code>alerting.notifications_sent</code></td>
+</tr>
+<tr>
+<td>Alert execution timer（警报执行计时）</td>
+<td>timer</td>
+<td><code>alerting.execution_t``ime</code></td>
+</tr>
+</tbody></table>
+<p>Supported Notification Types（支持的通知类型）：</p>
+<p>Email：</p>
+<p>       要启用电子邮件通知，必须在Grafana配置中设置SMTP设置。 电子邮件通知会将警报图的图像上载到外部图像目标（如果可用），或者将其后退以将图像附加到电子邮件。 请注意，如果使用local图像存储，则电子邮件服务器和客户端可能无法访问该图像。</p>
+<p>Webhook：</p>
+<p>      Webhook通知是一种通过HTTP将状态更改信息发送到自定义端点的简单方法。 使用此通知，可以将Grafana集成到选择的系统中。示例json主体：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;title&quot;: &quot;My alert&quot;,</span><br><span class="line">  &quot;ruleId&quot;: 1,</span><br><span class="line">  &quot;ruleName&quot;: &quot;Load peaking!&quot;,</span><br><span class="line">  &quot;ruleUrl&quot;: &quot;http://url.to.grafana/db/dashboard/my_dashboard?panelId=2&quot;,</span><br><span class="line">  &quot;state&quot;: &quot;alerting&quot;,</span><br><span class="line">  &quot;imageUrl&quot;: &quot;http://s3.image.url&quot;,</span><br><span class="line">  &quot;message&quot;: &quot;Load is peaking. Make sure the traffic is real and spin up more webfronts&quot;,</span><br><span class="line">  &quot;evalMatches&quot;: [</span><br><span class="line">    &#123;</span><br><span class="line">      &quot;metric&quot;: &quot;requests&quot;,</span><br><span class="line">      &quot;tags&quot;: &#123;&#125;,</span><br><span class="line">      &quot;value&quot;: 122</span><br><span class="line">    &#125;</span><br><span class="line">  ]</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>state-警报状态的可能值为：ok, paused, alerting, pending, no_data。</p>
+<p>DingDing&#x2F;DingTalk：</p>
+<p>       如下所示：<a target="_blank" rel="noopener" href="https://oapi.dingtalk.com/robot/send?access%5C_token=xxxxxxxxx%E3%80%82">https://oapi.dingtalk.com/robot/send?access\_token=xxxxxxxxx。</a> 将此URL复制到grafana Dingtalk设置页面，然后单击“finish”。Dingtalk支持以下“message type”：text, link and markdown。</p>
+<p>Kafka：</p>
+<p>       可以使用Kafka REST Proxy将通知从Grafana发送到Kafka主题。 需要在Grafana UI中的“ Kafka Settings”下设置几个配置选项：</p>
+<p>Kafka REST Proxy endpoint、Kafka Topic。设置完这两个属性后，可以将警报发送到Kafka进行进一步处理或限制。</p>
+<h4 id="6-5-grafana发送Prometheus中的容器报警"><a href="#6-5-grafana发送Prometheus中的容器报警" class="headerlink" title="6.5 grafana发送Prometheus中的容器报警"></a>6.5 grafana发送Prometheus中的容器报警</h4><p>#这里最后小提一下，到现在我用的6.5版本还是没能解决模板中使用变量进行报警，现在是直接关闭了此功能。</p>
+<p>Template variables are not supported in alert queries   #警报查询中不支持模板变量</p>
+<p><img src="/images/1712713881-ba44fba29d0d108a1aa21abe92b40add.png" alt="image.png"></p>
+<p>#如果你的面板中引用了变量就不能进行Alter报警设置。</p>
+<p>#那么我们怎么做容器监控呢，不能用变量就只能使用正则了。</p>
+<p>比如我们Metrics的查询语句是：</p>
+<p>Bash</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sum(rate(container_memory_usage_bytes&#123;image!=&quot;&quot;,pod_name=~&quot;^(docker|ingress)-.*&quot;&#125;[1m])) by (pod_name)</span><br></pre></td></tr></table></figure>
+
+<p>#那么前提呢就是你的容器名称最好开头最好就是一个固定唯一的，因为结尾k8s会给你随机加字符你控制不了。这样通过正则就能进行Alter设置了。</p>
+<p>#这样报警其实有带来几个问题：</p>
+<p>第一个就是你原来做的展示图只能作为展示用，你还要单独做张图进行报警用，如果你容器少还好，如果有几千个上万个，都汇聚到一张图上面进行渲染那可能直接就卡死了，因为是正则匹配所有并不是选择某几个进行出图。</p>
+<p>第二个问题呢就是大家这些容器可能限制不同但是都要公用一个固定值或者一个百分比很不灵活。</p>
+<p>第三个问题呢就是比如你这次有50个容器触发了报警，会汇总到一个报警消息里面发出去告诉你这50个容器分别当前值是多少，当然现在如果选择用钉钉的actionCard类型会给你一条条列出来，如果是选择Link类型也就给你显示一条剩下的就需要你点击链接跳转到grafana界面查看了。当然这都不是问题，真正的问题是这些报警是一起报警了，就算中间有容器恢复了也不会恢复体现，是得所有都恢复才会发送恢复消息。</p>
+<p>第四个问题呢就是要注意官网有提高alter报警并不支持高可用什么意思呢，就是如果你又两个grafana你配置了alter,这个规则其实并没有写入到数据库中，是写到某一个grafana实例中的，当你发生跳转到另一个grafana中的配置报警规则什么的都不见得，我测试着是这样。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/10/Grafana%E7%9B%B8%E5%85%B3%E5%8A%9F%E8%83%BD%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/04/09/%E6%9E%81%E5%AE%A2%E6%97%B6%E9%97%B4%E8%AF%BE%E7%A8%8B%E4%B8%8B%E8%BD%BD%E5%99%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">极客时间课程下载器</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
