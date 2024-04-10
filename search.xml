@@ -15117,4 +15117,104 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Grafana截取图片供告警使用</title>
+    <url>/2024/04/10/Grafana%E6%88%AA%E5%8F%96%E5%9B%BE%E7%89%87%E4%BE%9B%E5%91%8A%E8%AD%A6%E4%BD%BF%E7%94%A8/</url>
+    <content><![CDATA[<h2 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h2><p>想要一个CPU的使用率的日报，因此想程序直接抓取grafana的Panel生成的图片，这样不用每次都打开grafana，然后手动截图，再保存，再发日报。</p>
+<p>谷歌了一下，发现官方有个插件叫grafana-image-renderer，能直接渲染图片，生成图片链接，只需要python爬虫抓取该链接，保存图片即可，后续写个发邮件的程序就行。</p>
+<p>(谷歌发现两种办法，另一种是使用grafana-reporter，因为这个要起一个Go新服务，因此我没有尝试该办法，需要的小伙伴自行谷歌吧)</p>
+<h2 id="2、步骤"><a href="#2、步骤" class="headerlink" title="2、步骤"></a>2、步骤</h2><p>首先说明一点，我的grafana服务是本地安装，不是docker部署</p>
+<h3 id="2-0、未安装插件时的表现"><a href="#2-0、未安装插件时的表现" class="headerlink" title="2.0、未安装插件时的表现"></a>2.0、未安装插件时的表现</h3><p>未安装grafana-image-renderer插件时，点击share按钮分享panel，会提示图片渲染插件未安装，要求安装一下</p>
+<p><img src="/images/1712740297-8e9a92f54f50a9c5d621d9dfc8225719.png" alt="image-20221019143705819"></p>
+<h3 id="2-1、首先要安装grafana-image-renderer插件"><a href="#2-1、首先要安装grafana-image-renderer插件" class="headerlink" title="2.1、首先要安装grafana-image-renderer插件"></a>2.1、首先要安装grafana-image-renderer插件</h3><p>官网安装指导：<a href="https://grafana.com/grafana/plugins/grafana-image-renderer/">https://grafana.com/grafana/plugins/grafana-image-renderer/</a></p>
+<p>官网配置文件指导：<a href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration</a></p>
+<p>执行命令安装插件</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">grafana-cli plugins install grafana-image-renderer</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-4e9e2a74eb18ff4233c89bde8c313e8f.png" alt="image-20221018170736932"></p>
+<h3 id="2-2、安装好后重启一下grafana服务"><a href="#2-2、安装好后重启一下grafana服务" class="headerlink" title="2.2、安装好后重启一下grafana服务"></a>2.2、安装好后重启一下grafana服务</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">systemctl restart grafana-server.service</span><br></pre></td></tr></table></figure>
+
+<p>安装好后可以查看一下是否有该插件了</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">grafana-cli plugins <span class="built_in">ls</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-fb5559f5c6e750138133553d7dfdd343.png" alt="image-20221018170856313"></p>
+<h3 id="2-3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面"><a href="#2-3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面" class="headerlink" title="2.3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面"></a>2.3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">ldd /var/lib/grafana/plugins/grafana-image-renderer/chrome-linux/chrome</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-ef6fc93db006b30c84b1914ef3b15920.png" alt="image-20221018170928769"></p>
+<p>我们需要把not found的依赖都安装上，这里可以直接去<a href="https://pkgs.org/%E7%BD%91%E5%9D%80%E6%89%BE%E5%88%B0%E4%BE%9D%E8%B5%96%EF%BC%8C%E7%84%B6%E5%90%8E%E5%AE%89%E8%A3%85">https://pkgs.org/网址找到依赖，然后安装</a></p>
+<p>例子：</p>
+<p>（1）提示缺少libatk-1.0.so.0，则我们去<a href="https://pkgs.org/%EF%BC%8C%E8%BE%93%E5%85%A5%E6%A1%86%E8%BE%93%E5%85%A5libatk-1.0.so.0%EF%BC%8C%E7%84%B6%E5%90%8E%E6%90%9C%E7%B4%A2%EF%BC%8C%E6%89%BE%E5%88%B0%E7%B3%BB%E7%BB%9F%E5%AF%B9%E5%BA%94%E7%9A%84%E8%BD%AF%E4%BB%B6%E5%8C%85%EF%BC%8C%E4%BE%8B%E5%A6%82%E6%88%91%E7%9A%84%E6%98%AFcentos7%EF%BC%8C%E7%84%B6%E5%90%8E%E7%82%B9%E5%87%BB%E8%BF%9B%E5%8E%BB">https://pkgs.org/，输入框输入libatk-1.0.so.0，然后搜索，找到系统对应的软件包，例如我的是centos7，然后点击进去</a></p>
+<p><img src="/images/1712740297-dba025d8cf1a7be3bd1d26d168739f95.png" alt="image-20221018172259191"></p>
+<p>点击进去以后，可以看到提示用<code>yum install atk</code>下载即可，</p>
+<p><img src="/images/1712740297-6b94b6efb48b3598a15698669add9892.png" alt="image-20221018172408471"></p>
+<p>例子2：缺libXcomposite.so.1文件，也是类似例子1一样，</p>
+<p><img src="/images/1712740297-c20b6c45ef42116d8450f72b5f224d35.png" alt="image-20221018172855346"></p>
+<p><img src="/images/1712740297-6426bc0606833f2769880e69bf127f7f.png" alt="image-20221018172917998"></p>
+<p>这个缺少依赖的问题，也可以在官网的解决重大问题的链接看到：<a href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/</a></p>
+<p><img src="/images/1712740297-efbcfdb4f5a3136e695534e3d1b06df3.png" alt="image-20221019165238972"></p>
+<p>我解决该问题，安装了这些包</p>
+<p><img src="/images/1712740297-2f9f920d4727fa0b0a595d59f511aa29.png" alt="image-20221018173343352"></p>
+<p><img src="/images/1712740297-47e28873a0ca15f685a85a228d229736.png" alt="image-20221018173426252"></p>
+<p>官网也提到centos7的依赖包，其他系统看官网就行</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">libXcomposite libXdamage libXtst cups libXScrnSaver pango atk adwaita-cursor-theme adwaita-icon-theme at at-spi2-atk at-spi2-core cairo-gobject colord-libs dconf desktop-file-utils ed emacs-filesystem gdk-pixbuf2 glib-networking gnutls gsettings-desktop-schemas gtk-update-icon-cache gtk3 hicolor-icon-theme jasper-libs json-glib libappindicator-gtk3 libdbusmenu libdbusmenu-gtk3 libepoxy liberation-fonts liberation-narrow-fonts liberation-sans-fonts liberation-serif-fonts libgusb libindicator-gtk3 libmodman libproxy libsoup libwayland-cursor libwayland-egl libxkbcommon m4 mailx nettle patch psmisc redhat-lsb-core redhat-lsb-submod-security rest spax time trousers xdg-utils xkeyboard-config alsa-lib</span><br></pre></td></tr></table></figure>
+
+<h2 id="3、验证"><a href="#3、验证" class="headerlink" title="3、验证"></a>3、验证</h2><p>安装插件成功，安装依赖成功，重启grafana，点击页面分享，就可以看到可以渲染图片了（<strong>Direct link rendered image</strong>）</p>
+<p><img src="/images/1712740297-9063a2af7bca0e63ec69bfdf1898f228.png" alt="image-20221019165608106"></p>
+<p>图片默认保存位置是grafana的data目录下的png目录，保存天数默认为1天，默认位置是&#x2F;var&#x2F;lib&#x2F;grafana&#x2F;png</p>
+<p><img src="/images/1712740297-6096501d770d88cbd8697a850374e2f5.png" alt="image-20221019170108495"></p>
+<h2 id="4、常见问题"><a href="#4、常见问题" class="headerlink" title="4、常见问题"></a>4、常见问题</h2><p>（1）最常见的问题应该就是缺失依赖包，从官网可以解决，其他常见问题也可以直接看官网</p>
+<p><a href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/</a></p>
+<p>当然还可以看github的issue</p>
+<p>github官网：<a href="https://github.com/grafana/grafana-image-renderer">https://github.com/grafana/grafana-image-renderer</a></p>
+<p>（2）我遇到一个问题，提示是<strong>code &#x3D; Unauthenticated desc &#x3D; Unauthorized request”</strong></p>
+<p>这是 &#x2F;var&#x2F;log&#x2F;grafana&#x2F;grafana.log的日志</p>
+<p>level&#x3D;error msg&#x3D;”Rendering failed.” error&#x3D;”rpc error: code &#x3D; Unauthenticated desc &#x3D; Unauthorized request”</p>
+<p><img src="/images/1712740297-98bc9e494a4ef07ece5487bdfb4049fb.png" alt="image-20221019152917727"></p>
+<p>从官网的issue得到了解决答案,原来是下载匹配版本就行，我下载的是version&#x3D;9.2.1</p>
+<p><a href="https://github.com/grafana/grafana-image-renderer/issues/370">https://github.com/grafana/grafana-image-renderer/issues/370</a></p>
+<p><img src="/images/1712740297-10bd1e77fc526319203cbf92c53b1933.png" alt="image-20221019171112515"></p>
+<p>注：每个版本都有对应匹配的，参考官网<a href="https://grafana.com/grafana/plugins/grafana-image-renderer/?tab=installation">https://grafana.com/grafana/plugins/grafana-image-renderer/?tab=installation</a></p>
+<p><img src="/images/1712740297-e5a447c563be76fe4d894f2ff9ed99ac.png" alt="image-20221027095811677"></p>
+<h2 id="5、python爬虫请求"><a href="#5、python爬虫请求" class="headerlink" title="5、python爬虫请求"></a>5、python爬虫请求</h2><p>（1）如果response.text中出现<strong>If you’re seeing this Grafana has failed to load its application files</strong>，则可能是需要验证，可以去grafana生成一个APIkey</p>
+<p><strong>错误信息</strong></p>
+<p><strong>If you’re seeing this Grafana has failed to load its application files</strong></p>
+<p>\1. This could be caused by your reverse proxy settings.</p>
+<p>\2. If you host grafana under subpath make sure your grafana.ini root_url setting includes subpath. If not using a reverse proxy make sure to set serve_from_sub_path to true.</p>
+<p>\3. If you have a local dev build make sure you build frontend using: yarn start, yarn start:hot, or yarn build</p>
+<p>\4. Sometimes restarting grafana-server can help</p>
+<p>\5. Check if you are using a non-supported browser. For more information, refer to the list of <a href="https://grafana.com/docs/grafana/latest/installation/requirements/#supported-web-browsers">supported browsers</a>.</p>
+<p><strong>错误页面</strong>(把response.text写到html后展示)</p>
+<p><img src="/images/1712740297-0c5bcb88d7c936bdc8a7ca3bb8400707.png" alt="image-20221026112231961"></p>
+<p>（2）如果&#x2F;var&#x2F;log&#x2F;grafana&#x2F;grafana.log日志中出现302，则也可能是需要认证</p>
+<p>logger&#x3D;context userId&#x3D;0 orgId&#x3D;0 uname&#x3D; t&#x3D;2022-10-26T10:58:40.245237482+08:00 level&#x3D;info msg&#x3D;”Request Completed” method&#x3D;GET path&#x3D;&#x2F;render&#x2F;d-solo&#x2F;nano-vm-detail&#x2F;nanoxu-ni-ji-ming-xi <strong>status&#x3D;302</strong> remote_addr&#x3D;172.16.70.189 time_ms&#x3D;1 duration&#x3D;1.300399ms size&#x3D;29 referer&#x3D; handler&#x3D;&#x2F;render&#x2F;*</p>
+<p>（3）如果出现401，则也是需要认证</p>
+<p>API keys生成页面</p>
+<p><img src="/images/1712740297-b3895f64da392c101d86b0daab0cd1a8.png" alt="image-20221019171153866"></p>
+<p>然后请求的时候加在header中就行，保存png图片即可</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line">response=requests.get(<span class="string">&quot;http://172.16.90.18:3000/render/d-solo/shEoIlI4k/cpushi-yong-lu?orgId=1&amp;from=1666142237595&amp;to=1666163837596&amp;panelId=2&amp;width=1000&amp;height=500&amp;tz=Asia%2FShanghai&quot;</span>,headers=&#123;<span class="string">&quot;Authorization&quot;</span>:<span class="string">&quot;Bearer sdfsdfsd==&quot;</span>&#125;)</span><br><span class="line"><span class="built_in">print</span>(response.status_code)</span><br><span class="line">filename=<span class="string">&#x27;show.png&#x27;</span></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(filename, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(response.content)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;download png success, save to <span class="subst">&#123;filename&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="6、支持中文标题的图片"><a href="#6、支持中文标题的图片" class="headerlink" title="6、支持中文标题的图片"></a>6、支持中文标题的图片</h2><p>默认是不支持中文的，可以通过配置来改变，配置参考上面提到的官网链接就行<a href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration</a></p>
+<p><img src="/images/1712740297-c1879f6c141d7c2299fce1fef1530399.png" alt="image-20221019171540105"></p>
+<p>配置文件修改&#x2F;etc&#x2F;grafana&#x2F;grafana.ini</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="section">[plugin.grafana-image-renderer]</span> </span><br><span class="line"><span class="attr">rendering_timezone</span> = Asia/Shanghai </span><br><span class="line"><span class="attr">rendering_language</span> = zh-CN,zh<span class="comment">;q=0.9</span></span><br></pre></td></tr></table></figure>
+
+<p>然后安装中文字体</p>
+<p>centos7执行<code>yum groupinstall Fonts</code> 其他机器还需要谷歌一下</p>
+<p>参考：<a href="https://github.com/grafana/grafana/issues/24729">https://github.com/grafana/grafana/issues/24729</a></p>
+<p><img src="/images/1712740297-f1a6ca0ea9390870119ab365eaeed36f.png" alt="image-20221019190724911"></p>
+<p>重启</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">systemctl restart grafana-server.service</span><br></pre></td></tr></table></figure>
+
+<p>可以看到已经支持中文了</p>
+<p><img src="/images/1712740297-8d0d3e0f55286fd303914a0c3a9d120c.png" alt="image-20221019190808595"></p>
+<p>docker方式参考链接是：<a href="https://blog.csdn.net/dandanfengyun/article/details/115346594">https://blog.csdn.net/dandanfengyun/article/details/115346594</a></p>
+<p><a href="https://blog.csdn.net/lee_yanyi/article/details/120364080">https://blog.csdn.net/lee_yanyi&#x2F;article&#x2F;details&#x2F;120364080</a></p>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>

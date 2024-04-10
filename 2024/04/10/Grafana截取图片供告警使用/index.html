@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana截取图片供告警使用 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana截取图片供告警使用"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana截取图片供告警使用
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/10/Grafana%E6%88%AA%E5%8F%96%E5%9B%BE%E7%89%87%E4%BE%9B%E5%91%8A%E8%AD%A6%E4%BD%BF%E7%94%A8/" class="article-date">
+  <time datetime="2024-04-10T09:14:03.000Z" itemprop="datePublished">2024-04-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h2><p>想要一个CPU的使用率的日报，因此想程序直接抓取grafana的Panel生成的图片，这样不用每次都打开grafana，然后手动截图，再保存，再发日报。</p>
+<p>谷歌了一下，发现官方有个插件叫grafana-image-renderer，能直接渲染图片，生成图片链接，只需要python爬虫抓取该链接，保存图片即可，后续写个发邮件的程序就行。</p>
+<p>(谷歌发现两种办法，另一种是使用grafana-reporter，因为这个要起一个Go新服务，因此我没有尝试该办法，需要的小伙伴自行谷歌吧)</p>
+<h2 id="2、步骤"><a href="#2、步骤" class="headerlink" title="2、步骤"></a>2、步骤</h2><p>首先说明一点，我的grafana服务是本地安装，不是docker部署</p>
+<h3 id="2-0、未安装插件时的表现"><a href="#2-0、未安装插件时的表现" class="headerlink" title="2.0、未安装插件时的表现"></a>2.0、未安装插件时的表现</h3><p>未安装grafana-image-renderer插件时，点击share按钮分享panel，会提示图片渲染插件未安装，要求安装一下</p>
+<p><img src="/images/1712740297-8e9a92f54f50a9c5d621d9dfc8225719.png" alt="image-20221019143705819"></p>
+<h3 id="2-1、首先要安装grafana-image-renderer插件"><a href="#2-1、首先要安装grafana-image-renderer插件" class="headerlink" title="2.1、首先要安装grafana-image-renderer插件"></a>2.1、首先要安装grafana-image-renderer插件</h3><p>官网安装指导：<a target="_blank" rel="noopener" href="https://grafana.com/grafana/plugins/grafana-image-renderer/">https://grafana.com/grafana/plugins/grafana-image-renderer/</a></p>
+<p>官网配置文件指导：<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration</a></p>
+<p>执行命令安装插件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">grafana-cli plugins install grafana-image-renderer</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-4e9e2a74eb18ff4233c89bde8c313e8f.png" alt="image-20221018170736932"></p>
+<h3 id="2-2、安装好后重启一下grafana服务"><a href="#2-2、安装好后重启一下grafana服务" class="headerlink" title="2.2、安装好后重启一下grafana服务"></a>2.2、安装好后重启一下grafana服务</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart grafana-server.service</span><br></pre></td></tr></table></figure>
+
+<p>安装好后可以查看一下是否有该插件了</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">grafana-cli plugins <span class="built_in">ls</span></span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-fb5559f5c6e750138133553d7dfdd343.png" alt="image-20221018170856313"></p>
+<h3 id="2-3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面"><a href="#2-3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面" class="headerlink" title="2.3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面"></a>2.3、该插件的底层原理应该是调用chrome无头浏览器进行操作，因此我们需要看看是不是依赖都全面</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ldd /var/lib/grafana/plugins/grafana-image-renderer/chrome-linux/chrome</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712740297-ef6fc93db006b30c84b1914ef3b15920.png" alt="image-20221018170928769"></p>
+<p>我们需要把not found的依赖都安装上，这里可以直接去<a target="_blank" rel="noopener" href="https://pkgs.org/%E7%BD%91%E5%9D%80%E6%89%BE%E5%88%B0%E4%BE%9D%E8%B5%96%EF%BC%8C%E7%84%B6%E5%90%8E%E5%AE%89%E8%A3%85">https://pkgs.org/网址找到依赖，然后安装</a></p>
+<p>例子：</p>
+<p>（1）提示缺少libatk-1.0.so.0，则我们去<a target="_blank" rel="noopener" href="https://pkgs.org/%EF%BC%8C%E8%BE%93%E5%85%A5%E6%A1%86%E8%BE%93%E5%85%A5libatk-1.0.so.0%EF%BC%8C%E7%84%B6%E5%90%8E%E6%90%9C%E7%B4%A2%EF%BC%8C%E6%89%BE%E5%88%B0%E7%B3%BB%E7%BB%9F%E5%AF%B9%E5%BA%94%E7%9A%84%E8%BD%AF%E4%BB%B6%E5%8C%85%EF%BC%8C%E4%BE%8B%E5%A6%82%E6%88%91%E7%9A%84%E6%98%AFcentos7%EF%BC%8C%E7%84%B6%E5%90%8E%E7%82%B9%E5%87%BB%E8%BF%9B%E5%8E%BB">https://pkgs.org/，输入框输入libatk-1.0.so.0，然后搜索，找到系统对应的软件包，例如我的是centos7，然后点击进去</a></p>
+<p><img src="/images/1712740297-dba025d8cf1a7be3bd1d26d168739f95.png" alt="image-20221018172259191"></p>
+<p>点击进去以后，可以看到提示用<code>yum install atk</code>下载即可，</p>
+<p><img src="/images/1712740297-6b94b6efb48b3598a15698669add9892.png" alt="image-20221018172408471"></p>
+<p>例子2：缺libXcomposite.so.1文件，也是类似例子1一样，</p>
+<p><img src="/images/1712740297-c20b6c45ef42116d8450f72b5f224d35.png" alt="image-20221018172855346"></p>
+<p><img src="/images/1712740297-6426bc0606833f2769880e69bf127f7f.png" alt="image-20221018172917998"></p>
+<p>这个缺少依赖的问题，也可以在官网的解决重大问题的链接看到：<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/</a></p>
+<p><img src="/images/1712740297-efbcfdb4f5a3136e695534e3d1b06df3.png" alt="image-20221019165238972"></p>
+<p>我解决该问题，安装了这些包</p>
+<p><img src="/images/1712740297-2f9f920d4727fa0b0a595d59f511aa29.png" alt="image-20221018173343352"></p>
+<p><img src="/images/1712740297-47e28873a0ca15f685a85a228d229736.png" alt="image-20221018173426252"></p>
+<p>官网也提到centos7的依赖包，其他系统看官网就行</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">libXcomposite libXdamage libXtst cups libXScrnSaver pango atk adwaita-cursor-theme adwaita-icon-theme at at-spi2-atk at-spi2-core cairo-gobject colord-libs dconf desktop-file-utils ed emacs-filesystem gdk-pixbuf2 glib-networking gnutls gsettings-desktop-schemas gtk-update-icon-cache gtk3 hicolor-icon-theme jasper-libs json-glib libappindicator-gtk3 libdbusmenu libdbusmenu-gtk3 libepoxy liberation-fonts liberation-narrow-fonts liberation-sans-fonts liberation-serif-fonts libgusb libindicator-gtk3 libmodman libproxy libsoup libwayland-cursor libwayland-egl libxkbcommon m4 mailx nettle patch psmisc redhat-lsb-core redhat-lsb-submod-security rest spax time trousers xdg-utils xkeyboard-config alsa-lib</span><br></pre></td></tr></table></figure>
+
+<h2 id="3、验证"><a href="#3、验证" class="headerlink" title="3、验证"></a>3、验证</h2><p>安装插件成功，安装依赖成功，重启grafana，点击页面分享，就可以看到可以渲染图片了（<strong>Direct link rendered image</strong>）</p>
+<p><img src="/images/1712740297-9063a2af7bca0e63ec69bfdf1898f228.png" alt="image-20221019165608106"></p>
+<p>图片默认保存位置是grafana的data目录下的png目录，保存天数默认为1天，默认位置是&#x2F;var&#x2F;lib&#x2F;grafana&#x2F;png</p>
+<p><img src="/images/1712740297-6096501d770d88cbd8697a850374e2f5.png" alt="image-20221019170108495"></p>
+<h2 id="4、常见问题"><a href="#4、常见问题" class="headerlink" title="4、常见问题"></a>4、常见问题</h2><p>（1）最常见的问题应该就是缺失依赖包，从官网可以解决，其他常见问题也可以直接看官网</p>
+<p><a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/troubleshooting/</a></p>
+<p>当然还可以看github的issue</p>
+<p>github官网：<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana-image-renderer">https://github.com/grafana/grafana-image-renderer</a></p>
+<p>（2）我遇到一个问题，提示是<strong>code &#x3D; Unauthenticated desc &#x3D; Unauthorized request”</strong></p>
+<p>这是 &#x2F;var&#x2F;log&#x2F;grafana&#x2F;grafana.log的日志</p>
+<p>level&#x3D;error msg&#x3D;”Rendering failed.” error&#x3D;”rpc error: code &#x3D; Unauthenticated desc &#x3D; Unauthorized request”</p>
+<p><img src="/images/1712740297-98bc9e494a4ef07ece5487bdfb4049fb.png" alt="image-20221019152917727"></p>
+<p>从官网的issue得到了解决答案,原来是下载匹配版本就行，我下载的是version&#x3D;9.2.1</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/grafana/grafana-image-renderer/issues/370">https://github.com/grafana/grafana-image-renderer/issues/370</a></p>
+<p><img src="/images/1712740297-10bd1e77fc526319203cbf92c53b1933.png" alt="image-20221019171112515"></p>
+<p>注：每个版本都有对应匹配的，参考官网<a target="_blank" rel="noopener" href="https://grafana.com/grafana/plugins/grafana-image-renderer/?tab=installation">https://grafana.com/grafana/plugins/grafana-image-renderer/?tab=installation</a></p>
+<p><img src="/images/1712740297-e5a447c563be76fe4d894f2ff9ed99ac.png" alt="image-20221027095811677"></p>
+<h2 id="5、python爬虫请求"><a href="#5、python爬虫请求" class="headerlink" title="5、python爬虫请求"></a>5、python爬虫请求</h2><p>（1）如果response.text中出现<strong>If you’re seeing this Grafana has failed to load its application files</strong>，则可能是需要验证，可以去grafana生成一个APIkey</p>
+<p><strong>错误信息</strong></p>
+<p><strong>If you’re seeing this Grafana has failed to load its application files</strong></p>
+<p>\1. This could be caused by your reverse proxy settings.</p>
+<p>\2. If you host grafana under subpath make sure your grafana.ini root_url setting includes subpath. If not using a reverse proxy make sure to set serve_from_sub_path to true.</p>
+<p>\3. If you have a local dev build make sure you build frontend using: yarn start, yarn start:hot, or yarn build</p>
+<p>\4. Sometimes restarting grafana-server can help</p>
+<p>\5. Check if you are using a non-supported browser. For more information, refer to the list of <a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/installation/requirements/#supported-web-browsers">supported browsers</a>.</p>
+<p><strong>错误页面</strong>(把response.text写到html后展示)</p>
+<p><img src="/images/1712740297-0c5bcb88d7c936bdc8a7ca3bb8400707.png" alt="image-20221026112231961"></p>
+<p>（2）如果&#x2F;var&#x2F;log&#x2F;grafana&#x2F;grafana.log日志中出现302，则也可能是需要认证</p>
+<p>logger&#x3D;context userId&#x3D;0 orgId&#x3D;0 uname&#x3D; t&#x3D;2022-10-26T10:58:40.245237482+08:00 level&#x3D;info msg&#x3D;”Request Completed” method&#x3D;GET path&#x3D;&#x2F;render&#x2F;d-solo&#x2F;nano-vm-detail&#x2F;nanoxu-ni-ji-ming-xi <strong>status&#x3D;302</strong> remote_addr&#x3D;172.16.70.189 time_ms&#x3D;1 duration&#x3D;1.300399ms size&#x3D;29 referer&#x3D; handler&#x3D;&#x2F;render&#x2F;*</p>
+<p>（3）如果出现401，则也是需要认证</p>
+<p>API keys生成页面</p>
+<p><img src="/images/1712740297-b3895f64da392c101d86b0daab0cd1a8.png" alt="image-20221019171153866"></p>
+<p>然后请求的时候加在header中就行，保存png图片即可</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> requests</span><br><span class="line"></span><br><span class="line">response=requests.get(<span class="string">&quot;http://172.16.90.18:3000/render/d-solo/shEoIlI4k/cpushi-yong-lu?orgId=1&amp;from=1666142237595&amp;to=1666163837596&amp;panelId=2&amp;width=1000&amp;height=500&amp;tz=Asia%2FShanghai&quot;</span>,headers=&#123;<span class="string">&quot;Authorization&quot;</span>:<span class="string">&quot;Bearer sdfsdfsd==&quot;</span>&#125;)</span><br><span class="line"><span class="built_in">print</span>(response.status_code)</span><br><span class="line">filename=<span class="string">&#x27;show.png&#x27;</span></span><br><span class="line"><span class="keyword">with</span> <span class="built_in">open</span>(filename, <span class="string">&#x27;wb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">    f.write(response.content)</span><br><span class="line"><span class="built_in">print</span>(<span class="string">f&quot;download png success, save to <span class="subst">&#123;filename&#125;</span>&quot;</span>)</span><br></pre></td></tr></table></figure>
+
+<h2 id="6、支持中文标题的图片"><a href="#6、支持中文标题的图片" class="headerlink" title="6、支持中文标题的图片"></a>6、支持中文标题的图片</h2><p>默认是不支持中文的，可以通过配置来改变，配置参考上面提到的官网链接就行<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration">https://grafana.com/docs/grafana/v9.0/setup-grafana/image-rendering/#configuration</a></p>
+<p><img src="/images/1712740297-c1879f6c141d7c2299fce1fef1530399.png" alt="image-20221019171540105"></p>
+<p>配置文件修改&#x2F;etc&#x2F;grafana&#x2F;grafana.ini</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[plugin.grafana-image-renderer]</span> </span><br><span class="line"><span class="attr">rendering_timezone</span> = Asia/Shanghai </span><br><span class="line"><span class="attr">rendering_language</span> = zh-CN,zh<span class="comment">;q=0.9</span></span><br></pre></td></tr></table></figure>
+
+<p>然后安装中文字体</p>
+<p>centos7执行<code>yum groupinstall Fonts</code> 其他机器还需要谷歌一下</p>
+<p>参考：<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana/issues/24729">https://github.com/grafana/grafana/issues/24729</a></p>
+<p><img src="/images/1712740297-f1a6ca0ea9390870119ab365eaeed36f.png" alt="image-20221019190724911"></p>
+<p>重启</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart grafana-server.service</span><br></pre></td></tr></table></figure>
+
+<p>可以看到已经支持中文了</p>
+<p><img src="/images/1712740297-8d0d3e0f55286fd303914a0c3a9d120c.png" alt="image-20221019190808595"></p>
+<p>docker方式参考链接是：<a target="_blank" rel="noopener" href="https://blog.csdn.net/dandanfengyun/article/details/115346594">https://blog.csdn.net/dandanfengyun/article/details/115346594</a></p>
+<p><a target="_blank" rel="noopener" href="https://blog.csdn.net/lee_yanyi/article/details/120364080">https://blog.csdn.net/lee_yanyi&#x2F;article&#x2F;details&#x2F;120364080</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/10/Grafana%E6%88%AA%E5%8F%96%E5%9B%BE%E7%89%87%E4%BE%9B%E5%91%8A%E8%AD%A6%E4%BD%BF%E7%94%A8/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/04/10/Grafana%E7%9B%B8%E5%85%B3%E5%8A%9F%E8%83%BD%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Grafana相关功能使用介绍</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
