@@ -15220,4 +15220,164 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Grafana 免密登录-隐藏导航栏-主题变换</title>
+    <url>/2024/04/11/Grafana-%E5%85%8D%E5%AF%86%E7%99%BB%E5%BD%95-%E9%9A%90%E8%97%8F%E5%AF%BC%E8%88%AA%E6%A0%8F-%E4%B8%BB%E9%A2%98%E5%8F%98%E6%8D%A2/</url>
+    <content><![CDATA[<h2 id="一-免密登录"><a href="#一-免密登录" class="headerlink" title="一. 免密登录"></a>一. 免密登录</h2><hr>
+<p>[Grafana]的常用方式： 将配置好的Grafana图嵌入到系统页面中</p>
+<p><img src="/images/1712803292-0e50d3f468d8801f3c88edbbf06dd5d1.png"></p>
+<p>为了实现可免登录访问，可以通过如下方式进行设置：</p>
+<h4 id="1-修改Grafana-配置文件"><a href="#1-修改Grafana-配置文件" class="headerlink" title="1. 修改Grafana[配置文件]"></a>1. 修改Grafana[配置文件]</h4><p>在Grafana的配置文件 &#x2F;etc&#x2F;grafana&#x2F;grafana.ini 中，找到 [auth.anonymous] 配置块，将其下的匿名访问控制 enabled 设置为 true，组织权限设置为 Viewer。</p>
+<ul>
+<li>Viewer：<strong>只读</strong>模式</li>
+<li>Editor ：<strong>可编辑</strong>模式</li>
+<li> Admin：<strong>管理员</strong>模式</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment">#################################### Anonymous Auth ######################</span></span><br><span class="line">[auth.anonymous]</span><br><span class="line"><span class="comment"># enable anonymous access</span></span><br><span class="line">enabled = true</span><br><span class="line"></span><br><span class="line"><span class="comment"># specify organization name that should be used for unauthenticated users</span></span><br><span class="line">org_name = Main Org.</span><br><span class="line"></span><br><span class="line"><span class="comment"># specify role for unauthenticated users</span></span><br><span class="line">org_role = Viewer</span><br></pre></td></tr></table></figure>
+
+<p> 之后重新运行容器，（这种方法网上有人成功过，但是我失败了）</p>
+<h4 id="2-宿主机default-ini-进行挂载，本地修改default-ini容器配置改变"><a href="#2-宿主机default-ini-进行挂载，本地修改default-ini容器配置改变" class="headerlink" title="2. 宿主机default.ini 进行挂载，本地修改default.ini容器配置改变"></a>2. 宿主机default.ini 进行挂载，本地修改default.ini容器配置改变</h4><p>&#x2F;usr&#x2F;share&#x2F;grafana&#x2F;conf&#x2F;defaults.ini</p>
+<p>同样是复制到宿主机中，修改也是一样的。</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">docker run --name grafana  -p <span class="number">3000</span>:<span class="number">3000</span>   -v 宿主机文件存放目录:/usr/share/grafana/conf/ grafana/grafana:<span class="number">10.2</span><span class="number">.2</span></span><br></pre></td></tr></table></figure>
+
+<p>通过浏览器访问，可以成功匿名登陆</p>
+<h4 id="3-环境变量（最方便）"><a href="#3-环境变量（最方便）" class="headerlink" title="3. 环境变量（最方便）"></a>3. 环境变量（最方便）</h4><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">docker run -d --name=grafana -p <span class="number">3000</span>:<span class="number">3000</span>  -e <span class="string">&quot;GF_AUTH_PROXY_ENABLED=true&quot;</span>  -e <span class="string">&quot;GF_AUTH_ANONYMOUS_ENABLED=true&quot;</span> -e <span class="string">&quot;GF_SECURITY_ALLOW_EMBEDDING=true&quot;</span>  grafana/grafana:<span class="number">10.2</span><span class="number">.2</span></span><br></pre></td></tr></table></figure>
+
+<hr>
+<h2 id="二-隐藏导航栏"><a href="#二-隐藏导航栏" class="headerlink" title="二. 隐藏导航栏"></a>二. 隐藏导航栏</h2><h4 id="1-修改grafana配置，开启允许嵌入及匿名访问"><a href="#1-修改grafana配置，开启允许嵌入及匿名访问" class="headerlink" title="1. 修改grafana配置，开启允许嵌入及匿名访问"></a>1. 修改grafana配置，开启允许嵌入及匿名访问</h4><figure class="highlight python"><table><tr><td class="code"><pre><span class="line">vim /etc/grafana/grafana.ini</span><br><span class="line"></span><br><span class="line"><span class="comment"># 允许浏览器嵌入grafana</span></span><br><span class="line">allow_embedding = true</span><br><span class="line"></span><br><span class="line"><span class="comment"># 开启匿名访问</span></span><br><span class="line">[auth.anonymous]</span><br><span class="line"><span class="comment"># enable anonymous access</span></span><br><span class="line">enabled = true</span><br><span class="line"></span><br><span class="line"><span class="comment"># 修改参数后需重启grafana</span></span><br></pre></td></tr></table></figure>
+
+<p>隐藏导航栏相当于URL后面加上参数 “&amp;kiosk”<br><img src="/images/1712803292-19fb9c82b5163bc401f28991f9250785.png"></p>
+<hr>
+<h2 id="三-主题变换"><a href="#三-主题变换" class="headerlink" title="三. 主题变换"></a>三. 主题变换</h2><h4 id="1-主题展示"><a href="#1-主题展示" class="headerlink" title="1. 主题展示"></a>1. 主题展示</h4><p>为了使Grafana看板更具吸引力，让页面不再单调，你可以通过一些简单的方式进行个性化定制。首先，你可以改变Grafana的主题色，使其更符合你的审美偏好。通过调整主题色，你可以选择更亮丽或更柔和的色彩，以满足你对色彩的不同需求</p>
+<p><img src="/images/1712803292-ef23dcd645e0da32ad6cc3c57dba7ff9.png"></p>
+<p><img src="/images/1712803292-b46455004dae20bfa213428a203bda1b.png"></p>
+<p><img src="/images/1712803292-65d5babb9afc9244e9c548af661baf17.png"></p>
+<p><img src="/images/1712803292-530ec545ab0935221aed76c4a269a437.png"></p>
+<p><img src="/images/1712803292-1672e01de71e27e4cbc13d1d3e09a1a4.png"></p>
+<p><img src="/images/1712803292-4f718dcab05f50b8bf95d3222c02c170.png"></p>
+<h4 id="2-插件下载-（当前版本为10-2-2，插件资源搜索是没有的，所以需要命令安装）"><a href="#2-插件下载-（当前版本为10-2-2，插件资源搜索是没有的，所以需要命令安装）" class="headerlink" title="2. 插件下载 （当前版本为10.2.2，插件资源搜索是没有的，所以需要命令安装）"></a>2. 插件下载 （当前版本为10.2.2，插件资源搜索是没有的，所以需要命令安装）</h4><ul>
+<li>  docker  ps  查看容器id</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">CONTAINER ID   IMAGE                         COMMAND                   CREATED        STATUS        PORTS</span><br><span class="line">                                                                          NAMES</span><br><span class="line">6035c0634d6b   grafana/grafana:<span class="number">10.2</span><span class="number">.2</span>        <span class="string">&quot;/run.sh&quot;</span>                 <span class="number">41</span> hours ago   Up <span class="number">25</span> hours   <span class="number">0.0</span><span class="number">.0</span><span class="number">.0</span>:<span class="number">3000</span>-&gt;<span class="number">3000</span>/tcp                                                                        grafana</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li> 查到 <code>CONTAINER ID</code> 然后进入容器</li>
+</ul>
+<p> </p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># 进入容器</span></span><br><span class="line">docker <span class="built_in">exec</span> -it 6035c0634d6b bash</span><br><span class="line"><span class="comment"># 安装插件</span></span><br><span class="line">grafana-cli plugins install yesoreyeram-boomtheme-panel</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>安装完成后，需要重启容器</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">docker container restart 6035c0634d6b</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li> 安装完成</li>
+</ul>
+<p><img src="/images/1712803292-4d0fe56096ae5809abff15b548b936b6.png"></p>
+<h4 id="3-css资源下载，nginx配置访问"><a href="#3-css资源下载，nginx配置访问" class="headerlink" title="3. css资源下载，nginx配置访问"></a>3. css资源下载，nginx配置访问</h4><p><a href="https://codeload.github.com/charles1503/grafana-theme/zip/refs/heads/master" title="https://codeload.github.com/charles1503/grafana-theme/zip/refs/heads/master">https://codeload.github.com/charles1503/grafana-theme/zip/refs/heads/master</a></p>
+<p><a href="https://codeload.github.com/PettterWang/grafana_theme.park/zip/refs/heads/main" title="https://codeload.github.com/PettterWang/grafana_theme.park/zip/refs/heads/main">https://codeload.github.com/PettterWang/grafana_theme.park&#x2F;zip&#x2F;refs&#x2F;heads&#x2F;main</a></p>
+<ul>
+<li><strong>park的样式更多一点，将以上css文件解压到本地目录（服务器同理）</strong></li>
+</ul>
+<p><img src="/images/1712803292-be977b9f7a768edc62709a51eb376c78.png"></p>
+<ul>
+<li> nginx 搭建，用来访问E盘下文件夹里边css样式</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># E:/css 为我本地目录文件 /var/car_image 为挂载之后本地目录的位置</span></span><br><span class="line">docker run -d -p <span class="number">85</span>:<span class="number">80</span> -v E:/css:/var/car_image nginx</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>当我们挂载之后去容器目录&#x2F;etc&#x2F;nginx配置里找到nginx.conf</li>
+</ul>
+<p> </p>
+<p><img src="/images/1712803292-27d13993b17d2e41e749434ddbdc10bf.png"></p>
+<p> 加入下列代码</p>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line"><span class="comment"># /car_image/ 为浏览器输入路径（别名)</span></span><br><span class="line"><span class="comment"># /var/car_image/ 为实际存在的路径</span></span><br><span class="line"><span class="comment"># autoindex on; 允许访问目录</span></span><br><span class="line">server &#123;</span><br><span class="line"></span><br><span class="line">    location /car_image/ &#123;</span><br><span class="line">        alias /var/car_image/;</span><br><span class="line">        autoindex on;</span><br><span class="line">    &#125;</span><br></pre></td></tr></table></figure>
+
+<p><img src="/images/1712803292-78ec454a9d7d586d20f4416247f9f3e4.png"></p>
+<ul>
+<li>  保存重新启动</li>
+</ul>
+<figure class="highlight python"><table><tr><td class="code"><pre><span class="line">docker restart 容器<span class="built_in">id</span>或者容器名字</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>  接下来我们可以在浏览器输入ip地址加端口以及我们所配置的目录，效果如下</li>
+<li>  (这里我挂载的是整个E盘目录) 所以效果显示及如下，我们可以用路径访问到任何css样式</li>
+</ul>
+<p><img src="/images/1712803292-5b2423d8524be10b1310b5dc530d4509.png"></p>
+<p><img src="/images/1712803292-51e7a1bdd71a033c3c3a6d06166117e6.png"></p>
+<hr>
+<h4 id="4-grafana-主题修改"><a href="#4-grafana-主题修改" class="headerlink" title="4. grafana 主题修改"></a>4. grafana 主题修改</h4><ul>
+<li>新建一个空白的仪表盘及视图</li>
+</ul>
+<p><img src="/images/1712803292-a6906c8a746ef1537e891ea949e63909.png"></p>
+<ul>
+<li> 进入视图，点击圈出红色部分进行下拉，选中我们下载好的插件</li>
+</ul>
+<p><img src="/images/1712803292-72d125772d1917d1bed90d300836c0b6.png"></p>
+<p><img src="/images/1712803292-bd418f375860062536e1bc542438ffa4.png"></p>
+<ul>
+<li>插件对应视图会显示系统自带的两种主题</li>
+</ul>
+<p><img src="/images/1712803292-c2dcbb083cd3d7d439ff2d98a9ffdad7.png"></p>
+<ul>
+<li>点击圈出蓝色按钮来对主题进行添加</li>
+</ul>
+<p><img src="/images/1712803292-5d0b693423d2979f720079a8f903de98.png"></p>
+<ul>
+<li> 可以有两种方式替换背景，第一种为背景图片，第二种为css样式</li>
+</ul>
+<p><img src="/images/1712803292-19b0b8bdedded0e8da6f3ff35791dde6.png"></p>
+<ul>
+<li>http链接地址为我们配置nginx所访问css本地路径</li>
+</ul>
+<p> </p>
+<p><img src="/images/1712803292-0782b7b2d132fa3b706e156712538a94.png"></p>
+<ul>
+<li> 点击背景测试按钮来进行主题颜色更改</li>
+</ul>
+<p><img src="/images/1712803292-4d91440ea96673f1989cb9fff62cd885.png"></p>
+<ul>
+<li> 点击css样式测试按钮来进行主题颜色更改</li>
+</ul>
+<p><img src="/images/1712803292-5d3bdc5ea0f84783f31015d27057a8a2.png"></p>
+<p><img src="/images/1712803292-3b0127459703c6259456d1a0e456deb3.png"></p>
+<ul>
+<li> 设置进入视图默认主题，保存，进入仪表盘默认展示为当前默认主题</li>
+</ul>
+<p><img src="/images/1712803292-aa5ea2716d23cc1a813e6c1f93adc271.png"></p>
+<ul>
+<li> 为了方便，我们可以把写好的组件放入库面板，方便以后进行加载</li>
+</ul>
+<p><img src="/images/1712803292-46a7fe46913bc0262378a72fb8bb46d2.png"></p>
+<p><img src="/images/1712803292-407a96682942cd2c0b72c6fec12f4e44.png"></p>
+<p><img src="/images/1712803292-2118ce9bf440ff8403c2ddb1d1e4c029.png"></p>
+<ul>
+<li> 加载完成</li>
+</ul>
+<p><img src="/images/1712803292-9e8e3160521b876666d8cc5157e68797.png"></p>
+<ul>
+<li> 为了不影响我们图表展示内容 ，点击Hide Theme Picker 对该视图按钮进行隐藏</li>
+</ul>
+<p><img src="/images/1712803292-d8135becb57510d84a539b5dda82503d.png"></p>
+<ul>
+<li> 标题进行隐藏</li>
+</ul>
+<p><img src="/images/1712803292-5a6adc2d94655cc7df2473990021e82f.png"></p>
+<ul>
+<li>返回页面，组件隐藏掉了，但是还在原来的位置，我们可以对她的大小就行调整 ，放置到角落不影响我们图表的展示</li>
+</ul>
+<p><img src="/images/1712803292-2742ddd46ad6a55303836f584dd986e1.png"></p>
+<ul>
+<li> 现在我们可以随机定义放置图表</li>
+</ul>
+<p><img src="/images/1712803292-69f7f279d111c4eaafacdccf98e4011c.png"></p>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>
