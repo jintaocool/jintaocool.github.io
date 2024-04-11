@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">1.5k</span>
+            <span class="post-count">1.6k</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">6 分钟</span>
+            <span class="post-count">7 分钟</span>
         </span>
     </span>
 </div>
@@ -124,7 +124,10 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h2 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h2><p>想要一个CPU的使用率的日报，因此想程序直接抓取grafana的Panel生成的图片，这样不用每次都打开grafana，然后手动截图，再保存，再发日报。</p>
+  <p>获取图片命令</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -o test.png -u admin:occ1Tsupport! &quot;http://10.249.243.209:3000/render/d-solo/cdiachl7npvr4f/e59bbe-e78987-e6b58b-e8af95-e5afbc-e587ba?var-node=10.250.5.16&amp;orgId=1&amp;from=`date -d &quot;-1 hour&quot; +%s`167&amp;to=`date +%s`167&amp;panelId=2&amp;width=1000&amp;height=500&amp;tz=Asia%2FShanghai&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="1、背景"><a href="#1、背景" class="headerlink" title="1、背景"></a>1、背景</h2><p>想要一个CPU的使用率的日报，因此想程序直接抓取grafana的Panel生成的图片，这样不用每次都打开grafana，然后手动截图，再保存，再发日报。</p>
 <p>谷歌了一下，发现官方有个插件叫grafana-image-renderer，能直接渲染图片，生成图片链接，只需要python爬虫抓取该链接，保存图片即可，后续写个发邮件的程序就行。</p>
 <p>(谷歌发现两种办法，另一种是使用grafana-reporter，因为这个要起一个Go新服务，因此我没有尝试该办法，需要的小伙伴自行谷歌吧)</p>
 <h2 id="2、步骤"><a href="#2、步骤" class="headerlink" title="2、步骤"></a>2、步骤</h2><p>首先说明一点，我的grafana服务是本地安装，不是docker部署</p>
