@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana 钉钉告警包含图片[grafana-image-renderer] |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana-钉钉告警包含图片-grafana-image-renderer"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana 钉钉告警包含图片[grafana-image-renderer]
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/11/Grafana-%E9%92%89%E9%92%89%E5%91%8A%E8%AD%A6%E5%8C%85%E5%90%AB%E5%9B%BE%E7%89%87-grafana-image-renderer/" class="article-date">
+  <time datetime="2024-04-11T07:08:20.000Z" itemprop="datePublished">2024-04-11</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.9k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>一、环境</p>
+<p>grafana 使用nginx做转发，源地址<a target="_blank" rel="noopener" href="http://192.168.1.180:3000/">http://192.168.1.180:3000</a>   nginx转发的grafana地址： <a target="_blank" rel="noopener" href="http://grafana.xxx.com/grafana">http://grafana.xxx.com/grafana</a></p>
+<p>二、实现：</p>
+<p><img src="/images/1712819196-e36ec9652d5fefb16b30876a7ca5f571.png"></p>
+<p>(1)、点击 “More”跳转grafana网页</p>
+<p>(2)、告警信息包含 image图片</p>
+<p>1、点击 “More”跳转grafana网页，配置</p>
+<p>nginx配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br></pre></td><td class="code"><pre><span class="line"> [root@kibana vhost]# cat grafana.conf</span><br><span class="line">    server &#123;</span><br><span class="line">        listen       80;</span><br><span class="line">        server_name  grafana.xxx.com;</span><br><span class="line">        access_log /var/log/nginx/grafana.xxx.com.access.log;</span><br><span class="line">        error_log  /var/log/nginx/grafana.xxx.com.error.log;</span><br><span class="line">        # Load configuration files for the default server block.</span><br><span class="line">        #include /etc/nginx/default.d/*.conf;</span><br><span class="line"></span><br><span class="line">        location /grafana/ &#123;</span><br><span class="line">                root html;</span><br><span class="line">                index index.html index.htm;</span><br><span class="line">                proxy_pass http://192.168.1.180:3000/;  #一定要在端口号后面加“/”</span><br><span class="line">                proxy_set_header Host $host;</span><br><span class="line">                proxy_set_header X-Real-IP $remote_addr;</span><br><span class="line">                proxy_set_header x-forwarded-for $proxy_add_x_forwarded_for;</span><br><span class="line">                proxy_redirect default;</span><br><span class="line">                proxy_http_version 1.1;</span><br><span class="line">                proxy_set_header Connection &quot;&quot;;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        error_page 404 /404.html;</span><br><span class="line">            location = /40x.html &#123;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        error_page 500 502 503 504 /50x.html;</span><br><span class="line">            location = /50x.html &#123;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>grafana配置修改</p>
+<p>修改grafana.ini配置文件的server配置</p>
+<p>domain &#x3D; grafana.xxx.com</p>
+<p>root_url &#x3D; <a target="_blank" rel="noopener" href="http://grafana.xxx.com/grafana">http://grafana.xxx.com/grafana</a></p>
+<p>serve_from_sub_path &#x3D; true</p>
+<p>2、实现告警信息包含 image图片</p>
+<p>（1）安装grafana-image-renderer</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker pull grafana/grafana-image-renderer</span><br><span class="line"></span><br><span class="line">docker run -d --name=render --network=host --restart=always -e BROWSER_TZ=Asia/Shanghai grafana/grafana-image-renderer</span><br></pre></td></tr></table></figure>
+
+<p>安装完成可访问 192.168.1.180:8081 测试</p>
+<p><img src="/images/1712819196-d0fc8fd4035330e2b3cb8bfcc9b6c40e.png"></p>
+<p> （2）修改 &#x2F;etc&#x2F;grafana&#x2F;grafana.ini</p>
+<p>server_url 是Remote rendering service 的地址</p>
+<p>server_url &#x3D; <a target="_blank" rel="noopener" href="http://192.168.1.180:8081/render/">http://192.168.1.180:8081/render/</a></p>
+<p>callback_url 是本grafana的地址(可以不设置)</p>
+<p>callback_url &#x3D; <a target="_blank" rel="noopener" href="http://grafana.xxx.com/grafana/">http://grafana.xxx.com/grafana/</a></p>
+<p>[external_image_storage] #相当于把本机当作一个服务器，可以通过本机IP访问到存储在本地的图片。</p>
+<p>provider &#x3D; local</p>
+<p>temp_data_lifetime &#x3D; 24h  #截图的图片保留24小时</p>
+<p>concurrent_render_limit &#x3D; 5  #同时最大渲染数5</p>
+<p>3、grafana钉钉告警设置</p>
+<p><img src="/images/1712819196-1989d35082367be6780446bd9573f702.png"></p>
+<p>grafana 8.0版本开始不再支持钉钉发送消息加载image，可以使用邮件通知</p>
+<p><a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/alerting/manage-notifications/images-in-notifications/">https://grafana.com/docs/grafana/latest/alerting/manage-notifications/images-in-notifications/</a></p>
+<p>grafana.ini配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br></pre></td><td class="code"><pre><span class="line">[root@prometheus opt]# cat grafana.ini |grep -Ev &#x27;^$|^#&#x27;</span><br><span class="line">;app_mode = production</span><br><span class="line">;instance_name = $&#123;HOSTNAME&#125;</span><br><span class="line">[paths]</span><br><span class="line">data = /var/lib/grafana</span><br><span class="line">temp_data_lifetime = 24h</span><br><span class="line">logs = /var/log/grafana</span><br><span class="line">plugins = /var/lib/grafana/plugins</span><br><span class="line">;provisioning = conf/provisioning</span><br><span class="line">[server]</span><br><span class="line">;protocol = http</span><br><span class="line">;http_addr = </span><br><span class="line">;enforce_domain = true</span><br><span class="line">domain = grafana.xxx.com</span><br><span class="line">;serve_from_sub_path = true</span><br><span class="line">;enforce_domain = false</span><br><span class="line">root_url = %(protocol)s://%(domain)s</span><br><span class="line">;router_logging = false</span><br><span class="line">static_root_path = public</span><br><span class="line">;enable_gzip = false</span><br><span class="line">;cert_file =</span><br><span class="line">;cert_key =</span><br><span class="line">;socket =</span><br><span class="line">[database]</span><br><span class="line">;type = sqlite3</span><br><span class="line">;host = 127.0.0.1:3306</span><br><span class="line">;name = grafana</span><br><span class="line">;user = root</span><br><span class="line">;password =</span><br><span class="line">;url =</span><br><span class="line">;ssl_mode = disable</span><br><span class="line">;ca_cert_path =</span><br><span class="line">;client_key_path =</span><br><span class="line">;client_cert_path =</span><br><span class="line">;server_cert_name =</span><br><span class="line">;path = grafana.db</span><br><span class="line">;max_idle_conn = 2</span><br><span class="line">;max_open_conn =</span><br><span class="line">;conn_max_lifetime = 14400</span><br><span class="line">;log_queries =</span><br><span class="line">;cache_mode = private</span><br><span class="line">[remote_cache]</span><br><span class="line">;type = database</span><br><span class="line">;connstr =</span><br><span class="line">[dataproxy]</span><br><span class="line">;logging = false</span><br><span class="line">;timeout = 30</span><br><span class="line">;keep_alive_seconds = 30</span><br><span class="line">;tls_handshake_timeout_seconds = 10</span><br><span class="line">;expect_continue_timeout_seconds = 1</span><br><span class="line">;max_idle_connections = 100</span><br><span class="line">;idle_conn_timeout_seconds = 90</span><br><span class="line">;send_user_header = false</span><br><span class="line">[analytics]</span><br><span class="line">;reporting_enabled = true</span><br><span class="line">;check_for_updates = true</span><br><span class="line">;google_analytics_ua_id =</span><br><span class="line">;google_tag_manager_id =</span><br><span class="line">[security]</span><br><span class="line">;disable_initial_admin_creation = false</span><br><span class="line">;admin_user = admin</span><br><span class="line">;admin_password = admin</span><br><span class="line">;secret_key = SW2YcwTIb9zpOOhoPsMm</span><br><span class="line">;disable_gravatar = false</span><br><span class="line">;data_source_proxy_whitelist =</span><br><span class="line">;disable_brute_force_login_protection = false</span><br><span class="line">cookie_secure = false</span><br><span class="line">;cookie_samesite = lax</span><br><span class="line">;allow_embedding = false</span><br><span class="line">;strict_transport_security = false</span><br><span class="line">;strict_transport_security_max_age_seconds = 86400</span><br><span class="line">;strict_transport_security_preload = false</span><br><span class="line">;strict_transport_security_subdomains = false</span><br><span class="line">;x_content_type_options = true</span><br><span class="line">;x_xss_protection = true</span><br><span class="line">[snapshots]</span><br><span class="line">;external_enabled = true</span><br><span class="line">;external_snapshot_url = https://snapshots-origin.raintank.io</span><br><span class="line">;external_snapshot_name = Publish to snapshot.raintank.io</span><br><span class="line">;public_mode = false</span><br><span class="line">;snapshot_remove_expired = true</span><br><span class="line">[dashboards]</span><br><span class="line">;versions_to_keep = 20</span><br><span class="line">;min_refresh_interval = 5s</span><br><span class="line">;default_home_dashboard_path =</span><br><span class="line">[users]</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;allow_org_create = true</span><br><span class="line">;auto_assign_org = true</span><br><span class="line">;auto_assign_org_id = 1</span><br><span class="line">;auto_assign_org_role = Viewer</span><br><span class="line">;verify_email_enabled = false</span><br><span class="line">;login_hint = email or username</span><br><span class="line">;password_hint = password</span><br><span class="line">;default_theme = dark</span><br><span class="line">;external_manage_link_url =</span><br><span class="line">;external_manage_link_name =</span><br><span class="line">;external_manage_info =</span><br><span class="line">;viewers_can_edit = false</span><br><span class="line">;editors_can_admin = false</span><br><span class="line">;user_invite_max_lifetime_duration = 24h</span><br><span class="line">[auth]</span><br><span class="line">;login_cookie_name = grafana_session</span><br><span class="line">;login_maximum_inactive_lifetime_duration =</span><br><span class="line">;login_maximum_lifetime_duration =</span><br><span class="line">;token_rotation_interval_minutes = 10</span><br><span class="line">;disable_login_form = false</span><br><span class="line">;disable_signout_menu = false</span><br><span class="line">;signout_redirect_url =</span><br><span class="line">;oauth_auto_login = false</span><br><span class="line">;oauth_state_cookie_max_age = 600</span><br><span class="line">;api_key_max_seconds_to_live = -1</span><br><span class="line">;sigv4_auth_enabled = false</span><br><span class="line">[auth.anonymous]</span><br><span class="line">;enabled = false</span><br><span class="line">;org_name = Main Org.</span><br><span class="line">;org_role = Viewer</span><br><span class="line">;hide_version = false</span><br><span class="line">[auth.github]</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_id</span><br><span class="line">;client_secret = some_secret</span><br><span class="line">;scopes = user:email,read:org</span><br><span class="line">;auth_url = https://github.com/login/oauth/authorize</span><br><span class="line">;token_url = https://github.com/login/oauth/access_token</span><br><span class="line">;api_url = https://api.github.com/user</span><br><span class="line">;allowed_domains =</span><br><span class="line">;team_ids =</span><br><span class="line">;allowed_organizations =</span><br><span class="line">[auth.gitlab]</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_id</span><br><span class="line">;client_secret = some_secret</span><br><span class="line">;scopes = api</span><br><span class="line">;auth_url = https://gitlab.com/oauth/authorize</span><br><span class="line">;token_url = https://gitlab.com/oauth/token</span><br><span class="line">;api_url = https://gitlab.com/api/v4</span><br><span class="line">;allowed_domains =</span><br><span class="line">;allowed_groups =</span><br><span class="line">[auth.google]</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_client_id</span><br><span class="line">;client_secret = some_client_secret</span><br><span class="line">;scopes = https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email</span><br><span class="line">;auth_url = https://accounts.google.com/o/oauth2/auth</span><br><span class="line">;token_url = https://accounts.google.com/o/oauth2/token</span><br><span class="line">;api_url = https://www.googleapis.com/oauth2/v1/userinfo</span><br><span class="line">;allowed_domains =</span><br><span class="line">;hosted_domain =</span><br><span class="line">[auth.grafana_com]</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_id</span><br><span class="line">;client_secret = some_secret</span><br><span class="line">;scopes = user:email</span><br><span class="line">;allowed_organizations =</span><br><span class="line">[auth.azuread]</span><br><span class="line">;name = Azure AD</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_client_id</span><br><span class="line">;client_secret = some_client_secret</span><br><span class="line">;scopes = openid email profile</span><br><span class="line">;auth_url = https://login.microsoftonline.com/&lt;tenant-id&gt;/oauth2/v2.0/authorize</span><br><span class="line">;token_url = https://login.microsoftonline.com/&lt;tenant-id&gt;/oauth2/v2.0/token</span><br><span class="line">;allowed_domains =</span><br><span class="line">;allowed_groups =</span><br><span class="line">[auth.okta]</span><br><span class="line">;name = Okta</span><br><span class="line">;enabled = false</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_id</span><br><span class="line">;client_secret = some_secret</span><br><span class="line">;scopes = openid profile email groups</span><br><span class="line">;auth_url = https://&lt;tenant-id&gt;.okta.com/oauth2/v1/authorize</span><br><span class="line">;token_url = https://&lt;tenant-id&gt;.okta.com/oauth2/v1/token</span><br><span class="line">;api_url = https://&lt;tenant-id&gt;.okta.com/oauth2/v1/userinfo</span><br><span class="line">;allowed_domains =</span><br><span class="line">;allowed_groups =</span><br><span class="line">;role_attribute_path =</span><br><span class="line">[auth.generic_oauth]</span><br><span class="line">;enabled = false</span><br><span class="line">;name = OAuth</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;client_id = some_id</span><br><span class="line">;client_secret = some_secret</span><br><span class="line">;scopes = user:email,read:org</span><br><span class="line">;email_attribute_name = email:primary</span><br><span class="line">;email_attribute_path =</span><br><span class="line">;login_attribute_path =</span><br><span class="line">;id_token_attribute_name =</span><br><span class="line">;auth_url = https://foo.bar/login/oauth/authorize</span><br><span class="line">;token_url = https://foo.bar/login/oauth/access_token</span><br><span class="line">;api_url = https://foo.bar/user</span><br><span class="line">;allowed_domains =</span><br><span class="line">;team_ids =</span><br><span class="line">;allowed_organizations =</span><br><span class="line">;role_attribute_path =</span><br><span class="line">;tls_skip_verify_insecure = false</span><br><span class="line">;tls_client_cert =</span><br><span class="line">;tls_client_key =</span><br><span class="line">;tls_client_ca =</span><br><span class="line">[auth.basic]</span><br><span class="line">;enabled = true</span><br><span class="line">[auth.proxy]</span><br><span class="line">;enabled = false</span><br><span class="line">;header_name = X-WEBAUTH-USER</span><br><span class="line">;header_property = username</span><br><span class="line">;auto_sign_up = true</span><br><span class="line">;sync_ttl = 60</span><br><span class="line">;whitelist = 192.168.1.1, 192.168.2.1</span><br><span class="line">;headers = Email:X-User-Email, Name:X-User-Name</span><br><span class="line">;enable_login_token = false</span><br><span class="line">[auth.ldap]</span><br><span class="line">;enabled = false</span><br><span class="line">;config_file = /etc/grafana/ldap.toml</span><br><span class="line">;allow_sign_up = true</span><br><span class="line">;sync_cron = &quot;0 0 1 * * *&quot;</span><br><span class="line">;active_sync_enabled = true</span><br><span class="line">[smtp]</span><br><span class="line">enabled = true</span><br><span class="line">host = smtp.mxhichina.com:465</span><br><span class="line">user = xxx@xxx.com   ###使用的是阿里云的企业邮箱</span><br><span class="line">password = &quot;xxxx&quot;    ###此处阿里云企业邮箱使用的是user的密码， 别的类型邮箱需要开通SMTP，并在此处填写授权码</span><br><span class="line">cert_file =</span><br><span class="line">key_file =</span><br><span class="line">skip_verify = true</span><br><span class="line">from_address = xxx@xxx.com</span><br><span class="line">from_name = Grafana</span><br><span class="line">;ehlo_identity = dashboard.example.com</span><br><span class="line">;startTLS_policy = NoStartTLS</span><br><span class="line">[emails]</span><br><span class="line">;welcome_email_on_sign_up = false</span><br><span class="line">;templates_pattern = emails/*.html</span><br><span class="line">[log]</span><br><span class="line">;mode = console file</span><br><span class="line">;level = info</span><br><span class="line">;filters =</span><br><span class="line">[log.console]</span><br><span class="line">;level =</span><br><span class="line">;format = console</span><br><span class="line">[log.file]</span><br><span class="line">;level =</span><br><span class="line">;format = text</span><br><span class="line">;log_rotate = true</span><br><span class="line">;max_lines = 1000000</span><br><span class="line">;max_size_shift = 28</span><br><span class="line">;daily_rotate = true</span><br><span class="line">;max_days = 7</span><br><span class="line">[log.syslog]</span><br><span class="line">;level =</span><br><span class="line">;format = text</span><br><span class="line">;network =</span><br><span class="line">;address =</span><br><span class="line">;facility =</span><br><span class="line">;tag =</span><br><span class="line">[quota]</span><br><span class="line">; enabled = false</span><br><span class="line">; org_user = 10</span><br><span class="line">; org_dashboard = 100</span><br><span class="line">; org_data_source = 10</span><br><span class="line">; org_api_key = 10</span><br><span class="line">; user_org = 10</span><br><span class="line">; global_user = -1</span><br><span class="line">; global_org = -1</span><br><span class="line">; global_dashboard = -1</span><br><span class="line">; global_api_key = -1</span><br><span class="line">; global_session = -1</span><br><span class="line">[unified_alerting]</span><br><span class="line">enabled = true</span><br><span class="line">;disabled_orgs =</span><br><span class="line">;admin_config_poll_interval = 60s</span><br><span class="line">;alertmanager_config_poll_interval = 60s</span><br><span class="line">;ha_redis_address =</span><br><span class="line">;ha_redis_username =</span><br><span class="line">;ha_redis_password =</span><br><span class="line">;ha_redis_db =</span><br><span class="line">;ha_redis_prefix =</span><br><span class="line">;ha_redis_peer_name =</span><br><span class="line">;ha_listen_address = &quot;0.0.0.0:9094&quot;</span><br><span class="line">;ha_advertise_address = &quot;&quot;</span><br><span class="line">;ha_peers = &quot;&quot;</span><br><span class="line">;ha_peer_timeout = &quot;15s&quot;</span><br><span class="line">;ha_gossip_interval = &quot;200ms&quot;</span><br><span class="line">;ha_push_pull_interval = &quot;60s&quot;</span><br><span class="line">;execute_alerts = true</span><br><span class="line">;evaluation_timeout = 30s</span><br><span class="line">;max_attempts = 3</span><br><span class="line">;min_interval = 10s</span><br><span class="line">[unified_alerting.reserved_labels]</span><br><span class="line">;disabled_labels =</span><br><span class="line">[unified_alerting.state_history]</span><br><span class="line">; enabled = true</span><br><span class="line">; backend = &quot;multiple&quot;</span><br><span class="line">; primary = &quot;loki&quot;</span><br><span class="line">; secondaries = &quot;annotations&quot;</span><br><span class="line">; loki_remote_url = &quot;http://loki:3100&quot;</span><br><span class="line">; loki_remote_read_url = &quot;http://loki-querier:3100&quot;</span><br><span class="line">; loki_remote_write_url = &quot;http://loki-distributor:3100&quot;</span><br><span class="line">; loki_tenant_id = 123</span><br><span class="line">; loki_basic_auth_username = &quot;myuser&quot;</span><br><span class="line">; loki_basic_auth_password = &quot;mypass&quot;</span><br><span class="line">[unified_alerting.state_history.external_labels]</span><br><span class="line">; mylabelkey = mylabelvalue</span><br><span class="line">[alerting]</span><br><span class="line">enabled = false</span><br><span class="line">;execute_alerts = true</span><br><span class="line">;error_or_timeout = alerting</span><br><span class="line">;nodata_or_nullvalues = no_data</span><br><span class="line">;concurrent_render_limit = 5</span><br><span class="line">;evaluation_timeout_seconds = 30</span><br><span class="line">;notification_timeout_seconds = 30</span><br><span class="line">;max_attempts = 3</span><br><span class="line">;min_interval_seconds = 1</span><br><span class="line">;max_annotation_age =</span><br><span class="line">;max_annotations_to_keep =</span><br><span class="line">[annotations.dashboard]</span><br><span class="line">;max_age =</span><br><span class="line">;max_annotations_to_keep =</span><br><span class="line">[annotations.api]</span><br><span class="line">;max_age =</span><br><span class="line">;max_annotations_to_keep =</span><br><span class="line">[explore]</span><br><span class="line">;enabled = true</span><br><span class="line">[metrics]</span><br><span class="line">;enabled           = true</span><br><span class="line">;interval_seconds  = 10</span><br><span class="line">;disable_total_stats = false</span><br><span class="line">; basic_auth_username =</span><br><span class="line">; basic_auth_password =</span><br><span class="line">[metrics.environment_info]</span><br><span class="line">[metrics.graphite]</span><br><span class="line">;address =</span><br><span class="line">;prefix = prod.grafana.%(instance_name)s.</span><br><span class="line">[grafana_com]</span><br><span class="line">;url = https://grafana.com</span><br><span class="line">[tracing.jaeger]</span><br><span class="line">;address = localhost:6831</span><br><span class="line">;always_included_tag = tag1:value1</span><br><span class="line">;sampler_type = const</span><br><span class="line">;sampler_param = 1</span><br><span class="line">;sampling_server_url =</span><br><span class="line">;zipkin_propagation = false</span><br><span class="line">;disable_shared_zipkin_spans = false</span><br><span class="line">[external_image_storage]</span><br><span class="line">provider = local</span><br><span class="line">[external_image_storage.s3]</span><br><span class="line">;endpoint =</span><br><span class="line">;path_style_access =</span><br><span class="line">;bucket =</span><br><span class="line">;region =</span><br><span class="line">;path =</span><br><span class="line">;access_key =</span><br><span class="line">;secret_key =</span><br><span class="line">[external_image_storage.webdav]</span><br><span class="line">;url =</span><br><span class="line">;public_url =</span><br><span class="line">;username =</span><br><span class="line">;password =</span><br><span class="line">[external_image_storage.gcs]</span><br><span class="line">;key_file =</span><br><span class="line">;bucket =</span><br><span class="line">;path =</span><br><span class="line">[external_image_storage.azure_blob]</span><br><span class="line">;account_name =</span><br><span class="line">;account_key =</span><br><span class="line">;container_name =</span><br><span class="line">[external_image_storage.local]</span><br><span class="line">[rendering]</span><br><span class="line">renderer_token = JSlIhleC!V@S</span><br><span class="line">server_url = http://122.xxx.xxx.220:8081/render/</span><br><span class="line">callback_url = http://grafana.xxx.com</span><br><span class="line">concurrent_render_request_limit = 30</span><br><span class="line">render_key_lifetime = 10m</span><br><span class="line">[panels]</span><br><span class="line">;disable_sanitize_html = false</span><br><span class="line">[plugins]</span><br><span class="line">;enable_alpha = false</span><br><span class="line">;app_tls_skip_verify_insecure = false</span><br><span class="line">allow_loading_unsigned_plugins = aliyun_cms_grafana_datasource,aliyun-log-service-datasource,grafana-log-service-datasource</span><br><span class="line">;marketplace_url = https://grafana.com/grafana/plugins/</span><br><span class="line">[plugin.grafana-image-renderer]</span><br><span class="line">;rendering_timezone =</span><br><span class="line">;rendering_language =</span><br><span class="line">;rendering_viewport_device_scale_factor =</span><br><span class="line">;rendering_ignore_https_errors =</span><br><span class="line">filters = rendering:debug</span><br><span class="line">;rendering_verbose_logging =</span><br><span class="line">;rendering_dumpio =</span><br><span class="line">;rendering_args =</span><br><span class="line">;rendering_chrome_bin =</span><br><span class="line">;rendering_mode =</span><br><span class="line">;rendering_clustering_mode =</span><br><span class="line">;rendering_clustering_max_concurrency =</span><br><span class="line">;rendering_viewport_max_width =</span><br><span class="line">;rendering_viewport_max_height =</span><br><span class="line">;rendering_viewport_max_device_scale_factor =</span><br><span class="line">;grpc_host =</span><br><span class="line">;grpc_port =</span><br><span class="line">[enterprise]</span><br><span class="line">;license_path =</span><br><span class="line">[feature_toggles]</span><br><span class="line">;enable =</span><br><span class="line">[date_formats]</span><br><span class="line">;full_date = YYYY-MM-DD HH:mm:ss</span><br><span class="line">;interval_second = HH:mm:ss</span><br><span class="line">;interval_minute = HH:mm</span><br><span class="line">;interval_hour = MM/DD HH:mm</span><br><span class="line">;interval_day = MM/DD</span><br><span class="line">;interval_month = YYYY-MM</span><br><span class="line">;interval_year = YYYY</span><br><span class="line">;use_browser_locale = false</span><br><span class="line">default_timezone = browser</span><br><span class="line">[unified_alerting.screenshots]</span><br><span class="line">capture = true</span><br><span class="line">upload_external_image_storage = false</span><br><span class="line">max_concurrent_screenshots = 5</span><br></pre></td></tr></table></figure>
+
+<p>NGINX转发配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line">upstream xxx.xxx.com&#123;</span><br><span class="line">        server 122.xxx.xxx.220:3000 max_fails=2 fail_timeout=2s;</span><br><span class="line">        keepalive 300;</span><br><span class="line">        &#125;</span><br><span class="line">server &#123;</span><br><span class="line">    listen 80;</span><br><span class="line">    server_name xxx.xxx.com;</span><br><span class="line">    return 301 https://$server_name$request_uri;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 443 ssl;</span><br><span class="line">    server_name          xxx.xxx.com;</span><br><span class="line">    ssl_certificate      /home/web/ssl/20230731_xxx.com.pem;</span><br><span class="line">    ssl_certificate_key  /home/web/ssl/20230731_xxx.com.key;</span><br><span class="line">    ssl_session_timeout  5m;</span><br><span class="line">    ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE:ECDH:AES:HIGH:!NULL:!aNULL:!MD5:!ADH:!RC4;</span><br><span class="line">    ssl_protocols TLSv1 TLSv1.1 TLSv1.2;</span><br><span class="line">    ssl_prefer_server_ciphers on;</span><br><span class="line">    #allow 61.164.52.202;</span><br><span class="line">    #deny all;</span><br><span class="line">    access_log /var/log/nginx/grafana.xxx.com.access.log;</span><br><span class="line">    error_log  /var/log/nginx/grafana.xxx.com.error.log;</span><br><span class="line"></span><br><span class="line">    location / &#123;</span><br><span class="line">         root html;</span><br><span class="line">         index index.html index.htm;</span><br><span class="line">         proxy_pass http://122.xxx.xxx.220:3000/;</span><br><span class="line">         proxy_set_header Host $host;</span><br><span class="line">         proxy_set_header X-Real-IP $remote_addr;</span><br><span class="line">         proxy_set_header x-forwarded-for $proxy_add_x_forwarded_for;</span><br><span class="line">         proxy_redirect default;</span><br><span class="line">         proxy_http_version 1.1;</span><br><span class="line">         proxy_set_header Connection &quot;&quot;;</span><br><span class="line">        &#125;</span><br><span class="line">        </span><br><span class="line">  location /api/live/ws &#123;</span><br><span class="line">    rewrite  ^/(.*)  /$1 break;</span><br><span class="line">    proxy_http_version 1.1;</span><br><span class="line">    proxy_set_header Upgrade $http_upgrade;</span><br><span class="line">    proxy_set_header Connection &quot;Upgrade&quot;;</span><br><span class="line">    proxy_set_header Host $http_host;</span><br><span class="line">    proxy_pass http://122.xxx.xxx.220:3000/;</span><br><span class="line">  &#125;</span><br><span class="line">        error_page 404 /404.html;</span><br><span class="line">            location = /40x.html &#123;</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        error_page 500 502 503 504 /50x.html;</span><br><span class="line">            location = /50x.html &#123;</span><br><span class="line">        &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>grafana-render-image  3.8.4 配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">  &quot;service&quot;: &#123;</span><br><span class="line">    &quot;host&quot;: null,</span><br><span class="line">    &quot;port&quot;: 8081,</span><br><span class="line">    &quot;metrics&quot;: &#123;</span><br><span class="line">      &quot;enabled&quot;: false,</span><br><span class="line">      &quot;collectDefaultMetrics&quot;: true,</span><br><span class="line">      &quot;requestDurationBuckets&quot;: [1, 5, 7, 9, 11, 13, 15, 20, 30]</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;logging&quot;: &#123;</span><br><span class="line">      &quot;level&quot;: &quot;info&quot;,</span><br><span class="line">      &quot;console&quot;: &#123;</span><br><span class="line">        &quot;json&quot;: true,</span><br><span class="line">        &quot;colorize&quot;: false</span><br><span class="line">      &#125;</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;security&quot;: &#123;</span><br><span class="line">      &quot;authToken&quot;: &quot;JSlIhleC!V@S&quot;</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  &quot;rendering&quot;: &#123;</span><br><span class="line">    &quot;chromeBin&quot;: null,</span><br><span class="line">    &quot;args&quot;: [&quot;--no-sandbox&quot;, &quot;--disable-gpu&quot;,&quot;--ignore-certificate-errors&quot;],</span><br><span class="line">    &quot;ignoresHttpsErrors&quot;: true,</span><br><span class="line">    &quot;timezone&quot;: &quot;Asia/Shanghai&quot;,</span><br><span class="line">    &quot;acceptLanguage&quot;: null,</span><br><span class="line">    &quot;width&quot;: 1000,</span><br><span class="line">    &quot;height&quot;: 500,</span><br><span class="line">    &quot;deviceScaleFactor&quot;: 1,</span><br><span class="line">    &quot;maxWidth&quot;: 3080,</span><br><span class="line">    &quot;maxHeight&quot;: 3000,</span><br><span class="line">    &quot;maxDeviceScaleFactor&quot;: 4,</span><br><span class="line">    &quot;pageZoomLevel&quot;: 1,</span><br><span class="line">    &quot;headed&quot;: false,</span><br><span class="line">    &quot;mode&quot;: &quot;default&quot;,</span><br><span class="line">    &quot;emulateNetworkConditions&quot;: false,</span><br><span class="line">    &quot;clustering&quot;: &#123;</span><br><span class="line">      &quot;monitor&quot;: false,</span><br><span class="line">      &quot;mode&quot;: &quot;browser&quot;,</span><br><span class="line">      &quot;maxConcurrency&quot;: 5,</span><br><span class="line">      &quot;timeout&quot;: 30</span><br><span class="line">    &#125;,</span><br><span class="line">    &quot;verboseLogging&quot;: false,</span><br><span class="line">    &quot;dumpio&quot;: false,</span><br><span class="line">    &quot;timingMetrics&quot;: false</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p> 验证：</p>
+<p><img src="/images/1712819196-3f7e0787df8bd6090f909825c4683380.png"></p>
+<p><img src="/images/1712819196-d75b39e25e1fbae4f3593390a6623205.png"></p>
+<p>邮件告警</p>
+<p><img src="/images/1712819196-36fbe7f147b4b2536a90842d6bc11e67.png"></p>
+<p>参考：</p>
+<p><a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana-cloud/alerting-and-irm/alerting/manage-notifications/images-in-notifications/">https://grafana.com/docs/grafana-cloud/alerting-and-irm/alerting/manage-notifications/images-in-notifications/</a><br><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/588254228">https://zhuanlan.zhihu.com/p/588254228</a><br><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/2245015">https://cloud.tencent.com/developer/article/2245015</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/loveyoulouyou/article/details/81476307">https://blog.csdn.net/loveyoulouyou/article/details/81476307</a><br><a target="_blank" rel="noopener" href="https://blog.csdn.net/weixin/_44923842/article/details/132802667">https://blog.csdn.net/weixin\_44923842/article/details/132802667</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/11/Grafana-%E9%92%89%E9%92%89%E5%91%8A%E8%AD%A6%E5%8C%85%E5%90%AB%E5%9B%BE%E7%89%87-grafana-image-renderer/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/04/11/%E9%80%9A%E8%BF%87iFrame%E5%B5%8C%E5%85%A5Grafana%E9%A1%B5%E9%9D%A2%E6%88%96pannel/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">通过iFrame嵌入Grafana页面或pannel</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
