@@ -15380,4 +15380,37 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>通过iFrame嵌入Grafana页面或pannel</title>
+    <url>/2024/04/11/%E9%80%9A%E8%BF%87iFrame%E5%B5%8C%E5%85%A5Grafana%E9%A1%B5%E9%9D%A2%E6%88%96pannel/</url>
+    <content><![CDATA[<h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>在当前[数据驱动]的时代，有效地可视化和监控关键性能指标变得至关重要。Grafana，作为一个开源的监控解决方案，提供了强大的功能来呈现和分析数据，从而帮助用户及时洞察和响应各种情况。随着技术的不断发展，将这些信息无缝集成到现有的网页和应用程序中变得越来越常见。本文旨在探讨如何通过iFrame将Grafana面板或仪表盘嵌入到网页中，这不仅增强了数据的可访问性和交互性，还为实现更加动态和个性化的用户体验打开了大门。通过这篇文章，我们将详细介绍嵌入Grafana面板的步骤和注意事项，帮助读者更好地利用这一强大工具，以便更有效地监控和展示关键数据。</p>
+<h3 id="1-修改Grafana配置"><a href="#1-修改Grafana配置" class="headerlink" title="1. 修改Grafana配置"></a>1. 修改Grafana配置</h3><h4 id="1-1-允许grafana匿名访问"><a href="#1-1-允许grafana匿名访问" class="headerlink" title="1.1 允许grafana匿名访问"></a>1.1 允许grafana匿名访问</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">vim /etc/grafana/grafana.ini</span><br></pre></td></tr></table></figure>
+
+<p>相关内容及参考修改如下：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="comment">#################################### Anonymous Auth ######################</span></span><br><span class="line"><span class="section">[auth.anonymous]</span></span><br><span class="line"><span class="comment"># enable anonymous access</span></span><br><span class="line"><span class="attr">enabled</span> = <span class="literal">true</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># specify organization name that should be used for unauthenticated users</span></span><br><span class="line"><span class="attr">org_name</span> = Test</span><br><span class="line"></span><br><span class="line"><span class="comment"># specify role for unauthenticated users</span></span><br><span class="line"><span class="attr">org_role</span> = Viewer</span><br></pre></td></tr></table></figure>
+
+<h4 id="1-2-允许被iFrame嵌入"><a href="#1-2-允许被iFrame嵌入" class="headerlink" title="1.2 允许被iFrame嵌入"></a>1.2 允许被iFrame嵌入</h4><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">vim /etc/grafana/grafana.ini</span><br></pre></td></tr></table></figure>
+
+<p>内容如下：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="comment"># set to true if you want to allow browsers to render Grafana in a &lt;frame&gt;, &lt;iframe&gt;, &lt;embed&gt; or &lt;object&gt;. default is false.</span></span><br><span class="line"><span class="comment">;allow_embedding = false</span></span><br></pre></td></tr></table></figure>
+
+<p>将上述配置前面的;移除，同时改为true，即：</p>
+<figure class="highlight ini"><table><tr><td class="code"><pre><span class="line"><span class="attr">allow_embedding</span> = <span class="literal">true</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-嵌入其他工程"><a href="#2-嵌入其他工程" class="headerlink" title="2. 嵌入其他工程"></a>2. 嵌入其他工程</h3><h4 id="2-1-Dashboard页面嵌套链接获取"><a href="#2-1-Dashboard页面嵌套链接获取" class="headerlink" title="2.1 Dashboard页面嵌套链接获取"></a>2.1 Dashboard页面嵌套链接获取</h4><p>grafana具体Dashboard页面，右上角分享按钮点开有链接，拷贝后作为iframe的url<br><img src="/images/1712805058-9c1770867327909ead3cd020fd3396c4.png"></p>
+<p>或者可以通过快照导入，生成本地快照，拷贝快照链接，作为ifame的url即可<br><img src="/images/1712805058-c3d6172bb2ded2b6a5b4cf41d949c487.png"></p>
+<h4 id="2-2-Pannel组件嵌入链接获取"><a href="#2-2-Pannel组件嵌入链接获取" class="headerlink" title="2.2 Pannel组件嵌入链接获取"></a>2.2 Pannel组件嵌入链接获取</h4><p>针对具体pannel，其嵌入其他页面的链接可在其自己组件的分享界面获取<br><img src="/images/1712805058-bd1e2dcfa6b9ff1fcba6aa0784ed7949.png"></p>
+<h4 id="2-3-嵌入代码示意"><a href="#2-3-嵌入代码示意" class="headerlink" title="2.3 嵌入代码示意"></a>2.3 嵌入代码示意</h4><p>前端通过iframe嵌入grafana对应信息块pannel的示例代码如下：</p>
+<figure class="highlight html"><table><tr><td class="code"><pre><span class="line"><span class="meta">&lt;!DOCTYPE <span class="keyword">html</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">html</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">body</span>&gt;</span></span><br><span class="line">      <span class="comment">&lt;!-- IP数据隐藏，此处只是示意 --&gt;</span></span><br><span class="line">      <span class="tag">&lt;<span class="name">iframe</span></span></span><br><span class="line"><span class="tag">      <span class="attr">src</span>=<span class="string">&quot;http://xxx.xxx.xxx.xxx:3000/d-solo/uid001/xxxxxxxxxxx?orgId=1&amp;from=1588146683228&amp;to=1588150283228&amp;var-job=All&amp;var-hostname=All&amp;var-node=All&amp;var-maxmount=%2Fetc%2Fnode-exporter&amp;var-env=&amp;var-name=&amp;var-CR_UID=uid001&amp;panelId=7&quot;</span></span></span><br><span class="line"><span class="tag">      <span class="attr">width</span>=<span class="string">&quot;450&quot;</span></span></span><br><span class="line"><span class="tag">      <span class="attr">height</span>=<span class="string">&quot;200&quot;</span></span></span><br><span class="line"><span class="tag">      <span class="attr">frameborder</span>=<span class="string">&quot;0&quot;</span></span></span><br><span class="line"><span class="tag">    &gt;</span><span class="tag">&lt;/<span class="name">iframe</span>&gt;</span></span><br><span class="line"></span><br><span class="line">    <span class="tag">&lt;<span class="name">p</span>&gt;</span>测试ifame嵌套。<span class="tag">&lt;/<span class="name">p</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;/<span class="name">body</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">html</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="2-4-效果图"><a href="#2-4-效果图" class="headerlink" title="2.4 效果图"></a>2.4 效果图</h4><p>效果图如下：<br><img src="/images/1712805058-80536e33a27abd97e15b0123b9153344.png"></p>
+<h3 id="3-注意"><a href="#3-注意" class="headerlink" title="3. 注意"></a>3. 注意</h3><p>该方式下，需要注意安全性和访问权限： 如果您的Grafana面板包含敏感数据，确保嵌入到的网站是安全的，并且只有授权用户才能访问。此外，根据您的Grafana配置，您可能需要对访问Grafana的用户进行身份验证。</p>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>
