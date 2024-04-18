@@ -15546,4 +15546,136 @@ plugin_admin_external_manage_enabled = true
         <tag>Scripts</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Grafana Oauth统一认证</title>
+    <url>/2024/04/18/Grafana-Oauth%E7%BB%9F%E4%B8%80%E8%AE%A4%E8%AF%81/</url>
+    <content><![CDATA[<p>使用grafana auth.generic_oauth方式访问grafana dashboards，记录配置及接口开发过程。以供以后查阅</p>
+<p>需求：在自建平台上以认证用户，跳转至grafana，且是已登陆状态。</p>
+<p>根据官方文档介绍，有三种方法实现：</p>
+<ol>
+<li><p>使用API KEY方式；需要解决跨域问题。</p>
+</li>
+<li><p>配置打开匿名登陆方式，不符合需求。</p>
+</li>
+<li><p>使用auth.generic_oauth方式，需要在自建平台开发统一认证接口。</p>
+</li>
+</ol>
+<h2 id="一、Grafana-Oauth配置"><a href="#一、Grafana-Oauth配置" class="headerlink" title="一、Grafana Oauth配置"></a><strong>一、Grafana Oauth配置</strong></h2><ol>
+<li><h3 id="配置认证接口跳转域名："><a href="#配置认证接口跳转域名：" class="headerlink" title="配置认证接口跳转域名："></a>配置认证接口跳转域名：</h3></li>
+</ol>
+<p>[server]</p>
+<p># Protocol (http, https, h2, socket)</p>
+<p>protocol &#x3D; http</p>
+<p># The ip address to bind to, empty will bind to all interfaces</p>
+<p>http_addr &#x3D; 10.106.223.203</p>
+<p># The http port to use</p>
+<p>http_port &#x3D; 3000</p>
+<p># The public facing domain name used to access grafana from a browser</p>
+<p>domain &#x3D; 10.106.223.203      # 我这里是测试环境，IP地址或正式域名都可以，认证接口可以访问（重定向）到就行</p>
+<p># Redirect to correct domain if host header does not match domain</p>
+<p># Prevents DNS rebinding attacks</p>
+<p>enforce_domain &#x3D; false</p>
+<p># The full public facing url</p>
+<p>root_url &#x3D; %(protocol)s:&#x2F;&#x2F;%(domain)s:%(http_port)s&#x2F;         # 如果使用的是正式域名，可能不需要“:%(http_port)s&#x2F;”端口信息，删掉就行</p>
+<h3 id="2-Grafana-Oauth配置"><a href="#2-Grafana-Oauth配置" class="headerlink" title="2. Grafana Oauth配置"></a>2. Grafana Oauth配置</h3><p>[auth.generic_oauth]</p>
+<p>name &#x3D; OAuth</p>
+<p>enabled &#x3D; true       # 默认是false，改为true。打开oauth认证</p>
+<p>allow_sign_up &#x3D; true</p>
+<p>client_id &#x3D; panda   # 客户端ID，自行决定使用方式。我这里使用client_id去验证自建平台中是否存在这个用户，并以这个用户去登陆Grafana</p>
+<p>client_secret &#x3D; <a href="mailto:&#x70;&#x61;&#x6e;&#100;&#97;&#x40;&#101;&#x78;&#x61;&#109;&#x70;&#x6c;&#x65;&#46;&#99;&#111;&#109;">&#x70;&#x61;&#x6e;&#100;&#97;&#x40;&#101;&#x78;&#x61;&#109;&#x70;&#x6c;&#x65;&#46;&#99;&#111;&#109;</a>     # 没看到GET或POST请求中有这个参数。字面意思是验证client密码的</p>
+<p>scopes &#x3D; user:email      # 统一认证接口回传的参数域’{“name”: “panda”, “email”: “<a href="mailto:&#x70;&#x61;&#x6e;&#100;&#x61;&#64;&#x65;&#120;&#x61;&#x6d;&#x70;&#108;&#x65;&#46;&#99;&#111;&#109;">&#x70;&#x61;&#x6e;&#100;&#x61;&#64;&#x65;&#120;&#x61;&#x6d;&#x70;&#108;&#x65;&#46;&#99;&#111;&#109;</a>“}’</p>
+<p>#scopes &#x3D; user:email:org</p>
+<p>email_attribute_name &#x3D; email:primary       # 不知道怎么用</p>
+<p>email_attribute_path &#x3D;</p>
+<p>login_attribute_path &#x3D;</p>
+<p>role_attribute_path &#x3D;</p>
+<p>id_token_attribute_name &#x3D;</p>
+<p># 网络环境访问受限问题处理（职场网络与IDC网络互相隔离）。Grafana  <a href="http://grafana.domain.com/login/generic_oauth">http://grafana.domain.com/login/generic_oauth</a> 接口通过浏览器访问auth_url，如果浏览器不能直接通过IP:PORT访问auth_url，配置一个可访问的域名。token_url 和 api_url 是通过Grafana后端server访问，Grafana server和自建平台server服务器在同一个网络域，我就直接配置IP:PORT了。</p>
+<p>auth_url &#x3D; <a href="http://auth.yourdomain.com/sso/oauth/authorize/">http://auth.yourdomain.com/sso/oauth/authorize/</a>       # 自建平台认证接口。Grafana Oauth接口通过浏览器请求这个接口进行认                                                                                                 # 证，auth.yourdomain.com指向后端10.106.223.203:7000。</p>
+<p>token_url &#x3D; <a href="http://10.106.223.203:7000/sso/oauth/token/">http://10.106.223.203:7000/sso/oauth/token/</a>          # 自建平台用户token生成接口。Grafana Oauth接口通过后端server访问该接口</p>
+<p>api_url &#x3D; <a href="http://10.106.223.203:7000/sso/oauth/user/">http://10.106.223.203:7000/sso/oauth/user/</a>                # 自建平台验证token，并回传用户信息接口。Grafana Oauth接口通过后端                                                                                                  # server访问该接口</p>
+<p>allowed_domains &#x3D;    # 允许回调请求的域名，包括用户email的域名（Required email domain not fulfilled）</p>
+<p>#allowed_domains &#x3D; auth.yourdomain.com,10.106.223.203,example.com</p>
+<p>team_ids &#x3D;</p>
+<p>allowed_organizations &#x3D;</p>
+<p>tls_skip_verify_insecure &#x3D; false</p>
+<p>tls_client_cert &#x3D;</p>
+<p>tls_client_key &#x3D;</p>
+<p>tls_client_ca &#x3D;</p>
+<h3 id="3-重启Grafana后台server"><a href="#3-重启Grafana后台server" class="headerlink" title="3. 重启Grafana后台server"></a>3. 重启Grafana后台server</h3><p><img src="/images/1713430674-adba476931f42d261f68afbdd2e4433e.png" alt="Grafana Oauth统一认证_oauth" title="1618281471155111.png"></p>
+<h2 id="二、自建平台接口。自建平台是django框架"><a href="#二、自建平台接口。自建平台是django框架" class="headerlink" title="二、自建平台接口。自建平台是django框架"></a><strong>二、自建平台接口。自建平台是django框架</strong></h2><h3 id="1-auth-url接口"><a href="#1-auth-url接口" class="headerlink" title="1. auth_url接口"></a>1. auth_url接口</h3><p>通过自建平台前端请求 Grafana  <a href="http://grafana.domain.com/login/generic_oauth">http://grafana.domain.com/login/generic_oauth</a> 接口时，该接口会通过GET去请求auth_url接口进行认证，请求参数为 {“access_type”: online, “state”: “vRQngxNgyheoZ1iskXH3zRd_Xezdw1T4RW_ISq59ZzM&#x3D;”, “redirect_uri”: “<a href="http://10.106.223.203:3000/login/generic/_oauth">http://10.106.223.203:3000/login/generic\_oauth</a>“, “response_type”: “code”, “client_id”: “panda”, “scope”: “user:email”}</p>
+<p>auth_url API: </p>
+<p>def grafana_authorize(request):</p>
+<p>    for k, v in request.GET.items():</p>
+<p>        print k, v</p>
+<p>    try:</p>
+<p>        grafana_api &#x3D; GrafanaAPI.objects.get(client_id&#x3D;request.GET.get(‘client_id’))</p>
+<p>    except GrafanaAPI.DoesNotExist:</p>
+<p>        return redirect(reverse_lazy(‘login’))</p>
+<p>    if str(request.GET.get(‘redirect_uri’)) &#x3D;&#x3D; str(grafana_api.oauth_url) and \</p>
+<p>            str(request.GET.get(‘client_id’)) &#x3D;&#x3D; str(grafana_api.client_id):</p>
+<p>        try:</p>
+<p>            client_user &#x3D; User.objects.get(real_name&#x3D;request.GET.get(‘client_id’))</p>
+<p>            token_instance &#x3D; RedisToken()</p>
+<p>            token &#x3D; token_instance.generate_token(client_user.email)</p>
+<p>        except User.DoesNotExist:</p>
+<p>            return redirect(“{0}?state&#x3D;{1}&amp;code&#x3D;{2}”.format(request.GET.get(‘redirect_uri’),</p>
+<p>                                                            request.GET.get(‘state’),</p>
+<p>                                                            ‘’))</p>
+<p>        else:</p>
+<p>            code &#x3D; {}</p>
+<p>            code.setdefault(grafana_api.client_id, token)</p>
+<p>            return redirect(“{0}?state&#x3D;{1}&amp;code&#x3D;{2}”.format(request.GET.get(‘redirect_uri’),</p>
+<p>                                                            request.GET.get(‘state’),</p>
+<p>                                                            json.dumps(code)))</p>
+<p>    else:</p>
+<p>        return redirect(reverse_lazy(‘login’))</p>
+<h3 id="2-token-url接口"><a href="#2-token-url接口" class="headerlink" title="2. token_url接口"></a>2. token_url接口</h3><p>认证通过后 Grafana  <a href="http://grafana.domain.com/login/generic_oauth">http://grafana.domain.com/login/generic_oauth</a> 接口会通过POST去请求token_url接口获取认证token。请求参数{“redirect_uri”: “<a href="http://10.106.223.203:3000/login/generic/_oauth">http://10.106.223.203:3000/login/generic\_oauth</a>“, “code”: ‘{“panda”: “ZXlKaGJHY2lPaUprWldaaGRXeDBJaXdpZEhsd0lqb2lTbGRRSW4wOjFsVzkzRzpnSjZVRnJFUVVRbEpONFczQVluaU02TzR5TFk.ZXlKaFkyTnZkVzUwSWpvaWNHRnVaR0ZBWlhoaGJYQnNaUzVqYjIwaUxDSnpkV0lpT2lKVmMyVnlYMVJ2YTJWdUlpd2lhWE56SWpvaVVHRnVSR0VpTENKbGVIQWlPaUkwTXpJd01DSXNJbWxoZENJNk1UWXhPREk0TVRreE9DNHdPVFkzTmpjc0ltRjFaQ0k2SWxWelpYSWlmUToxbFc5M0c6emxBajRid2d4NHdhYzRiY1JUbGt3Snd4MWln.287856af0889755046011669919f1b0050af8b77”}’, “grant_type”: “authorization_code”}</p>
+<p>@csrf_exempt</p>
+<p>def grafana_token(request):</p>
+<p>    for k, v in request.POST.items():</p>
+<p>        print k, v</p>
+<p>    if request.method &#x3D;&#x3D; “POST”:</p>
+<p>        try:</p>
+<p>            code &#x3D; json.loads(request.POST.get(‘code’))</p>
+<p>            client_id &#x3D; code.keys()[0]</p>
+<p>            token &#x3D; code.values()[0]</p>
+<p>            grafana_api &#x3D; GrafanaAPI.objects.get(client_id&#x3D;client_id)</p>
+<p>        except GrafanaAPI.DoesNotExist:</p>
+<p>            return redirect(reverse_lazy(‘login’))</p>
+<p>        if str(request.POST.get(‘redirect_uri’)) &#x3D;&#x3D; str(grafana_api.oauth_url):</p>
+<p>            token_auth &#x3D; RedisToken(token&#x3D;token)</p>
+<p>            if token_auth.checkout_token():</p>
+<p>                return HttpResponse(json.dumps({‘access_token’: token,</p>
+<p>                                                ‘token_type’: ‘Bearer’,</p>
+<p>                                                ‘expiry_in’: settings.REDIS_TOKEN_EXPIRED_TIME,</p>
+<p>                                                ‘refresh_token’: ‘’}))</p>
+<p>    return HttpResponse(json.dumps({‘access_token’: ‘’,</p>
+<p>                                    ‘token_type’: ‘’,</p>
+<p>                                    ‘expiry_in’: ‘’,</p>
+<p>                                    ‘refresh_token’: ‘’}))</p>
+<h3 id="3-api-url接口"><a href="#3-api-url接口" class="headerlink" title="3. api_url接口"></a>3. api_url接口</h3><p>获取token成功后，Grafana  <a href="http://grafana.domain.com/login/generic_oauth">http://grafana.domain.com/login/generic_oauth</a> 接口会通过GET请求api_url接口获取用户信息。请求头中加入token信息</p>
+<p>“HTTP_AUTHORIZATION”: “Bearer ZXlKaGJHY2lPaUprWldaaGRXeDBJaXdpZEhsd0lqb2lTbGRRSW4wOjFsVzkzRzpnSjZVRnJFUVVRbEpONFczQVluaU02TzR5TFk.ZXlKaFkyTnZkVzUwSWpvaWNHRnVaR0ZBWlhoaGJYQnNaUzVqYjIwaUxDSnpkV0lpT2lKVmMyVnlYMVJ2YTJWdUlpd2lhWE56SWpvaVVHRnVSR0VpTENKbGVIQWlPaUkwTXpJd01DSXNJbWxoZENJNk1UWXhPREk0TVRreE9DNHdPVFkzTmpjc0ltRjFaQ0k2SWxWelpYSWlmUToxbFc5M0c6emxBajRid2d4NHdhYzRiY1JUbGt3Snd4MWln.287856af0889755046011669919f1b0050af8b77”</p>
+<p>def grafana_user(request):</p>
+<p>    for k, v in request.META.items():</p>
+<p>        print k, v</p>
+<p>    header_authorization &#x3D; request.META.get(‘HTTP_AUTHORIZATION’, ‘unknown’)</p>
+<p>    token &#x3D; header_authorization.split(‘ ‘)[1]</p>
+<p>    token_auth &#x3D; RedisToken(token&#x3D;token)</p>
+<p>    try:</p>
+<p>        user &#x3D; User.objects.get(email&#x3D;token_auth.get_account())</p>
+<p>    except User.DoesNotExist:</p>
+<p>        return HttpResponse(‘User not exist.’)</p>
+<p>    return HttpResponse(json.dumps({‘name’: user.real_name, ‘email’: user.email}))</p>
+<p>三、测试</p>
+<p>直接在Grafana登陆页点 Sign in with OAuth ，如果显示登陆成功并进入Dashboards页面，表示已经成功。Grafana会自动创建用户</p>
+<p><img src="/images/1713430674-c7094423e5de1ae6e4ef7db5d7f0b27d.png" alt="Grafana Oauth统一认证_oauth_02" title="1618283223682795.png"></p>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>
