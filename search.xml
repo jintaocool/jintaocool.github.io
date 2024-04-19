@@ -15678,4 +15678,21 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Linux网卡流量监控shell脚本</title>
+    <url>/2024/04/19/Linux%E7%BD%91%E5%8D%A1%E6%B5%81%E9%87%8F%E7%9B%91%E6%8E%A7shell%E8%84%9A%E6%9C%AC/</url>
+    <content><![CDATA[<p>此脚本不需要额外再安装软件，并且可自定义欲查看接口，精确到小数，可根据流量大小灵活显示单位，默认采集间隔为1秒。</p>
+<p>用法为：</p>
+<p>1、将脚本保存为可执行脚本文件，比如叫net.sh。</p>
+<p>2、chmod +x .&#x2F;net.sh 将文件改成可执行脚本。</p>
+<p>3、sh net.sh eth0即可开始监看接口eth0流量，按ctrl+c退出。</p>
+<p>脚本是通过读取运行时文件系统&#x2F;proc&#x2F;net&#x2F;dev中的网络实时数据，并通过简单计算得到的</p>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"> </span><br><span class="line">ethn=$1</span><br><span class="line"> </span><br><span class="line">while true</span><br><span class="line">do</span><br><span class="line">  RX_pre=$(cat /proc/net/dev | grep $ethn | sed &#x27;s/:/ /g&#x27; | awk &#x27;&#123;print $2&#125;&#x27;)</span><br><span class="line">  TX_pre=$(cat /proc/net/dev | grep $ethn | sed &#x27;s/:/ /g&#x27; | awk &#x27;&#123;print $10&#125;&#x27;)</span><br><span class="line">  sleep 1</span><br><span class="line">  RX_next=$(cat /proc/net/dev | grep $ethn | sed &#x27;s/:/ /g&#x27; | awk &#x27;&#123;print $2&#125;&#x27;)</span><br><span class="line">  TX_next=$(cat /proc/net/dev | grep $ethn | sed &#x27;s/:/ /g&#x27; | awk &#x27;&#123;print $10&#125;&#x27;)</span><br><span class="line"> </span><br><span class="line">  clear</span><br><span class="line">  echo -e &quot;\t RX `date +%k:%M:%S` TX&quot;</span><br><span class="line"> </span><br><span class="line">  RX=$(($&#123;RX_next&#125;-$&#123;RX_pre&#125;))</span><br><span class="line">  TX=$(($&#123;TX_next&#125;-$&#123;TX_pre&#125;))</span><br><span class="line"> </span><br><span class="line">  if [[ $RX -lt 1024 ]];then</span><br><span class="line">    RX=&quot;$&#123;RX&#125;B/s&quot;</span><br><span class="line">  elif [[ $RX -gt 1048576 ]];then</span><br><span class="line">    RX=$(echo $RX | awk &#x27;&#123;print $1/1048576 &quot;MB/s&quot;&#125;&#x27;)</span><br><span class="line">  else</span><br><span class="line">    RX=$(echo $RX | awk &#x27;&#123;print $1/1024 &quot;KB/s&quot;&#125;&#x27;)</span><br><span class="line">  fi</span><br><span class="line"> </span><br><span class="line">  if [[ $TX -lt 1024 ]];then</span><br><span class="line">    TX=&quot;$&#123;TX&#125;B/s&quot;</span><br><span class="line">  elif [[ $TX -gt 1048576 ]];then</span><br><span class="line">    TX=$(echo $TX | awk &#x27;&#123;print $1/1048576 &quot;MB/s&quot;&#125;&#x27;)</span><br><span class="line">  else</span><br><span class="line">    TX=$(echo $TX | awk &#x27;&#123;print $1/1024 &quot;KB/s&quot;&#125;&#x27;)</span><br><span class="line">  fi</span><br><span class="line"> </span><br><span class="line">  echo -e &quot;$ethn \t $RX   $TX &quot;</span><br><span class="line"> </span><br><span class="line">done</span><br></pre></td></tr></table></figure>]]></content>
+      <categories>
+        <category>Scripts</category>
+      </categories>
+      <tags>
+        <tag>Scripts</tag>
+      </tags>
+  </entry>
 </search>
