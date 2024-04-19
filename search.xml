@@ -16010,4 +16010,111 @@ plugin_admin_external_manage_enabled = true
         <tag>Linux</tag>
       </tags>
   </entry>
+  <entry>
+    <title>grafana如何用oauth实现第三方授权登录</title>
+    <url>/2024/04/19/grafana%E5%A6%82%E4%BD%95%E7%94%A8oauth%E5%AE%9E%E7%8E%B0%E7%AC%AC%E4%B8%89%E6%96%B9%E6%8E%88%E6%9D%83%E7%99%BB%E5%BD%95/</url>
+    <content><![CDATA[<p><strong>前言</strong></p>
+<hr>
+<p>    无论是什么行业的企业或业务，有时候我们需要查看历史数据—了解业务，总结规律，发现异常。  </p>
+<p>    grafana作为数据可视化软件之一，支持多种数据源，可灵活配置图表，得到你想要的数据呈现效果，也有很多开放的api，方便和其他系统集成，也就是说grafana直接读取你的数据，至于如何展示，在它上面设置就可以了，而且开源、免费。如果数据量多，需要高性能，可以把数据存在influxDb等时序数据库。</p>
+<p>    但是遗憾的是，系统本身没有中文版本，如果需要汉化：可参考我之前的这篇文章：<a href="https://blog.csdn.net/koppel/article/details/90272136%E3%80%82">https://blog.csdn.net/koppel/article/details/90272136。</a></p>
+<hr>
+<p>    近期需要做grafana的权限控制，虽然官网有介绍多种方式，但是不够详细，网上的帖子也比较旧，想做好还是要花一些时间的。一年前写的上面这篇简短的文章也有四千多阅读量， 有人关注grafana也说明了物联网和大数据的发展迅速，因此这次把oauth的也记录下来，给大家参考。</p>
+<p><img src="/images/1713518074-a0bcb81793ab12d85c5d41ddd4a277d1.png"></p>
+<p><strong>需求</strong></p>
+<hr>
+<p>我自己有业务的管理后台，不同的管理员有不同的项目权限，同时自己服务器部署了grafana。之前是使用了匿名登录（auth.anonymous enable&#x3D;true），所有人都能看到所有项目，现在希望在自己的管理后台点击按钮跳转到grafana后台，也有对应的权限。</p>
+<p>想实现的效果就是：</p>
+<p>1、能不能那边登录了，这边自动登录</p>
+<p>2、用户仅能查看自己项目的图表数据。  </p>
+<p>3、除了登录，权限管理能不能也同步</p>
+<p><strong>使用自带的权限管理功能</strong></p>
+<hr>
+<p>如果不开发，使用自带的权限也是可以的。</p>
+<p>    grafana有几个概念：user用户、org组织、team团队、role角色。我的项目中只有一个组织，据说创建多个组织需要重新配置数据源。系统默认三个角色。grafana从6.4以上支持role mapping，如果没猜错的话，会支持更多的角色，但是由于我用的是6.2，默认只有admin、viewer和editor三个角色。</p>
+<p>    上面两种都不太合适做权限管理。但是可以通过team充当角色。人可以属于team，team又和dashboard关联。  </p>
+<p>这样做的好处：</p>
+<p>    不需要开发。</p>
+<p>坏处：</p>
+<p>    需要手动维护权限。如果你有自己的系统，那又要在grafana维护权限，权限改动两边都要更新，可能遗忘导致两边权限不一致。  </p>
+<p><strong>使用oauth登录</strong></p>
+<hr>
+<p>为什么没选择ldap？  </p>
+<p>    除了oauth，grafana还支持ldap（轻型目录访问协议），但是应该需要搭建服务，而oauth是更主流的方案。</p>
+<p>目录：  </p>
+<p>步骤1：修改grafana配置文件</p>
+<p>步骤2：开发三个接口</p>
+<p>步骤3：调试和验证</p>
+<hr>
+<p><strong>步骤1：修改grafana配置文件</strong></p>
+<p>我的文件在&#x2F;etc&#x2F;grafana&#x2F;grafana.ini  </p>
+<p>[server]  </p>
+<p>root_url &#x3D; <a href="http://xxx.com:3000/">http://xxx.com:3000</a></p>
+<p>这里的root_url需要修改为真实的地址，因为授权回调的redirect_uri是这个。</p>
+<p>配置oauth  </p>
+<p>[auth.generic_oauth]</p>
+<p>enabled &#x3D; true</p>
+<p>name &#x3D; OAuth</p>
+<p>allow_sign_up &#x3D; true</p>
+<p>client_id &#x3D; some_id</p>
+<p>client_secret &#x3D; some_secret</p>
+<p>scopes &#x3D; user:email,read:org</p>
+<p>auth_url &#x3D; <a href="http://xxx.com/login/oauth/authorize">http://xxx.com/login/oauth/authorize</a></p>
+<p>token_url &#x3D; <a href="http://xxx.com/login/oauth/token">http://xxx.com/login/oauth/token</a></p>
+<p>api_url &#x3D; <a href="http://xxx.com/login/oauth/userinfo">http://xxx.com/login/oauth/userinfo</a></p>
+<p>这里主要是需要后端提供三个接口：</p>
+<p>auth_url是授权接口。token_url是获取token。api_url是获取用户信息接口，下文会继续介绍。</p>
+<p>配置好之后可以重启grafana：</p>
+<p>.&#x2F;bin&#x2F;grafana-server -config&#x3D;”&#x2F;etc&#x2F;grafana&#x2F;grafana.ini”</p>
+<p><strong>步骤2：开发三个接口</strong></p>
+<p>这里主要介绍请求流程，入参和返回值的形式，假设uid是123456。  </p>
+<p>我是把uid作为code，同时作为token，在实际的项目中，后端最好使用JWT做token的验证。（关于JWT可自行百度）。  </p>
+<p>接口1：get请求</p>
+<p>请求地址：  </p>
+<p><a href="https://xxx.com/login/oauth/authorize?access%5C_type=online&client%5C_id=some%5C_id&redirect%5C_uri=http://xxx.com:3000/login/generic%5C_oauth&response%5C_type=code&scope=user:email+read:org&state=JAh0jkpkBbBW4mkVHpWnylC9eJk1pvwAQgWar6bAXxQ=">https://xxx.com/login/oauth/authorize?access\_type=online&amp;client\_id=some\_id&amp;redirect\_uri=http%3A%2F%2Fxxx.com%3A3000%2Flogin%2Fgeneric\_oauth&amp;response\_type=code&amp;scope=user%3Aemail+read%3Aorg&amp;state=JAh0jkpkBbBW4mkVHpWnylC9eJk1pvwAQgWar6bAXxQ%3D</a></p>
+<p>接口返回做重定向：</p>
+<p><a href="http://xxx.com:3000/login/generic/_oauth?state=%7Bstate%7D&code=123456">http://xxx.com:3000/login/generic\_oauth?state={state}&amp;code=123456</a></p>
+<p>接口2：post请求</p>
+<p>请求地址：</p>
+<p><a href="http://xxx.com/login/oauth/token">http://xxx.com/login/oauth/token</a></p>
+<p>post参数：  </p>
+<p>{“code”:”123456”,”grant_type”:”authorization_code”,”redirect_uri”:”<a href="http://xxx.com:3000/login/generic/_oauth%22%7D">http://xxx.com:3000/login/generic\_oauth&quot;}</a></p>
+<p>返回值：</p>
+<p>{</p>
+<p>    “access_token”: “123456”,</p>
+<p>    “token_type”: “Bearer”,</p>
+<p>    “expiry_in”: “”,</p>
+<p>     “refresh_token”: “”</p>
+<p>}</p>
+<p>接口3：</p>
+<p>get请求</p>
+<p>header：</p>
+<p>authorization：Bearer 123456</p>
+<p>返回值：</p>
+<p>{</p>
+<p>“name”:”test”,  </p>
+<p>“email”:”test@test”</p>
+<p>}</p>
+<p>代码参考（php laravel）：</p>
+<figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">namespace App\Http\Controllers\BigData;</span><br><span class="line">use App\Http\Controllers\Controller;</span><br><span class="line">use Illuminate\Http\Request;</span><br><span class="line">use \LeanCloud\Query as LeanQuery;</span><br><span class="line">use Auth;</span><br><span class="line"></span><br><span class="line">class OAuthController extends Controller &#123;</span><br><span class="line"></span><br><span class="line">    public function auth(Request $request) &#123;</span><br><span class="line">        if (Auth::user() == NULL) &#123;</span><br><span class="line">            return response()-&gt;json([&quot;msg&quot; =&gt; &quot;not login&quot;]);</span><br><span class="line">        &#125;</span><br><span class="line">        $redirect_uri = $request-&gt;input(&quot;redirect_uri&quot;);</span><br><span class="line">        $state = $request-&gt;input(&quot;state&quot;);</span><br><span class="line">        $url = $redirect_uri . &quot;?state=&quot; . $state . &quot;&amp;code=&quot; . Auth::user()-&gt;objectId;</span><br><span class="line">        return response()-&gt;redirectTo($url);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // code 换取 token</span><br><span class="line">    public function token(Request $request) &#123;</span><br><span class="line">        $myObj = new \stdClass();</span><br><span class="line">        $myObj-&gt;access_token = $request-&gt;input(&quot;code&quot;);</span><br><span class="line">        $myObj-&gt;token_type = &quot;Bearer&quot;;// jwt要是这个</span><br><span class="line">        $myObj-&gt;expiry_in = &quot;&quot;;</span><br><span class="line">        $myObj-&gt;refresh_token = &quot;&quot;;</span><br><span class="line">        $myJSON = json_encode($myObj);</span><br><span class="line">        return response($myJSON);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public function userinfo(Request $request) &#123;</span><br><span class="line">        $header_auth = \Request::header(&quot;authorization&quot;);</span><br><span class="line">        $uid = substr($header_auth, 7);</span><br><span class="line">        if (!$uid) &#123;</span><br><span class="line">            return response()-&gt;json([&quot;msg&quot; =&gt; &quot;&quot;]);</span><br><span class="line">        &#125;</span><br><span class="line">        // 根据uid获取用户</span><br><span class="line">        $query = new LeanQuery(&quot;_User&quot;);</span><br><span class="line">        $data = $query-&gt;get($uid);</span><br><span class="line">        $nickName = $data-&gt;get(&quot;nickName&quot;);</span><br><span class="line">        $email = $data-&gt;get(&quot;username&quot;) . &quot;@test&quot;;// 需要是电子邮箱格式</span><br><span class="line">        return response()-&gt;json([&quot;email&quot; =&gt; $email, &quot;name&quot; =&gt; $nickName]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>步骤3：调试和验证</strong></p>
+<p>首先访问<a href="http://xxx.com:3000/login%E8%A6%81%E8%83%BD%E7%9C%8B%E5%88%B0%E7%99%BB%E5%BD%95%E9%A1%B5%E9%9D%A2%E7%9A%84oauth%E5%85%A5%E5%8F%A3%EF%BC%8C%E8%AF%81%E6%98%8E%E9%85%8D%E7%BD%AE%E7%94%9F%E6%95%88%E4%BA%86">http://xxx.com:3000/login要能看到登录页面的oauth入口，证明配置生效了</a></p>
+<p><img src="/images/1713518074-c5949ad00b336161732bbe79fa50e578.png"></p>
+<p>    点击按钮后,会请求：<a href="http://xxx.com:3000/login/generic/_oauth%E3%80%82%E6%88%91%E4%BB%AC%E9%9C%80%E8%A6%81%E5%BC%80%E5%8F%91%E6%8F%90%E4%BE%9B%E7%9A%84%E4%B8%89%E4%B8%AAoauth%E6%8E%A5%E5%8F%A3%EF%BC%8C%E9%83%BD%E6%98%AF%E5%9C%A8login/generic/_oauth%E9%87%8C%E9%9D%A2%E9%9D%99%E9%BB%98%E8%B0%83%E7%94%A8%E7%9A%84%E3%80%82">http://xxx.com:3000/login/generic\_oauth。我们需要开发提供的三个oauth接口，都是在login/generic\_oauth里面静默调用的。</a></p>
+<p>    先请求第一个auth_url接口获取code。然后拿code请求第二个token_url接口，获取token。然后把token放到header中请求第三个api_url接口。然后根据第三个接口返回的email和name自动注册登录。</p>
+<p>    调试过程中如果接口有问题，grafana会把接口的返回值比如报错，都打印到日志中，查看日志中的信息即可。</p>
+<hr>
+<p>    oauth自动登录开发好之后，可以调用grafana的api开发权限管理：让指定的team拥有dashboard的查看权限，让用户属于某些team。api参考文档：<a href="https://grafana.com/docs/grafana/latest/http/_api/dashboard/_permissions/">https://grafana.com/docs/grafana/latest/http\_api/dashboard\_permissions/</a></p>
+<p>    至此，你的grafana就可以和现有项目无缝衔接，使用更加方便。  </p>
+<p>    本文的部分内容来自mediam，查看原文：</p>
+<p><a href="https://medium.com/@manivannan/_data/grafana-generic-oauth-login-authentication-c31a1ce56a45">https://medium.com/@manivannan\_data/grafana-generic-oauth-login-authentication-c31a1ce56a45</a></p>
+]]></content>
+      <categories>
+        <category>Grafana</category>
+      </categories>
+      <tags>
+        <tag>Grafana</tag>
+      </tags>
+  </entry>
 </search>

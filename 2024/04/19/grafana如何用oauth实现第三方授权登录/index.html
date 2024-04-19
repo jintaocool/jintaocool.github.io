@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>grafana如何用oauth实现第三方授权登录 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-grafana如何用oauth实现第三方授权登录"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  grafana如何用oauth实现第三方授权登录
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/19/grafana%E5%A6%82%E4%BD%95%E7%94%A8oauth%E5%AE%9E%E7%8E%B0%E7%AC%AC%E4%B8%89%E6%96%B9%E6%8E%88%E6%9D%83%E7%99%BB%E5%BD%95/" class="article-date">
+  <time datetime="2024-04-19T09:16:52.000Z" itemprop="datePublished">2024-04-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>前言</strong></p>
+<hr>
+<p>    无论是什么行业的企业或业务，有时候我们需要查看历史数据—了解业务，总结规律，发现异常。  </p>
+<p>    grafana作为数据可视化软件之一，支持多种数据源，可灵活配置图表，得到你想要的数据呈现效果，也有很多开放的api，方便和其他系统集成，也就是说grafana直接读取你的数据，至于如何展示，在它上面设置就可以了，而且开源、免费。如果数据量多，需要高性能，可以把数据存在influxDb等时序数据库。</p>
+<p>    但是遗憾的是，系统本身没有中文版本，如果需要汉化：可参考我之前的这篇文章：<a target="_blank" rel="noopener" href="https://blog.csdn.net/koppel/article/details/90272136%E3%80%82">https://blog.csdn.net/koppel/article/details/90272136。</a></p>
+<hr>
+<p>    近期需要做grafana的权限控制，虽然官网有介绍多种方式，但是不够详细，网上的帖子也比较旧，想做好还是要花一些时间的。一年前写的上面这篇简短的文章也有四千多阅读量， 有人关注grafana也说明了物联网和大数据的发展迅速，因此这次把oauth的也记录下来，给大家参考。</p>
+<p><img src="/images/1713518074-a0bcb81793ab12d85c5d41ddd4a277d1.png"></p>
+<p><strong>需求</strong></p>
+<hr>
+<p>我自己有业务的管理后台，不同的管理员有不同的项目权限，同时自己服务器部署了grafana。之前是使用了匿名登录（auth.anonymous enable&#x3D;true），所有人都能看到所有项目，现在希望在自己的管理后台点击按钮跳转到grafana后台，也有对应的权限。</p>
+<p>想实现的效果就是：</p>
+<p>1、能不能那边登录了，这边自动登录</p>
+<p>2、用户仅能查看自己项目的图表数据。  </p>
+<p>3、除了登录，权限管理能不能也同步</p>
+<p><strong>使用自带的权限管理功能</strong></p>
+<hr>
+<p>如果不开发，使用自带的权限也是可以的。</p>
+<p>    grafana有几个概念：user用户、org组织、team团队、role角色。我的项目中只有一个组织，据说创建多个组织需要重新配置数据源。系统默认三个角色。grafana从6.4以上支持role mapping，如果没猜错的话，会支持更多的角色，但是由于我用的是6.2，默认只有admin、viewer和editor三个角色。</p>
+<p>    上面两种都不太合适做权限管理。但是可以通过team充当角色。人可以属于team，team又和dashboard关联。  </p>
+<p>这样做的好处：</p>
+<p>    不需要开发。</p>
+<p>坏处：</p>
+<p>    需要手动维护权限。如果你有自己的系统，那又要在grafana维护权限，权限改动两边都要更新，可能遗忘导致两边权限不一致。  </p>
+<p><strong>使用oauth登录</strong></p>
+<hr>
+<p>为什么没选择ldap？  </p>
+<p>    除了oauth，grafana还支持ldap（轻型目录访问协议），但是应该需要搭建服务，而oauth是更主流的方案。</p>
+<p>目录：  </p>
+<p>步骤1：修改grafana配置文件</p>
+<p>步骤2：开发三个接口</p>
+<p>步骤3：调试和验证</p>
+<hr>
+<p><strong>步骤1：修改grafana配置文件</strong></p>
+<p>我的文件在&#x2F;etc&#x2F;grafana&#x2F;grafana.ini  </p>
+<p>[server]  </p>
+<p>root_url &#x3D; <a target="_blank" rel="noopener" href="http://xxx.com:3000/">http://xxx.com:3000</a></p>
+<p>这里的root_url需要修改为真实的地址，因为授权回调的redirect_uri是这个。</p>
+<p>配置oauth  </p>
+<p>[auth.generic_oauth]</p>
+<p>enabled &#x3D; true</p>
+<p>name &#x3D; OAuth</p>
+<p>allow_sign_up &#x3D; true</p>
+<p>client_id &#x3D; some_id</p>
+<p>client_secret &#x3D; some_secret</p>
+<p>scopes &#x3D; user:email,read:org</p>
+<p>auth_url &#x3D; <a target="_blank" rel="noopener" href="http://xxx.com/login/oauth/authorize">http://xxx.com/login/oauth/authorize</a></p>
+<p>token_url &#x3D; <a target="_blank" rel="noopener" href="http://xxx.com/login/oauth/token">http://xxx.com/login/oauth/token</a></p>
+<p>api_url &#x3D; <a target="_blank" rel="noopener" href="http://xxx.com/login/oauth/userinfo">http://xxx.com/login/oauth/userinfo</a></p>
+<p>这里主要是需要后端提供三个接口：</p>
+<p>auth_url是授权接口。token_url是获取token。api_url是获取用户信息接口，下文会继续介绍。</p>
+<p>配置好之后可以重启grafana：</p>
+<p>.&#x2F;bin&#x2F;grafana-server -config&#x3D;”&#x2F;etc&#x2F;grafana&#x2F;grafana.ini”</p>
+<p><strong>步骤2：开发三个接口</strong></p>
+<p>这里主要介绍请求流程，入参和返回值的形式，假设uid是123456。  </p>
+<p>我是把uid作为code，同时作为token，在实际的项目中，后端最好使用JWT做token的验证。（关于JWT可自行百度）。  </p>
+<p>接口1：get请求</p>
+<p>请求地址：  </p>
+<p><a target="_blank" rel="noopener" href="https://xxx.com/login/oauth/authorize?access%5C_type=online&client%5C_id=some%5C_id&redirect%5C_uri=http://xxx.com:3000/login/generic%5C_oauth&response%5C_type=code&scope=user:email+read:org&state=JAh0jkpkBbBW4mkVHpWnylC9eJk1pvwAQgWar6bAXxQ=">https://xxx.com/login/oauth/authorize?access\_type=online&amp;client\_id=some\_id&amp;redirect\_uri=http%3A%2F%2Fxxx.com%3A3000%2Flogin%2Fgeneric\_oauth&amp;response\_type=code&amp;scope=user%3Aemail+read%3Aorg&amp;state=JAh0jkpkBbBW4mkVHpWnylC9eJk1pvwAQgWar6bAXxQ%3D</a></p>
+<p>接口返回做重定向：</p>
+<p><a target="_blank" rel="noopener" href="http://xxx.com:3000/login/generic/_oauth?state=%7Bstate%7D&code=123456">http://xxx.com:3000/login/generic\_oauth?state={state}&amp;code=123456</a></p>
+<p>接口2：post请求</p>
+<p>请求地址：</p>
+<p><a target="_blank" rel="noopener" href="http://xxx.com/login/oauth/token">http://xxx.com/login/oauth/token</a></p>
+<p>post参数：  </p>
+<p>{“code”:”123456”,”grant_type”:”authorization_code”,”redirect_uri”:”<a target="_blank" rel="noopener" href="http://xxx.com:3000/login/generic/_oauth%22%7D">http://xxx.com:3000/login/generic\_oauth&quot;}</a></p>
+<p>返回值：</p>
+<p>{</p>
+<p>    “access_token”: “123456”,</p>
+<p>    “token_type”: “Bearer”,</p>
+<p>    “expiry_in”: “”,</p>
+<p>     “refresh_token”: “”</p>
+<p>}</p>
+<p>接口3：</p>
+<p>get请求</p>
+<p>header：</p>
+<p>authorization：Bearer 123456</p>
+<p>返回值：</p>
+<p>{</p>
+<p>“name”:”test”,  </p>
+<p>“email”:”test@test”</p>
+<p>}</p>
+<p>代码参考（php laravel）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">&lt;?php</span><br><span class="line">namespace App\Http\Controllers\BigData;</span><br><span class="line">use App\Http\Controllers\Controller;</span><br><span class="line">use Illuminate\Http\Request;</span><br><span class="line">use \LeanCloud\Query as LeanQuery;</span><br><span class="line">use Auth;</span><br><span class="line"></span><br><span class="line">class OAuthController extends Controller &#123;</span><br><span class="line"></span><br><span class="line">    public function auth(Request $request) &#123;</span><br><span class="line">        if (Auth::user() == NULL) &#123;</span><br><span class="line">            return response()-&gt;json([&quot;msg&quot; =&gt; &quot;not login&quot;]);</span><br><span class="line">        &#125;</span><br><span class="line">        $redirect_uri = $request-&gt;input(&quot;redirect_uri&quot;);</span><br><span class="line">        $state = $request-&gt;input(&quot;state&quot;);</span><br><span class="line">        $url = $redirect_uri . &quot;?state=&quot; . $state . &quot;&amp;code=&quot; . Auth::user()-&gt;objectId;</span><br><span class="line">        return response()-&gt;redirectTo($url);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    // code 换取 token</span><br><span class="line">    public function token(Request $request) &#123;</span><br><span class="line">        $myObj = new \stdClass();</span><br><span class="line">        $myObj-&gt;access_token = $request-&gt;input(&quot;code&quot;);</span><br><span class="line">        $myObj-&gt;token_type = &quot;Bearer&quot;;// jwt要是这个</span><br><span class="line">        $myObj-&gt;expiry_in = &quot;&quot;;</span><br><span class="line">        $myObj-&gt;refresh_token = &quot;&quot;;</span><br><span class="line">        $myJSON = json_encode($myObj);</span><br><span class="line">        return response($myJSON);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    public function userinfo(Request $request) &#123;</span><br><span class="line">        $header_auth = \Request::header(&quot;authorization&quot;);</span><br><span class="line">        $uid = substr($header_auth, 7);</span><br><span class="line">        if (!$uid) &#123;</span><br><span class="line">            return response()-&gt;json([&quot;msg&quot; =&gt; &quot;&quot;]);</span><br><span class="line">        &#125;</span><br><span class="line">        // 根据uid获取用户</span><br><span class="line">        $query = new LeanQuery(&quot;_User&quot;);</span><br><span class="line">        $data = $query-&gt;get($uid);</span><br><span class="line">        $nickName = $data-&gt;get(&quot;nickName&quot;);</span><br><span class="line">        $email = $data-&gt;get(&quot;username&quot;) . &quot;@test&quot;;// 需要是电子邮箱格式</span><br><span class="line">        return response()-&gt;json([&quot;email&quot; =&gt; $email, &quot;name&quot; =&gt; $nickName]);</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><strong>步骤3：调试和验证</strong></p>
+<p>首先访问<a target="_blank" rel="noopener" href="http://xxx.com:3000/login%E8%A6%81%E8%83%BD%E7%9C%8B%E5%88%B0%E7%99%BB%E5%BD%95%E9%A1%B5%E9%9D%A2%E7%9A%84oauth%E5%85%A5%E5%8F%A3%EF%BC%8C%E8%AF%81%E6%98%8E%E9%85%8D%E7%BD%AE%E7%94%9F%E6%95%88%E4%BA%86">http://xxx.com:3000/login要能看到登录页面的oauth入口，证明配置生效了</a></p>
+<p><img src="/images/1713518074-c5949ad00b336161732bbe79fa50e578.png"></p>
+<p>    点击按钮后,会请求：<a target="_blank" rel="noopener" href="http://xxx.com:3000/login/generic/_oauth%E3%80%82%E6%88%91%E4%BB%AC%E9%9C%80%E8%A6%81%E5%BC%80%E5%8F%91%E6%8F%90%E4%BE%9B%E7%9A%84%E4%B8%89%E4%B8%AAoauth%E6%8E%A5%E5%8F%A3%EF%BC%8C%E9%83%BD%E6%98%AF%E5%9C%A8login/generic/_oauth%E9%87%8C%E9%9D%A2%E9%9D%99%E9%BB%98%E8%B0%83%E7%94%A8%E7%9A%84%E3%80%82">http://xxx.com:3000/login/generic\_oauth。我们需要开发提供的三个oauth接口，都是在login/generic\_oauth里面静默调用的。</a></p>
+<p>    先请求第一个auth_url接口获取code。然后拿code请求第二个token_url接口，获取token。然后把token放到header中请求第三个api_url接口。然后根据第三个接口返回的email和name自动注册登录。</p>
+<p>    调试过程中如果接口有问题，grafana会把接口的返回值比如报错，都打印到日志中，查看日志中的信息即可。</p>
+<hr>
+<p>    oauth自动登录开发好之后，可以调用grafana的api开发权限管理：让指定的team拥有dashboard的查看权限，让用户属于某些team。api参考文档：<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/http/_api/dashboard/_permissions/">https://grafana.com/docs/grafana/latest/http\_api/dashboard\_permissions/</a></p>
+<p>    至此，你的grafana就可以和现有项目无缝衔接，使用更加方便。  </p>
+<p>    本文的部分内容来自mediam，查看原文：</p>
+<p><a target="_blank" rel="noopener" href="https://medium.com/@manivannan/_data/grafana-generic-oauth-login-authentication-c31a1ce56a45">https://medium.com/@manivannan\_data/grafana-generic-oauth-login-authentication-c31a1ce56a45</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/19/grafana%E5%A6%82%E4%BD%95%E7%94%A8oauth%E5%AE%9E%E7%8E%B0%E7%AC%AC%E4%B8%89%E6%96%B9%E6%8E%88%E6%9D%83%E7%99%BB%E5%BD%95/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/04/19/Linux%E6%9F%A5%E7%9C%8B%E6%88%96%E7%BB%9F%E8%AE%A1%E7%BD%91%E5%8D%A1%E6%B5%81%E9%87%8F%E7%9A%84%E5%87%A0%E7%A7%8D%E6%96%B9%E5%BC%8F/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Linux查看或统计网卡流量的几种方式</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
