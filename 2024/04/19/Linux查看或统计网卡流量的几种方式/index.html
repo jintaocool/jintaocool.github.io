@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Linux查看或统计网卡流量的几种方式 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Linux-Linux查看或统计网卡流量的几种方式"
+  class="article article-type-Linux"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Linux查看或统计网卡流量的几种方式
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/04/19/Linux%E6%9F%A5%E7%9C%8B%E6%88%96%E7%BB%9F%E8%AE%A1%E7%BD%91%E5%8D%A1%E6%B5%81%E9%87%8F%E7%9A%84%E5%87%A0%E7%A7%8D%E6%96%B9%E5%BC%8F/" class="article-date">
+  <time datetime="2024-04-19T07:28:53.000Z" itemprop="datePublished">2024-04-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Linux/">Linux</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>在工作中，我们经常需要查看服务器的实时网卡流量。通常，我们会通过这几种方式查看Linux服务器的实时网卡流量。</p>
+<p><strong>目录</strong></p>
+<p>1、sar</p>
+<p>2、 &#x2F;proc&#x2F;net&#x2F;dev</p>
+<p>3、ifstat</p>
+<p>4、iftop</p>
+<p>5、nload </p>
+<p> 6、iptraf-ng</p>
+<p>7、nethogs</p>
+<p>8、扩展</p>
+<hr>
+<h2 id="1、sar"><a href="#1、sar" class="headerlink" title="1、sar"></a>1、sar</h2><p>sar命令包含在sysstat工具包中，提供了基于网络接口的数据统计，也可以查看设备上每秒收发包的个数和流量。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sar -n DEV 1 2</span><br></pre></td></tr></table></figure>
+
+<p>上面命令的含义是：向网卡(默认eth0)每秒读取1次值，共读取2次，然后显示出来：</p>
+<p><img src="/images/1713511669-8279280cb4e52335a7cf6d2bd7f5e625.png" alt="Linux 查看或统计网卡流量的几种方式(图1)" title="Linux 查看或统计网卡流量的几种方式(图1)"></p>
+<p>详细使用教程参考博客：《sar — Linux 上最为全面的系统性能分析工具之一》</p>
+<h2 id="2、cat-proc-net-dev"><a href="#2、cat-proc-net-dev" class="headerlink" title="2、cat &#x2F;proc&#x2F;net&#x2F;dev"></a>2、cat <strong>&#x2F;proc&#x2F;net&#x2F;dev</strong></h2><p>Linux 内核提供了一种通过 &#x2F;proc 文件系统，在运行时访问内核内部数据结构、改变内核设置的机制。proc文件系统是一个伪文件系统，它只存在内存当中，而不占用外存空间。它以文件系统的方式为访问系统内核数据的操作提供接口。用户和应用程序可以通过proc得到系统的信息，并可以改变内核的某些参数。由于系统的信息，如进程，是动态改变的，所以用户或应用程序读取proc文件时，proc文件系统是动态从系统内核读出所需信息并提交的。</p>
+<p>&#x2F;proc文件系统中包含了很多目录，其中&#x2F;proc&#x2F;net&#x2F;dev就是提供给用户读取或更改网络适配器及统计信息的途径。</p>
+<p><strong>注意：因为proc是伪文件系统，只存在内存中，所以这里统计的数据的时间起止时间是：系统启动到命令执行，如果此时系统发生重启，数据将会清零。</strong></p>
+<p><img src="/images/1713511669-07568bd46c34487c5b1350f0bce2704b.png" alt="Linux 查看或统计网卡流量的几种方式(图2)" title="Linux 查看或统计网卡流量的几种方式(图2)"></p>
+<blockquote>
+<p> <strong>参数说明：</strong></p>
+<ul>
+<li><p>bytes: 接口发送或接收的数据的总字节数</p>
+</li>
+<li><p>packets: 接口发送或接收的数据包总数</p>
+</li>
+<li><p>errs: 由设备驱动程序检测到的发送或接收错误的总数</p>
+</li>
+<li><p>drop: 设备驱动程序丢弃的数据包总数</p>
+</li>
+<li><p>fifo: FIFO缓冲区错误的数量</p>
+</li>
+<li><p>frame: 分组帧错误的数量</p>
+</li>
+<li><p>colls: 接口上检测到的冲突数</p>
+</li>
+<li><p>compressed: 设备驱动程序发送或接收的压缩数据包数</p>
+</li>
+<li><p>carrier: 由设备驱动程序检测到的载波损耗的数量</p>
+</li>
+<li><p>multicast: 设备驱动程序发送或接收的多播帧数</p>
+</li>
+</ul>
+</blockquote>
+<p>其实，我们平时经常用的很多查看网卡实时流量的命令，都是通过读取该目录下的实时流量，并通过简单计算得到的。</p>
+<h2 id="3、ifstat"><a href="#3、ifstat" class="headerlink" title="3、ifstat"></a>3、ifstat</h2><p>ifstat是一个统计网络接口活动状态的工具。</p>
+<p><strong>（1）安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get updatesudo apt-get install ifstat</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）命令选项</strong></p>
+<blockquote>
+<ul>
+<li><p><strong>-l 监测环路网络接口（lo）。缺省情况下，ifstat监测活动的所有非环路网络接口。经使用发现，加上-l参数能监测所有的网络接口的信息，而不是只监测 lo的接口信息，也就是说，加上-l参数比不加-l参数会多一个lo接口的状态信息。</strong></p>
+</li>
+<li><p><strong>-a 监测能检测到的所有网络接口的状态信息。使用发现，比加上-l参数还多一个plip0的接口信息，搜索一下发现这是并口（网络设备中有一 个叫PLIP (Parallel Line Internet Protocol). 它提供了并口…）</strong></p>
+</li>
+<li><p><strong>-z 隐藏流量是无的接口，例如那些接口虽然启动了但是未用的</strong></p>
+</li>
+<li><p><strong>-i 指定要监测的接口,后面跟网络接口名</strong></p>
+</li>
+<li><p><strong>-s 等于加-d snmp:[comm@][#]host[&#x2F;nn]] 参数，通过SNMP查询一个远程主机</strong></p>
+</li>
+<li><p><strong>-h 显示简短的帮助信息</strong></p>
+</li>
+<li><p><strong>-n 关闭显示周期性出现的头部信息（也就是说，不加-n参数运行ifstat时最顶部会出现网络接口的名称，当一屏显示不下时，会再一次出现接口的名称，提示我们显示的流量信息具体是哪个网络接口的。加上-n参数把周期性的显示接口名称关闭，只显示一次）</strong></p>
+</li>
+<li><p><strong>-t 在每一行的开头加一个时间 戳（能告诉我们具体的时间）</strong></p>
+</li>
+<li><p><strong>-T 报告所有监测接口的全部带宽（最后一列有个total，显示所有的接口的in流量和所有接口的out流量，简单的把所有接口的in流量相加,out流量相 加）</strong></p>
+</li>
+<li><p><strong>-w  用指定的列宽，而不是为了适应接口名称的长度而去自动放大列宽</strong></p>
+</li>
+<li><p><strong>-W 如果内容比终端窗口的宽度还要宽就自动换行</strong></p>
+</li>
+<li><p><strong>-S 在同一行保持状态更新（不滚动不换行）注：如果不喜欢屏幕滚动则此项非常方便，与bmon的显示方式类似</strong></p>
+</li>
+<li><p><strong>-b 用kbits&#x2F;s显示带宽而不是kbytes&#x2F;s</strong></p>
+</li>
+<li><p><strong>-q 安静模式，警告信息不出现</strong></p>
+</li>
+<li><p><strong>-v 显示版本信息</strong></p>
+</li>
+<li><p><strong>-d 指定一个驱动来收集状态信息</strong></p>
+</li>
+</ul>
+</blockquote>
+<p><strong>（3）使用示例：</strong></p>
+<p><strong>ifstat -tT</strong> </p>
+<p><img src="/images/1713511669-f1a5d0dc7e2831e0322863ff51ded7f0.png" alt="Linux 查看或统计网卡流量的几种方式(图3)" title="Linux 查看或统计网卡流量的几种方式(图3)"></p>
+<blockquote>
+<p><strong>参数说明：</strong> </p>
+<ul>
+<li><p>in:网卡接收的总字节数</p>
+</li>
+<li><p>out:网卡发送的总字节数</p>
+</li>
+</ul>
+</blockquote>
+<h2 id="4、iftop"><a href="#4、iftop" class="headerlink" title="4、iftop"></a>4、<strong>iftop</strong></h2><p>iftop是一款实时流量监控工具,监控TCP&#x2F;IP连接等,缺点就是无报表功能。必须以root身份才能运行。</p>
+<p><strong>（1）安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get updatesudo apt-get install iftop</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）命令选项</strong></p>
+<blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">iftop -h | [-npblNBP] [-i interface] [-f filter code]</span><br><span class="line">                               [-F net/mask] [-G net6/mask6]</span><br></pre></td></tr></table></figure>
+</blockquote>
+<blockquote>
+<p><strong>详细参数说明：</strong></p>
+<ul>
+<li><p>-i ：指定需要监测的网卡</p>
+</li>
+<li><p>-n：将输出的主机信息都通过IP显示，不进行DNS反向解析</p>
+</li>
+<li><p>-B：将输出以bytes为单位显示网卡流量，默认是bits</p>
+</li>
+<li><p>-p：以混杂模式运行iftop，此时iftop可以作为网络嗅探器使用</p>
+</li>
+<li><p>-N：只显示连接端口号，不显示端口对应的服务名称</p>
+</li>
+<li><p>-P：显示主机以及端口信息，这个参数非常有用</p>
+</li>
+<li><p>-F：显示特定网段的网卡进出流量，例如：iftop –F 192.168.12.0&#x2F;24</p>
+</li>
+<li><p>-m：设置iftop输出界面中最上面的流量刻度最大值，流量刻度分五个大段显示</p>
+</li>
+<li><p>-t :  使用文本方式显示结果，而非交互界面</p>
+</li>
+<li><p>-L :  指定结果显示的行数</p>
+</li>
+<li><p>-s sec:  sec秒后输出结果,然后自动退出</p>
+</li>
+</ul>
+</blockquote>
+<p> <strong>（3）使用示例：</strong></p>
+<p><strong>1、sudo iftop -i eth0 -t -s 30 -L 100</strong></p>
+<p><img src="/images/1713511669-5ca4536a0cfc09d6fa7437ca38c8285f.png" alt="Linux 查看或统计网卡流量的几种方式(图4)" title="Linux 查看或统计网卡流量的几种方式(图4)"></p>
+<p><strong>注意，如果时间较长，各ip地址的cumulative累计和可能并不等于最终的Cumulative,此时可以每40s统计一次结果，然后将结果累加。</strong></p>
+<p><strong>2、sudo iftop -i eth0</strong> </p>
+<p><img src="/images/1713511669-7cbc91c2fadd0be2f6909def6c423872.png" alt="Linux 查看或统计网卡流量的几种方式(图5)" title="Linux 查看或统计网卡流量的几种方式(图5)"></p>
+<p><strong>iftop的输出从整体上可以分为三大部分：</strong></p>
+<ol>
+<li><p>iftop输出中最上面的一行，此行信息是流量刻度，用于显示网卡带宽流量。</p>
+</li>
+<li><p>iftop输出中最大的一个部分，此部分又分为左、中、右三列，左列和中列记录了哪些IP或主机正在和本机的网络进行连接。其中，中列的“&#x3D;&gt;”代表发送数据，“&lt;&#x3D;”代表接收数据，通过这个指示箭头可以很清晰地知道两个IP之间的通信情况。最右列又分为三小列，这些实时参数分别表示外部IP连接到本机2秒内、10秒内和40秒内的平均流量值。另外，这个部分还有一个流量图形条，流量图形条是对流量大小的动态展示，以第一部分中的流量刻度为基准。通过这个流量图形条可以很方便地看出哪个IP的流量最大，进而迅速定位网络中可能出现的流量问题。</p>
+</li>
+<li><p>第三部分位于iftop输出的最下面，可以分为三行，其中，“TX”表示发送数据，“RX”表示接收数据，“TOTAL”表示发送和接收全部流量。与这三行对应的有三列，其中“cum”列表示从运行iftop到目前的发送、接收和总数据流量。“peak”列表示发送、接收以及总的流量峰值。“rates”列表示过去2s、10s、40s的平均流量值。</p>
+</li>
+</ol>
+<blockquote>
+<p><strong>在进入iftop界面后，点击以下按键可以对内容调节控制：</strong></p>
+<ul>
+<li><p>h：显示帮助开关</p>
+</li>
+<li><p>n: 显示主机名&#x2F;主机ip开关</p>
+</li>
+<li><p>s：显示本机host开关</p>
+</li>
+<li><p>d：显示远端主机host开关</p>
+</li>
+<li><p>t：切换显示格式为2行&#x2F;1行&#x2F;只显示发送流量&#x2F;只显示接收流量</p>
+</li>
+<li><p>N：显示端口号或端口服务名称开关</p>
+</li>
+<li><p>S：显示本机的端口信息开关</p>
+</li>
+<li><p>D：显示远端目标主机的端口信息开关</p>
+</li>
+<li><p>p：显示端口信息开关</p>
+</li>
+<li><p>P：切换暂停&#x2F;继续显示</p>
+</li>
+<li><p>b：显示平均流量图形条开关，以界面第一行带宽为标尺，上图中的白条状图即是</p>
+</li>
+<li><p>B：切换计算2秒或10秒或40秒内的平均流量</p>
+</li>
+<li><p>T：显示每个连接的总流量开关</p>
+</li>
+<li><p>l：打开屏幕过滤功能，输入要过滤的字符，比如ip, 按回车后，屏幕就只显示这个IP相关的流量信息</p>
+</li>
+<li><p>L：切换显示画面上边的刻度; 刻度不同，流量图形条会有变化</p>
+</li>
+<li><p>j或k：可以向上或向下滚动屏幕显示的连接记录</p>
+</li>
+<li><p>1或2或3：可以根据右侧显示的三列流量数据进行排序</p>
+</li>
+<li><p>&lt;：根据左边的本机名或IP排序</p>
+</li>
+<li><p>&gt;：根据远端目标主机的主机名或IP排序</p>
+</li>
+<li><p>o：切换是否固定只显示当前的连接</p>
+</li>
+<li><p>f：可以编辑过滤代码</p>
+</li>
+<li><p>!: 可以使用shell命令</p>
+</li>
+<li><p>q: 退出</p>
+</li>
+</ul>
+</blockquote>
+<h2 id="5、nload"><a href="#5、nload" class="headerlink" title="5、nload"></a>5、nload</h2><p>nload是一个实时监控网络流量和带宽使用的控制台应用程序，使用两个图表可视化地展示接收和发送的流量，并提供诸如数据交换总量、最小&#x2F;最大网络带宽使用量等附加信息。</p>
+<p><strong>（1）工具安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get update sudo apt-get install nload</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）命令选项</strong></p>
+<blockquote>
+<p><strong>选项说明：</strong>nload [options] [devices]</p>
+<ul>
+<li><p>-a：设置计算平均网速的时间周期，单位是秒，默认是300.</p>
+</li>
+<li><p>-i：进入网卡的流量图的显示比例最大值设置，默认10240 kBit&#x2F;s.</p>
+</li>
+<li><p>-m：不显示流量图，只显示统计数据。</p>
+</li>
+<li><p>-o：出去网卡的流量图的显示比例最大值设置，默认10240 kBit&#x2F;s.</p>
+</li>
+<li><p>-t：显示数据的刷新时间间隔，单位是毫秒，默认500。</p>
+</li>
+<li><p>-u：设置右边Curr、Avg、Min、Max的数据单位，默认是自动变的.注意大小写单位不同！</p>
+</li>
+<li><p>h|b|k|m|g h: auto, b: Bit&#x2F;s, k: kBit&#x2F;s, m: MBit&#x2F;s etc.</p>
+</li>
+<li><p>H|B|K|M|G H: auto, B: Byte&#x2F;s, K: kByte&#x2F;s, M: MByte&#x2F;s etc.</p>
+</li>
+<li><p>-U：设置右边Ttl的数据单位，默认是自动变的，注意大小写单位不同（与-u相同）！</p>
+</li>
+<li><p>Devices：自定义监控的网卡，默认是全部监控的，使用左右键切换。</p>
+</li>
+</ul>
+</blockquote>
+<p><strong>（3）使用示例</strong>：</p>
+<p><strong>nload eth0</strong> </p>
+<p><img src="/images/1713511669-ee08ceca10efec5538435dd18c69df01.png" alt="Linux 查看或统计网卡流量的几种方式(图6)" title="Linux 查看或统计网卡流量的几种方式(图6)"></p>
+<h2 id="6、iptraf-ng"><a href="#6、iptraf-ng" class="headerlink" title="6、iptraf-ng"></a>6、iptraf-ng</h2><p><strong>iptraf-ng</strong> 是观察网络流速的强力工具，它可以让你的观察逐步深入，从硬件层（网卡），到网络层（IPv4，IPv6），到传输层（TCP，UDP etc.），一直到每一对socket pair。</p>
+<p><strong>（1）工具安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get update sudo apt-get install iptraf-ng</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）命令选项</strong></p>
+<blockquote>
+<p><strong>参数说明：</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">iptraf-ng [options]:</span><br><span class="line"></span><br><span class="line">-h, --help  :show this help message</span><br><span class="line">-i   :start the IP traffic monitor (use &#x27;-i all&#x27; for all interfaces)</span><br><span class="line">-d   :start the detailed statistics facility on an interface</span><br><span class="line">-s   :start the TCP and UDP monitor on an interface</span><br><span class="line">-z   :shows the packet size counts on an interface</span><br><span class="line">-l   :start the LAN station monitor (use &#x27;-l all&#x27; for all LAN interfaces)</span><br><span class="line">-g           :start the general interface statistics</span><br><span class="line">-B           :run in background (use only with one of the above parameters</span><br><span class="line">-f           :clear all locks and counters</span><br><span class="line">-t        :run only for the specified  number of minutes</span><br><span class="line">-L  :specifies an alternate log file</span><br></pre></td></tr></table></figure>
+</blockquote>
+<p><strong>（3）使用示例</strong></p>
+<p> <strong>sudo iptraf-ng -s eth0 用于统计各port的流量 ：</strong></p>
+<p><img src="/images/1713511669-a51c7d54c1eecdcb99d53eb0627cd7da.png" alt="Linux 查看或统计网卡流量的几种方式(图7)" title="Linux 查看或统计网卡流量的几种方式(图7)"></p>
+<h2 id="7、nethogs"><a href="#7、nethogs" class="headerlink" title="7、nethogs"></a>7、nethogs</h2><p>nethogs 的设计用途主要是为了查看单独进程流量情况而被创造出来的。nethogs 是一个小型的 net top 工具，不和大多数工具那样按照每个协议或者子网的速度，而是按照进程进行带宽分组。nethogs 不需要依赖某个特殊的内核模块，如果发生了网络阻塞，你可以启动 nethogs 立即看到哪个 PID 造成的，这样就可以轻松的找到占用带宽的程序，然后进行相应的内容控制。</p>
+<p><strong>（1）工具安装</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo apt-get update sudo apt-get install nethogs</span><br></pre></td></tr></table></figure>
+
+<p><strong>（2）工具选项</strong></p>
+<blockquote>
+<p><strong>用法:</strong></p>
+<p><strong>nethogs [-V] [-h] [-b] [-d seconds] [-v mode] [-c count] [-t] [-p] [-s] [device [device [device …]]]</strong></p>
+<ul>
+<li><p>  -V : 打印版本。</p>
+</li>
+<li><p>  -h : 打印此帮助。</p>
+</li>
+<li><p>  -b : bughunt模式 - 暗示tracemode。</p>
+</li>
+<li><p>  -d : 延迟更新刷新率（以秒为单位）。默认值为1。</p>
+</li>
+<li><p>  -v : 视图模式（0 &#x3D; KB &#x2F; s，1 &#x3D;总KB，2 &#x3D;总B，3 &#x3D;总MB）。默认值为0。</p>
+</li>
+<li><p>  -c : 更新次数。默认为0（无限制）。</p>
+</li>
+<li><p>  -t : tracemode.</p>
+</li>
+<li><p>  -p : 煽动混乱模式（不推荐）。</p>
+</li>
+<li><p>  -s : 按发送列排序输出。</p>
+</li>
+<li><p>  -a : 监控所有设备，甚至环回&#x2F;停止。</p>
+</li>
+<li><p>  device : 要监控的设备。默认是所有接口启动和运行，不包括环回</p>
+</li>
+</ul>
+<p>当nethogs运行时，按：</p>
+<ul>
+<li><p>  q：退出</p>
+</li>
+<li><p>  s：按SENT流量排序</p>
+</li>
+<li><p>  r：按RECEIVE流量排序</p>
+</li>
+<li><p>  m：在总（KB，B，MB）和KB &#x2F; s模式之间切换</p>
+</li>
+</ul>
+</blockquote>
+<p><strong>（3）使用示例</strong></p>
+<p><strong>sudo nethogs eth0</strong></p>
+<p><img src="/images/1713511669-a958c249101a5327e3a8a6be45e78c88.png" alt="Linux 查看或统计网卡流量的几种方式(图8)" title="Linux 查看或统计网卡流量的几种方式(图8)"></p>
+<h2 id="8、扩展"><a href="#8、扩展" class="headerlink" title="8、扩展"></a>8、扩展</h2><p>除了上面说到的工具外，linux还提供了一些其他流量监控工具，如：</p>
+<ul>
+<li><p>ip：查看网卡上的总流量</p>
+</li>
+<li><p>stat：用来替换vmstat、iostat、netstat、nfsstat和ifstat的全能系统信息统计工具，支持数据实时刷新，输出直观易懂</p>
+</li>
+<li><p>ss 和 netstat：查看活动链接&#x2F;监听端口的常用命令。ss 是 netstat 的替代，性能更好，建议使用</p>
+</li>
+<li><p>nethogs：查看单个进程流量而设计的工具，按照进程进行带宽分组</p>
+</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/04/19/Linux%E6%9F%A5%E7%9C%8B%E6%88%96%E7%BB%9F%E8%AE%A1%E7%BD%91%E5%8D%A1%E6%B5%81%E9%87%8F%E7%9A%84%E5%87%A0%E7%A7%8D%E6%96%B9%E5%BC%8F/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/04/19/Linux%E7%BD%91%E5%8D%A1%E6%B5%81%E9%87%8F%E7%9B%91%E6%8E%A7shell%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Linux网卡流量监控shell脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
