@@ -16198,4 +16198,38 @@ plugin_admin_external_manage_enabled = true
         <tag>Prometheus</tag>
       </tags>
   </entry>
+  <entry>
+    <title>shell脚本加密</title>
+    <url>/2024/04/29/shell%E8%84%9A%E6%9C%AC%E5%8A%A0%E5%AF%86/</url>
+    <content><![CDATA[<h2 id="需求："><a href="#需求：" class="headerlink" title="需求："></a>需求：</h2><p>公司的服务器登录都是通过jumpserver堡垒机管理的，由于实在不喜欢web终端的操作，于是就写了个自动登录的shell脚本，由于脚本要公开给部分研发人员使用，但是脚本中包含了服务器的普通用户和root用户的密码，所以为了不使密码泄露要将脚本内容加密；</p>
+<h3 id="示例脚本："><a href="#示例脚本：" class="headerlink" title="示例脚本："></a>示例脚本：</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">#!/bin/bash</span><br><span class="line">for i in &#123;1..10&#125;</span><br><span class="line">do</span><br><span class="line">    echo $i</span><br><span class="line">done</span><br></pre></td></tr></table></figure>
+
+<h2 id="一、gzexe加密"><a href="#一、gzexe加密" class="headerlink" title="一、gzexe加密"></a>一、gzexe加密</h2><p>gzexe命令比较简单，其本质就是一个压缩软件，在CentOS 7.7上是自带的，其他版本不清楚；</p>
+<h3 id="1、加密"><a href="#1、加密" class="headerlink" title="1、加密"></a>1、加密</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[root@message test]# gzexe test.sh</span><br><span class="line">test.sh:	  2.0%</span><br><span class="line">[root@message test]# ls</span><br><span class="line">test.sh  test.sh~</span><br></pre></td></tr></table></figure>
+
+<p>执行完成后，会在当前目录生成一个备份文件test.sh~，该文件的内容是原始明文文件的内容，是可以删除的；test.sh文件就是加密压缩后的文件，用cat查看时就是一堆乱码，但是该加密脚本是可以执行的；</p>
+<h3 id="2、解密"><a href="#2、解密" class="headerlink" title="2、解密"></a>2、解密</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[root@message test]# gzexe -d test.sh</span><br><span class="line">[root@message test]# ls</span><br><span class="line">test.sh  test.sh~</span><br></pre></td></tr></table></figure>
+
+<p>执行完解密操作后，test.sh这个原来的加密文件就变成明文了；而test.sh~这个文件就是原先加密文件的备份，是加密的；</p>
+<h2 id="二、shc加密"><a href="#二、shc加密" class="headerlink" title="二、shc加密"></a>二、shc加密</h2><p>shc是一个专业的加密工具，它可以将shell脚本转换为一个可执行的二进制文件；<br>官网地址：<a href="http://www.datsi.fi.upm.es/~frosal/sources/">http://www.datsi.fi.upm.es/~frosal/sources/</a> #目前官网已经断更了<br>软件地址：<a href="http://www.datsi.fi.upm.es/~frosal/sources/shc-3.8.9.tgz">http://www.datsi.fi.upm.es/~frosal/sources/shc-3.8.9.tgz</a>  </p>
+<h3 id="1、安装"><a href="#1、安装" class="headerlink" title="1、安装"></a>1、安装</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">wget http://www.datsi.fi.upm.es/~frosal/sources/shc-3.8.9.tgz</span><br><span class="line">tar xvf shc-3.8.9.tgz -C /usr/local/</span><br><span class="line">cd /usr/local/shc-3.8.9</span><br><span class="line">mkdir -p /usr/local/man/man1    # 该步骤不能省略，make install的时候会报错</span><br><span class="line"></span><br><span class="line">[root@message shc-3.8.9]# make install</span><br><span class="line">***	Installing shc and shc.1 on /usr/local</span><br><span class="line">***	¿Do you want to continue? y    #是否继续，输入y即可</span><br><span class="line">install -c -s shc /usr/local/bin/</span><br><span class="line">install -c -m 644 shc.1 /usr/local/man/man1/</span><br><span class="line">[root@message shc-3.8.9]# which shc  #能看到环境变量则安装成功</span><br><span class="line">/usr/local/bin/shc</span><br></pre></td></tr></table></figure>
+
+<h3 id="2、加密"><a href="#2、加密" class="headerlink" title="2、加密"></a>2、加密</h3><figure class="highlight plaintext"><table><tr><td class="code"><pre><span class="line">[root@message test]# shc -r -f test.sh</span><br><span class="line">[root@message test]# ls</span><br><span class="line">test.sh  test.sh.x  test.sh.x.c</span><br><span class="line">[root@message test]# cat test.sh</span><br><span class="line">#!/bin/bash</span><br><span class="line">for i in &#123;1..10&#125;</span><br><span class="line">do</span><br><span class="line">    echo $i</span><br><span class="line">done</span><br><span class="line">[root@message test]# bash test.sh.x</span><br><span class="line">test.sh.x: test.sh.x: 无法执行二进制文件</span><br><span class="line">[root@message test]# ./test.sh.x</span><br><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>test.sh 原始文件</li>
+<li>test.sh.x 二进制可执行文件，用cat查看会是一堆乱码</li>
+<li>test.sh.x.c 生成的C源码，可以删除</li>
+<li>-r 制作可执行的二进制文件</li>
+<li>-f 要编译的脚本的文件名</li>
+</ul>
+<h2 id="三、总结"><a href="#三、总结" class="headerlink" title="三、总结"></a>三、总结</h2><p>gzexe和shc相比来看，gzexe不需要安装，操作也方便，但是安全性较差，懂行的人直接就解压了；shc相对来说还需要安装，目前官网也不再更新，但是安全性较高，破译难度较大；</p>
+]]></content>
+      <categories>
+        <category>Shell</category>
+      </categories>
+      <tags>
+        <tag>Shell</tag>
+      </tags>
+  </entry>
 </search>
