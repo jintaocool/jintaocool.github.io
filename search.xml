@@ -16624,4 +16624,28 @@ plugin_admin_external_manage_enabled = true
         <tag>Zabbix</tag>
       </tags>
   </entry>
+  <entry>
+    <title>SQL密码加密查询</title>
+    <url>/2024/05/28/SQL%E5%AF%86%E7%A0%81%E5%8A%A0%E5%AF%86%E6%9F%A5%E8%AF%A2/</url>
+    <content><![CDATA[<ul>
+<li>查询明文密码</li>
+</ul>
+<p><code>SELECT server_ip,server_port,monitor_user,AES_DECRYPT(monitor_passwd,&#39;fast&#39;) monitor_passwd,exporter_port,symbol,id,server_type,instance_name FROM exporter WHERE exporter_ip = &#39;%s&#39;&quot; %(exporter_ip)</code></p>
+<ul>
+<li>更新密码</li>
+</ul>
+<p><code>update exporter.exporter set monitor_passwd = AES_ENCRYPT(&#39;T00LbOOk!GUI&#39;,&#39;fast&#39;) where server_ip=&#39;10.250.10.11&#39;</code></p>
+<ul>
+<li>插入密码</li>
+</ul>
+<p>&#96;insert into exporter(server_type,server_ip,server_port,app_name,monitor_user,monitor_passwd,exporter_ip,exporter_port,symbol,server_level,dept,status,cmdb_id,area,supplier,application_id,application_usercode,cmdb_idnew) values(‘%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’,’%s’)” %(‘mysql’,i_mysql_insert[“ip”],str(i_mysql_insert[“port”]),i_mysql_insert[“app”],’bmc’,AES_ENCRYPT(‘46}_7e71D2’,’fast’),’10.250.5.9’,str(max_port),v_mysql_symbol,str(i_mysql_insert[“level”]),i_mysql_insert[“dept”],i_mysql_insert[“status”],str(i_mysql_insert[“id”]),’青岛’,i_mysql_insert[“team”],i_mysql_insert[“application_id”],i_mysql_insert[“application_usercode”],i_mysql_insert[“cmdb_idnew)</p>
+<p>AES_ENCRYPT(‘46}_7e71D2’,’fast’)&#96;</p>
+]]></content>
+      <categories>
+        <category>SQL</category>
+      </categories>
+      <tags>
+        <tag>SQL</tag>
+      </tags>
+  </entry>
 </search>
