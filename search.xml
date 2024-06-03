@@ -16750,4 +16750,330 @@ plugin_admin_external_manage_enabled = true
         <tag>Zabbix</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Elasticsearch 索引模板、生命周期策略、节点角色介绍</title>
+    <url>/2024/06/03/Elasticsearch-%E7%B4%A2%E5%BC%95%E6%A8%A1%E6%9D%BF%E3%80%81%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F%E7%AD%96%E7%95%A5%E3%80%81%E8%8A%82%E7%82%B9%E8%A7%92%E8%89%B2%E4%BB%8B%E7%BB%8D/</url>
+    <content><![CDATA[<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a><a href="#%E7%AE%80%E4%BB%8B"></a><a href="#%E7%AE%80%E4%BB%8B" title="简介"></a>简介</h1><ul>
+<li><p>索引模板可以帮助简化创建和二次配置索引的过程，让我们更高效地管理索引的配置和映射。</p>
+</li>
+<li><p>索引生命周期策略是一项有意义的功能。它通常用于管理索引和分片的热（hot）、温（warm）和冷（cold）数据，以及定期删除过期的数据，以确保Elasticsearch的健康运行。</p>
+</li>
+<li><p>Elasticsearch集群中，不同节点扮演着不同的角色（热（hot）、温（warm）和冷（cold）主节点），共同构成了强大的搜索和分析引擎。</p>
+</li>
+</ul>
+<p>此文档基于 8.0版本编写。</p>
+<h1 id="索引模板-Template"><a href="#索引模板-Template" class="headerlink" title="索引模板 - Template"></a><a href="#%E7%B4%A2%E5%BC%95%E6%A8%A1%E6%9D%BF-Template"></a><a href="#%E7%B4%A2%E5%BC%95%E6%A8%A1%E6%9D%BF-Template" title="索引模板 - Template"></a>索引模板 - Template</h1><p>索引可使用预定义的模板进行创建，这个模板称作Index templates。模板设置包括设置和映射，通过模式匹配的方式使得多个索引重用一个模板。</p>
+<h2 id="索引模式"><a href="#索引模式" class="headerlink" title="索引模式"></a><a href="#%E7%B4%A2%E5%BC%95%E6%A8%A1%E5%BC%8F"></a><a href="#%E7%B4%A2%E5%BC%95%E6%A8%A1%E5%BC%8F" title="索引模式"></a>索引模式</h2><p>用于匹配创建的索引。</p>
+<h2 id="索引设置"><a href="#索引设置" class="headerlink" title="索引设置"></a><a href="#%E7%B4%A2%E5%BC%95%E8%AE%BE%E7%BD%AE"></a><a href="#%E7%B4%A2%E5%BC%95%E8%AE%BE%E7%BD%AE" title="索引设置"></a>索引设置</h2><p>settings主要作用于index的一些相关配置信息，如分片数、副本数，tranlog同步条件、refresh等。</p>
+<p><a href="https://www.elastic.co/guide/en/elasticsearch/reference/8.12/index-modules.html#index-modules-settings" title="官方文档">官方文档</a></p>
+<p>下面就是把副本数量指定为2，默认副本数量为1。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;</code></td>
+<td><code>text&lt;br&gt;&#123;&lt;br&gt;  &quot;index&quot;: &#123;&lt;br&gt;    &quot;number_of_replicas&quot;: &quot;2&quot;&lt;br&gt;  &#125;&lt;br&gt;&#125;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<ul>
+<li><p>index.codec 默认使用 LZ4 压缩存储的数 压缩，但可以将其设置为使用 DEFLATE 进行更高的压缩比，以较慢的存储字段性能为代价。</p>
+</li>
+<li><p>index.number_of_replicas 每个主分片的副本数。默认值为 1。</p>
+</li>
+<li><p>index.number_of_shards 索引应具有的主分片数。默认值为1 。此设置只能在创建索引时设置。不能在索引上的更改它。</p>
+</li>
+</ul>
+<h2 id="索引映射"><a href="#索引映射" class="headerlink" title="索引映射"></a><a href="#%E7%B4%A2%E5%BC%95%E6%98%A0%E5%B0%84"></a><a href="#%E7%B4%A2%E5%BC%95%E6%98%A0%E5%B0%84" title="索引映射"></a>索引映射</h2><p>mappings主要是一些说明信息，大致又分为_all、_source、prpperties这三部分：</p>
+<ol>
+<li><p>_all：主要指的是AllField字段，我们可以将一个或多个都包含进来，在进行检索时无需指定字段的情况下检索多个字段。设置</p>
+</li>
+<li><p>_source：主要指的是SourceField字段，Source可以理解为ES除了将数据保存在索引文件中，另外还有一份源数据。_source字段在我们进行检索时相当重要，如果在{“enabled” ： false}情况下默认检索只会返回ID， 你需要通过Fields字段去到索引中去取数据，效率不是很高。但是enabled设置为true时，索引会比较大，这时可以通过Compress进行压缩和inclueds、excludes来在字段级别上进行一些限制，自定义哪些字段允许存储。</p>
+</li>
+<li><p>properties：这是最重要的步骤，主要针对索引结构和字段级别上的一些设置。”_all” : {“enabled” : true}</p>
+</li>
+</ol>
+<p>咱们通常在elasticsearch中 post mapping信息，每重新创建索引便到设置mapping，分片，副本信息。非常繁琐。强烈建议大家通过设置模板方式设置索引信息。设置索引名，通过正则匹配的方式匹配到相应的模板。</p>
+<p>直接修改mapping的优先级&gt;索引模板。索引匹配了多个模板，当属性等配置出现不一致的，以order的最大值为准，order默认值为0</p>
+<h2 id="创建过程-Kibana"><a href="#创建过程-Kibana" class="headerlink" title="创建过程 - Kibana"></a><a href="#%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B-Kibana"></a><a href="#%E5%88%9B%E5%BB%BA%E8%BF%87%E7%A8%8B-Kibana" title="创建过程 - Kibana"></a>创建过程 - Kibana</h2><p>选择 Stack Management &gt; 数据 &gt; 索引管理 &gt; 索引模板 &gt; 创建模板</p>
+<p><a href="https://img.songxwn.com/file/df86ebe1a243672dc5ca6.png"><img src="/images/1717394732-bddbb09a1eebc2084f4d0aa08f5821a1.png"></a></p>
+<h3 id="配置名称和索引模式"><a href="#配置名称和索引模式" class="headerlink" title="配置名称和索引模式"></a><a href="#%E9%85%8D%E7%BD%AE%E5%90%8D%E7%A7%B0%E5%92%8C%E7%B4%A2%E5%BC%95%E6%A8%A1%E5%BC%8F"></a><a href="#%E9%85%8D%E7%BD%AE%E5%90%8D%E7%A7%B0%E5%92%8C%E7%B4%A2%E5%BC%95%E6%A8%A1%E5%BC%8F" title="配置名称和索引模式"></a>配置名称和索引模式</h3><p>填写名称、和索引模式和开启允许自动创建索引。点击下一步，跳过组件模板。</p>
+<p>注意索引模式需要匹配要创建的索引名称。</p>
+<p><a href="https://img.songxwn.com/file/0a7a7adaf0d968b9eeabf.png"><img src="/images/1717394732-9be93c9f9f07f6e0af35d71c07a9d938.png"></a></p>
+<h3 id="索引设置-1"><a href="#索引设置-1" class="headerlink" title="索引设置"></a><a href="#%E7%B4%A2%E5%BC%95%E8%AE%BE%E7%BD%AE-x20"></a><a href="#%E7%B4%A2%E5%BC%95%E8%AE%BE%E7%BD%AE-x20" title="索引设置 "></a>索引设置</h3><p>配置副本数量为2，点击下一步到复查模板。最后点击创建模板。</p>
+<p><a href="https://img.songxwn.com/file/417de2d87940eb07cb565.png"><img src="/images/1717394732-761a9a15caaaebd28ffdf2ce137f571c.png"></a></p>
+<p>最终索引模式匹配的创建模板，都会套用模板配置。</p>
+<p><a href="https://img.songxwn.com/file/8cf2c4731e542253669ed.png"><img src="/images/1717394732-4cc8b1d1e9b4071e6a3d42b67e5befe7.png"></a></p>
+<h1 id="索引生命周期"><a href="#索引生命周期" class="headerlink" title="索引生命周期"></a><a href="#%E7%B4%A2%E5%BC%95%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F"></a><a href="#%E7%B4%A2%E5%BC%95%E7%94%9F%E5%91%BD%E5%91%A8%E6%9C%9F" title="索引生命周期"></a>索引生命周期</h1><p>索引生命周期可以手动关联模板，也可以通过索引模板自动关联。</p>
+<p><a href="https://img.songxwn.com/file/f8f5a5294bd7704b68c1d.png"><img src="/images/1717394732-782c8b2ce2071559927c9a14d57bafe0.png"></a></p>
+<h2 id="创建"><a href="#创建" class="headerlink" title="创建"></a><a href="#%E5%88%9B%E5%BB%BA"></a><a href="#%E5%88%9B%E5%BB%BA" title="创建"></a>创建</h2><p>选择 Stack Management &gt; 数据 &gt; 索引管理 &gt; 索引生命周期策略 &gt; 点击创建策略。</p>
+<p>创建策略，配置热阶段 180天后转换为冷阶段，并把副本数量改为0。再过365天后删除。</p>
+<p><a href="https://img.songxwn.com/file/aa8baf0c6ddd2c25031f3.png"><img src="/images/1717394732-ba1de3551fb01bcda8a849e915363159.png"></a></p>
+<h3 id="冷阶段配置"><a href="#冷阶段配置" class="headerlink" title="冷阶段配置"></a><a href="#%E5%86%B7%E9%98%B6%E6%AE%B5%E9%85%8D%E7%BD%AE"></a><a href="#%E5%86%B7%E9%98%B6%E6%AE%B5%E9%85%8D%E7%BD%AE" title="冷阶段配置"></a>冷阶段配置</h3><p>配置副本分片重定为0，并配置此阶段后删除。</p>
+<p><a href="https://img.songxwn.com/file/97d95f926ba9698744667.png"><img src="/images/1717394732-8a581bcd8698a291c831e0ed41159850.png"></a></p>
+<h3 id="删除阶段"><a href="#删除阶段" class="headerlink" title="删除阶段"></a><a href="#%E5%88%A0%E9%99%A4%E9%98%B6%E6%AE%B5"></a><a href="#%E5%88%A0%E9%99%A4%E9%98%B6%E6%AE%B5" title="删除阶段"></a>删除阶段</h3><p>配置冷阶段365天后删除索引。</p>
+<p><a href="https://img.songxwn.com/file/c22c0d1abe8903fc6b9ee.png"><img src="/images/1717394732-f294d843cb5256b9d8d1ada30fbcd10a.png"></a></p>
+<h2 id="关联索引模板"><a href="#关联索引模板" class="headerlink" title="关联索引模板"></a><a href="#%E5%85%B3%E8%81%94%E7%B4%A2%E5%BC%95%E6%A8%A1%E6%9D%BF"></a><a href="#%E5%85%B3%E8%81%94%E7%B4%A2%E5%BC%95%E6%A8%A1%E6%9D%BF" title="关联索引模板"></a>关联索引模板</h2><p>点击+号关联索引模板，之后创建的索引就会自动关联索引生命周期策略。</p>
+<p><a href="https://img.songxwn.com/file/6dc5988f2e6e7ef9aa8e9.png"><img src="/images/1717394732-4853400a2c05838fb5475696c8c6a31e.png"></a></p>
+<p><a href="https://img.songxwn.com/file/17f9ab659b0ea591884b1.png"><img src="/images/1717394732-badd33ed924c2c471b16d7768b203168.png"></a></p>
+<h1 id="集群角色"><a href="#集群角色" class="headerlink" title="集群角色"></a><a href="#%E9%9B%86%E7%BE%A4%E8%A7%92%E8%89%B2"></a><a href="#%E9%9B%86%E7%BE%A4%E8%A7%92%E8%89%B2" title="集群角色"></a>集群角色</h1><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>text&lt;br&gt;node.roles: [ data, master ]&lt;br&gt;# 配置文件示例&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p><a href="https://img.songxwn.com/file/afa9e2e04080b21ac4595.png"><img src="/images/1717394732-231768cbe3cf5f7a962101df488306c9.png"></a></p>
+<h2 id="主节点（Master-eligible-node）"><a href="#主节点（Master-eligible-node）" class="headerlink" title="主节点（Master-eligible node）"></a><a href="#%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Master-eligible-node%EF%BC%89"></a><a href="#%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Master-eligible-node%EF%BC%89" title="主节点（Master-eligible node）"></a><strong>主节点（Master-eligible node</strong>）</h2><ul>
+<li><p>主节点的核心用途：集群层面的管理，例如创建或删除索引、跟踪哪些节点是集群的一部分，以及决定将哪些分片分配给哪些节点。主节点的path.data 用于存储集群元数据信息，不可缺少。</p>
+</li>
+<li><p>主节点的重要性：拥有稳定的主节点对于集群健康非常重要。</p>
+</li>
+</ul>
+<p>和早期版本不同，节点角色划分后，主节点又被细分为：候选主节点和仅投票主节点。</p>
+<ul>
+<li>主节点存储数据：集群中每个索引的索引元数据，集群层面的元数据。</li>
+</ul>
+<h3 id="专用候选主节点（Dedicated-master-eligible-node）"><a href="#专用候选主节点（Dedicated-master-eligible-node）" class="headerlink" title="专用候选主节点（Dedicated master-eligible node）"></a><a href="#%E4%B8%93%E7%94%A8%E5%80%99%E9%80%89%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Dedicated-master-eligible-node%EF%BC%89"></a><a href="#%E4%B8%93%E7%94%A8%E5%80%99%E9%80%89%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Dedicated-master-eligible-node%EF%BC%89" title="专用候选主节点（Dedicated master-eligible node）"></a><strong>专用候选主节点（Dedicated master-eligible node</strong>）</h3><p>如果集群规模大、节点多之后，有必要独立设置专用候选主节点。</p>
+<p>专用候选主节点配置：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ master ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="仅投票主节点（Voting-only-master-eligible-node）"><a href="#仅投票主节点（Voting-only-master-eligible-node）" class="headerlink" title="仅投票主节点（Voting-only master-eligible node）"></a><a href="#%E4%BB%85%E6%8A%95%E7%A5%A8%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Voting-only-master-eligible-node%EF%BC%89"></a><a href="#%E4%BB%85%E6%8A%95%E7%A5%A8%E4%B8%BB%E8%8A%82%E7%82%B9%EF%BC%88Voting-only-master-eligible-node%EF%BC%89" title="仅投票主节点（Voting-only master-eligible node）"></a><strong>仅投票主节点（Voting-only master-eligible node</strong>）</h3><p>用途：仅投票，不会被选为主节点。</p>
+<p>硬件配置可以较专用候选主节点低一些。</p>
+<p>仅投票主节点配置：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ master, voting_only ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>注意：master 在集群中必不可少。</p>
+<p>关于集群主节点配置，要强调说明如下：</p>
+<ul>
+<li><p>高可用性 (HA) 集群需要至少三个符合主节点资格的节点；其中至少两个不是仅投票节点。</p>
+</li>
+<li><p>即使其中一个节点发生故障，这样的集群也将能够选举一个主节点。</p>
+</li>
+</ul>
+<h2 id="数据节点（Data-node）"><a href="#数据节点（Data-node）" class="headerlink" title="数据节点（Data node）"></a><a href="#%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9%EF%BC%88Data-node%EF%BC%89"></a><a href="#%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9%EF%BC%88Data-node%EF%BC%89" title="数据节点（Data node）"></a><strong>数据节点（Data node</strong>）</h2><p>数据节点用途：数据落地存储、数据增、删、改、查、搜索、聚合操作等处理操作。</p>
+<p>数据节点硬件配置：CPU 要求高、内存要求高、磁盘要求高。</p>
+<p>专属数据节点好处：主节点和数据节点分离，各司其职。</p>
+<p>数据节点存储内容：</p>
+<ul>
+<li><p>分片数据。</p>
+</li>
+<li><p>每个分片对应的元数据。</p>
+</li>
+<li><p>集群层面的元数据，如：setting 和 索引模板。</p>
+</li>
+</ul>
+<p>拥有专用数据节点的主要好处是主角色和数据角色的分离。</p>
+<p>数据节点的配置：</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>haskell&lt;br&gt;node.roles: [ data ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>用途：运行转换并处理转换 API 请求。这块，咱们之前文章没有涉及。</p>
+<p>在 Elastic 多层（tires）冷热集群架构体系下，数据节点又可以细分为：</p>
+<ul>
+<li><p>内容数据节点（Content data node）</p>
+</li>
+<li><p>热数据节点（Hot data node）</p>
+</li>
+<li><p>温数据节点（Warm data node）</p>
+</li>
+<li><p>冷数据节点（Cold data node）</p>
+</li>
+<li><p>冷冻数据节点（Frozen data node）</p>
+</li>
+</ul>
+<p><a href="https://img.songxwn.com/file/ad4f145a79bf57b0943c6.png"><img src="/images/1717394732-fecd8cdf29c96e81de7972601d27f4d7.png"></a></p>
+<p><a href="https://img.songxwn.com/file/0d5954c83bd6a4c41ab1a.gif"><img src="/images/1717394732-2bdbff73c0f48f5c1d8569736213003b.gif"></a></p>
+<h2 id="内容数据节点"><a href="#内容数据节点" class="headerlink" title="内容数据节点"></a><a href="#%E5%86%85%E5%AE%B9%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"></a><a href="#%E5%86%85%E5%AE%B9%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9" title="内容数据节点"></a><strong>内容数据节点</strong></h2><p>用途：处理写入和查询负载，具有较长的数据保留要求。</p>
+<p>建议至少设置一个副本，以保证数据的高可用。</p>
+<p>不属于数据流的系统索引或其他索引会自动分配到内容数据节点。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ data_content ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="热数据节点"><a href="#热数据节点" class="headerlink" title="热数据节点"></a><a href="#%E7%83%AD%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"></a><a href="#%E7%83%AD%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9" title="热数据节点"></a><strong>热数据节点</strong></h3><p>用途：保存最近、最常访问的时序数据。</p>
+<p>推荐使用：SSD 磁盘，至少设置一个副本。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ data_hot ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h5 id=""><a href="#" class="headerlink" title="****"></a><a href="#"></a><a href="#" title="****"></a>****</h5><h3 id="温数据节点"><a href="#温数据节点" class="headerlink" title="温数据节点"></a><a href="#%E6%B8%A9%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"></a><a href="#%E6%B8%A9%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9" title="温数据节点"></a><strong>温数据节点</strong></h3><p>用途：保存访问频次低且很少更新的时序数据。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ data_warm ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="冷数据节点"><a href="#冷数据节点" class="headerlink" title="冷数据节点"></a><a href="#%E5%86%B7%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"></a><a href="#%E5%86%B7%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9" title="冷数据节点"></a><strong>冷数据节点</strong></h3><p>用途：保存不经常访问且通常不更新的时序数据。可存储可搜索快照。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ data_cold ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="冷冻数据节点"><a href="#冷冻数据节点" class="headerlink" title="冷冻数据节点"></a><a href="#%E5%86%B7%E5%86%BB%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9"></a><a href="#%E5%86%B7%E5%86%BB%E6%95%B0%E6%8D%AE%E8%8A%82%E7%82%B9" title="冷冻数据节点"></a><strong>冷冻数据节点</strong></h3><p>用途：保存很少访问且从不更新的时序数据。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ data_frozen ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>在冷热集群架构时序数据 <a href="https://cloud.tencent.com/developer/tools/blog-entry?target=http://mp.weixin.qq.com/s?__biz=MzI2NDY1MTA3OQ==&mid=2247488541&idx=1&sn=16b07ca9247f23990dd69d4d264063b5&chksm=eaa83c35dddfb523e357c738d64d02b8b7fc7febbd911e254c6b043690356e6db33b73ba2f34&scene=21%23wechat_redirect&source=article&objectId=2009025">ILM 索引生命周期管理</a>的实战演练环节，验证发现：</p>
+<p>在配置节点角色时，data_hot、data_warm、data_cold 要和 data_content 要一起配置。且 data_hot、data_warm、data_cold 不要和原有的data 节点一起配置了。</p>
+<p>如果仅data_hot 不设置 data_content 会导致集群数据写入后无法落地。</p>
+<p>我的理解：data_hot, data_warm, data_cold 是标识性的节点，实际落地存储还得靠 data_content 角色。</p>
+<h2 id="数据预处理节点（ingest-node）"><a href="#数据预处理节点（ingest-node）" class="headerlink" title="数据预处理节点（ingest node）"></a><a href="#%E6%95%B0%E6%8D%AE%E9%A2%84%E5%A4%84%E7%90%86%E8%8A%82%E7%82%B9%EF%BC%88ingest-node%EF%BC%89"></a><a href="#%E6%95%B0%E6%8D%AE%E9%A2%84%E5%A4%84%E7%90%86%E8%8A%82%E7%82%B9%EF%BC%88ingest-node%EF%BC%89" title="数据预处理节点（ingest node）"></a><strong>数据预处理节点（ingest node</strong>）</h2><p>用途：执行由预处理管道组成的预处理任务。</p>
+<p>关于啥是数据的预处理？之前有多篇文章解读过：</p>
+<p><a href="https://cloud.tencent.com/developer/tools/blog-entry?target=http://mp.weixin.qq.com/s?__biz=MzI2NDY1MTA3OQ==&mid=2247485003&idx=1&sn=1f0d1c933d458bb9e3c71794d354aff1&chksm=eaa82e63dddfa77584bde5083adcdb4b33ef0c35fce8749dd6b6980ff92071b567a6a7ff93f7&scene=21%23wechat_redirect&source=article&objectId=2009025">Elasticsearch 预处理没有奇技淫巧，请先用好这一招！</a></p>
+<p><a href="https://cloud.tencent.com/developer/tools/blog-entry?target=http://mp.weixin.qq.com/s?__biz=MzI2NDY1MTA3OQ==&mid=2247484473&idx=1&sn=1b3b07b9893f36e32ba20845f906e04a&chksm=eaa82c11dddfa50788e996fa50d2dce2d88ec0b42d2e28a9d43d8e220519eda7e9d854ce964b&scene=21%23wechat_redirect&source=article&objectId=2009025">Elasticsearch的ETL利器——Ingest节点</a></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ ingest ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="仅协调节点（Coordinating-only-node）"><a href="#仅协调节点（Coordinating-only-node）" class="headerlink" title="仅协调节点（Coordinating only node）"></a><a href="#%E4%BB%85%E5%8D%8F%E8%B0%83%E8%8A%82%E7%82%B9%EF%BC%88Coordinating-only-node%EF%BC%89"></a><a href="#%E4%BB%85%E5%8D%8F%E8%B0%83%E8%8A%82%E7%82%B9%EF%BC%88Coordinating-only-node%EF%BC%89" title="仅协调节点（Coordinating only node）"></a><strong>仅协调节点（Coordinating only node</strong>）</h2><p>用途：类似智能负载均衡器，负责：路由分发请求、聚集搜索或聚合结果。</p>
+<p>注意事项：在一个集群中添加太多的仅协调节点会增加整个集群的负担，因为当选的主节点必须等待来自每个节点的集群状态更新的确认。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ ]&lt;br&gt;&lt;br&gt;# 空配置&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>空即是“色”，不对，这里空即是“仅协调节点”。</p>
+<h2 id="远程节点（Remote-eligible-node）"><a href="#远程节点（Remote-eligible-node）" class="headerlink" title="远程节点（Remote-eligible node）"></a><a href="#%E8%BF%9C%E7%A8%8B%E8%8A%82%E7%82%B9%EF%BC%88Remote-eligible-node%EF%BC%89"></a><a href="#%E8%BF%9C%E7%A8%8B%E8%8A%82%E7%82%B9%EF%BC%88Remote-eligible-node%EF%BC%89" title="远程节点（Remote-eligible node）"></a><strong>远程节点（Remote-eligible node</strong>）</h2><p>用途：跨集群检索或跨集群复制。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ remote_cluster_client ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h4 id="3-6-机器学习节点（Machine-learning-node）"><a href="#3-6-机器学习节点（Machine-learning-node）" class="headerlink" title="3.6 机器学习节点（Machine learning node）"></a><a href="#3-6-%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E8%8A%82%E7%82%B9%EF%BC%88Machine-learning-node%EF%BC%89"></a><a href="#3-6-%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0%E8%8A%82%E7%82%B9%EF%BC%88Machine-learning-node%EF%BC%89" title="3.6 机器学习节点（Machine learning node）"></a><strong>3.6 机器学习节点（Machine learning node</strong>）</h4><p>用途：机器学习，系收费功能。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;node.roles: [ ml, remote_cluster_client]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h4 id="3-7-转换节点（Transform-node）"><a href="#3-7-转换节点（Transform-node）" class="headerlink" title="3.7 转换节点（Transform node）"></a><a href="#3-7-%E8%BD%AC%E6%8D%A2%E8%8A%82%E7%82%B9%EF%BC%88Transform-node%EF%BC%89"></a><a href="#3-7-%E8%BD%AC%E6%8D%A2%E8%8A%82%E7%82%B9%EF%BC%88Transform-node%EF%BC%89" title="3.7 转换节点（Transform node）"></a><strong>3.7 转换节点（Transform node</strong>）</h4><p>用途：运行转换并处理转换 API 请求。这块，咱们之前文章没有涉及。</p>
+<p>推荐阅读：</p>
+<p><a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/transform-overview.html">https://www.elastic.co/guide/en/elasticsearch/reference/current/transform-overview.html</a></p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
+<td><code>text&lt;br&gt;node.roles: [ transform, remote_cluster_client ]&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="角色资源耗费"><a href="#角色资源耗费" class="headerlink" title="角色资源耗费"></a><a href="#%E8%A7%92%E8%89%B2%E8%B5%84%E6%BA%90%E8%80%97%E8%B4%B9"></a><a href="#%E8%A7%92%E8%89%B2%E8%B5%84%E6%BA%90%E8%80%97%E8%B4%B9" title="角色资源耗费"></a>角色资源耗费</h2><p><a href="https://img.songxwn.com/file/4eda1f34e9d96f7625bdb.png"><img src="/images/1717394732-50623a20e7c65d29954b30cab08ff640.png"></a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a href="https://chenzhonzhou.github.io/2021/01/31/elasticsearch-suo-yin-mo-ban-template/" title="https://chenzhonzhou.github.io/2021/01/31/elasticsearch-suo-yin-mo-ban-template/">https://chenzhonzhou.github.io/2021/01/31/elasticsearch-suo-yin-mo-ban-template/</a></p>
+<p><a href="https://cloud.tencent.com/developer/article/2009025" title="https://cloud.tencent.com/developer/article/2009025">https://cloud.tencent.com/developer/article/2009025</a></p>
+]]></content>
+      <categories>
+        <category>Elasticsearch</category>
+      </categories>
+      <tags>
+        <tag>Elasticsearch</tag>
+      </tags>
+  </entry>
 </search>
