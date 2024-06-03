@@ -16706,4 +16706,48 @@ plugin_admin_external_manage_enabled = true
         <tag>Zabbix</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Zabbix：历史数据与趋势数据</title>
+    <url>/2024/06/03/Zabbix%EF%BC%9A%E5%8E%86%E5%8F%B2%E6%95%B0%E6%8D%AE%E4%B8%8E%E8%B6%8B%E5%8A%BF%E6%95%B0%E6%8D%AE/</url>
+    <content><![CDATA[<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a><a href="#%E7%AE%80%E4%BB%8B"></a><a href="#%E7%AE%80%E4%BB%8B" title="简介"></a>简介</h1><p>历史数据（history）和趋势数据（trends）是Zabbix中存储收集到的数据的两种方式。</p>
+<p>历史数据：每一个收集到的监控数据， 趋势数据：按小时统计计算的平均值数据。</p>
+<h2 id="历史数据的留存"><a href="#历史数据的留存" class="headerlink" title="历史数据的留存"></a><a href="#%E5%8E%86%E5%8F%B2%E6%95%B0%E6%8D%AE%E7%9A%84%E7%95%99%E5%AD%98"></a><a href="#%E5%8E%86%E5%8F%B2%E6%95%B0%E6%8D%AE%E7%9A%84%E7%95%99%E5%AD%98" title="历史数据的留存"></a>历史数据的留存</h2><p>通过设置历史数据保留时长，可以指定历史数据留存的时长。在以下位置，你可以找到相关的输入框：</p>
+<ul>
+<li>监控项属性 <a href="https://www.zabbix.com/documentation/6.0/zh/manual/config/items/item">表单</a></li>
+<li>批量更新监控项</li>
+<li><a href="https://www.zabbix.com/documentation/6.0/zh/manual/web_interface/frontend_sections/administration/general#%E7%AE%A1%E5%AE%B6">管家配置页</a></li>
+</ul>
+<p>任何过旧的历史数据会被管家从数据库中删除。</p>
+<p>一般来讲，强烈建议将历史数据保留时长设置得尽可能的小。这么做可以让数据库不会因存储了大量的历史数据，导致超负荷运行。</p>
+<p>可以选择长时间的保留趋势数据，来替代长期需要的历史数据。例如：设置成保留14天历史数据和5年的趋势数据。</p>
+<p>参考<a href="https://www.zabbix.com/documentation/6.0/zh/manual/installation/requirements#database-size">数据库空间大小</a>页，来了解历史数据和趋势数据各自需要的数据库空间。</p>
+<p>当设置了较短的历史数据保留时间，图形会使用趋势数据值显示旧数据，因此依旧可以通过图形查看旧数据。</p>
+<h2 id="趋势数据的留存"><a href="#趋势数据的留存" class="headerlink" title="趋势数据的留存"></a><a href="#%E8%B6%8B%E5%8A%BF%E6%95%B0%E6%8D%AE%E7%9A%84%E7%95%99%E5%AD%98"></a><a href="#%E8%B6%8B%E5%8A%BF%E6%95%B0%E6%8D%AE%E7%9A%84%E7%95%99%E5%AD%98" title="趋势数据的留存"></a>趋势数据的留存</h2><p>趋势数据是一种内建的历史数据压缩机制，可以用来存储数字类型监控项的每小时的最小值、最大值、平均值和记录数量。</p>
+<p>通过设置趋势存储时间，可以指定趋势数据留存的时长。 在以下位置，你可以找到相关的输入框：</p>
+<ul>
+<li>监控项属性 <a href="https://www.zabbix.com/documentation/6.0/zh/manual/config/items/item">表单</a></li>
+<li>批量更新监控项</li>
+<li><a href="https://www.zabbix.com/documentation/6.0/zh/manual/web_interface/frontend_sections/administration/general#%E7%AE%A1%E5%AE%B6">管家配置页</a></li>
+</ul>
+<p>通常趋势数据设置的的留存时间应当比历史数据留存时间设置的长。任何过旧的趋势数据会被管家从数据库删除。</p>
+<p>Zabbix server在运行时会在趋势缓存中积累趋势数据，因为有数据流入。 在这些情况下，Zabbix Server会将每个监控项的<strong>前一个小时</strong>趋势数据写入数据库(在前端可以看到):</p>
+<ul>
+<li>服务器接收到监控项首个当前一小时的值</li>
+<li>在还差5分钟或更少时间达到一小时，仍然没有该监控项当前一小时的值</li>
+<li>服务器停止</li>
+</ul>
+<p>要查看图表上的趋势，你需要至少等待到下一个小时的开始(如果监控项经常更新)，最多等待到下一个小时的结束(如果监控项很少更新)，最多2个小时。</p>
+<p>当服务器刷新趋势缓存时，如果数据库中已经有这一小时的趋势(例如，服务器在这一小时中已经重新启动)，服务器需要使用更新语句，而不是简单的插入。 因此，在大型环境的安装中，如果需要重新启动，最好在一个小时结束时停止服务器，在下一个小时开始时开始，以避免趋势数据重叠。</p>
+<p>趋势数据生成和历史表没有关系。</p>
+<h2 id="优点和缺点"><a href="#优点和缺点" class="headerlink" title="优点和缺点"></a><a href="#%E4%BC%98%E7%82%B9%E5%92%8C%E7%BC%BA%E7%82%B9"></a><a href="#%E4%BC%98%E7%82%B9%E5%92%8C%E7%BC%BA%E7%82%B9" title="优点和缺点"></a>优点和缺点</h2><p>历史数据可以保留每一次监控项的具体数值，如有95计费等流量计费方式，确保数值的准确性。但会占用大量存储空间。</p>
+<p>趋势数据会已一小时内的所有历史数据进行平均值计算存储数据，大量减少存储空间，可以较为准确的获取数值。但会失去数值的精确值。</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a href="https://www.zabbix.com/documentation/6.0/zh/manual/config/items/history_and_trends">历史数据与趋势数据 (zabbix.com)</a></p>
+]]></content>
+      <categories>
+        <category>Zabbix</category>
+      </categories>
+      <tags>
+        <tag>Zabbix</tag>
+      </tags>
+  </entry>
 </search>
