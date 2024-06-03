@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Tag: Zabbix |  Lijintao&#39;s Blog</title>
+      <title>Zabbix配置开通LDAP认证-基于AD |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -68,342 +68,214 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="Zabbix-Zabbix配置开通LDAP认证-基于AD"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">#&nbspZabbix</h1>
-    
-    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Zabbix配置开通LDAP认证-基于AD
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/03/Zabbix%E9%85%8D%E7%BD%AE%E5%BC%80%E9%80%9ALDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/" class="article-date">
+  <time datetime="2024-06-03T05:36:56.000Z" itemprop="datePublished">2024-06-03</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
   
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2024" class="archive-year">2024</a>
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">473</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">1 分钟</span>
+        </span>
+    </span>
+</div>
+ 
     </div>
-    <div class="archives">
       
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/06/03/Zabbix%E9%85%8D%E7%BD%AE%E5%BC%80%E9%80%9ALDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/" class="archive-article-date">
-  <time datetime="2024-06-03T05:36:56.000Z" itemprop="datePublished">06/03</time>
-</a>
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/06/03/Zabbix%E9%85%8D%E7%BD%AE%E5%BC%80%E9%80%9ALDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/"
-    >Zabbix配置开通LDAP认证-基于AD</a> 
-</h2>
+  <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a><a href="#%E4%BB%8B%E7%BB%8D"></a><a href="#%E4%BB%8B%E7%BB%8D" title="介绍"></a>介绍</h1><p>本教程适用于6.4-7.0+版本的Zabbix，域控（AD）使用Windows Server 2022搭建，域控等级为 2016。</p>
+<p>域控域名为 songxwn.com</p>
+<p>最终实现AD用户统一认证，统一改密，Zabbix用户自动添加。（6.4之前不支持）</p>
+<h1 id="认证配置"><a href="#认证配置" class="headerlink" title="认证配置"></a><a href="#%E8%AE%A4%E8%AF%81%E9%85%8D%E7%BD%AE"></a><a href="#%E8%AE%A4%E8%AF%81%E9%85%8D%E7%BD%AE" title="认证配置"></a>认证配置</h1><h2 id="创建Zabbix本地LDAP映射组"><a href="#创建Zabbix本地LDAP映射组" class="headerlink" title="创建Zabbix本地LDAP映射组"></a><a href="#%E5%88%9B%E5%BB%BAZabbix%E6%9C%AC%E5%9C%B0LDAP%E6%98%A0%E5%B0%84%E7%BB%84"></a><a href="#%E5%88%9B%E5%BB%BAZabbix%E6%9C%AC%E5%9C%B0LDAP%E6%98%A0%E5%B0%84%E7%BB%84" title="创建Zabbix本地LDAP映射组"></a>创建Zabbix本地LDAP映射组</h2><p>创建一个LDAP用户组，用于权限管理等。注意配置前端访问模式为LDAP。</p>
+<p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/6e7aaa3f6b8b655cd9352.png"><img src="/assets/1717148961-0bb1b158c4e48032240dff5816957a39.png"></a></p>
+<h2 id="修改默认认证方式"><a href="#修改默认认证方式" class="headerlink" title="修改默认认证方式"></a><a href="#%E4%BF%AE%E6%94%B9%E9%BB%98%E8%AE%A4%E8%AE%A4%E8%AF%81%E6%96%B9%E5%BC%8F"></a><a href="#%E4%BF%AE%E6%94%B9%E9%BB%98%E8%AE%A4%E8%AE%A4%E8%AF%81%E6%96%B9%E5%BC%8F" title="修改默认认证方式"></a>修改默认认证方式</h2><p>修改默认认证方式为LDAP，并添加取消配置用户组（禁止使用用户组）一般配置自带的Disabled组即可。</p>
+<p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/8abfe8954f9f3fb6e32d7.png"><img src="/assets/1717148961-d1e210a5627b5ef2abff7c6190d67acb.png"></a></p>
+<h2 id="接入AD域控服务器-实现LDAP身份统一认证"><a href="#接入AD域控服务器-实现LDAP身份统一认证" class="headerlink" title="接入AD域控服务器-实现LDAP身份统一认证"></a><a href="#%E6%8E%A5%E5%85%A5AD%E5%9F%9F%E6%8E%A7%E6%9C%8D%E5%8A%A1%E5%99%A8-%E5%AE%9E%E7%8E%B0LDAP%E8%BA%AB%E4%BB%BD%E7%BB%9F%E4%B8%80%E8%AE%A4%E8%AF%81"></a><a href="#%E6%8E%A5%E5%85%A5AD%E5%9F%9F%E6%8E%A7%E6%9C%8D%E5%8A%A1%E5%99%A8-%E5%AE%9E%E7%8E%B0LDAP%E8%BA%AB%E4%BB%BD%E7%BB%9F%E4%B8%80%E8%AE%A4%E8%AF%81" title="接入AD域控服务器-实现LDAP身份统一认证"></a>接入AD域控服务器-实现LDAP身份统一认证</h2><h3 id="选择启用LDAP验证，启用JIT服务开通功能。然后点击添加LDAP服务器。"><a href="#选择启用LDAP验证，启用JIT服务开通功能。然后点击添加LDAP服务器。" class="headerlink" title="选择启用LDAP验证，启用JIT服务开通功能。然后点击添加LDAP服务器。"></a><a href="#%E9%80%89%E6%8B%A9%E5%90%AF%E7%94%A8LDAP%E9%AA%8C%E8%AF%81%EF%BC%8C%E5%90%AF%E7%94%A8JIT%E6%9C%8D%E5%8A%A1%E5%BC%80%E9%80%9A%E5%8A%9F%E8%83%BD%E3%80%82%E7%84%B6%E5%90%8E%E7%82%B9%E5%87%BB%E6%B7%BB%E5%8A%A0LDAP%E6%9C%8D%E5%8A%A1%E5%99%A8%E3%80%82"></a><a href="#%E9%80%89%E6%8B%A9%E5%90%AF%E7%94%A8LDAP%E9%AA%8C%E8%AF%81%EF%BC%8C%E5%90%AF%E7%94%A8JIT%E6%9C%8D%E5%8A%A1%E5%BC%80%E9%80%9A%E5%8A%9F%E8%83%BD%E3%80%82%E7%84%B6%E5%90%8E%E7%82%B9%E5%87%BB%E6%B7%BB%E5%8A%A0LDAP%E6%9C%8D%E5%8A%A1%E5%99%A8%E3%80%82" title="选择启用LDAP验证，启用JIT服务开通功能。然后点击添加LDAP服务器。"></a>选择启用LDAP验证，启用JIT服务开通功能。然后点击添加LDAP服务器。</h3><p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/6621c32d35098a1414f3c.png"><img src="/assets/1717148961-81058379c5caa1573b618bd5474cfaea.png"></a></p>
+<h3 id="配置LDAP服务器"><a href="#配置LDAP服务器" class="headerlink" title="配置LDAP服务器"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E6%9C%8D%E5%8A%A1%E5%99%A8"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E6%9C%8D%E5%8A%A1%E5%99%A8" title="配置LDAP服务器"></a>配置LDAP服务器</h3><ul>
+<li><p>名称：任意填写即可</p>
+</li>
+<li><p>主机为域控的主域名或域控服务器IP地址。（使用域名需要配置对DNS）</p>
+</li>
+<li><p>端口默认389即可。</p>
+</li>
+<li><p>基于DN，参考下面配置，我的域控域名为songxwn.com (可以使用域控上ADSI工具查看)</p>
+</li>
+<li><p>搜索属性AD环境必须为sAMAccountName</p>
+</li>
+<li><p>绑定DN为可登录的域控账号</p>
+</li>
+<li><p>绑定密码为上面域账号的密码</p>
+</li>
+<li><p>勾选配置准时(JIT)服务开通</p>
+</li>
+<li><p>组名属性为CN</p>
+</li>
+<li><p>组成员属性为memberOf</p>
+</li>
+<li><p>用户姓氏属性为givenName</p>
+</li>
+</ul>
+<p>最终，点击用户组映射配置，将Zabbix组和AD的用户组映射</p>
+<p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/85d1955e0da5b4913fa11.png"><img src="/assets/1717148961-848af793a457bc57a3eb59ffc644e0fd.png"></a></p>
+<h3 id="用户组映射配置"><a href="#用户组映射配置" class="headerlink" title="用户组映射配置"></a><a href="#%E7%94%A8%E6%88%B7%E7%BB%84%E6%98%A0%E5%B0%84%E9%85%8D%E7%BD%AE"></a><a href="#%E7%94%A8%E6%88%B7%E7%BB%84%E6%98%A0%E5%B0%84%E9%85%8D%E7%BD%AE" title="用户组映射配置"></a>用户组映射配置</h3><ul>
+<li><p>LDAP组模式为AD域控里面的用户组名</p>
+</li>
+<li><p>用户群组写Zabbix 上面创建的组</p>
+</li>
+<li><p>用户角色根据需求选择，一般为User即可。</p>
+</li>
+</ul>
+<p>最后点击添加</p>
+<p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/55b658fac4369737059a5.png"><img src="/assets/1717148961-2408331f40e52a6b6ffbf914b2a4a568.png"></a></p>
+<h3 id="点击添加即可，最终如下面所示。点击测试可以测试配置是否正确。"><a href="#点击添加即可，最终如下面所示。点击测试可以测试配置是否正确。" class="headerlink" title="点击添加即可，最终如下面所示。点击测试可以测试配置是否正确。"></a><a href="#%E7%82%B9%E5%87%BB%E6%B7%BB%E5%8A%A0%E5%8D%B3%E5%8F%AF%EF%BC%8C%E6%9C%80%E7%BB%88%E5%A6%82%E4%B8%8B%E9%9D%A2%E6%89%80%E7%A4%BA%E3%80%82%E7%82%B9%E5%87%BB%E6%B5%8B%E8%AF%95%E5%8F%AF%E4%BB%A5%E6%B5%8B%E8%AF%95%E9%85%8D%E7%BD%AE%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE%E3%80%82"></a><a href="#%E7%82%B9%E5%87%BB%E6%B7%BB%E5%8A%A0%E5%8D%B3%E5%8F%AF%EF%BC%8C%E6%9C%80%E7%BB%88%E5%A6%82%E4%B8%8B%E9%9D%A2%E6%89%80%E7%A4%BA%E3%80%82%E7%82%B9%E5%87%BB%E6%B5%8B%E8%AF%95%E5%8F%AF%E4%BB%A5%E6%B5%8B%E8%AF%95%E9%85%8D%E7%BD%AE%E6%98%AF%E5%90%A6%E6%AD%A3%E7%A1%AE%E3%80%82" title="点击添加即可，最终如下面所示。点击测试可以测试配置是否正确。"></a>点击添加即可，最终如下面所示。点击测试可以测试配置是否正确。</h3><p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/544aafcf3cb65d594070c.png"><img src="/assets/1717148961-f5b316d8b08e40390b18f6e5e8f3c388.png"></a></p>
+<h3 id="最终点击更新后保存配置，至此配置完成。"><a href="#最终点击更新后保存配置，至此配置完成。" class="headerlink" title="最终点击更新后保存配置，至此配置完成。"></a><a href="#%E6%9C%80%E7%BB%88%E7%82%B9%E5%87%BB%E6%9B%B4%E6%96%B0%E5%90%8E%E4%BF%9D%E5%AD%98%E9%85%8D%E7%BD%AE%EF%BC%8C%E8%87%B3%E6%AD%A4%E9%85%8D%E7%BD%AE%E5%AE%8C%E6%88%90%E3%80%82"></a><a href="#%E6%9C%80%E7%BB%88%E7%82%B9%E5%87%BB%E6%9B%B4%E6%96%B0%E5%90%8E%E4%BF%9D%E5%AD%98%E9%85%8D%E7%BD%AE%EF%BC%8C%E8%87%B3%E6%AD%A4%E9%85%8D%E7%BD%AE%E5%AE%8C%E6%88%90%E3%80%82" title="最终点击更新后保存配置，至此配置完成。"></a>最终点击更新后保存配置，至此配置完成。</h3><p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/dfddaad3666761e1eb37a.png"><img src="/assets/1717148961-8e59f2a1aceb9071bd5f3aa82bc92d17.png"></a></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://blog.zabbix.com/just-in-time-user-provisioning-explained/25515/" title="https://blog.zabbix.com/just-in-time-user-provisioning-explained/25515/">https://blog.zabbix.com/just-in-time-user-provisioning-explained/25515/</a></p>
  
-
-    </header>
-    
-    
+      <!-- reward -->
       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/05/28/Zabbix-SNMP%E5%BC%80%E6%9C%BA%E6%97%B6%E9%97%B4497%E5%A4%A9%E9%87%8D%E7%BD%AE%E9%97%AE%E9%A2%98/" class="archive-article-date">
-  <time datetime="2024-05-28T03:24:56.000Z" itemprop="datePublished">05/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/05/28/Zabbix-SNMP%E5%BC%80%E6%9C%BA%E6%97%B6%E9%97%B4497%E5%A4%A9%E9%87%8D%E7%BD%AE%E9%97%AE%E9%A2%98/"
-    >Zabbix SNMP开机时间497天重置问题</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/03/22/Zabbix%E5%BE%AE%E4%BF%A1%E9%80%9A%E7%9F%A5%E8%84%9A%E6%9C%AC/" class="archive-article-date">
-  <time datetime="2024-03-22T07:53:21.000Z" itemprop="datePublished">03/22</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/03/22/Zabbix%E5%BE%AE%E4%BF%A1%E9%80%9A%E7%9F%A5%E8%84%9A%E6%9C%AC/"
-    >Zabbix微信通知脚本</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/03/22/Zabbix%E9%A3%9E%E4%B9%A6%E5%91%8A%E8%AD%A6%E8%84%9A%E6%9C%AC/" class="archive-article-date">
-  <time datetime="2024-03-22T07:46:39.000Z" itemprop="datePublished">03/22</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/03/22/Zabbix%E9%A3%9E%E4%B9%A6%E5%91%8A%E8%AD%A6%E8%84%9A%E6%9C%AC/"
-    >Zabbix飞书告警脚本</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/03/22/Zabbix%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E5%88%B0Alertmanager%E8%84%9A%E6%9C%AC/" class="archive-article-date">
-  <time datetime="2024-03-22T07:42:17.000Z" itemprop="datePublished">03/22</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/03/22/Zabbix%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E5%88%B0Alertmanager%E8%84%9A%E6%9C%AC/"
-    >Zabbix告警推送到Alertmanager脚本</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/03/01/Zabbix%E9%80%9A%E8%BF%87API%E6%89%B9%E9%87%8F%E6%B7%BB%E5%8A%A0-%E5%88%A0%E9%99%A4%E4%B8%BB%E6%9C%BA/" class="archive-article-date">
-  <time datetime="2024-03-01T08:41:31.000Z" itemprop="datePublished">03/01</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/03/01/Zabbix%E9%80%9A%E8%BF%87API%E6%89%B9%E9%87%8F%E6%B7%BB%E5%8A%A0-%E5%88%A0%E9%99%A4%E4%B8%BB%E6%9C%BA/"
-    >Zabbix通过API批量添加/删除主机</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/" class="archive-article-date">
-  <time datetime="2024-02-28T09:12:37.000Z" itemprop="datePublished">02/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/02/28/Zabbix%E9%85%8D%E7%BD%AEWebhook%E5%91%8A%E8%AD%A6%E6%8E%A8%E9%80%81%E8%87%B3%E4%BC%81%E4%B8%9A%E5%BE%AE%E4%BF%A1/"
-    >Zabbix配置Webhook告警推送至企业微信</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2024/01/26/Zabbix%E8%87%AA%E5%AE%9A%E4%B9%89%E9%A3%9E%E4%B9%A6webhook%E5%91%8A%E8%AD%A6%E5%AA%92%E4%BB%8B/" class="archive-article-date">
-  <time datetime="2024-01-26T08:34:51.000Z" itemprop="datePublished">01/26</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2024/01/26/Zabbix%E8%87%AA%E5%AE%9A%E4%B9%89%E9%A3%9E%E4%B9%A6webhook%E5%91%8A%E8%AD%A6%E5%AA%92%E4%BB%8B/"
-    >Zabbix自定义飞书webhook告警媒介</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-  
-  </div>
-  </div>
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2023" class="archive-year">2023</a>
-    </div>
-    <div class="archives">
-      
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/28/Zabbix-6-0%EF%BC%9A%E5%8E%9F%E7%94%9F%E9%AB%98%E5%8F%AF%E7%94%A8-HA-%E6%96%B9%E6%A1%88%E9%83%A8%E7%BD%B2/" class="archive-article-date">
-  <time datetime="2023-12-28T03:45:56.000Z" itemprop="datePublished">12/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/28/Zabbix-6-0%EF%BC%9A%E5%8E%9F%E7%94%9F%E9%AB%98%E5%8F%AF%E7%94%A8-HA-%E6%96%B9%E6%A1%88%E9%83%A8%E7%BD%B2/"
-    >Zabbix 6.0：原生高可用(HA)方案部署</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/28/Zabbix%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%BF%9B%E7%A8%8B%E5%89%96%E6%9E%90/" class="archive-article-date">
-  <time datetime="2023-12-28T03:35:22.000Z" itemprop="datePublished">12/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/28/Zabbix%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%BF%9B%E7%A8%8B%E5%89%96%E6%9E%90/"
-    >Zabbix服务端进程剖析</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/" class="archive-article-date">
-  <time datetime="2023-12-28T02:07:43.000Z" itemprop="datePublished">12/28</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/28/Zabbix%E4%BC%98%E5%8C%96%E5%BB%BA%E8%AE%AE-5-x/"
-    >Zabbix优化建议[5.x]</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
-  
-  
-      <article class="archive-article archive-type-Zabbix">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2023/12/22/docker%E5%AE%89%E8%A3%85%E6%9C%80%E6%96%B0%E7%89%88zabbix/" class="archive-article-date">
-  <time datetime="2023-12-22T03:22:11.000Z" itemprop="datePublished">12/22</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2023/12/22/docker%E5%AE%89%E8%A3%85%E6%9C%80%E6%96%B0%E7%89%88zabbix/"
-    >docker安装最新版zabbix</a> 
-</h2>
- 
-
-    </header>
-    
-    
-      
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
-
-    
-  </div>
-</article>
-      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/03/Zabbix%E9%85%8D%E7%BD%AE%E5%BC%80%E9%80%9ALDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/05/28/SQL%E5%AF%86%E7%A0%81%E5%8A%A0%E5%AF%86%E6%9F%A5%E8%AF%A2/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">SQL密码加密查询</div>
+      </a>
+    
+  </nav>
 
   
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -557,6 +429,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
