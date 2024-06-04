@@ -17288,43 +17288,11 @@ plugin_admin_external_manage_enabled = true
 <figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">vim /etc/grafana/grafana.ini</span><br></pre></td></tr></table></figure>
 
 <p>修改并取消注释以下参数即可</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td>[auth.ldap]</td>
-<td></td>
-</tr>
-<tr>
-<td>enabled &#x3D; true</td>
-<td></td>
-</tr>
-<tr>
-<td>config_file &#x3D; &#x2F;etc&#x2F;grafana&#x2F;ldap.toml</td>
-<td></td>
-</tr>
-<tr>
-<td>allow_sign_up &#x3D; true</td>
-<td></td>
-</tr>
-</tbody></table>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">[auth.ldap]</span><br><span class="line">enabled = true</span><br><span class="line">config_file = /etc/grafana/ldap.toml</span><br><span class="line">allow_sign_up = true</span><br></pre></td></tr></table></figure>
+
 <h1 id="配置LDAP对接文件"><a href="#配置LDAP对接文件" class="headerlink" title="配置LDAP对接文件"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E5%AF%B9%E6%8E%A5%E6%96%87%E4%BB%B6"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E5%AF%B9%E6%8E%A5%E6%96%87%E4%BB%B6" title="配置LDAP对接文件"></a>配置LDAP对接文件</h1><p>修改&#x2F;etc&#x2F;grafana&#x2F;ldap.toml文件</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
-<td><code>shell&lt;br&gt;vim /etc/grafana/ldap.toml&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">vim /etc/grafana/ldap.toml</span><br></pre></td></tr></table></figure>
+
 <p>文件示例</p>
 <ul>
 <li><p>host 为域控制器地址。</p>
@@ -17346,30 +17314,10 @@ plugin_admin_external_manage_enabled = true
 </ul>
 <p>如下面所示，我将it1 映射为了Editor，it2 组为Viewer</p>
 <p>PS：具体路径建议用ADSI工具查看。</p>
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;32&lt;br&gt;33&lt;br&gt;34&lt;br&gt;35&lt;br&gt;36&lt;br&gt;37&lt;br&gt;38&lt;br&gt;39&lt;br&gt;40&lt;br&gt;41&lt;br&gt;42&lt;br&gt;43&lt;br&gt;44&lt;br&gt;45&lt;br&gt;46&lt;br&gt;47&lt;br&gt;48&lt;br&gt;49&lt;br&gt;50&lt;br&gt;51&lt;br&gt;52&lt;br&gt;53&lt;br&gt;54&lt;br&gt;55&lt;br&gt;56&lt;br&gt;57&lt;br&gt;58&lt;br&gt;59&lt;br&gt;60&lt;br&gt;61&lt;br&gt;62&lt;br&gt;63&lt;br&gt;64&lt;br&gt;65&lt;br&gt;66&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;&lt;br&gt;[[servers]]&lt;br&gt;# Ldap server host (specify multiple hosts space separated)&lt;br&gt;host = &quot;songxwn.com&quot;&lt;br&gt;# Default port is 389 or 636 if use_ssl = true&lt;br&gt;port = 389&lt;br&gt;# Set to true if LDAP server should use an encrypted TLS connection (either with STARTTLS or LDAPS)&lt;br&gt;use_ssl = false&lt;br&gt;# If set to true, use LDAP with STARTTLS instead of LDAPS&lt;br&gt;start_tls = false&lt;br&gt;# The value of an accepted TLS cipher. By default, this value is empty. Example value: [&quot;TLS_AES_256_GCM_SHA384&quot;])&lt;br&gt;# For a complete list of supported ciphers and TLS versions, refer to: https://go.dev/src/crypto/tls/cipher_suites.go&lt;br&gt;tls_ciphers = []&lt;br&gt;# This is the minimum TLS version allowed. By default, this value is empty. Accepted values are: TLS1.1, TLS1.2, TLS1.3.&lt;br&gt;min_tls_version = &quot;&quot;&lt;br&gt;# set to true if you want to skip ssl cert validation&lt;br&gt;ssl_skip_verify = false&lt;br&gt;# set to the path to your root CA certificate or leave unset to use system defaults&lt;br&gt;# root_ca_cert = &quot;/path/to/certificate.crt&quot;&lt;br&gt;# Authentication against LDAP servers requiring client certificates&lt;br&gt;# client_cert = &quot;/path/to/client.crt&quot;&lt;br&gt;# client_key = &quot;/path/to/client.key&quot;&lt;br&gt;&lt;br&gt;# Search user bind dn&lt;br&gt;bind_dn = &quot;admin@songxwn.com&quot;&lt;br&gt;# Search user bind password&lt;br&gt;# If the password contains # or ; you have to wrap it with triple quotes. Ex &quot;&quot;&quot;#password;&quot;&quot;&quot;&lt;br&gt;bind_password = &#39;password@123&#39;&lt;br&gt;# We recommend using variable expansion for the bind_password, for more info https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#variable-expansion&lt;br&gt;# bind_password = &#39;$__env&#123;LDAP_BIND_PASSWORD&#125;&#39;&lt;br&gt;&lt;br&gt;# Timeout in seconds (applies to each host specified in the &#39;host&#39; entry (space separated))&lt;br&gt;timeout = 15&lt;br&gt;&lt;br&gt;# User search filter, for example &quot;(cn=%s)&quot; or &quot;(sAMAccountName=%s)&quot; or &quot;(uid=%s)&quot;&lt;br&gt;search_filter = &quot;(sAMAccountName=%s)&quot;&lt;br&gt;&lt;br&gt;# An array of base dns to search through&lt;br&gt;search_base_dns = [&quot;dc=songxwn,dc=com&quot;]&lt;br&gt;&lt;br&gt;## For Posix or LDAP setups that does not support member_of attribute you can define the below settings&lt;br&gt;## Please check grafana LDAP docs for examples&lt;br&gt;# group_search_filter = &quot;(&amp;(objectClass=posixGroup)(memberUid=%s))&quot;&lt;br&gt;# group_search_base_dns = [&quot;ou=groups,dc=grafana,dc=org&quot;]&lt;br&gt;# group_search_filter_user_attribute = &quot;uid&quot;&lt;br&gt;&lt;br&gt;# Specify names of the ldap attributes your ldap uses&lt;br&gt;[servers.attributes]&lt;br&gt;name = &quot;givenName&quot;&lt;br&gt;surname = &quot;sn&quot;&lt;br&gt;username = &quot;sAMAccountName&quot;&lt;br&gt;member_of = &quot;memberOf&quot;&lt;br&gt;email =  &quot;mail&quot;&lt;br&gt;&lt;br&gt;# Map ldap groups to grafana org roles&lt;br&gt;&lt;br&gt;&lt;br&gt;[[servers.group_mappings]]&lt;br&gt;group_dn = &quot;cn=it1,cn=users,dc=songxwn,dc=com&quot;&lt;br&gt;org_role = &quot;Editor&quot;&lt;br&gt;&lt;br&gt;[[servers.group_mappings]]&lt;br&gt;# If you want to match all (or no ldap groups) then you can use wildcard&lt;br&gt;group_dn = &quot;cn=it2,cn=users,dc=songxwn,dc=com&quot;&lt;br&gt;org_role = &quot;Viewer&quot;&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
-<h1 id="重启和测试"><a href="#重启和测试" class="headerlink" title="重启和测试"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95" title="重启和测试"></a>重启和测试</h1><table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;</code></td>
-<td><code>shell&lt;br&gt;&lt;br&gt;systemctl restart grafana-server.service &lt;br&gt;&lt;br&gt;# 重启之后，上述配置才能生效。&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
+<figure class="highlight shell"><table><tr><td class="code"><pre><span class="line"></span><br><span class="line">[[servers]]</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Ldap server host (specify multiple hosts space separated)</span></span><br><span class="line">host = &quot;songxwn.com&quot;</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Default port is 389 or 636 <span class="keyword">if</span> use_ssl = <span class="literal">true</span></span></span><br><span class="line">port = 389</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Set to <span class="literal">true</span> <span class="keyword">if</span> LDAP server should use an encrypted TLS connection (either with STARTTLS or LDAPS)</span></span><br><span class="line">use_ssl = false</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">If <span class="built_in">set</span> to <span class="literal">true</span>, use LDAP with STARTTLS instead of LDAPS</span></span><br><span class="line">start_tls = false</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">The value of an accepted TLS cipher. By default, this value is empty. Example value: [<span class="string">&quot;TLS_AES_256_GCM_SHA384&quot;</span>])</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">For a complete list of supported ciphers and TLS versions, refer to: https://go.dev/src/crypto/tls/cipher_suites.go</span></span><br><span class="line">tls_ciphers = []</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">This is the minimum TLS version allowed. By default, this value is empty. Accepted values are: TLS1.1, TLS1.2, TLS1.3.</span></span><br><span class="line">min_tls_version = &quot;&quot;</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">set</span> to <span class="literal">true</span> <span class="keyword">if</span> you want to skip ssl cert validation</span></span><br><span class="line">ssl_skip_verify = false</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">set</span> to the path to your root CA certificate or leave <span class="built_in">unset</span> to use system defaults</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">root_ca_cert = <span class="string">&quot;/path/to/certificate.crt&quot;</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Authentication against LDAP servers requiring client certificates</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">client_cert = <span class="string">&quot;/path/to/client.crt&quot;</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">client_key = <span class="string">&quot;/path/to/client.key&quot;</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Search user <span class="built_in">bind</span> dn</span></span><br><span class="line">bind_dn = &quot;admin@songxwn.com&quot;</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Search user <span class="built_in">bind</span> password</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">If the password contains <span class="comment"># or ; you have to wrap it with triple quotes. Ex &quot;&quot;&quot;#password;&quot;&quot;&quot;</span></span></span><br><span class="line">bind_password = &#x27;password@123&#x27;</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">We recommend using variable expansion <span class="keyword">for</span> the bind_password, <span class="keyword">for</span> more info https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/<span class="comment">#variable-expansion</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">bind_password = <span class="string">&#x27;$__env&#123;LDAP_BIND_PASSWORD&#125;&#x27;</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Timeout <span class="keyword">in</span> seconds (applies to each host specified <span class="keyword">in</span> the <span class="string">&#x27;host&#x27;</span> entry (space separated))</span></span><br><span class="line">timeout = 15</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">User search filter, <span class="keyword">for</span> example <span class="string">&quot;(cn=%s)&quot;</span> or <span class="string">&quot;(sAMAccountName=%s)&quot;</span> or <span class="string">&quot;(uid=%s)&quot;</span></span></span><br><span class="line">search_filter = &quot;(sAMAccountName=%s)&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">An array of base dns to search through</span></span><br><span class="line">search_base_dns = [&quot;dc=songxwn,dc=com&quot;]</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># For Posix or LDAP setups that does not support member_of attribute you can define the below settings</span></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># Please check grafana LDAP docs for examples</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">group_search_filter = <span class="string">&quot;(&amp;(objectClass=posixGroup)(memberUid=%s))&quot;</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">group_search_base_dns = [<span class="string">&quot;ou=groups,dc=grafana,dc=org&quot;</span>]</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">group_search_filter_user_attribute = <span class="string">&quot;uid&quot;</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Specify names of the ldap attributes your ldap uses</span></span><br><span class="line">[servers.attributes]</span><br><span class="line">name = &quot;givenName&quot;</span><br><span class="line">surname = &quot;sn&quot;</span><br><span class="line">username = &quot;sAMAccountName&quot;</span><br><span class="line">member_of = &quot;memberOf&quot;</span><br><span class="line">email =  &quot;mail&quot;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">Map ldap <span class="built_in">groups</span> to grafana org roles</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">[[servers.group_mappings]]</span><br><span class="line">group_dn = &quot;cn=it1,cn=users,dc=songxwn,dc=com&quot;</span><br><span class="line">org_role = &quot;Editor&quot;</span><br><span class="line"></span><br><span class="line">[[servers.group_mappings]]</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">If you want to match all (or no ldap <span class="built_in">groups</span>) <span class="keyword">then</span> you can use wildcard</span></span><br><span class="line">group_dn = &quot;cn=it2,cn=users,dc=songxwn,dc=com&quot;</span><br><span class="line">org_role = &quot;Viewer&quot;</span><br><span class="line"></span><br></pre></td></tr></table></figure>
+
+<h1 id="重启和测试"><a href="#重启和测试" class="headerlink" title="重启和测试"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95" title="重启和测试"></a>重启和测试</h1><figure class="highlight shell"><table><tr><td class="code"><pre><span class="line">systemctl restart grafana-server.service</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启之后，上述配置才能生效。</span></span><br></pre></td></tr></table></figure>
+
 <h2 id="测试用户登录"><a href="#测试用户登录" class="headerlink" title="测试用户登录"></a><a href="#%E6%B5%8B%E8%AF%95%E7%94%A8%E6%88%B7%E7%99%BB%E5%BD%95"></a><a href="#%E6%B5%8B%E8%AF%95%E7%94%A8%E6%88%B7%E7%99%BB%E5%BD%95" title="测试用户登录"></a>测试用户登录</h2><p><a href="https://img.songxwn.com/file/895345296b22742c1e057.png" title="测试登录"><img src="/images/1717468651-0e122ce39a9b8df52d71bb73e7d75840.png" alt="测试登录"></a></p>
 <p>测试登录</p>
 <h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a href="https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/ldap/">https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/ldap/</a></p>
