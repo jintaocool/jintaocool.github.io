@@ -17107,4 +17107,175 @@ plugin_admin_external_manage_enabled = true
         <tag>Scripts</tag>
       </tags>
   </entry>
+  <entry>
+    <title>Frostmourne (霜之哀伤) ELK日志告警系统部署教程</title>
+    <url>/2024/06/04/Frostmourne-%E9%9C%9C%E4%B9%8B%E5%93%80%E4%BC%A4-ELK%E6%97%A5%E5%BF%97%E5%91%8A%E8%AD%A6%E7%B3%BB%E7%BB%9F%E9%83%A8%E7%BD%B2%E6%95%99%E7%A8%8B/</url>
+    <content><![CDATA[<h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a><a href="#%E7%AE%80%E4%BB%8B"></a><a href="#%E7%AE%80%E4%BB%8B" title="简介"></a>简介</h1><p><code>Frostmourne</code>(霜之哀伤)是汽车之家经销商技术部监控系统的开源版本，用于帮助监控几乎所有数据库数据(包括<code>Elasticsearch</code>, <code>Prometheus</code>, <code>SkyWalking</code>, <code>MySql</code> 等等)。如果你已经建立起了日志系统， 指标体系，却苦恼于没有一个配套监控系统，也许它能帮到你。</p>
+<p>支持数据源：Elasticsearch, HTTP, SkyWalking, Prometheus, InfluxDB, MySQL&#x2F;TiDb, ClickHouse, SqlServer, PING, IotDB, Telnet</p>
+<p>支持告警发送方式：钉钉(机器人)、企业微信(机器人)、飞书机器人、OneMessage机器人、Email、短信、HTTP。（text, markdown）</p>
+<p>支持LDAP认证和自动创建用户。</p>
+<p><code>Elasticsearch</code>数据查询、分享和下载</p>
+<p>报警消息抑制功能，防止消息轰炸；也有报警升级功能，避免故障相关方长时间得不到通知。</p>
+<p>Github地址：<a href="https://github.com/AutohomeCorp/frostmourne">https://github.com/AutohomeCorp/frostmourne</a></p>
+<p>环境要求：JAVA8-14、Mysql 8数据库。</p>
+<p>教程使用Linux版本：Rocky Linux 8 （关闭SELinux）</p>
+<p>数据库使用Mysql 8.0</p>
+<p>版本：部署1.0版本</p>
+<p>注意：目前不支持ES8 的加密认证，需要等后期支持JAVA 17。</p>
+<h1 id="使用ZIP包部署（使用Linux环境）"><a href="#使用ZIP包部署（使用Linux环境）" class="headerlink" title="使用ZIP包部署（使用Linux环境）"></a><a href="#%E4%BD%BF%E7%94%A8ZIP%E5%8C%85%E9%83%A8%E7%BD%B2%EF%BC%88%E4%BD%BF%E7%94%A8Linux%E7%8E%AF%E5%A2%83%EF%BC%89"></a><a href="#%E4%BD%BF%E7%94%A8ZIP%E5%8C%85%E9%83%A8%E7%BD%B2%EF%BC%88%E4%BD%BF%E7%94%A8Linux%E7%8E%AF%E5%A2%83%EF%BC%89" title="使用ZIP包部署（使用Linux环境）"></a>使用ZIP包部署（使用Linux环境）</h1><h2 id="下载JDK（推荐使用JDK8）"><a href="#下载JDK（推荐使用JDK8）" class="headerlink" title="下载JDK（推荐使用JDK8）"></a><a href="#%E4%B8%8B%E8%BD%BDJDK%EF%BC%88%E6%8E%A8%E8%8D%90%E4%BD%BF%E7%94%A8JDK8%EF%BC%89"></a><a href="#%E4%B8%8B%E8%BD%BDJDK%EF%BC%88%E6%8E%A8%E8%8D%90%E4%BD%BF%E7%94%A8JDK8%EF%BC%89" title="下载JDK（推荐使用JDK8）"></a>下载JDK（推荐使用JDK8）</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;32&lt;br&gt;33&lt;br&gt;34&lt;br&gt;35&lt;br&gt;</code></td>
+<td><code>shell&lt;br&gt;&lt;br&gt;dnf install wget tree&lt;br&gt;## 安装wget tree&lt;br&gt;&lt;br&gt;cd /opt&lt;br&gt;mkdir java1.8&lt;br&gt;cd /opt/java1.8&lt;br&gt;wget --execute robots=off -nc -nd -r -l1 -A &#39;*.gz&#39; https://mirrors.tuna.tsinghua.edu.cn/Adoptium/8/jdk/x64/linux/&lt;br&gt;## 下载OpenJDK8二进制包，源为清华大学源，会自动下载最新版。&lt;br&gt;&lt;br&gt;tar -zxvf OpenJDK8U-jdk_*.tar.gz &lt;br&gt;## 解压&lt;br&gt;&lt;br&gt;tree -L 2 /opt/java1.8/&lt;br&gt;/opt/java1.8/&lt;br&gt;├── jdk8u362-b09&lt;br&gt;│   ├── ASSEMBLY_EXCEPTION&lt;br&gt;│   ├── bin&lt;br&gt;│   ├── include&lt;br&gt;│   ├── jre&lt;br&gt;│   ├── lib&lt;br&gt;│   ├── LICENSE&lt;br&gt;│   ├── man&lt;br&gt;│   ├── NOTICE&lt;br&gt;│   ├── release&lt;br&gt;│   ├── sample&lt;br&gt;│   ├── src.zip&lt;br&gt;│   └── THIRD_PARTY_README&lt;br&gt;└── OpenJDK8U-jdk_x64_linux_hotspot_8u362b09.tar.gz&lt;br&gt;&lt;br&gt;7 directories, 7 files&lt;br&gt;&lt;br&gt;&lt;br&gt;## 查看当前文件树&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>PS：JDK也可以手动去<a href="https://mirrors.tuna.tsinghua.edu.cn/Adoptium/8/jdk/x64/linux/">https://mirrors.tuna.tsinghua.edu.cn/Adoptium/8/jdk/x64/linux/</a> 目录下进行下载最新版。</p>
+<h2 id="部署Mysql（建议为8版本）"><a href="#部署Mysql（建议为8版本）" class="headerlink" title="部署Mysql（建议为8版本）"></a><a href="#%E9%83%A8%E7%BD%B2Mysql%EF%BC%88%E5%BB%BA%E8%AE%AE%E4%B8%BA8%E7%89%88%E6%9C%AC%EF%BC%89"></a><a href="#%E9%83%A8%E7%BD%B2Mysql%EF%BC%88%E5%BB%BA%E8%AE%AE%E4%B8%BA8%E7%89%88%E6%9C%AC%EF%BC%89" title="部署Mysql（建议为8版本）"></a>部署Mysql（建议为8版本）</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;</code></td>
+<td><code>clean&lt;br&gt;dnf install mysql-server&lt;br&gt;&lt;br&gt;##Rocky 8源默认安装mysql8&lt;br&gt;&lt;br&gt;systemctl enable --now mysqld&lt;br&gt;&lt;br&gt;systemctl status mysqld.service &lt;br&gt;&lt;br&gt;## 设置开机并启动，查看启动状态&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="参数修改"><a href="#参数修改" class="headerlink" title="参数修改"></a><a href="#%E5%8F%82%E6%95%B0%E4%BF%AE%E6%94%B9"></a><a href="#%E5%8F%82%E6%95%B0%E4%BF%AE%E6%94%B9" title="参数修改"></a>参数修改</h3><p>vim &#x2F;etc&#x2F;my.cnf.d&#x2F;mysql-server.cnf</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;&lt;br&gt;[mysqld]&lt;br&gt;default-time-zone = &#39;+8:00&#39;&lt;br&gt;&lt;br&gt;max_connections = 300&lt;br&gt;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>PS：default-time-zone不配置可能有夏令时问题。 <a href="https://blog.csdn.net/cm15835106905/article/details/124676257">https://blog.csdn.net/cm15835106905/article/details/124676257</a></p>
+<h3 id="初始化"><a href="#初始化" class="headerlink" title="初始化"></a><a href="#%E5%88%9D%E5%A7%8B%E5%8C%96"></a><a href="#%E5%88%9D%E5%A7%8B%E5%8C%96" title="初始化"></a>初始化</h3><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;32&lt;br&gt;33&lt;br&gt;34&lt;br&gt;35&lt;br&gt;36&lt;br&gt;37&lt;br&gt;38&lt;br&gt;39&lt;br&gt;40&lt;br&gt;41&lt;br&gt;42&lt;br&gt;43&lt;br&gt;44&lt;br&gt;45&lt;br&gt;46&lt;br&gt;47&lt;br&gt;48&lt;br&gt;49&lt;br&gt;50&lt;br&gt;51&lt;br&gt;52&lt;br&gt;53&lt;br&gt;54&lt;br&gt;55&lt;br&gt;56&lt;br&gt;57&lt;br&gt;58&lt;br&gt;59&lt;br&gt;60&lt;br&gt;61&lt;br&gt;62&lt;br&gt;63&lt;br&gt;64&lt;br&gt;65&lt;br&gt;66&lt;br&gt;67&lt;br&gt;68&lt;br&gt;69&lt;br&gt;70&lt;br&gt;71&lt;br&gt;72&lt;br&gt;73&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;mysql_secure_installation &lt;br&gt;&lt;br&gt;## 初始化Mysql&lt;br&gt;&lt;br&gt;&lt;br&gt;## 如下，都选择Y即可，密码等级选择0，然后配置root密码。&lt;br&gt;&lt;br&gt;&lt;br&gt;Securing the MySQL server deployment.&lt;br&gt;&lt;br&gt;Connecting to MySQL using a blank password.&lt;br&gt;&lt;br&gt;VALIDATE PASSWORD COMPONENT can be used to test passwords&lt;br&gt;and improve security. It checks the strength of password&lt;br&gt;and allows the users to set only those passwords which are&lt;br&gt;secure enough. Would you like to setup VALIDATE PASSWORD component?&lt;br&gt;&lt;br&gt;Press y|Y for Yes, any other key for No: y&lt;br&gt;&lt;br&gt;There are three levels of password validation policy:&lt;br&gt;&lt;br&gt;LOW    Length &gt;= 8&lt;br&gt;MEDIUM Length &gt;= 8, numeric, mixed case, and special characters&lt;br&gt;STRONG Length &gt;= 8, numeric, mixed case, special characters and dictionary                  file&lt;br&gt;&lt;br&gt;Please enter 0 = LOW, 1 = MEDIUM and 2 = STRONG: 0&lt;br&gt;Please set the password for root here.&lt;br&gt;&lt;br&gt;New password: &lt;br&gt;&lt;br&gt;Re-enter new password: &lt;br&gt;&lt;br&gt;Estimated strength of the password: 50 &lt;br&gt;Do you wish to continue with the password provided?(Press y|Y for Yes, any other key for No) : y&lt;br&gt;By default, a MySQL installation has an anonymous user,&lt;br&gt;allowing anyone to log into MySQL without having to have&lt;br&gt;a user account created for them. This is intended only for&lt;br&gt;testing, and to make the installation go a bit smoother.&lt;br&gt;You should remove them before moving into a production&lt;br&gt;environment.&lt;br&gt;&lt;br&gt;Remove anonymous users? (Press y|Y for Yes, any other key for No) : y&lt;br&gt;Success.&lt;br&gt;&lt;br&gt;&lt;br&gt;Normally, root should only be allowed to connect from&lt;br&gt;&#39;localhost&#39;. This ensures that someone cannot guess at&lt;br&gt;the root password from the network.&lt;br&gt;&lt;br&gt;Disallow root login remotely? (Press y|Y for Yes, any other key for No) : y&lt;br&gt;Success.&lt;br&gt;&lt;br&gt;By default, MySQL comes with a database named &#39;test&#39; that&lt;br&gt;anyone can access. This is also intended only for testing,&lt;br&gt;and should be removed before moving into a production&lt;br&gt;environment.&lt;br&gt;&lt;br&gt;&lt;br&gt;Remove test database and access to it? (Press y|Y for Yes, any other key for No) : y&lt;br&gt; - Dropping test database...&lt;br&gt;Success.&lt;br&gt;&lt;br&gt; - Removing privileges on test database...&lt;br&gt;Success.&lt;br&gt;&lt;br&gt;Reloading the privilege tables will ensure that all changes&lt;br&gt;made so far will take effect immediately.&lt;br&gt;&lt;br&gt;Reload privilege tables now? (Press y|Y for Yes, any other key for No) : y&lt;br&gt;Success.&lt;br&gt;&lt;br&gt;All done! &lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="创建数据库导入SQL文件"><a href="#创建数据库导入SQL文件" class="headerlink" title="创建数据库导入SQL文件"></a><a href="#%E5%88%9B%E5%BB%BA%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AF%BC%E5%85%A5SQL%E6%96%87%E4%BB%B6"></a><a href="#%E5%88%9B%E5%BB%BA%E6%95%B0%E6%8D%AE%E5%BA%93%E5%AF%BC%E5%85%A5SQL%E6%96%87%E4%BB%B6" title="创建数据库导入SQL文件"></a>创建数据库导入SQL文件</h3><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;wget https://github.com/AutohomeCorp/frostmourne/blob/master/doc/mysql-schema/frostmourne.sql&lt;br&gt;&lt;br&gt;## 可能需要挂国际代理，或浏览器下载，使用SCP上传即可.&lt;br&gt;&lt;br&gt;mysql -uroot -p &lt; frostmourne.sql&lt;br&gt;&lt;br&gt;#输入密码即可导入创建数据库。&lt;br&gt;&lt;br&gt;mysql -uroot -p&lt;br&gt;mysql&gt; show databases;&lt;br&gt;+--------------------+&lt;br&gt;| Database           |&lt;br&gt;+--------------------+&lt;br&gt;| frostmourne        |&lt;br&gt;| information_schema |&lt;br&gt;| mysql              |&lt;br&gt;| performance_schema |&lt;br&gt;| sys                |&lt;br&gt;+--------------------+&lt;br&gt;5 rows in set (9527.01 sec)&lt;br&gt;&lt;br&gt;&lt;br&gt;#查看数据库是否正常创建, quit命令退出。&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="下载frostmourne"><a href="#下载frostmourne" class="headerlink" title="下载frostmourne"></a><a href="#%E4%B8%8B%E8%BD%BDfrostmourne"></a><a href="#%E4%B8%8B%E8%BD%BDfrostmourne" title="下载frostmourne"></a>下载frostmourne</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;</code></td>
+<td><code>bash&lt;br&gt;cd /opt&lt;br&gt;mkdir frostmourne&lt;br&gt;cd frostmourne&lt;br&gt;&lt;br&gt;wget https://github.com/AutohomeCorp/frostmourne/releases/download/1.0-RELEASE/frostmourne-monitor-1.0-RELEASE.zip&lt;br&gt;&lt;br&gt;## 可能需要挂国际代理，或浏览器下载，使用SCP上传到opt目录即可.&lt;br&gt;## Github 下载地址 https://github.com/AutohomeCorp/frostmourne/releases&lt;br&gt;&lt;br&gt;dnf install unzip &lt;br&gt;&lt;br&gt;unzip frostmourne-monitor*.zip &lt;br&gt;&lt;br&gt;tree &lt;br&gt;.&lt;br&gt;├── application.properties&lt;br&gt;├── env&lt;br&gt;├── frostmourne-monitor-1.0-RELEASE.jar&lt;br&gt;├── frostmourne-monitor-1.0-RELEASE.zip&lt;br&gt;└── scripts&lt;br&gt;    ├── shutdown.sh&lt;br&gt;    └── startup.sh&lt;br&gt;&lt;br&gt;1 directory, 6 files&lt;br&gt;## 文件树如上。&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="修改ENV-环境文件，配置java路径"><a href="#修改ENV-环境文件，配置java路径" class="headerlink" title="修改ENV 环境文件，配置java路径"></a><a href="#%E4%BF%AE%E6%94%B9ENV-%E7%8E%AF%E5%A2%83%E6%96%87%E4%BB%B6%EF%BC%8C%E9%85%8D%E7%BD%AEjava%E8%B7%AF%E5%BE%84"></a><a href="#%E4%BF%AE%E6%94%B9ENV-%E7%8E%AF%E5%A2%83%E6%96%87%E4%BB%B6%EF%BC%8C%E9%85%8D%E7%BD%AEjava%E8%B7%AF%E5%BE%84" title="修改ENV 环境文件，配置java路径"></a>修改ENV 环境文件，配置java路径</h3><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;</code></td>
+<td><code>bash&lt;br&gt;vim /opt/frostmourne/env &lt;br&gt;&lt;br&gt;&lt;br&gt;JAVA_HOME=/opt/java1.8/jdk8u362-b09&lt;br&gt;##配置文件上面操作解压的JDK路径即可&lt;br&gt;&lt;br&gt;JAVA_OPTS=&quot;-Xms1200m -Xmx2000m -Xss1024K -XX:PermSize=128m -XX:MaxPermSize=256m -Dfile.encoding=utf-8&quot;&lt;br&gt;##JAVA参数，可适当改大内存等参数。&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>修改启动app配置(也可以配置邮件发送服务器和LDAP)</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;vim /opt/frostmourne/application.properties &lt;br&gt;&lt;br&gt;alarmlog_reserve_days=30&lt;br&gt;#配置监控日志保留天数&lt;br&gt;&lt;br&gt;datasource_frostmourne_url=jdbc:mysql://127.0.0.1:3306/frostmourne?characterEncoding=utf8&lt;br&gt;#配置mysql数据库IP地址、数据库名字、编码。&lt;br&gt;&lt;br&gt;datasource_frostmourne_username=root&lt;br&gt;datasource_frostmourne_password=Wow@123&lt;br&gt;#配置mysql数据库账号密码&lt;br&gt;&lt;br&gt;&lt;br&gt;frostmourne_monitor_address=192.168.124.100&lt;br&gt;&lt;br&gt;#配置为本机IP地址即可&lt;br&gt;&lt;br&gt;frostmourne_message_title=Wow&lt;br&gt;#配置实例名字&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="启动测试"><a href="#启动测试" class="headerlink" title="启动测试"></a><a href="#%E5%90%AF%E5%8A%A8%E6%B5%8B%E8%AF%95"></a><a href="#%E5%90%AF%E5%8A%A8%E6%B5%8B%E8%AF%95" title="启动测试"></a>启动测试</h3><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;/opt/frostmourne/scripts/startup.sh &lt;br&gt;&lt;br&gt;./startup.sh: line 7: dos2unix: command not found&lt;br&gt;LOG_DIR: /opt/frostmourne/scripts/../logs&lt;br&gt;PID_FOLDER: /opt/frostmourne/scripts/../pid&lt;br&gt;Sun Mar 26 16:42:27 CST 2023 ==== Starting ==== &lt;br&gt;Application is running as root (UID 0). This is considered insecure.&lt;br&gt;Started [5477]&lt;br&gt;Waiting for server startup..&lt;br&gt;Sun Mar 26 16:42:37 CST 2023 Server started in 10 seconds&lt;br&gt;&lt;br&gt;ss -an | grep 10054&lt;br&gt;tcp   LISTEN 0      100                    *:10054           *:*                  &lt;br&gt;&lt;br&gt;## 查看10054端口监听即可判断已正常启动。&lt;br&gt;&lt;br&gt;/opt/frostmourne/scripts/shutdown.sh &lt;br&gt;&lt;br&gt;## 停止服务&lt;br&gt;&lt;br&gt;                 &lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>Web访问： <a href="http://192.168.124.100:10054/">http://192.168.124.100:10054</a> 即可测试，注意替换IP</p>
+<p>admin 管理账号默认的账号密码是123456</p>
+<p>注意：开启了LDAP认证，admin账号仍然可以用初始密码登录。</p>
+<h2 id="配置为Systemd自定义服务并设置开机启动"><a href="#配置为Systemd自定义服务并设置开机启动" class="headerlink" title="配置为Systemd自定义服务并设置开机启动"></a><a href="#%E9%85%8D%E7%BD%AE%E4%B8%BASystemd%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9C%8D%E5%8A%A1%E5%B9%B6%E8%AE%BE%E7%BD%AE%E5%BC%80%E6%9C%BA%E5%90%AF%E5%8A%A8"></a><a href="#%E9%85%8D%E7%BD%AE%E4%B8%BASystemd%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9C%8D%E5%8A%A1%E5%B9%B6%E8%AE%BE%E7%BD%AE%E5%BC%80%E6%9C%BA%E5%90%AF%E5%8A%A8" title="配置为Systemd自定义服务并设置开机启动"></a>配置为Systemd自定义服务并设置开机启动</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;vim /usr/lib/systemd/system/frostmourne.service &lt;br&gt;&lt;br&gt;&lt;br&gt;[Unit]&lt;br&gt;Description=frost&lt;br&gt;After=network.target mysqld.service&lt;br&gt;&lt;br&gt;[Service]&lt;br&gt;User=root&lt;br&gt;Type=forking&lt;br&gt;ExecStart=/opt/frostmourne/scripts/startup.sh&lt;br&gt;ExecStop=/opt/frostmourne/scripts/shutdown.sh&lt;br&gt;RemainAfterExit=yes&lt;br&gt;&lt;br&gt;&lt;br&gt;&lt;br&gt;[Install]&lt;br&gt;WantedBy=multi-user.target&lt;br&gt;&lt;br&gt;##写入到文件保存。&lt;br&gt;&lt;br&gt;systemctl daemon-reload&lt;br&gt;## 加载自定义服务&lt;br&gt;systemctl start frostmourne.service &lt;br&gt;systemctl status frostmourne.service &lt;br&gt;&lt;br&gt;## 尝试启动，并查看状态。&lt;br&gt;systemctl enable frostmourne.service &lt;br&gt;&lt;br&gt;## 设置开启及并启动&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>注意：需要等待网络服务和mysql启动之后，才会启动。</p>
+<h1 id="技术架构"><a href="#技术架构" class="headerlink" title="技术架构"></a><a href="#%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84"></a><a href="#%E6%8A%80%E6%9C%AF%E6%9E%B6%E6%9E%84" title="技术架构"></a>技术架构</h1><p><code>frostmourne-vue</code>：前端项目，使用<code>vue-element-template</code>实现，打包时会把生成的资源文件构建到<code>frostmourne-monitor</code></p>
+<ul>
+<li><code>frostmourne-monitor</code>：监控运行主体服务</li>
+</ul>
+<p><a href="https://img.songxwn.com/file/68863ca3264c80d586790.png"><img src="/images/1717468045-b0f1604347a75fe07fb08c4ed2308758.png"></a></p>
+<h2 id="主要技术栈"><a href="#主要技术栈" class="headerlink" title="主要技术栈"></a><a href="#%E4%B8%BB%E8%A6%81%E6%8A%80%E6%9C%AF%E6%A0%88"></a><a href="#%E4%B8%BB%E8%A6%81%E6%8A%80%E6%9C%AF%E6%A0%88" title="主要技术栈"></a>主要技术栈</h2><ul>
+<li><code>springboot 2.x</code></li>
+<li><code>element ui</code></li>
+<li><code>vue-admin-template</code></li>
+<li><code>xxl-job</code></li>
+<li><code>mybatis</code></li>
+<li><code>freemarker</code></li>
+<li><code>elasticsearch</code></li>
+<li><code>InfluxDB</code></li>
+<li><code>jjwt</code></li>
+<li><code>nashorn</code></li>
+</ul>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p>官方文档：<a href="https://github.com/AutohomeCorp/frostmourne">https://github.com/AutohomeCorp/frostmourne</a></p>
+<p>注意：推荐配合<a href="https://songxwn.com/elk/">https://songxwn.com/elk/</a> ES部署使用。<br>集群：安装教程：<a href="https://songxwn.com/elk_cluster/">https://songxwn.com/elk_cluster&#x2F;</a></p>
+<p>使用参考： <a href="https://songxwn.com/frostmourne_use">https://songxwn.com/frostmourne_use</a></p>
+]]></content>
+      <categories>
+        <category>ELK</category>
+      </categories>
+      <tags>
+        <tag>ELK</tag>
+      </tags>
+  </entry>
 </search>
