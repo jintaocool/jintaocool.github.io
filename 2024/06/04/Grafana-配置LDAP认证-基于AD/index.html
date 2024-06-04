@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title> Lijintao&#39;s Blog</title>
+      <title>Grafana 配置LDAP认证-基于AD |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -67,523 +67,259 @@
       
       
     <main class="content on">
-      
-<section class="cover">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana-配置LDAP认证-基于AD"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-  <div class="cover-frame">
-    <div class="bg-box">
-      <img src="/images/cover1.jpg" alt="image frame" />
-    </div>
-    <div class="cover-inner text-center text-white">
-      <h1><a href="/">Lijintao&#39;s Blog</a></h1>
-      <div id="subtitle-box">
-        
-        <span id="subtitle"></span>
-        
-      </div>
-      <div>
-        
-      </div>
-    </div>
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana 配置LDAP认证-基于AD
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/04/Grafana-%E9%85%8D%E7%BD%AELDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/" class="article-date">
+  <time datetime="2024-06-04T02:39:27.000Z" itemprop="datePublished">2024-06-04</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
   </div>
-  <div class="cover-learn-more">
-    <a href="javascript:void(0)" class="anchor"><i class="ri-arrow-down-line"></i></a>
-  </div>
-</section>
-
-
-
-<script src="https://cdn.staticfile.org/typed.js/2.0.12/typed.min.js"></script>
-
-
-<!-- Subtitle -->
-
-  <script>
-    try {
-      var typed = new Typed("#subtitle", {
-        strings: ['面朝大海，春暖花开', '愿你一生努力，一生被爱', '想要的都拥有，得不到的都释怀'],
-        startDelay: 0,
-        typeSpeed: 200,
-        loop: true,
-        backSpeed: 100,
-        showCursor: true
-      });
-    } catch (err) {
-      console.log(err)
-    }
-  </script>
   
-<div id="main">
-  <section class="outer">
-  
-  
-  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.3k</span>
+        </span>
+    </span>
 
-<div class="notice" style="margin-top:50px">
-    <i class="ri-heart-fill"></i>
-    <div class="notice-content" id="broad"></div>
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">7 分钟</span>
+        </span>
+    </span>
 </div>
-<script type="text/javascript">
-    fetch('https://v1.hitokoto.cn')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById("broad").innerHTML = data.hitokoto;
-        })
-        .catch(console.error)
-</script>
-
-<style>
-    .notice {
-        padding: 20px;
-        border: 1px dashed #e6e6e6;
-        color: #969696;
-        position: relative;
-        display: inline-block;
-        width: 100%;
-        background: #fbfbfb50;
-        border-radius: 10px;
-    }
-
-    .notice i {
-        float: left;
-        color: #999;
-        font-size: 16px;
-        padding-right: 10px;
-        vertical-align: middle;
-        margin-top: -2px;
-    }
-
-    .notice-content {
-        display: initial;
-        vertical-align: middle;
-    }
-</style>
-  
-  <article class="articles">
-    
-    
-    
-    
-    <article
-  id="Prometheus-Prometheus基本原理"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/14/Prometheus%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86/"
-    >Prometheus基本原理</a> 
-</h2>
  
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/14/Prometheus%E5%9F%BA%E6%9C%AC%E5%8E%9F%E7%90%86/" class="article-date">
-  <time datetime="2023-12-14T08:48:19.000Z" itemprop="datePublished">2023-12-14</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
     </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
        
+  <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a><a href="#%E4%BB%8B%E7%BB%8D"></a><a href="#%E4%BB%8B%E7%BB%8D" title="介绍"></a>介绍</h1><p>本教程适用于9-10版本的Grafana，域控（AD）使用Windows Server 2022搭建，域控等级为 2016。</p>
+<p>域控域名为 songxwn.com</p>
+<p>最终实现AD用户统一认证，统一改密，Grafana用户自动添加。权限由Grafana控制</p>
+<h1 id="全局开启LDAP"><a href="#全局开启LDAP" class="headerlink" title="全局开启LDAP"></a><a href="#%E5%85%A8%E5%B1%80%E5%BC%80%E5%90%AFLDAP"></a><a href="#%E5%85%A8%E5%B1%80%E5%BC%80%E5%90%AFLDAP" title="全局开启LDAP"></a>全局开启LDAP</h1><p>修改&#x2F;etc&#x2F;grafana&#x2F;grafana.ini 文件</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>shell&lt;br&gt;vim /etc/grafana/grafana.ini&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>修改并取消注释以下参数即可</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;&lt;br&gt;[auth.ldap]&lt;br&gt;enabled = true&lt;br&gt;config_file = /etc/grafana/ldap.toml&lt;br&gt;allow_sign_up = true&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h1 id="配置LDAP对接文件"><a href="#配置LDAP对接文件" class="headerlink" title="配置LDAP对接文件"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E5%AF%B9%E6%8E%A5%E6%96%87%E4%BB%B6"></a><a href="#%E9%85%8D%E7%BD%AELDAP%E5%AF%B9%E6%8E%A5%E6%96%87%E4%BB%B6" title="配置LDAP对接文件"></a>配置LDAP对接文件</h1><p>修改&#x2F;etc&#x2F;grafana&#x2F;ldap.toml文件</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>shell&lt;br&gt;vim /etc/grafana/ldap.toml&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>文件示例</p>
+<ul>
+<li><p>host 为域控制器地址。</p>
+</li>
+<li><p>port 默认为 389即可，不开启加密</p>
+</li>
+<li><p>bind_dn 为域控账号，用于搜索域控账号</p>
+</li>
+<li><p>bind_password 为上面账号的密码</p>
+</li>
+<li><p>search_filter AD固定为(sAMAccountName&#x3D;%s)</p>
+</li>
+<li><p>search_base_dns 为域控路径，可以去ADSI查看</p>
+</li>
+</ul>
+<h2 id="用户组权限映射-servers-group-mappings"><a href="#用户组权限映射-servers-group-mappings" class="headerlink" title="用户组权限映射 - [[servers.group_mappings]]"></a><a href="#%E7%94%A8%E6%88%B7%E7%BB%84%E6%9D%83%E9%99%90%E6%98%A0%E5%B0%84-servers-group-mappings"></a><a href="#%E7%94%A8%E6%88%B7%E7%BB%84%E6%9D%83%E9%99%90%E6%98%A0%E5%B0%84-servers-group-mappings" title="用户组权限映射 - [[servers.group_mappings]]"></a>用户组权限映射 - [[servers.group_mappings]]</h2><ul>
+<li>group_dn 为用户组的路径</li>
+<li>org_role 为在Grafana用户组的权限，有 Admin、Editor、Viewer （管理、编辑、只读）</li>
+</ul>
+<p>如下面所示，我将it1 映射为了Editor，it2 组为Viewer</p>
+<p>PS：具体路径建议用ADSI工具查看。</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;32&lt;br&gt;33&lt;br&gt;34&lt;br&gt;35&lt;br&gt;36&lt;br&gt;37&lt;br&gt;38&lt;br&gt;39&lt;br&gt;40&lt;br&gt;41&lt;br&gt;42&lt;br&gt;43&lt;br&gt;44&lt;br&gt;45&lt;br&gt;46&lt;br&gt;47&lt;br&gt;48&lt;br&gt;49&lt;br&gt;50&lt;br&gt;51&lt;br&gt;52&lt;br&gt;53&lt;br&gt;54&lt;br&gt;55&lt;br&gt;56&lt;br&gt;57&lt;br&gt;58&lt;br&gt;59&lt;br&gt;60&lt;br&gt;61&lt;br&gt;62&lt;br&gt;63&lt;br&gt;64&lt;br&gt;65&lt;br&gt;66&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;&lt;br&gt;[[servers]]&lt;br&gt;# Ldap server host (specify multiple hosts space separated)&lt;br&gt;host = &quot;songxwn.com&quot;&lt;br&gt;# Default port is 389 or 636 if use_ssl = true&lt;br&gt;port = 389&lt;br&gt;# Set to true if LDAP server should use an encrypted TLS connection (either with STARTTLS or LDAPS)&lt;br&gt;use_ssl = false&lt;br&gt;# If set to true, use LDAP with STARTTLS instead of LDAPS&lt;br&gt;start_tls = false&lt;br&gt;# The value of an accepted TLS cipher. By default, this value is empty. Example value: [&quot;TLS_AES_256_GCM_SHA384&quot;])&lt;br&gt;# For a complete list of supported ciphers and TLS versions, refer to: https://go.dev/src/crypto/tls/cipher_suites.go&lt;br&gt;tls_ciphers = []&lt;br&gt;# This is the minimum TLS version allowed. By default, this value is empty. Accepted values are: TLS1.1, TLS1.2, TLS1.3.&lt;br&gt;min_tls_version = &quot;&quot;&lt;br&gt;# set to true if you want to skip ssl cert validation&lt;br&gt;ssl_skip_verify = false&lt;br&gt;# set to the path to your root CA certificate or leave unset to use system defaults&lt;br&gt;# root_ca_cert = &quot;/path/to/certificate.crt&quot;&lt;br&gt;# Authentication against LDAP servers requiring client certificates&lt;br&gt;# client_cert = &quot;/path/to/client.crt&quot;&lt;br&gt;# client_key = &quot;/path/to/client.key&quot;&lt;br&gt;&lt;br&gt;# Search user bind dn&lt;br&gt;bind_dn = &quot;admin@songxwn.com&quot;&lt;br&gt;# Search user bind password&lt;br&gt;# If the password contains # or ; you have to wrap it with triple quotes. Ex &quot;&quot;&quot;#password;&quot;&quot;&quot;&lt;br&gt;bind_password = &#39;password@123&#39;&lt;br&gt;# We recommend using variable expansion for the bind_password, for more info https://grafana.com/docs/grafana/latest/setup-grafana/configure-grafana/#variable-expansion&lt;br&gt;# bind_password = &#39;$__env&#123;LDAP_BIND_PASSWORD&#125;&#39;&lt;br&gt;&lt;br&gt;# Timeout in seconds (applies to each host specified in the &#39;host&#39; entry (space separated))&lt;br&gt;timeout = 15&lt;br&gt;&lt;br&gt;# User search filter, for example &quot;(cn=%s)&quot; or &quot;(sAMAccountName=%s)&quot; or &quot;(uid=%s)&quot;&lt;br&gt;search_filter = &quot;(sAMAccountName=%s)&quot;&lt;br&gt;&lt;br&gt;# An array of base dns to search through&lt;br&gt;search_base_dns = [&quot;dc=songxwn,dc=com&quot;]&lt;br&gt;&lt;br&gt;## For Posix or LDAP setups that does not support member_of attribute you can define the below settings&lt;br&gt;## Please check grafana LDAP docs for examples&lt;br&gt;# group_search_filter = &quot;(&amp;(objectClass=posixGroup)(memberUid=%s))&quot;&lt;br&gt;# group_search_base_dns = [&quot;ou=groups,dc=grafana,dc=org&quot;]&lt;br&gt;# group_search_filter_user_attribute = &quot;uid&quot;&lt;br&gt;&lt;br&gt;# Specify names of the ldap attributes your ldap uses&lt;br&gt;[servers.attributes]&lt;br&gt;name = &quot;givenName&quot;&lt;br&gt;surname = &quot;sn&quot;&lt;br&gt;username = &quot;sAMAccountName&quot;&lt;br&gt;member_of = &quot;memberOf&quot;&lt;br&gt;email =  &quot;mail&quot;&lt;br&gt;&lt;br&gt;# Map ldap groups to grafana org roles&lt;br&gt;&lt;br&gt;&lt;br&gt;[[servers.group_mappings]]&lt;br&gt;group_dn = &quot;cn=it1,cn=users,dc=songxwn,dc=com&quot;&lt;br&gt;org_role = &quot;Editor&quot;&lt;br&gt;&lt;br&gt;[[servers.group_mappings]]&lt;br&gt;# If you want to match all (or no ldap groups) then you can use wildcard&lt;br&gt;group_dn = &quot;cn=it2,cn=users,dc=songxwn,dc=com&quot;&lt;br&gt;org_role = &quot;Viewer&quot;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h1 id="重启和测试"><a href="#重启和测试" class="headerlink" title="重启和测试"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95"></a><a href="#%E9%87%8D%E5%90%AF%E5%92%8C%E6%B5%8B%E8%AF%95" title="重启和测试"></a>重启和测试</h1><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;</code></td>
+<td><code>shell&lt;br&gt;&lt;br&gt;systemctl restart grafana-server.service &lt;br&gt;&lt;br&gt;# 重启之后，上述配置才能生效。&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="测试用户登录"><a href="#测试用户登录" class="headerlink" title="测试用户登录"></a><a href="#%E6%B5%8B%E8%AF%95%E7%94%A8%E6%88%B7%E7%99%BB%E5%BD%95"></a><a href="#%E6%B5%8B%E8%AF%95%E7%94%A8%E6%88%B7%E7%99%BB%E5%BD%95" title="测试用户登录"></a>测试用户登录</h2><p><a target="_blank" rel="noopener" href="https://img.songxwn.com/file/895345296b22742c1e057.png" title="测试登录"><img src="/images/1717468651-0e122ce39a9b8df52d71bb73e7d75840.png" alt="测试登录"></a></p>
+<p>测试登录</p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/ldap/">https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/ldap/</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
 
     <!-- copyright -->
     
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
     <footer class="article-footer">
        
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/04/Grafana-%E9%85%8D%E7%BD%AELDAP%E8%AE%A4%E8%AF%81-%E5%9F%BA%E4%BA%8EAD/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
 
     </footer>
   </div>
 
    
-   
-  
-</article>
-
+  <nav class="article-nav">
     
-    <article
-  id="Mysql-Mysql中查询执行SQL记录的语句"
-  class="article article-type-Mysql"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
     
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/14/Mysql%E4%B8%AD%E6%9F%A5%E8%AF%A2%E6%89%A7%E8%A1%8CSQL%E8%AE%B0%E5%BD%95%E7%9A%84%E8%AF%AD%E5%8F%A5/"
-    >Mysql中查询执行SQL记录的语句</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/14/Mysql%E4%B8%AD%E6%9F%A5%E8%AF%A2%E6%89%A7%E8%A1%8CSQL%E8%AE%B0%E5%BD%95%E7%9A%84%E8%AF%AD%E5%8F%A5/" class="article-date">
-  <time datetime="2023-12-14T07:53:34.000Z" itemprop="datePublished">2023-12-14</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Mysql/">Mysql</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
+      <a href="/2024/06/04/Frostmourne-%E9%9C%9C%E4%B9%8B%E5%93%80%E4%BC%A4-ELK%E6%97%A5%E5%BF%97%E5%91%8A%E8%AD%A6%E7%B3%BB%E7%BB%9F%E9%83%A8%E7%BD%B2%E6%95%99%E7%A8%8B/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Frostmourne (霜之哀伤) ELK日志告警系统部署教程</div>
+      </a>
     
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Mysql/" rel="tag">Mysql</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Prometheus-Prometheus原理和使用介绍"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/12/Prometheus%E5%8E%9F%E7%90%86%E5%92%8C%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/"
-    >Prometheus原理和使用介绍</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/12/Prometheus%E5%8E%9F%E7%90%86%E5%92%8C%E4%BD%BF%E7%94%A8%E4%BB%8B%E7%BB%8D/" class="article-date">
-  <time datetime="2023-12-12T09:33:49.000Z" itemprop="datePublished">2023-12-12</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Prometheus-如何使用Prometheus在GitLab中进行异常检测"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/11/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8Prometheus%E5%9C%A8GitLab%E4%B8%AD%E8%BF%9B%E8%A1%8C%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B/"
-    >如何使用Prometheus在GitLab中进行异常检测</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/11/%E5%A6%82%E4%BD%95%E4%BD%BF%E7%94%A8Prometheus%E5%9C%A8GitLab%E4%B8%AD%E8%BF%9B%E8%A1%8C%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B/" class="article-date">
-  <time datetime="2023-12-11T06:36:09.000Z" itemprop="datePublished">2023-12-11</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Skywalking-SkyWalking-告警规则配置说明"
-  class="article article-type-Skywalking"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/08/SkyWalking-%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E/"
-    >SkyWalking 告警规则配置说明</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/08/SkyWalking-%E5%91%8A%E8%AD%A6%E8%A7%84%E5%88%99%E9%85%8D%E7%BD%AE%E8%AF%B4%E6%98%8E/" class="article-date">
-  <time datetime="2023-12-08T09:17:31.000Z" itemprop="datePublished">2023-12-08</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Prometheus-Pushgateway的场景使用"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/08/Pushgateway%E7%9A%84%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/"
-    >Pushgateway的场景使用</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/08/Pushgateway%E7%9A%84%E5%9C%BA%E6%99%AF%E4%BD%BF%E7%94%A8/" class="article-date">
-  <time datetime="2023-12-08T08:57:53.000Z" itemprop="datePublished">2023-12-08</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Prometheus-Prometheus关于微服务的监控"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/08/Prometheus%E5%85%B3%E4%BA%8E%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%9A%84%E7%9B%91%E6%8E%A7/"
-    >Prometheus关于微服务的监控</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/08/Prometheus%E5%85%B3%E4%BA%8E%E5%BE%AE%E6%9C%8D%E5%8A%A1%E7%9A%84%E7%9B%91%E6%8E%A7/" class="article-date">
-  <time datetime="2023-12-08T08:44:45.000Z" itemprop="datePublished">2023-12-08</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="Prometheus-Prometheus查询API说明文档"
-  class="article article-type-Prometheus"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/08/Prometheus%E6%9F%A5%E8%AF%A2API%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/"
-    >Prometheus查询API说明文档</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/08/Prometheus%E6%9F%A5%E8%AF%A2API%E8%AF%B4%E6%98%8E%E6%96%87%E6%A1%A3/" class="article-date">
-  <time datetime="2023-12-08T05:45:43.000Z" itemprop="datePublished">2023-12-08</time>
-</a> 
-  <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
-  </div>
-   
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
-
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-    <article
-  id="post-hello-world"
-  class="article article-type-post"
-  itemscope
-  itemprop="blogPost"
-  data-scroll-reveal
->
-  <div class="article-inner">
-    
-    <header class="article-header">
-       
-<h2 itemprop="name">
-  <a class="article-title" href="/2023/12/08/hello-world/"
-    >Hello World</a> 
-</h2>
- 
-
-      
-    </header>
-     
-    <div class="article-meta">
-      <a href="/2023/12/08/hello-world/" class="article-date">
-  <time datetime="2023-12-08T03:25:36.089Z" itemprop="datePublished">2023-12-08</time>
-</a>    
-    </div>
-       
-
-    <!-- copyright -->
-    
-    <footer class="article-footer">
-       
-    </footer>
-  </div>
-
-   
-   
-  
-</article>
-
-    
-  </article>
-  
-
-  
-  <nav class="page-nav">
-    
-    <a class="extend prev" rel="prev" href="/page/3/">上一页</a><a class="page-number" href="/">1</a><a class="page-number" href="/page/2/">2</a><a class="page-number" href="/page/3/">3</a><span class="page-number current">4</span>
   </nav>
-  
-</section>
-</div>
 
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
       <footer class="footer">
   <div class="outer">
     <ul>
@@ -736,6 +472,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
