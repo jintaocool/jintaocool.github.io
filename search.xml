@@ -17228,4 +17228,92 @@ plugin_admin_external_manage_enabled = true
         <tag>Grafana</tag>
       </tags>
   </entry>
+  <entry>
+    <title>外部普罗米修斯集中监控多个Prometheus实例、Prometheus Agent模式、Prometheus联邦模式 ~详细介绍</title>
+    <url>/2024/06/06/%E5%A4%96%E9%83%A8%E6%99%AE%E7%BD%97%E7%B1%B3%E4%BF%AE%E6%96%AF%E9%9B%86%E4%B8%AD%E7%9B%91%E6%8E%A7%E5%A4%9A%E4%B8%AAPrometheus%E5%AE%9E%E4%BE%8B%E3%80%81Prometheus-Agent%E6%A8%A1%E5%BC%8F%E3%80%81Prometheus%E8%81%94%E9%82%A6%E6%A8%A1%E5%BC%8F-%E8%AF%A6%E7%BB%86%E4%BB%8B%E7%BB%8D/</url>
+    <content><![CDATA[<h4 id="外部普米集中监控多个Prometheus实例"><a href="#外部普米集中监控多个Prometheus实例" class="headerlink" title="外部普米集中监控多个Prometheus实例"></a>外部普米集中监控多个Prometheus实例</h4><p><img src="/images/1717641283-4a44e449a548bb3932f46aa438dd80e7.png" alt="在这里插入图片描述"></p>
+<h2 id="Prometheus-Agent-模式-使用推送方式来监控"><a href="#Prometheus-Agent-模式-使用推送方式来监控" class="headerlink" title="Prometheus Agent 模式-使用推送方式来监控"></a>Prometheus Agent 模式-使用推送方式来监控</h2><h3 id="1-外部Prometheus配置"><a href="#1-外部Prometheus配置" class="headerlink" title="1.外部Prometheus配置"></a>1.外部Prometheus配置</h3><h5 id="1-需要开放端口，在启动时，需要配置开放监听端口"><a href="#1-需要开放端口，在启动时，需要配置开放监听端口" class="headerlink" title="1.需要开放端口，在启动时，需要配置开放监听端口"></a>1.需要开放端口，在启动时，需要配置开放监听端口</h5><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">--web.enable-lifecycle --config.file=/usr/local/prometheus/prometheus.yml --log.level=warn --storage.tsdb.path=/prometheus </span><br><span class="line">--web.listen-address=0.0.0.0:9090 </span><br><span class="line">--storage.tsdb.retention=30d </span><br><span class="line">--web.enable-remote-write-receiver</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-添加prometheus启动参数"><a href="#2-添加prometheus启动参数" class="headerlink" title="2.添加prometheus启动参数"></a>2.添加prometheus启动参数</h5><p><code>--enable-feature=remote-write-receiver</code>, 用于启用 Prometheus 的远程写入接收器功能</p>
+<p>该功能使 Prometheus 实例能够接收来自其他 Prometheus 实例或<a href="https://so.csdn.net/so/search?q=%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F&spm=1001.2101.3001.7020">监控系统</a>的数据，并将其写入本地时间序列数据库中。通过启用远程写入接收器，可以实现集中式监控数据收集和存储，从而简化监控数据管理和分析过程。</p>
+<p>具体来说，启用此功能的目的包括：</p>
+<ul>
+<li>数据聚合和中心化 ：通过远程写入接收器，多个 Prometheus实例或其他监控系统可以将监控数据发送到单个集中式存储位置。这样可以更轻松地聚合和管理监控数据，并为用户提供统一的监控数据视图。</li>
+<li>数据备份和冗余 ：将监控数据发送到多个 Prometheus 实例或存储系统可以提供数据备份和冗余。如果一个实例或存储系统发生故障，仍然可以从其他实例或系统中检索数据，确保数据的可用性和持久性。</li>
+<li>跨数据中心或云环境的监控 ：在分布式环境中，可能存在多个数据中心或云环境，各自运行着不同的 Prometheus实例。启用远程写入接收器可以轻松地将不同地理位置或不同云环境中的监控数据集中到单个存储位置，实现统一的跨数据中心或云环境的监控管理。</li>
+<li>实现监控数据的归档和长期存储 ：集中式存储位置可以更好地支持监控数据的归档和长期存储需求。通过启用远程写入接收器，可以将监控数据发送到专门的存储系统或服务，实现对监控数据的有效管理和利用。</li>
+</ul>
+<h5 id="3-修改配置后重启prometheus即可"><a href="#3-修改配置后重启prometheus即可" class="headerlink" title="3.修改配置后重启prometheus即可"></a>3.修改配置后重启prometheus即可</h5><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">docker restart prometheus</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-各个节点的普米配置"><a href="#2-各个节点的普米配置" class="headerlink" title="2.各个节点的普米配置"></a>2.各个节点的普米配置</h3><h5 id="1-修改prometheus-yml"><a href="#1-修改prometheus-yml" class="headerlink" title="1.修改prometheus.yml"></a>1.修改prometheus.yml</h5><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">vi prometheus.yml </span><br><span class="line"></span><br><span class="line">remote_write:</span><br><span class="line">  - url: http://192.168.1.1:9090/api/v1/write</span><br><span class="line">    <span class="comment"># 标签替换配置</span></span><br><span class="line">    write_relabel_configs:</span><br><span class="line">      - source_labels: [instance]  <span class="comment"># 要替换的源标签</span></span><br><span class="line">        target_label: instance     <span class="comment"># 替换后的目标标签</span></span><br><span class="line">        replacement: <span class="string">&quot;192.168.1.91&quot;</span>      <span class="comment"># 替换后的值，可以使用正则表达式</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><code>192.168.1.1:9090 外部普米的地址</code></p>
+</blockquote>
+<p>write_relabel_configs的作用：在 Prometheus 的配置文件中，用于远程写入（remote_write）时对标签进行替换。具体来说，它可以用于以下情况：</p>
+<ul>
+<li>标签重命名 ：有时，当将监控数据写入到远程存储或其他 Prometheus 实例时，可能需要对标签进行重命名以符合目标系统的要求。例如，源系统使用的标签名与目标系统不一致，需要将其映射到目标系统所需的标签名上。</li>
+<li>标签值替换 ：在某些情况下，需要修改标签的值。例如，源系统中的标签值包含了敏感信息或不合规定的内容，需要在写入到远程存储之前将其替换为合适的值</li>
+<li>标签值修正 ：有时，需要根据特定的规则或逻辑来修正标签的值。例如，可能需要基于标签的某些特征来调整其值，以便更好地匹配目标系统的要求或进行数据清洗。 在上述配置中，source_labels 指定了要替换的源标签，target_label 指定了替换后的目标标签，replacement指定了目标标签的替换值。通过这种方式，可以灵活地定义不同的标签替换规则，以满足远程写入的需求。</li>
+</ul>
+<h3 id="测试是否成功"><a href="#测试是否成功" class="headerlink" title="测试是否成功"></a>测试是否成功</h3><p>访问外部的普米节点：<a href="http://192.168.1.1:9090/%EF%BC%8C%E4%BC%9A%E6%9C%89%E7%9B%91%E6%8E%A7%E7%9A%84%E6%8C%87%E6%A0%87%E4%BF%A1%E6%81%AF%EF%BC%8C%E6%90%9C%E7%B4%A2%E6%9F%A5%E7%9C%8B%E5%8D%B3%E5%8F%AF">http://192.168.1.1:9090/，会有监控的指标信息，搜索查看即可</a></p>
+<p><img src="/images/1717641283-06e9a048fa2f07c8446e466bb7aea35c.png" alt="在这里插入图片描述"></p>
+<h5 id="遇到问题"><a href="#遇到问题" class="headerlink" title="遇到问题"></a>遇到问题</h5><h6 id="1-外部普米未开启远程写入功能"><a href="#1-外部普米未开启远程写入功能" class="headerlink" title="1.外部普米未开启远程写入功能"></a>1.外部普米未开启远程写入功能</h6><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">root@<span class="built_in">test</span>:etc/prometheus<span class="comment"># curl -X POST -d &quot;metric_name&#123;label1=\&quot;value1\&quot;, label2=\&quot;value2\&quot;&#125; 1234567890&quot; http://192.168.1.1:9090/api/v1/write</span></span><br><span class="line">remote write receiver needs to be enabled with --web.enable-remote-write-receiver</span><br></pre></td></tr></table></figure>
+
+<p>需要在prometheus启动参数 –enable-feature&#x3D;remote-write-receiver</p>
+<h2 id="prometheus-联邦模式（联合允许-Prometheus-服务器从另一个-Prometheus-服务器抓取选定的时间序列）"><a href="#prometheus-联邦模式（联合允许-Prometheus-服务器从另一个-Prometheus-服务器抓取选定的时间序列）" class="headerlink" title="prometheus 联邦模式（联合允许 Prometheus 服务器从另一个 Prometheus 服务器抓取选定的时间序列）"></a>prometheus 联邦模式（联合允许 Prometheus 服务器从另一个 Prometheus 服务器抓取选定的时间序列）</h2><blockquote>
+<p>官方文档：<a href="https://prometheus.io/docs/prometheus/latest/federation/">https://prometheus.io/docs/prometheus/latest/federation/</a></p>
+</blockquote>
+<p>–enable-feature&#x3D;native-histograms</p>
+<p>联邦有不同的使用场景。通常，它用于实现可伸缩的Prometheus监控，或将一个服务相关指标从一个Prometheus拉取到另一个中<br>为了扩展单个Prometheus的采集能力和存储能力，Prometheus引入了联邦概念。多个Prometheus节点组成两级联邦结构，上面一层是联邦节点，负责定时从下面的节点获取数据并汇总，下面的Promethes可以负责不同区域&#x2F;不同服务的数据采集。<br>Prometheus 是一个强大的监控平台，它是针对容器和微服务的开源监控预警工具，功能稳健，而且现在很多大厂都在使用一套监控系统（像网易、360等）</p>
+<h3 id="一、Prometheus-联邦配置说明"><a href="#一、Prometheus-联邦配置说明" class="headerlink" title="一、Prometheus 联邦配置说明"></a>一、Prometheus 联邦配置说明</h3><p>本次我以三台 Prometheus 实例进行简单演示：<br>实例1：10.xxx.xxx.91&#x2F;32<br>实例2：10.xxx.xxx.96&#x2F;32<br>实例3：10.xxx.xxx.94&#x2F;32<br>说明：实例 1 为主，实例2、实例3为从，实例 1 会从实例 2 、实例3采集数据，并最终在实例 1 进行整合。</p>
+<h3 id="二、-配置-Prometheus"><a href="#二、-配置-Prometheus" class="headerlink" title="二、 配置 Prometheus"></a>二、 配置 Prometheus</h3><p>1、实例 1 配置<br>在 Prometheus 实例（主）配置 Prometheus 实例（从）</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">vim prometheus.yml</span><br><span class="line"></span><br><span class="line">  - job_name: <span class="string">&#x27;prometheus-federate-xahmat&#x27;</span></span><br><span class="line">    honor_labels: <span class="literal">true</span></span><br><span class="line">    metrics_path: <span class="string">&#x27;/federate&#x27;</span></span><br><span class="line">    params:</span><br><span class="line">     <span class="string">&#x27;match[]&#x27;</span>:</span><br><span class="line">      - <span class="string">&#x27;&#123;job=~&quot;.*&quot;&#125;&#x27;</span></span><br><span class="line">    static_configs:</span><br><span class="line">    - targets: [<span class="string">&quot;公网IP:9090&quot;</span>]</span><br></pre></td></tr></table></figure>
+
+<p><strong>params一些配置参考</strong></p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">params:</span><br><span class="line">  <span class="string">&#x27;match[]&#x27;</span>:    <span class="comment">#match[]用指定查询条件，即只从其他Prometheus抓取符合条件的数据</span></span><br><span class="line">  - <span class="string">&#x27;&#123;job=&quot;prometheus&quot;&#125;&#x27;</span>    <span class="comment">#job用于匹配指定名称的job，这里表示抓取prometheus job对应的指标数据</span></span><br><span class="line">  - <span class="string">&#x27;&#123;__name__=~&quot;job:.*&quot;&#125;&#x27;</span>    <span class="comment">#__name__表示匹配指定名称的指标数据，这里表示抓取以job开头的指标数据</span></span><br><span class="line">  - <span class="string">&#x27;&#123;job=~&quot;node.*&quot;&#125;&#x27;</span>    <span class="comment">#抓取以node开头的job的指标</span></span><br></pre></td></tr></table></figure>
+
+<p>配置说明：</p>
+<ul>
+<li>job_name：自定义工作名；</li>
+<li>honor_labels：保持原标签不变；</li>
+<li>metrics_path：匹URL（即配置完成后可通过此URL 来验证是否采集到实例 2 上的数据）；</li>
+<li>params：匹配（可进行正则匹配），下面的 {job&#x3D;~“.*”} 采集所有来自实例 2的指标数据，根据实际情况自定义即可；</li>
+<li>static_configs：即实例 2 的地址（IP+Port）这里的 IP 为实例 2 的公网 IP，如果有多个实例，依次往下添加即可。</li>
+</ul>
+<h3 id="三、实例-2-配置"><a href="#三、实例-2-配置" class="headerlink" title="三、实例 2 配置"></a>三、实例 2 配置</h3><p>实例 2 就是正常的配置,我这里配置的是blackbox-exporter的监控信息</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;blackbox-91&#x27;</span></span><br><span class="line">   scrape_interval: 5s</span><br><span class="line">   metrics_path: /probe</span><br><span class="line">   params:</span><br><span class="line">     module: [icmp]</span><br><span class="line">   static_configs:</span><br><span class="line">     - targets:</span><br><span class="line">         - <span class="string">&#x27;2.2.2.2&#x27;</span></span><br><span class="line">       labels:</span><br><span class="line">         <span class="comment"># 节点用途，此处固定为node</span></span><br><span class="line">         instanceType: <span class="string">&#x27;blackbox&#x27;</span></span><br><span class="line">         targetType: <span class="string">&#x27;icmp&#x27;</span></span><br><span class="line">         zone: <span class="string">&#x27;测试&#x27;</span></span><br><span class="line">         sourcePlace: <span class="string">&#x27;10.2.2.91&#x27;</span></span><br><span class="line">         targetPlace: <span class="string">&#x27;2.2.2.2&#x27;</span></span><br><span class="line">     - targets:</span><br><span class="line">         - <span class="string">&#x27;3.3.3.3&#x27;</span></span><br><span class="line">       labels:</span><br><span class="line">         <span class="comment"># 节点用途，此处固定为node</span></span><br><span class="line">         instanceType: <span class="string">&#x27;blackbox&#x27;</span></span><br><span class="line">         targetType: <span class="string">&#x27;icmp&#x27;</span></span><br><span class="line">         zone: <span class="string">&#x27;测试&#x27;</span></span><br><span class="line">         sourcePlace: <span class="string">&#x27;10.2.2.91&#x27;</span></span><br><span class="line">         targetPlace: <span class="string">&#x27;3.3.3.3&#x27;</span></span><br><span class="line">   relabel_configs:</span><br><span class="line">   - source_labels: [<span class="string">&#x27;__address__&#x27;</span>]</span><br><span class="line">     target_label: __param_target</span><br><span class="line">   - source_labels: [<span class="string">&#x27;__param_target&#x27;</span>]</span><br><span class="line">     target_label: target</span><br><span class="line">   - target_label: <span class="string">&#x27;__address__&#x27;</span></span><br><span class="line">     replacement: <span class="string">&#x27;10.2.2.91:9115&#x27;</span></span><br><span class="line">   - source_labels: [<span class="string">&#x27;__address__&#x27;</span>]</span><br><span class="line">     target_label: instance</span><br><span class="line">     regex: <span class="string">&#x27;(.*):.*&#x27;</span></span><br><span class="line">     replacement: <span class="string">&#x27;$&#123;1&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="四、实例3配置"><a href="#四、实例3配置" class="headerlink" title="四、实例3配置"></a>四、实例3配置</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;blackbox-94&#x27;</span></span><br><span class="line">   scrape_interval: 5s</span><br><span class="line">   metrics_path: /probe</span><br><span class="line">   params:</span><br><span class="line">     module: [icmp]</span><br><span class="line">   static_configs:</span><br><span class="line">     - targets:</span><br><span class="line">         - <span class="string">&#x27;3.3.3.93&#x27;</span></span><br><span class="line">       labels:</span><br><span class="line">         <span class="comment"># 节点用途，此处固定为node</span></span><br><span class="line">         instanceType: <span class="string">&#x27;blackbox&#x27;</span></span><br><span class="line">         targetType: <span class="string">&#x27;icmp&#x27;</span></span><br><span class="line">         zone: <span class="string">&#x27;生产机房&#x27;</span></span><br><span class="line">         sourcePlace: <span class="string">&#x27;10.2.2.94&#x27;</span></span><br><span class="line">         targetPlace: <span class="string">&#x27;3.3.3.93&#x27;</span></span><br><span class="line">     - targets:</span><br><span class="line">         - <span class="string">&#x27;10.2.2.93&#x27;</span></span><br><span class="line">       labels:</span><br><span class="line">         <span class="comment"># 节点用途，此处固定为node</span></span><br><span class="line">         instanceType: <span class="string">&#x27;blackbox&#x27;</span></span><br><span class="line">         targetType: <span class="string">&#x27;icmp&#x27;</span></span><br><span class="line">         zone: <span class="string">&#x27;生产机房&#x27;</span></span><br><span class="line">         sourcePlace: <span class="string">&#x27;10.2.2.94&#x27;</span></span><br><span class="line">         targetPlace: <span class="string">&#x27;10.2.2.93&#x27;</span></span><br><span class="line"></span><br><span class="line">   relabel_configs:</span><br><span class="line">   - source_labels: [<span class="string">&#x27;__address__&#x27;</span>]</span><br><span class="line">     target_label: __param_target</span><br><span class="line">   - source_labels: [<span class="string">&#x27;__param_target&#x27;</span>]</span><br><span class="line">     target_label: target</span><br><span class="line">   - target_label: <span class="string">&#x27;__address__&#x27;</span></span><br><span class="line">     replacement: <span class="string">&#x27;10.2.2.94:9115&#x27;</span></span><br><span class="line">   - source_labels: [<span class="string">&#x27;__address__&#x27;</span>]</span><br></pre></td></tr></table></figure>
+
+<h3 id="4-实例1最终配置"><a href="#4-实例1最终配置" class="headerlink" title="4.实例1最终配置"></a>4.实例1最终配置</h3><figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">- job_name: <span class="string">&#x27;federate&#x27;</span></span><br><span class="line">    scrape_interval: 5s</span><br><span class="line">    honor_labels: <span class="literal">true</span></span><br><span class="line">    metrics_path: <span class="string">&#x27;/federate&#x27;</span></span><br><span class="line">    params:</span><br><span class="line">      <span class="string">&#x27;match[]&#x27;</span>:</span><br><span class="line">         - <span class="string">&#x27;&#123;job=&quot;blackbox-91&quot;&#125;&#x27;</span></span><br><span class="line">         - <span class="string">&#x27;&#123;job=&quot;blackbox-94&quot;&#125;&#x27;</span></span><br><span class="line">    static_configs:</span><br><span class="line">      - targets: [<span class="string">&#x27;10.2.2.91:60909&#x27;</span>,<span class="string">&#x27;10.2.2.94:60909&#x27;</span>]</span><br></pre></td></tr></table></figure>
+
+<h3 id="Prometheus-联邦验证结果"><a href="#Prometheus-联邦验证结果" class="headerlink" title="Prometheus 联邦验证结果"></a>Prometheus 联邦验证结果</h3><p>1、数据验证<br>在实例 1（主）上验证实例 2 的数据是否已经采集：</p>
+<p><img src="/images/1717641283-a100d564ab2026fb0f2cc0455c90240d.png" alt="在这里插入图片描述"></p>
+<h3 id="遇到的问题"><a href="#遇到的问题" class="headerlink" title="遇到的问题"></a>遇到的问题</h3><h5 id="Prometheus-联邦模式拉取不到各个节点的数据"><a href="#Prometheus-联邦模式拉取不到各个节点的数据" class="headerlink" title="Prometheus 联邦模式拉取不到各个节点的数据"></a>Prometheus 联邦模式拉取不到各个节点的数据</h5><p>Prometheus 联邦模式在使用过程中一直拉取不到节点的数据，经排查发现params：匹配的问题，最终改成抓取所有的可行，然后再根据具体的job配置这个参数</p>
+<figure class="highlight bash"><table><tr><td class="code"><pre><span class="line">params:</span><br><span class="line">    <span class="string">&#x27;match[]&#x27;</span>:</span><br><span class="line">     - <span class="string">&#x27;&#123;job=~&quot;.*&quot;&#125;&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h6 id="如何确认job为何值？"><a href="#如何确认job为何值？" class="headerlink" title="如何确认job为何值？"></a>如何确认job为何值？</h6><p><strong>方式1：查看 Prometheus 目标页面：</strong><br>在 Prometheus 的目标页面中，你可以查看当前由 Prometheus 监控的所有作业及其相关信息。你可以通过浏览器访问 Prometheus 的目标页面，通常 URL 是 <code>http://&lt;prometheus_ip&gt;:&lt;prometheus_port&gt;/targets</code><br><img src="/images/1717641283-49bcbe75eaf238e3c575ec1a6174fe9a.png" alt="在这里插入图片描述"></p>
+<p><strong>方式2：检查 Prometheus 配置文件：</strong><br>在 Prometheus 的配置文件中，通常会列出所有配置的作业及其详细信息。你可以查看 Prometheus 的配置文件（通常是 prometheus.yml）中的作业部分，以确认哪些作业正在被配置和监控。</p>
+<p><img src="/images/1717641283-f818e0e28631128ed77cd0bfa95ef337.png" alt="在这里插入图片描述"></p>
+<h2 id="推拉分析"><a href="#推拉分析" class="headerlink" title="推拉分析"></a>推拉分析</h2><h3 id="推【Prometheus-Agent-模式】"><a href="#推【Prometheus-Agent-模式】" class="headerlink" title="推【Prometheus Agent 模式】"></a>推【Prometheus Agent 模式】</h3><ul>
+<li>网络问题 需要在各个节点配置外部prometheus 的地址 【可由页面下发外部普米的地址】</li>
+<li>只需要外部普米开放端口，各个分支不需要【配置开放监听端口0.0.0.0】</li>
+<li>需要在各个分支配置外部普米的地址</li>
+<li>外部的prometheus启动参数需要加–enable-feature&#x3D;remote-write-receiver，用于启用 Prometheus 的远程写入接收器功能</li>
+</ul>
+<h3 id="拉【联邦模式】"><a href="#拉【联邦模式】" class="headerlink" title="拉【联邦模式】"></a>拉【联邦模式】</h3><ul>
+<li>需要考虑每个分支采集的时间间隔</li>
+<li>中心节点配置所有采集点的IP 端口 ，手动配置，当分支IP改变后，需要手动调整</li>
+<li>各个节点prometheus需要开放端口，在启动时，需要配置开放监听端口 0.0.0.0</li>
+</ul>
+<p>具体使用哪种模式根据市局情况而定</p>
+]]></content>
+      <categories>
+        <category>Prometheus</category>
+      </categories>
+      <tags>
+        <tag>Prometheus</tag>
+      </tags>
+  </entry>
 </search>
