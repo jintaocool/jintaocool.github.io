@@ -1,0 +1,881 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Alertmanager 部署和配置 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Alertmanager-Alertmanager-部署和配置"
+  class="article article-type-Alertmanager"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Alertmanager 部署和配置
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/06/Alertmanager-%E9%83%A8%E7%BD%B2%E5%92%8C%E9%85%8D%E7%BD%AE/" class="article-date">
+  <time datetime="2024-06-06T10:05:12.000Z" itemprop="datePublished">2024-06-06</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Alertmanager/">Alertmanager</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">5.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">28 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>  在 Prometheus 生态架构中，告警是由独立的两部分组成，可以通过下图来了解我们 Prometheus 告警机制。</p>
+<p><img src="/images/1717668258-b7170059163a69363bfa6d8728f85874.png"></p>
+<p>  其中 Prometheus server 与 Alertmanager 是相互分离的两个组件。</p>
+<p>  我们使用 Prometheus server 采集各类监控指标，然后基于 PromQL 对这些指标定义阈值告警规则（Rules）。Prometheus server 对告警规则周期性地进行计算，如果满足告警触发条件，便生成一条告警信息，并将其推送到 Alertmanager 组件。收到告警信息后，Alertmanager 会处理告警，进行分组（grouping）并将它们路由（routing）到正确的接收器（receiver），如 Email、pagerduty 和 Hipchat 等，最终把异常事件的通知发送给接收者。</p>
+<p>  在 Prometheus 中，我们不仅可以对一条告警规则进行命名并通过 PromQL 定义规则，更多时候是对相关的告警进行分组后统一定义。下面我们先对 AlertManager 中告警的分组（Grouping）、抑制（Inhibition）和静默（Sliences）介绍。</p>
+<h2 id="一、概念介绍"><a href="#一、概念介绍" class="headerlink" title="一、概念介绍"></a>一、概念介绍</h2><h3 id="1-1、告警分组"><a href="#1-1、告警分组" class="headerlink" title="1.1、告警分组"></a>1.1、告警分组</h3><p>  <strong>分组机制（Grouping）是指，AlertManager 将同类型的告警进行分组，合并多条告警到一个通知中。</strong>在实际环境中，特别是云计算环境中的业务场景之间密集耦合时，弱出现多台设备宕机，可能会导致成百上千个告警被触发。在这种情况下使用分组机制，可以将这些被触发的告警合并为一个告警进行通知，从而避免瞬间突发性地接收大量的告警通知，使得管理员无法对问题进行快速定位。</p>
+<h3 id="1-2、告警抑制"><a href="#1-2、告警抑制" class="headerlink" title="1.2、告警抑制"></a>1.2、告警抑制</h3><p>  <strong>Alertmanager 的抑制机制（Inhibition）是指，当某告警已经发出，停止重复发送由此告警引发的其他异常或故障的告警机制。</strong>在生产环境中，例如 IDC 托管机柜中，若每个机制接入层仅仅是单台交换机，那么该机柜接入交换机故障会造成机柜中服务器非 UP状态告警；再有服务器上部署的应用不可发昂文也会触发告警。此时，可以配置 Alertmanger 忽略由交换机故障造成的机柜所有服务器及其应用不可访问而产生的告警。</p>
+<h3 id="1-3、告警静默"><a href="#1-3、告警静默" class="headerlink" title="1.3、告警静默"></a>1.3、告警静默</h3><p><strong>告警静默（Silences）提供了一个简单的机制，可以根据标签快速对告警进行静默处理。对传入的告警进行匹配检查，如果接收到的告警符合静默的配置，Alertmanager 则不会发送告警通知。</strong>管理员可以直接在 Alertmanager 的 Web 界面中临时屏蔽</p>
+<h2 id="二、部署安装"><a href="#二、部署安装" class="headerlink" title="二、部署安装"></a>二、部署安装</h2><h3 id="2-1、使用二进制部署安装"><a href="#2-1、使用二进制部署安装" class="headerlink" title="2.1、使用二进制部署安装"></a>2.1、使用二进制部署安装</h3><p>  github 下载地址：<a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager">https://github.com/prometheus/alertmanager</a></p>
+<p>  Alertmanager 官网下载地址：<a target="_blank" rel="noopener" href="https://prometheus.io/download/">https://prometheus.io/download/</a></p>
+<p>  因为 Alertmanager 也是基于 Go 语言编写而成，因此 可以直接使用官方提供的二进制软件安装包，解压缩后快速安装。</p>
+<table>
+<thead>
+<tr>
+<th>Prometheus Alertmanager  prometheus&#x2F;alertmanager 0.24.0 &#x2F; 2022-03-24 <a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/releases/tag/v0.24.0">Release notes</a></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>File name</td>
+<td>OS</td>
+<td>Arch</td>
+<td>Size</td>
+<td>SHA256 Checksum</td>
+</tr>
+<tr>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+<td>—</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/releases/download/v0.24.0/alertmanager-0.24.0.darwin-amd64.tar.gz">alertmanager-0.24.0.darwin-amd64.tar.gz</a></td>
+<td>darwin</td>
+<td>amd64</td>
+<td>24.34 MiB</td>
+<td>a726fa727b6d8e422665a93f90c85b8bca15e2821594288944e21cbe340c68f1</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/releases/download/v0.24.0/alertmanager-0.24.0.linux-amd64.tar.gz">alertmanager-0.24.0.linux-amd64.tar.gz</a></td>
+<td>linux</td>
+<td>amd64</td>
+<td>24.68 MiB</td>
+<td>6fa982232ae7be5524f5b3cd4e90b7c6a75086368200c917644eaa3e806555dc</td>
+</tr>
+<tr>
+<td><a target="_blank" rel="noopener" href="https://github.com/prometheus/alertmanager/releases/download/v0.24.0/alertmanager-0.24.0.windows-amd64.zip">alertmanager-0.24.0.windows-amd64.zip</a></td>
+<td>windows</td>
+<td>amd64</td>
+<td>25.13 MiB</td>
+<td>1a29cdd112bbc3e76a95f951ce6679a5fd9f424ed2964d1065ab9706f70e9ec0</td>
+</tr>
+</tbody></table>
+<ul>
+<li><ul>
+<li><h4 id="2-1-1）官方下载-Alertmanager-完成后，获取软件包的哈希值"><a href="#2-1-1）官方下载-Alertmanager-完成后，获取软件包的哈希值" class="headerlink" title="2.1.1）官方下载 Alertmanager 完成后，获取软件包的哈希值"></a>2.1.1）官方下载 Alertmanager 完成后，获取软件包的哈希值</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# wget https://github.com/prometheus/alertmanager/releases/download/v0.24.0/alertmanager-0.24.0.linux-amd64.tar.gz</span><br><span class="line">--2022-08-01 20:14:49--  http://wget/</span><br><span class="line">Resolving wget (wget)... failed: Name or service not known.</span><br><span class="line">wget: unable to resolve host address ‘wget’</span><br><span class="line">--2022-08-01 20:14:49--  https://github.com/prometheus/alertmanager/releases/download/v0.24.0/alertmanager-0.24.0.linux-amd64.tar.gz</span><br><span class="line">Resolving github.com (github.com)... 20.205.243.166</span><br><span class="line">Connecting to github.com (github.com)|20.205.243.166|:443... connected.</span><br><span class="line">HTTP request sent, awaiting response... 302 Found</span><br><span class="line">Location: https://objects.githubusercontent.com/github-production-release-asset-2e65be/11452538/d3143d23-5eab-4248-ae7b-2d04eb2e6084?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20220801%2Fus-east-1%2Fs3%2Faws4_request&amp;X-Amz-Date=20220801T121430Z&amp;X-Amz-Expires=300&amp;X-Amz-Signature=7d06247b82eb679c427703cda2f31b6ca64b76806dcbb09fd297af880e842f83&amp;X-Amz-SignedHeaders=host&amp;actor_id=0&amp;key_id=0&amp;repo_id=11452538&amp;response-content-disposition=attachment%3B%20filename%3Dalertmanager-0.24.0.linux-amd64.tar.gz&amp;response-content-type=application%2Foctet-stream [following]</span><br><span class="line">--2022-08-01 20:14:50--  https://objects.githubusercontent.com/github-production-release-asset-2e65be/11452538/d3143d23-5eab-4248-ae7b-2d04eb2e6084?X-Amz-Algorithm=AWS4-HMAC-SHA256&amp;X-Amz-Credential=AKIAIWNJYAX4CSVEH53A%2F20220801%2Fus-east-1%2Fs3%2Faws4_request&amp;X-Amz-Date=20220801T121430Z&amp;X-Amz-Expires=300&amp;X-Amz-Signature=7d06247b82eb679c427703cda2f31b6ca64b76806dcbb09fd297af880e842f83&amp;X-Amz-SignedHeaders=host&amp;actor_id=0&amp;key_id=0&amp;repo_id=11452538&amp;response-content-disposition=attachment%3B%20filename%3Dalertmanager-0.24.0.linux-amd64.tar.gz&amp;response-content-type=application%2Foctet-stream</span><br><span class="line">Resolving objects.githubusercontent.com (objects.githubusercontent.com)... 185.199.109.133, 185.199.110.133, 185.199.111.133, ...</span><br><span class="line">Connecting to objects.githubusercontent.com (objects.githubusercontent.com)|185.199.109.133|:443... connected.</span><br><span class="line">HTTP request sent, awaiting response... 200 OK</span><br><span class="line">Length: 25880024 (25M) [application/octet-stream]</span><br><span class="line">Saving to: ‘alertmanager-0.24.0.linux-amd64.tar.gz’</span><br><span class="line"></span><br><span class="line">100%[============================================================================&gt;] 25,880,024  4.02MB/s   in 6.5s   </span><br><span class="line"></span><br><span class="line">2022-08-01 20:14:56 (3.82 MB/s) - ‘alertmanager-0.24.0.linux-amd64.tar.gz’ saved [25880024/25880024]</span><br><span class="line"></span><br><span class="line">FINISHED --2022-08-01 20:14:56--</span><br><span class="line">Total wall clock time: 7.1s</span><br><span class="line">Downloaded: 1 files, 25M in 6.5s (3.82 MB/s)</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# sha256sum alertmanager-0.24.0.linux-amd64.tar.gz </span><br><span class="line">6fa982232ae7be5524f5b3cd4e90b7c6a75086368200c917644eaa3e806555dc  alertmanager-0.24.0.linux-amd64.tar.gz</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]#</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="2-1-2）解压缩软件包都指定的安装目录"><a href="#2-1-2）解压缩软件包都指定的安装目录" class="headerlink" title="2.1.2）解压缩软件包都指定的安装目录"></a>2.1.2）解压缩软件包都指定的安装目录</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# tar -zxvf alertmanager-0.24.0.linux-amd64.tar.gz </span><br><span class="line">alertmanager-0.24.0.linux-amd64/</span><br><span class="line">alertmanager-0.24.0.linux-amd64/alertmanager.yml</span><br><span class="line">alertmanager-0.24.0.linux-amd64/LICENSE</span><br><span class="line">alertmanager-0.24.0.linux-amd64/NOTICE</span><br><span class="line">alertmanager-0.24.0.linux-amd64/alertmanager</span><br><span class="line">alertmanager-0.24.0.linux-amd64/amtool</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# mkdir -pv /usr/local/alertmanager/release/</span><br><span class="line">mkdir: created directory ‘/usr/local/alertmanager’</span><br><span class="line">mkdir: created directory ‘/usr/local/alertmanager/release/’</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# mv alertmanager-0.24.0.linux-amd64 /usr/local/alertmanager/release/</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z zy]# cd /usr/local/alertmanager/</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z alertmanager]# ls -l</span><br><span class="line">total 4</span><br><span class="line">drwxr-xr-x 3 root root 4096 Aug  1 20:19 release</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z alertmanager]# ln -nsvf release/alertmanager-0.24.0.linux-amd64 current</span><br><span class="line">‘current’ -&gt; ‘release/alertmanager-0.24.0.linux-amd64’</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z alertmanager]# tree .</span><br><span class="line">.</span><br><span class="line">├── current -&gt; release/alertmanager-0.24.0.linux-amd64</span><br><span class="line">└── release</span><br><span class="line">    └── alertmanager-0.24.0.linux-amd64</span><br><span class="line">        ├── alertmanager</span><br><span class="line">        ├── alertmanager.yml</span><br><span class="line">        ├── amtool</span><br><span class="line">        ├── LICENSE</span><br><span class="line">        └── NOTICE</span><br><span class="line"></span><br><span class="line">3 directories, 5 files</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z alertmanager]# =</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="2-1-3）添加-alertmanager-为系统服务开机启动"><a href="#2-1-3）添加-alertmanager-为系统服务开机启动" class="headerlink" title="2.1.3）添加 alertmanager 为系统服务开机启动"></a>2.1.3）添加 alertmanager 为系统服务开机启动</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">[Unit]</span><br><span class="line">Description=AlertManager Server Service daemon</span><br><span class="line">Wants=network-online.target</span><br><span class="line">After=network-online.target</span><br><span class="line"></span><br><span class="line">[Service]</span><br><span class="line">User=root</span><br><span class="line">Group=root</span><br><span class="line">Type=Simple</span><br><span class="line">Restart=on-failure</span><br><span class="line">ExecStart=/usr/local/alertmanager/current/alertmanager \</span><br><span class="line">    --config.file &quot;/usr/local/alertmanager/current/alertmanager.yml&quot; \</span><br><span class="line">    --storage.path=&quot;/usr/local/alertmanager/current/data&quot; \</span><br><span class="line">    --data.retention=120h \</span><br><span class="line">    --alerts.gc-interval=30m \</span><br><span class="line">    --web.external-url &quot;http://192.168.2.2.121:9093&quot;</span><br><span class="line">    --web.listen-address=&quot;:9093&quot;</span><br><span class="line"></span><br><span class="line">[Install]</span><br><span class="line">WantedBy=multi-user.target</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="2-1-4-启动服务"><a href="#2-1-4-启动服务" class="headerlink" title="2.1.4) 启动服务"></a>2.1.4) 启动服务</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br></pre></td><td class="code"><pre><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z current]# systemctl daemon-reload</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z current]# systemctl enable alertmanager.service</span><br><span class="line">Created symlink from /etc/systemd/system/multi-user.target.wants/alertmanager.service to /usr/lib/systemd/system/alertmanager.service.</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z current]# systemctl start alertmanager.service</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z current]# systemctl status alertmanager.service</span><br><span class="line">● alertmanager.service - AlertManager Server Service daemon</span><br><span class="line">   Loaded: loaded (/usr/lib/systemd/system/alertmanager.service; enabled; vendor preset: disabled)</span><br><span class="line">   Active: active (running) since Mon 2022-08-01 20:30:17 CST; 6s ago</span><br><span class="line"> Main PID: 24760 (alertmanager)</span><br><span class="line">    Tasks: 7</span><br><span class="line">   Memory: 13.4M</span><br><span class="line">   CGroup: /system.slice/alertmanager.service</span><br><span class="line">           └─24760 /usr/local/alertmanager/current/alertmanager --config.file /usr/lo...</span><br><span class="line"></span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z systemd[1]: Started AlertManager Server Serv....</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:17 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:17.9...</span><br><span class="line">Aug 01 20:30:19 iZj6cdj8nbj0zla2lnq2g9Z alertmanager[24760]: ts=2022-08-01T12:30:19.9...</span><br><span class="line">Hint: Some lines were ellipsized, use -l to show in full.</span><br><span class="line">[root@iZj6cdj8nbj0zla2lnq2g9Z current]#</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<h3 id="2-2）使用-Docker-安装"><a href="#2-2）使用-Docker-安装" class="headerlink" title="2.2）使用 Docker 安装"></a>2.2）使用 Docker 安装</h3><ul>
+<li><ul>
+<li><h4 id="2-2-1）下载-Alertmanager-服务"><a href="#2-2-1）下载-Alertmanager-服务" class="headerlink" title="2.2.1）下载 Alertmanager 服务"></a>2.2.1）下载 Alertmanager 服务</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker pull prom/alertmanager:v0.24.0</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="2-2-2）运行-Alertmanger-镜像"><a href="#2-2-2）运行-Alertmanger-镜像" class="headerlink" title="2.2.2）运行 Alertmanger 镜像"></a>2.2.2）运行 Alertmanger 镜像</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">官方示例：</span><br><span class="line">$ docker run --name alertmanager -d -p 127.0.0.1:9093:9093 quay.io/prometheus/alertmanager</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<h3 id="2-3）使用-Kubernetes-安装"><a href="#2-3）使用-Kubernetes-安装" class="headerlink" title="2.3）使用 Kubernetes 安装"></a>2.3）使用 Kubernetes 安装</h3><ul>
+<li><ul>
+<li><h4 id="2-3-1）kubernetes-配置清单如下："><a href="#2-3-1）kubernetes-配置清单如下：" class="headerlink" title="2.3.1）kubernetes 配置清单如下："></a>2.3.1）kubernetes 配置清单如下：</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br></pre></td><td class="code"><pre><span class="line">kind: Pod</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata:</span><br><span class="line">  name: alertmanager-main-0</span><br><span class="line">  generateName: alertmanager-main-</span><br><span class="line">  namespace: kubesphere-monitoring-system</span><br><span class="line">  labels:</span><br><span class="line">    alertmanager: main</span><br><span class="line">    app.kubernetes.io/component: alert-router</span><br><span class="line">    app.kubernetes.io/instance: main</span><br><span class="line">    app.kubernetes.io/managed-by: prometheus-operator</span><br><span class="line">    app.kubernetes.io/name: alertmanager</span><br><span class="line">    app.kubernetes.io/part-of: kube-prometheus</span><br><span class="line">    app.kubernetes.io/version: 0.23.0</span><br><span class="line">    controller-revision-hash: alertmanager-main-cd5bc8fdc</span><br><span class="line">    statefulset.kubernetes.io/pod-name: alertmanager-main-0</span><br><span class="line">  annotations:</span><br><span class="line">    cni.projectcalico.org/containerID: bcc41ec96a5168bb0d4847fccba5329b0e0af5302f84cbb6eaa3f1696b1c16a1</span><br><span class="line">    cni.projectcalico.org/podIP: 10.233.122.54/32</span><br><span class="line">    cni.projectcalico.org/podIPs: 10.233.122.54/32</span><br><span class="line">    k8s.v1.cni.cncf.io/network-status: |-</span><br><span class="line">      [&#123;</span><br><span class="line">          &quot;name&quot;: &quot;k8s-pod-network&quot;,</span><br><span class="line">          &quot;ips&quot;: [</span><br><span class="line">              &quot;10.233.122.54&quot;</span><br><span class="line">          ],</span><br><span class="line">          &quot;default&quot;: true,</span><br><span class="line">          &quot;dns&quot;: &#123;&#125;</span><br><span class="line">      &#125;]</span><br><span class="line">    k8s.v1.cni.cncf.io/networks-status: |-</span><br><span class="line">      [&#123;</span><br><span class="line">          &quot;name&quot;: &quot;k8s-pod-network&quot;,</span><br><span class="line">          &quot;ips&quot;: [</span><br><span class="line">              &quot;10.233.122.54&quot;</span><br><span class="line">          ],</span><br><span class="line">          &quot;default&quot;: true,</span><br><span class="line">          &quot;dns&quot;: &#123;&#125;</span><br><span class="line">      &#125;]</span><br><span class="line">    kubectl.kubernetes.io/default-container: alertmanager</span><br><span class="line">spec:</span><br><span class="line">  volumes:</span><br><span class="line">    - name: config-volume</span><br><span class="line">      secret:</span><br><span class="line">        secretName: alertmanager-main-generated</span><br><span class="line">        defaultMode: 420</span><br><span class="line">    - name: tls-images</span><br><span class="line">      projected:</span><br><span class="line">        sources:</span><br><span class="line">          - secret:</span><br><span class="line">              name: alertmanager-main-tls-images-0</span><br><span class="line">        defaultMode: 420</span><br><span class="line">    - name: alertmanager-main-db</span><br><span class="line">      emptyDir: &#123;&#125;</span><br><span class="line">    - name: kube-api-access-l48d9</span><br><span class="line">      projected:</span><br><span class="line">        sources:</span><br><span class="line">          - serviceAccountToken:</span><br><span class="line">              expirationSeconds: 3607</span><br><span class="line">              path: token</span><br><span class="line">          - configMap:</span><br><span class="line">              name: kube-root-ca.crt</span><br><span class="line">              items:</span><br><span class="line">                - key: ca.crt</span><br><span class="line">                  path: ca.crt</span><br><span class="line">          - downwardAPI:</span><br><span class="line">              items:</span><br><span class="line">                - path: namespace</span><br><span class="line">                  fieldRef:</span><br><span class="line">                    apiVersion: v1</span><br><span class="line">                    fieldPath: metadata.namespace</span><br><span class="line">        defaultMode: 420</span><br><span class="line">  containers:</span><br><span class="line">    - name: alertmanager</span><br><span class="line">      image: &#x27;registry.cn-beijing.aliyuncs.com/kubesphereio/alertmanager:v0.24.0&#x27;</span><br><span class="line">      args:</span><br><span class="line">        - &#x27;--config.file=/etc/alertmanager/config/alertmanager.yaml&#x27;</span><br><span class="line">        - &#x27;--storage.path=/alertmanager&#x27;</span><br><span class="line">        - &#x27;--data.retention=120h&#x27;</span><br><span class="line">        - &#x27;--cluster.listen-address=&#x27;</span><br><span class="line">        - &#x27;--web.listen-address=:9093&#x27;</span><br><span class="line">        - &#x27;--web.route-prefix=/&#x27;</span><br><span class="line">        - &#x27;--cluster.peer=alertmanager-main-0.alertmanager-operated:9094&#x27;</span><br><span class="line">        - &#x27;--cluster.reconnect-timeout=5m&#x27;</span><br><span class="line">      ports:</span><br><span class="line">        - name: web</span><br><span class="line">          containerPort: 9093</span><br><span class="line">          protocol: TCP</span><br><span class="line">        - name: mesh-tcp</span><br><span class="line">          containerPort: 9094</span><br><span class="line">          protocol: TCP</span><br><span class="line">        - name: mesh-udp</span><br><span class="line">          containerPort: 9094</span><br><span class="line">          protocol: UDP</span><br><span class="line">      env:</span><br><span class="line">        - name: POD_IP</span><br><span class="line">          valueFrom:</span><br><span class="line">            fieldRef:</span><br><span class="line">              apiVersion: v1</span><br><span class="line">              fieldPath: status.podIP</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpu: 200m</span><br><span class="line">          memory: 200Mi</span><br><span class="line">        requests:</span><br><span class="line">          cpu: 20m</span><br><span class="line">          memory: 30Mi</span><br><span class="line">      volumeMounts:</span><br><span class="line">        - name: config-volume</span><br><span class="line">          mountPath: /etc/alertmanager/config</span><br><span class="line">        - name: tls-images</span><br><span class="line">          readOnly: true</span><br><span class="line">          mountPath: /etc/alertmanager/certs</span><br><span class="line">        - name: alertmanager-main-db</span><br><span class="line">          mountPath: /alertmanager</span><br><span class="line">        - name: kube-api-access-l48d9</span><br><span class="line">          readOnly: true</span><br><span class="line">          mountPath: /var/run/secrets/kubernetes.io/serviceaccount</span><br><span class="line">      livenessProbe:</span><br><span class="line">        httpGet:</span><br><span class="line">          path: /-/healthy</span><br><span class="line">          port: web</span><br><span class="line">          scheme: HTTP</span><br><span class="line">        timeoutSeconds: 3</span><br><span class="line">        periodSeconds: 10</span><br><span class="line">        successThreshold: 1</span><br><span class="line">        failureThreshold: 10</span><br><span class="line">      readinessProbe:</span><br><span class="line">        httpGet:</span><br><span class="line">          path: /-/ready</span><br><span class="line">          port: web</span><br><span class="line">          scheme: HTTP</span><br><span class="line">        initialDelaySeconds: 3</span><br><span class="line">        timeoutSeconds: 3</span><br><span class="line">        periodSeconds: 5</span><br><span class="line">        successThreshold: 1</span><br><span class="line">        failureThreshold: 10</span><br><span class="line">      terminationMessagePath: /dev/termination-log</span><br><span class="line">      terminationMessagePolicy: FallbackToLogsOnError</span><br><span class="line">      imagePullPolicy: IfNotPresent</span><br><span class="line">      securityContext:</span><br><span class="line">        capabilities:</span><br><span class="line">          drop:</span><br><span class="line">            - ALL</span><br><span class="line">        readOnlyRootFilesystem: true</span><br><span class="line">        allowPrivilegeEscalation: false</span><br><span class="line">    - name: config-reloader</span><br><span class="line">      image: &gt;-</span><br><span class="line">        registry.cn-beijing.aliyuncs.com/kubesphereio/prometheus-config-reloader:v0.55.1</span><br><span class="line">      command:</span><br><span class="line">        - /bin/prometheus-config-reloader</span><br><span class="line">      args:</span><br><span class="line">        - &#x27;--listen-address=:8080&#x27;</span><br><span class="line">        - &#x27;--reload-url=http://localhost:9093/-/reload&#x27;</span><br><span class="line">        - &#x27;--watched-dir=/etc/alertmanager/config&#x27;</span><br><span class="line">      ports:</span><br><span class="line">        - name: reloader-web</span><br><span class="line">          containerPort: 8080</span><br><span class="line">          protocol: TCP</span><br><span class="line">      env:</span><br><span class="line">        - name: POD_NAME</span><br><span class="line">          valueFrom:</span><br><span class="line">            fieldRef:</span><br><span class="line">              apiVersion: v1</span><br><span class="line">              fieldPath: metadata.name</span><br><span class="line">        - name: SHARD</span><br><span class="line">          value: &#x27;-1&#x27;</span><br><span class="line">      resources:</span><br><span class="line">        limits:</span><br><span class="line">          cpu: 100m</span><br><span class="line">          memory: 50Mi</span><br><span class="line">        requests:</span><br><span class="line">          cpu: 100m</span><br><span class="line">          memory: 50Mi</span><br><span class="line">      volumeMounts:</span><br><span class="line">        - name: config-volume</span><br><span class="line">          readOnly: true</span><br><span class="line">          mountPath: /etc/alertmanager/config</span><br><span class="line">        - name: kube-api-access-l48d9</span><br><span class="line">          readOnly: true</span><br><span class="line">          mountPath: /var/run/secrets/kubernetes.io/serviceaccount</span><br><span class="line">      terminationMessagePath: /dev/termination-log</span><br><span class="line">      terminationMessagePolicy: FallbackToLogsOnError</span><br><span class="line">      imagePullPolicy: IfNotPresent</span><br><span class="line">      securityContext:</span><br><span class="line">        capabilities:</span><br><span class="line">          drop:</span><br><span class="line">            - ALL</span><br><span class="line">        readOnlyRootFilesystem: true</span><br><span class="line">        allowPrivilegeEscalation: false</span><br><span class="line">  restartPolicy: Always</span><br><span class="line">  terminationGracePeriodSeconds: 120</span><br><span class="line">  dnsPolicy: ClusterFirst</span><br><span class="line">  nodeSelector:</span><br><span class="line">    kubernetes.io/os: linux</span><br><span class="line">  serviceAccountName: alertmanager-main</span><br><span class="line">  serviceAccount: alertmanager-main</span><br><span class="line">  nodeName: k8s-workernode-2-129</span><br><span class="line">  securityContext:</span><br><span class="line">    runAsUser: 1000</span><br><span class="line">    runAsNonRoot: true</span><br><span class="line">    fsGroup: 2000</span><br><span class="line">  hostname: alertmanager-main-0</span><br><span class="line">  subdomain: alertmanager-operated</span><br><span class="line">  affinity:</span><br><span class="line">    podAntiAffinity:</span><br><span class="line">      preferredDuringSchedulingIgnoredDuringExecution:</span><br><span class="line">        - weight: 100</span><br><span class="line">          podAffinityTerm:</span><br><span class="line">            labelSelector:</span><br><span class="line">              matchExpressions:</span><br><span class="line">                - key: alertmanager</span><br><span class="line">                  operator: In</span><br><span class="line">                  values:</span><br><span class="line">                    - main</span><br><span class="line">            namespaces:</span><br><span class="line">              - kubesphere-monitoring-system</span><br><span class="line">            topologyKey: kubernetes.io/hostname</span><br><span class="line">  schedulerName: default-scheduler</span><br><span class="line">  tolerations:</span><br><span class="line">    - key: node.kubernetes.io/not-ready</span><br><span class="line">      operator: Exists</span><br><span class="line">      effect: NoExecute</span><br><span class="line">      tolerationSeconds: 300</span><br><span class="line">    - key: node.kubernetes.io/unreachable</span><br><span class="line">      operator: Exists</span><br><span class="line">      effect: NoExecute</span><br><span class="line">      tolerationSeconds: 300</span><br><span class="line">  priority: 0</span><br><span class="line">  enableServiceLinks: true</span><br><span class="line">  preemptionPolicy: PreemptLowerPriority</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<h2 id="三、Alertmanager-配置"><a href="#三、Alertmanager-配置" class="headerlink" title="三、Alertmanager 配置"></a>三、Alertmanager 配置</h2><p>  在上面，我们对 Alertmanager 进行了快速安装，对于配置文件，使用的是软件包默认自带的 alertmanager.yml 配置文件，它同样也是基于 yaml 语言格式实现的。通过下图，可以看到 Alertmanager 配置文件格式通常包括 global（全局配置）、templates（告警模板）、route（告警路由）、receivers（接收器）和 inhibit_rules（抑制规则）等主要配置项模块，参考地址：<em><a target="_blank" rel="noopener" href="https://prometheus.io/docs/alerting/latest/configuration/">https://prometheus.io/docs/alerting/latest/configuration/</a></em></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">global:</span><br><span class="line">  # The default SMTP From header field.</span><br><span class="line">  [ smtp_from: &lt;tmpl_string&gt; ]</span><br><span class="line">  # The default SMTP smarthost used for sending emails, including port number.</span><br><span class="line">  # Port number usually is 25, or 587 for SMTP over TLS (sometimes referred to as STARTTLS).</span><br><span class="line">  # Example: smtp.example.org:587</span><br><span class="line">  [ smtp_smarthost: &lt;string&gt; ]</span><br><span class="line">  # The default hostname to identify to the SMTP server.</span><br><span class="line">  [ smtp_hello: &lt;string&gt; | default = &quot;localhost&quot; ]</span><br><span class="line">  # SMTP Auth using CRAM-MD5, LOGIN and PLAIN. If empty, Alertmanager doesn&#x27;t authenticate to the SMTP server.</span><br><span class="line">  [ smtp_auth_username: &lt;string&gt; ]</span><br><span class="line">  # SMTP Auth using LOGIN and PLAIN.</span><br><span class="line">  [ smtp_auth_password: &lt;secret&gt; ]</span><br><span class="line">  # SMTP Auth using PLAIN.</span><br><span class="line">  [ smtp_auth_identity: &lt;string&gt; ]</span><br><span class="line">  # SMTP Auth using CRAM-MD5.</span><br><span class="line">  [ smtp_auth_secret: &lt;secret&gt; ]</span><br><span class="line">  # The default SMTP TLS requirement.</span><br><span class="line">  # Note that Go does not support unencrypted connections to remote SMTP endpoints.</span><br><span class="line">  [ smtp_require_tls: &lt;bool&gt; | default = true ]</span><br><span class="line"></span><br><span class="line">  # The API URL to use for Slack notifications.</span><br><span class="line">  [ slack_api_url: &lt;secret&gt; ]</span><br><span class="line">  [ slack_api_url_file: &lt;filepath&gt; ]</span><br><span class="line">  [ victorops_api_key: &lt;secret&gt; ]</span><br><span class="line">  [ victorops_api_url: &lt;string&gt; | default = &quot;https://alert.victorops.com/integrations/generic/20131114/alert/&quot; ]</span><br><span class="line">  [ pagerduty_url: &lt;string&gt; | default = &quot;https://events.pagerduty.com/v2/enqueue&quot; ]</span><br><span class="line">  [ opsgenie_api_key: &lt;secret&gt; ]</span><br><span class="line">  [ opsgenie_api_key_file: &lt;filepath&gt; ]</span><br><span class="line">  [ opsgenie_api_url: &lt;string&gt; | default = &quot;https://api.opsgenie.com/&quot; ]</span><br><span class="line">  [ wechat_api_url: &lt;string&gt; | default = &quot;https://qyapi.weixin.qq.com/cgi-bin/&quot; ]</span><br><span class="line">  [ wechat_api_secret: &lt;secret&gt; ]</span><br><span class="line">  [ wechat_api_corp_id: &lt;string&gt; ]</span><br><span class="line">  [ telegram_api_url: &lt;string&gt; | default = &quot;https://api.telegram.org&quot; ]</span><br><span class="line">  # The default HTTP client configuration</span><br><span class="line">  [ http_config: &lt;http_config&gt; ]</span><br><span class="line"></span><br><span class="line">  # ResolveTimeout is the default value used by alertmanager if the alert does</span><br><span class="line">  # not include EndsAt, after this time passes it can declare the alert as resolved if it has not been updated.</span><br><span class="line">  # This has no impact on alerts from Prometheus, as they always include EndsAt.</span><br><span class="line">  [ resolve_timeout: &lt;duration&gt; | default = 5m ]</span><br><span class="line"></span><br><span class="line"># Files from which custom notification template definitions are read.</span><br><span class="line"># The last component may use a wildcard matcher, e.g. &#x27;templates/*.tmpl&#x27;.</span><br><span class="line">templates:</span><br><span class="line">  [ - &lt;filepath&gt; ... ]</span><br><span class="line"></span><br><span class="line"># The root node of the routing tree.</span><br><span class="line">route: &lt;route&gt;</span><br><span class="line"></span><br><span class="line"># A list of notification receivers.</span><br><span class="line">receivers:</span><br><span class="line">  - &lt;receiver&gt; ...</span><br><span class="line"></span><br><span class="line"># A list of inhibition rules.</span><br><span class="line">inhibit_rules:</span><br><span class="line">  [ - &lt;inhibit_rule&gt; ... ]</span><br><span class="line"></span><br><span class="line"># DEPRECATED: use time_intervals below.</span><br><span class="line"># A list of mute time intervals for muting routes.</span><br><span class="line">mute_time_intervals:</span><br><span class="line">  [ - &lt;mute_time_interval&gt; ... ]</span><br><span class="line"></span><br><span class="line"># A list of time intervals for muting/activating routes.</span><br><span class="line">time_intervals:</span><br><span class="line">  [ - &lt;time_interval&gt; ... ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-1）global（全局配置）"><a href="#3-1）global（全局配置）" class="headerlink" title="3.1）global（全局配置）"></a>3.1）global（全局配置）</h3><p>即全局配置，在 Alertmanager 配置文件中，只要全局配置项中配置的选项内容均为公共配置，便可以作为其他配置项的默认值，也可以被其他配置项中的设置覆盖掉。其中 resolve_timeout 用于设置处理超时时间，是声明告警状态为已解决的时间，它的时长设定有可能影响告警恢复通知的接收时间，<strong>默认是 5分钟</strong>。如果每一次告警均需要通过电子邮件接收，可以设置用于发送电子邮件的 SMTP 服务器信息和通知服务，其中对应的配置内容如下：</p>
+<ul>
+<li><ul>
+<li><h4 id="3-1-1）设置-smtp-服务"><a href="#3-1-1）设置-smtp-服务" class="headerlink" title="3.1.1）设置 smtp 服务"></a>3.1.1）设置 smtp 服务</h4><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">global:</span><br><span class="line">  <span class="comment"># The default SMTP From header field.</span></span><br><span class="line">  [ smtp_from: &lt;tmpl_string&gt; ]    <span class="comment">#发送邮件的名称</span></span><br><span class="line">  <span class="comment"># The default SMTP smarthost used for sending emails, including port number.</span></span><br><span class="line">  <span class="comment"># Port number usually is 25, or 587 for SMTP over TLS (sometimes referred to as STARTTLS).</span></span><br><span class="line">  <span class="comment"># Example: smtp.example.org:587</span></span><br><span class="line">  [ smtp_smarthost: &lt;string&gt; ]    <span class="comment">#邮件 SMTP 服务器代理地址</span></span><br><span class="line">  <span class="comment"># The default hostname to identify to the SMTP server.</span></span><br><span class="line">  [ smtp_hello: &lt;string&gt; | default = <span class="string">&quot;localhost&quot;</span> ]</span><br><span class="line">  <span class="comment"># SMTP Auth using CRAM-MD5, LOGIN and PLAIN. If empty, Alertmanager doesn&#x27;t authenticate to the SMTP server.</span></span><br><span class="line">  [ smtp_auth_username: &lt;string&gt; ]  <span class="comment">#邮箱用户名称</span></span><br><span class="line">  <span class="comment"># SMTP Auth using LOGIN and PLAIN.</span></span><br><span class="line">  [ smtp_auth_password: &lt;secret&gt; ]  <span class="comment">#邮箱用户密码</span></span><br><span class="line">  <span class="comment"># SMTP Auth using PLAIN.</span></span><br><span class="line">  [ smtp_auth_identity: &lt;string&gt; ]</span><br><span class="line">  <span class="comment"># SMTP Auth using CRAM-MD5.</span></span><br><span class="line">  [ smtp_auth_secret: &lt;secret&gt; ]</span><br><span class="line">  <span class="comment"># The default SMTP TLS requirement.</span></span><br><span class="line">  <span class="comment"># Note that Go does not support unencrypted connections to remote SMTP endpoints.</span></span><br><span class="line">  [ smtp_require_tls: &lt;bool&gt; | default = <span class="literal">true</span> ]　  <span class="comment"># 如果使用 TLS 则设置为 true</span></span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<h3 id="3-2）templates"><a href="#3-2）templates" class="headerlink" title="3.2）templates"></a>3.2）templates</h3><p>  告警模块可以自定义告警通知的外观格式及其包含的对应的告警数据。在 templates 部分中包含告警模板的目录列表，也就是设置已存在的模板文件的路径，例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">templates:</span><br><span class="line">- &#x27;/usr/local/alertmanager/current/templates/*.tmpl&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>Alertmanager 启动时加载该路径下的模板文件。可以自己定义告警模板。</p>
+<h3 id="3-3）route"><a href="#3-3）route" class="headerlink" title="3.3）route"></a>3.3）route</h3><p>  告警路由模块描述了在收到 Prometheus server 生产的告警后，将告警发送到 receiver 指定的目的地址的规则。Alertmanager 对传入的告警信息进行处理，根据所定义的规则和操作进行匹配。所有路由的组合可以理解为树状结构，设置的第一个 route 称为根节点，其后包括的节点称为子节点。每个告警都从配置的根节点路由进入路由树，按照深度优先从左到右进行遍历匹配，在所匹配的节点上停止。如果告警与节点的任何子节点都不匹配，也就是说没有可匹配的子节点，则根据当前节点的配置参数处理告警。</p>
+<ul>
+<li><ul>
+<li><h4 id="3-3-1）route-的常见配置选项内容"><a href="#3-3-1）route-的常见配置选项内容" class="headerlink" title="3.3.1）route 的常见配置选项内容"></a>3.3.1）route 的常见配置选项内容</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line">[ receiver: &lt;string&gt; ]</span><br><span class="line"># The labels by which incoming alerts are grouped together. For example,</span><br><span class="line"># multiple alerts coming in for cluster=A and alertname=LatencyHigh would</span><br><span class="line"># be batched into a single group.</span><br><span class="line">#</span><br><span class="line"># To aggregate by all possible labels use the special value &#x27;...&#x27; as the sole label name, for example:</span><br><span class="line"># group_by: [&#x27;...&#x27;]</span><br><span class="line"># This effectively disables aggregation entirely, passing through all</span><br><span class="line"># alerts as-is. This is unlikely to be what you want, unless you have</span><br><span class="line"># a very low alert volume or your upstream notification system performs</span><br><span class="line"># its own grouping.</span><br><span class="line">[ group_by: &#x27;[&#x27; &lt;labelname&gt;, ... &#x27;]&#x27; ]</span><br><span class="line"></span><br><span class="line"># Whether an alert should continue matching subsequent sibling nodes.</span><br><span class="line">[ continue: &lt;boolean&gt; | default = false ]</span><br><span class="line"></span><br><span class="line"># DEPRECATED: Use matchers below.</span><br><span class="line"># A set of equality matchers an alert has to fulfill to match the node.</span><br><span class="line">match:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;labelvalue&gt;, ... ]</span><br><span class="line"></span><br><span class="line"># DEPRECATED: Use matchers below.</span><br><span class="line"># A set of regex-matchers an alert has to fulfill to match the node.</span><br><span class="line">match_re:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;regex&gt;, ... ]</span><br><span class="line"></span><br><span class="line"># A list of matchers that an alert has to fulfill to match the node.</span><br><span class="line">matchers:</span><br><span class="line">  [ - &lt;matcher&gt; ... ]</span><br><span class="line"></span><br><span class="line"># How long to initially wait to send a notification for a group</span><br><span class="line"># of alerts. Allows to wait for an inhibiting alert to arrive or collect</span><br><span class="line"># more initial alerts for the same group. (Usually ~0s to few minutes.)</span><br><span class="line">[ group_wait: &lt;duration&gt; | default = 30s ]</span><br><span class="line"></span><br><span class="line"># How long to wait before sending a notification about new alerts that</span><br><span class="line"># are added to a group of alerts for which an initial notification has</span><br><span class="line"># already been sent. (Usually ~5m or more.)</span><br><span class="line">[ group_interval: &lt;duration&gt; | default = 5m ]</span><br><span class="line"></span><br><span class="line"># How long to wait before sending a notification again if it has already</span><br><span class="line"># been sent successfully for an alert. (Usually ~3h or more).</span><br><span class="line">[ repeat_interval: &lt;duration&gt; | default = 4h ]</span><br><span class="line"></span><br><span class="line"># Times when the route should be muted. These must match the name of a</span><br><span class="line"># mute time interval defined in the mute_time_intervals section.</span><br><span class="line"># Additionally, the root node cannot have any mute times.</span><br><span class="line"># When a route is muted it will not send any notifications, but</span><br><span class="line"># otherwise acts normally (including ending the route-matching process</span><br><span class="line"># if the `continue` option is not set.)</span><br><span class="line">mute_time_intervals:</span><br><span class="line">  [ - &lt;string&gt; ...]</span><br><span class="line"></span><br><span class="line"># Times when the route should be active. These must match the name of a</span><br><span class="line"># time interval defined in the time_intervals section. An empty value</span><br><span class="line"># means that the route is always active.</span><br><span class="line"># Additionally, the root node cannot have any active times.</span><br><span class="line"># The route will send notifications only when active, but otherwise</span><br><span class="line"># acts normally (including ending the route-matching process</span><br><span class="line"># if the `continue` option is not set).</span><br><span class="line">active_time_intervals:</span><br><span class="line">  [ - &lt;string&gt; ...]</span><br><span class="line"></span><br><span class="line"># Zero or more child routes.</span><br><span class="line">routes:</span><br><span class="line">  [ - &lt;route&gt; ... ]</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="3-3-2）route-的一个配置示例"><a href="#3-3-2）route-的一个配置示例" class="headerlink" title="3.3.2）route 的一个配置示例"></a>3.3.2）route 的一个配置示例</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br></pre></td><td class="code"><pre><span class="line"># The root route with all parameters, which are inherited by the child</span><br><span class="line"># routes if they are not overwritten.</span><br><span class="line">route:</span><br><span class="line">  receiver: &#x27;default-receiver&#x27;</span><br><span class="line">  group_wait: 30s</span><br><span class="line">  group_interval: 5m</span><br><span class="line">  repeat_interval: 4h</span><br><span class="line">  group_by: [cluster, alertname]</span><br><span class="line">  # All alerts that do not match the following child routes</span><br><span class="line">  # will remain at the root node and be dispatched to &#x27;default-receiver&#x27;.</span><br><span class="line">  routes:</span><br><span class="line">  # All alerts with service=mysql or service=cassandra</span><br><span class="line">  # are dispatched to the database pager.</span><br><span class="line">  - receiver: &#x27;database-pager&#x27;</span><br><span class="line">    group_wait: 10s</span><br><span class="line">    matchers:</span><br><span class="line">    - service=~&quot;mysql|cassandra&quot;</span><br><span class="line">  # All alerts with the team=frontend label match this sub-route.</span><br><span class="line">  # They are grouped by product and environment rather than cluster</span><br><span class="line">  # and alertname.</span><br><span class="line">  - receiver: &#x27;frontend-pager&#x27;</span><br><span class="line">    group_by: [product, environment]</span><br><span class="line">    matchers:</span><br><span class="line">    - team=&quot;frontend&quot;</span><br><span class="line"></span><br><span class="line">  # All alerts with the service=inhouse-service label match this sub-route.</span><br><span class="line">  # the route will be muted during offhours and holidays time intervals.</span><br><span class="line">  # even if it matches, it will continue to the next sub-route</span><br><span class="line">  - receiver: &#x27;dev-pager&#x27;</span><br><span class="line">    matchers:</span><br><span class="line">      - service=&quot;inhouse-service&quot;</span><br><span class="line">    mute_time_intervals:</span><br><span class="line">      - offhours</span><br><span class="line">      - holidays</span><br><span class="line">    continue: true</span><br><span class="line"></span><br><span class="line">    # All alerts with the service=inhouse-service label match this sub-route</span><br><span class="line">    # the route will be active only during offhours and holidays time intervals.</span><br><span class="line">  - receiver: &#x27;on-call-pager&#x27;</span><br><span class="line">    matchers:</span><br><span class="line">      - service=&quot;inhouse-service&quot;</span><br><span class="line">    active_time_intervals:</span><br><span class="line">      - offhours</span><br><span class="line">      - holidays</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="3-3-3）route-选项说明"><a href="#3-3-3）route-选项说明" class="headerlink" title="3.3.3）route 选项说明"></a>3.3.3）route 选项说明</h4><p>route 选项说明</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>选型</td>
+<td>说明</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[ receiver: <string> ]</td>
+<td>配置要发送告警说明的接收器名称。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[ group_by: ‘[‘ <labelname>, … ‘]‘ ]</td>
+<td>指定要分组的标签，若告警中包含的标签符合 group_by 中指定的标签名称，这些告警会被合并为一个通知发送接收器，即实现告警分组。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[ continue: <boolean> | default &#x3D; false ]</td>
+<td>若设置为 false，则告警在满足条件时终止所有匹配处理，并且忽略后续节点；若设置为 true，则告警会继续进行后续子节点的匹配。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>match:  [ <labelname>: <labelvalue>, … ]</td>
+<td>通过字符形式进行告警匹配设置，用于判断当前告警中是否具有标签 labelname 且等于 labelvalue</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>match_re:  [ <labelname>: <regex>, … ]</td>
+<td>通过正则表达式进行告警匹配设置，判断当前告警标签是否适配正则表达式的信息。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>matchers:  [ - <matcher> … ]</td>
+<td>警报必须满足以匹配节点的匹配器列表。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[ group_wait: <duration> | default &#x3D; 30s ]</td>
+<td>设置从接收告警到发送的等待时间，若在等待时间内当前 group 接收到了新的告警，这些告警会被合并为一个通知进行发送，默认设置为 30秒</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>[ group_interval: <duration> | default &#x3D; 5m ]</td>
+<td>设置相同的 group 之间发送告警通知的时间间隔，默认设置为 5分钟。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>[ repeat_interval: &lt;duration&gt; | default = 4h ]</code></td>
+<td>设置告警成功发送后能够再次发送完全相同的告警的时间间隔，默认是 4小时。</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td><code>routes:  [ - &lt;route&gt; ... ]</code></td>
+<td>可进行子路由节点匹配设置</td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+</li>
+<li><h4 id="3-3-4-web-浏览器管理-alertmanager-配置文件"><a href="#3-3-4-web-浏览器管理-alertmanager-配置文件" class="headerlink" title="3.3.4) web 浏览器管理 alertmanager 配置文件"></a>3.3.4) web 浏览器管理 alertmanager 配置文件</h4><ul>
+<li>3.3.4.1）打开浏览器，输入地址：<a target="_blank" rel="noopener" href="https://prometheus.io/webtools/alerting/routing-tree-editor/">https://prometheus.io/webtools/alerting/routing-tree-editor/</a></li>
+<li>3.3.4.2）复制 Alertmanager 配置文件内容到编辑工具中，点击 “Draw Routing Tree” 按钮即可看到路由结构信息，以上面 alertmanager 示例为例</li>
+<li><img src="/images/1717668258-d69f76337b258930cbc9a96d174f6ada.png"></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="3-4）receivers"><a href="#3-4）receivers" class="headerlink" title="3.4）receivers"></a>3.4）receivers</h3><p>  接收器是一个统称，每个 receiver 需要一个全局唯一名称，并且对应一个或者多个通知方式，包括电子邮箱、微信、PagerDuty、HipChat 和 Webhook 等。目前官方提供的接收器配置选项如下（<a target="_blank" rel="noopener" href="https://prometheus.io/docs/alerting/latest/configuration/#duration%EF%BC%89%EF%BC%9A">https://prometheus.io/docs/alerting/latest/configuration/#duration）：</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"># The unique name of the receiver.</span><br><span class="line">name: &lt;string&gt;  #设置接收器名称</span><br><span class="line"></span><br><span class="line"># Configurations for several notification integrations.</span><br><span class="line">email_configs:  #常用电子邮件告警</span><br><span class="line">  [ - &lt;email_config&gt;, ... ]</span><br><span class="line">opsgenie_configs:</span><br><span class="line">  [ - &lt;opsgenie_config&gt;, ... ]</span><br><span class="line">pagerduty_configs:</span><br><span class="line">  [ - &lt;pagerduty_config&gt;, ... ]</span><br><span class="line">pushover_configs:</span><br><span class="line">  [ - &lt;pushover_config&gt;, ... ]</span><br><span class="line">slack_configs:</span><br><span class="line">  [ - &lt;slack_config&gt;, ... ]</span><br><span class="line">sns_configs:</span><br><span class="line">  [ - &lt;sns_config&gt;, ... ]</span><br><span class="line">victorops_configs:</span><br><span class="line">  [ - &lt;victorops_config&gt;, ... ]</span><br><span class="line">webhook_configs: #官方建议通过 webhook 接收器实现自定义通知集成</span><br><span class="line">  [ - &lt;webhook_config&gt;, ... ]</span><br><span class="line">wechat_configs:  #已经对微信告警进行支持</span><br><span class="line">  [ - &lt;wechat_config&gt;, ... ]</span><br><span class="line">telegram_configs:</span><br><span class="line">  [ - &lt;telegram_config&gt;, ... ]</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-5）inhibit-rules-英-ɪnˈhɪbɪt-美-ɪnˈhɪbɪt"><a href="#3-5）inhibit-rules-英-ɪnˈhɪbɪt-美-ɪnˈhɪbɪt" class="headerlink" title="3.5）inhibit_rules (英[ɪnˈhɪbɪt] 美[ɪnˈhɪbɪt])"></a>3.5）inhibit_rules (英[ɪnˈhɪbɪt] 美[ɪnˈhɪbɪt])</h3><p>  在 inhibit_rules 模块中设置实现告警抑制功能，我们可以指定在特定条件下要忽略的告警条件。可以使用此选项设置首选项，例如优先处理某些告警，如果同一组中的告警同时发生，则忽略其他告警。合理设置抑制规则可以减少 “垃圾” 告警的产生。</p>
+<ul>
+<li><ul>
+<li><h4 id="3-5-1-inhibit-rules-模块的常见配置内容"><a href="#3-5-1-inhibit-rules-模块的常见配置内容" class="headerlink" title="3.5.1) inhibit_rules 模块的常见配置内容"></a>3.5.1) inhibit_rules 模块的常见配置内容</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"># DEPRECATED: Use target_matchers below.</span><br><span class="line"># Matchers that have to be fulfilled in the alerts to be muted.</span><br><span class="line">target_match:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;labelvalue&gt;, ... ]</span><br><span class="line"># DEPRECATED: Use target_matchers below.</span><br><span class="line">target_match_re:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;regex&gt;, ... ]</span><br><span class="line"></span><br><span class="line"># A list of matchers that have to be fulfilled by the target</span><br><span class="line"># alerts to be muted.</span><br><span class="line">target_matchers:</span><br><span class="line">  [ - &lt;matcher&gt; ... ]</span><br><span class="line"></span><br><span class="line"># DEPRECATED: Use source_matchers below.</span><br><span class="line"># Matchers for which one or more alerts have to exist for the</span><br><span class="line"># inhibition to take effect.</span><br><span class="line">source_match:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;labelvalue&gt;, ... ]</span><br><span class="line"># DEPRECATED: Use source_matchers below.</span><br><span class="line">source_match_re:</span><br><span class="line">  [ &lt;labelname&gt;: &lt;regex&gt;, ... ]</span><br><span class="line"></span><br><span class="line"># A list of matchers for which one or more alerts have</span><br><span class="line"># to exist for the inhibition to take effect.</span><br><span class="line">source_matchers:</span><br><span class="line">  [ - &lt;matcher&gt; ... ]</span><br><span class="line"></span><br><span class="line"># Labels that must have an equal value in the source and target</span><br><span class="line"># alert for the inhibition to take effect.</span><br><span class="line">[ equal: &#x27;[&#x27; &lt;labelname&gt;, ... &#x27;]&#x27; ]</span><br></pre></td></tr></table></figure>
+</li>
+<li><h4 id="3-5-2）inhibit-rules-模块的一个配置示例"><a href="#3-5-2）inhibit-rules-模块的一个配置示例" class="headerlink" title="3.5.2）inhibit_rules 模块的一个配置示例"></a>3.5.2）inhibit_rules 模块的一个配置示例</h4><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># 一个inhibition规则是在与另一组匹配器匹配的警报存在的条件下，使匹配一组匹配器的警报失效的规则。</span><br><span class="line"># 两个警报必须具有一组相同的标签。</span><br><span class="line">inhibit_rules:                         # 抑制规则</span><br><span class="line">  - source_match:                     # 当存在源标签告警触发时抑制含有目标标签的告警</span><br><span class="line">      alertname: &#x27;TORouterDown&#x27;     </span><br><span class="line">    target_match_re: </span><br><span class="line">      alertname: &#x27;.*Unrechable&#x27;     # 目标标签值正则匹配，如 RedisUnreachable</span><br><span class="line">    equal: [&#x27;dc&#x27;, &#x27;rack&#x27;]            # 保证该配置下标签内容相同才会被抑制</span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+</ul>
+<p>当 alertmanager: ‘TORouterDown’ 时，目标和源告警必须具有与 equal 列表中标签名称相同的标签值，目标中正则匹配到的 alertmanager: ‘.*Unreachable’ 才会被抑制从而不发送。</p>
+<h2 id="四、Alertmanager-默认配置文件内容"><a href="#四、Alertmanager-默认配置文件内容" class="headerlink" title="四、Alertmanager 默认配置文件内容"></a>四、Alertmanager 默认配置文件内容</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">/alertmanager $ cat /etc/alertmanager/alertmanager.yml </span><br><span class="line">route:</span><br><span class="line">  group_by: [&#x27;alertname&#x27;]</span><br><span class="line">  group_wait: 30s</span><br><span class="line">  group_interval: 5m</span><br><span class="line">  repeat_interval: 1h</span><br><span class="line">  receiver: &#x27;web.hook&#x27;</span><br><span class="line">receivers:</span><br><span class="line">- name: &#x27;web.hook&#x27;</span><br><span class="line">  webhook_configs:</span><br><span class="line">  - url: &#x27;http://127.0.0.1:5001/&#x27;</span><br><span class="line">inhibit_rules:</span><br><span class="line">  - source_match:</span><br><span class="line">      severity: &#x27;critical&#x27;</span><br><span class="line">    target_match:</span><br><span class="line">      severity: &#x27;warning&#x27;</span><br><span class="line">    equal: [&#x27;alertname&#x27;, &#x27;dev&#x27;, &#x27;instance&#x27;]</span><br><span class="line">/alertmanager $</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/06/Alertmanager-%E9%83%A8%E7%BD%B2%E5%92%8C%E9%85%8D%E7%BD%AE/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Alertmanager/" rel="tag">Alertmanager</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/06/06/node-exporter%E5%BC%80%E5%90%AF%E8%AE%A4%E8%AF%81-%E5%90%AF%E7%94%A8-TLS/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">node_exporter开启认证(启用 TLS)</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
