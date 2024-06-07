@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>监控就是艺术 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="技术咖-监控就是艺术"
+  class="article article-type-技术咖"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  监控就是艺术
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/07/%E7%9B%91%E6%8E%A7%E5%B0%B1%E6%98%AF%E8%89%BA%E6%9C%AF/" class="article-date">
+  <time datetime="2024-06-07T02:15:40.000Z" itemprop="datePublished">2024-06-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/%E6%8A%80%E6%9C%AF%E5%92%96/">技术咖</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">15 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>　　监控是一门学问，也是一门艺术。</p>
+<p>　　if you can’t measure it, you can’t improve it. (如果没有了如指掌，你就无法做出改进。)</p>
+<p>　　监控如同切脉诊断，是技术人员先于用户发现问题的最佳手段。完善的监控系统能够先于用户发现风险，有助于团队将风险扼杀于萌芽之中，也有助于技术人员在系统发生故障时及时发现，并减少故障的生存时间，减少对用户使用体验期间的持续影响，更可以作为事后分析这次故障带来的影响范围、影响程度提供数据支撑和对未来容量管理规划管理提供数据依据。对软硬件进行监控，以实现系统的可观察性。</p>
+<h2 id="一、完善的监控体系是什么样的？"><a href="#一、完善的监控体系是什么样的？" class="headerlink" title="一、完善的监控体系是什么样的？"></a>一、完善的监控体系是什么样的？</h2><p>　　1) 趋势分析：长期收集并统计监控样本数据，对监控指标进行趋势分析。例如：通过分析磁盘的使用空间增长率，可以预测何时需要对磁盘进行扩容。</p>
+<p>　　2) 对照分析：随时掌握系统的不同版本在运行时资源使用情况的差异，或在不同容量的环境下系统并发和负载的区别。</p>
+<p>　　3) 告警：当系统即将出现故障或已经出现故障时，监控可以迅速反应并发出告警。这样，管理员就可以提前预防问题发生或快速处理已产生的问题，从而保证业务服务的正常运行。</p>
+<p>　　4) 故障分析与定位：故障发生时，技术人员需要对故障进行调查和处理。通过分析监控系统记录的各种历史数据，可以迅速找到问题的根源并解决问题。</p>
+<p>　　5) 数据可视化：通过监控系统获取的数据，可以生成可视化仪表盘，使运维人员能够直观地了解系统运行状态、资源使用情况、服务运行状态等。</p>
+<p>　　综上所述，一个完善的监控系统是 IT 系统构建爱之初就该考虑的关键要素。监控系统可以贯穿于移动端、前端、业务服务端、中间件、应用层、操作系统等，应该渗透到 IT 系统的各个环节。</p>
+<p>　　通常情况下，监控系统可以分为客户端监控、业务监控、应用层监控、中间件监控、系统监控这 5 层。</p>
+<p>　　　　a) 客户端监控：针对用户在体验上可以感知的对象进行架空，如 H5网站、APP、小程序等。有些公司会设置专门的客户端用户体验团队负责进行端监控。在移动客户端的系统中，客户端监控的对象主要有 H5、小程序、Android 系统、IOS 系统等，完善的客户端监控可以反馈地域、渠道、链接等多维度的用户体验信息；用户终端为传统的 Web 页面时，客户端监控仍会围绕用户体验采集数据，比如页面打开速度（测速）、页面稳定性（JS）和外部服务调用成功率（API），这3个方面的数据反映了web页面的监控度。</p>
+<p>　　　　b) 业务层监控：对于业务层，可按需深度定制监控系统，实现对业务属性的监控告警功能，生成业务数据监控大屏。比如用户访问QPS、DAU日活、转化率、业务接口（如登录数、注册数、订单量、支付量、搜索量）等都是常见的监控对象。</p>
+<p>　　　　c) 应用层监控：主要是对分布式应用和调用链应用的性能进行管理和监控，如对Spring Boot、JVM信息、服务链路、Dubbo等应用在进行诸如RPC调用、Trace链路追踪动作时产生的数据进行监控。</p>
+<p>　　　　d) 中间件监控：监控的主要对象是框架自身的埋点、延迟、错误率等。这里的中间件包括不限于消息中间件(RabbitMQ、Kafka、RocketMQ等),数据库中间件(MySQL、Oracle、PostgreSQL、TIDB、PolarDB等),数据库连接池中间件(HikariCP、Druid、BoneCP等)，缓存中间件(Redis、Memcached等)和Web服务中间件(Tomcat、Jetty等)。</p>
+<p>　　　　e) 系统层监控：如何对系统层进行监控，是运维工程师比较关心的问题。小米通过Open-Falcon提炼出了Linux系统的运维基础采集项，主要包含了 CPU、Load、内存、磁盘、I&#x2F;O、网络相关参数、内核参数、ss统计输出、端口、核心服务的进程存活情况、关键业务进程资源消耗、NTP offset采集、DNS解析采集等指标。这些都可以作为系统层监控的关键指标。另外网络监控也是系统监控中很重要的部分，对交换机、路由器、防火墙、VPN进行的监控都属于网络监控的范畴，内网和外网的丢包率、网络延迟等也都是很重要的监控指标。</p>
+<h2 id="二、监控产品分类"><a href="#二、监控产品分类" class="headerlink" title="二、监控产品分类"></a>二、监控产品分类</h2><p>　　近年来，随着 Kubernetes 为代表的云原生技术的崛起，软件的研发流程已经逐步进化到 iaas 层、Kubernetes 层、团队组织层。</p>
+<p>　　Kubernetes 是强大的声明式容器编排工具，可以提供计算、存储、网络等功能接口，通过这些接口以插件形式实现相关功能。这种灵活、开放的设计理念使 kubernetes 非常容易集成外部工具，强化相应的功能。所以 Kubernetes 逐渐发展成为中间件和微服务的”底座”，同时也成为企业上云的”底座”。Kubernetes 和 iaas 有着天然的联系，Kubernetes 已经可以和诸如 OpenStack、AWS、Google云等iaas 云平台进行集成，在弹性、敏捷、动态方面，它都可以发挥巨大作用。在 iaas 层可以实现对硬件、网络等的监控；在 Kubernetes 层可以实现对日志、健康检查、自愈系统、分布式链路等的监控，Kubernetes 层作为中间件和微服务的”底座”，很多产品的监控都可以在这一层完成。</p>
+<p><strong>Zabbix:</strong><br>　　Zabbix 是由 Alexei Vladishev 开源的分布式监控系统，支持多种采集方式和采集客户端，同时支持 SNMP、IPMI、JMX、Telnet、SSH 等多种协议。它将采集到的数据存放到数据库中，然后对其进行分析整理，如果符合告警规则，则触发相应的告警。<br>　　Zabbix 核心组件主要是 Agent 和 Server。其中 Agent 主要负责采集数据并通过主动或者被动的方式将采集数据发送到 Server&#x2F;Proxy。除此之外，为了扩展监控项，Agent 还支持执行自定义脚本。Server 主要负责接收 Agent 发送的监控信息，并进行汇总存储、触发告警等。<br>　　Zabbix Server 将收集的监控数据存储到 Zabbix Database 中。Zabbix Database 支持常用的关系型数据库，如 MySQL、PostgreSQL、Oracle 等（默认是 MySQL），并提供 Zabbix Web 页面（PHP 编写）数据查询。<br>　　由于使用了关系型数据存储时序数据，Zabbix在监控大规模集群时常常在数据存储方面捉襟见肘。所以从 4.2 版本后 Zabbix开始支持 TimescaleDB 时序数据库，不过目前成熟度还不高。<br><strong>Open-Falcon:</strong><br>　　Open-Falcon 是小米开源的企业级监控工具，用 Go 语言开发而成。这是一款灵活、可扩展并且高性能的监控方案，包括小米、滴滴、美团等在内的互联网公司都在使用它。它的主要组件包括：<br>　　Falcon-agent：这是用 Go 语言开发的 Daemon 程序，运行在每台 Linux 服务器上，用于采集主机上的各种指标数据，主要包括 CPU、内存、磁盘、文件系统、内核参数、Socket 连接等，目前已经支持 200 多项监控指标。并且，Agent 支持用户自定义的监控脚本。<br>　　Hearthbeat server：简称 HBS 心跳服务。每个 Agent 都会周期性地通过 RPC 方式将自己的状态上报给 HBS，主要包括主机名、主机 IP、Agent 版本和插件版本，Agent 还会从 HBS 获取自己需要执行的采集任务和自定义插件。<br>　　Transfer：负责接收 Agent 发送的监控数据，并对数据进行整理，在过滤后通过一致性 Hash 算法发送到 Judge 或者 Graph。<br>　　Graph：这是基于 RRD 的数据上报、归档、存储组件。Graph 在收到数据以后，会以 rrdtool 的数据归档方式来存储，同时提供 RPC 方式的监控查询接口。<br>　　Judge 告警模块：Transfer 转发到 Judge 的数据会触发用户设定的告警规则，如果满足，则会触发邮件、微信或者回调接口。这里为了避免重复告警引入了 Redis 暂存告警，从而完成告警的合并和抑制。<br>　　Dashboard：这是面向用户的监控数据查询和告警配置界面。<br><strong>Prometheus:</strong><br>　　Prometheus 的基本原理是通过 HTTP 周期性抓取被监控组件的状态。任意组件只要提供对应的 HTTP 接口并且符合 Prometheus 定义的数据格式，就可以接入 Prometheus 监控。<br>　　Prometheus Server 负责定时在目标上抓取 metrics（指标）数据并保存到本地存储。它采用了一种 Pull（拉）的方式获取数据，不仅降低客户端的复杂度，客户端只需要采集数据，无需了解服务端情况，也让服务端可以更加方便地水平扩展。<br>　　如果监控数据达到告警阈值，Prometheus Server 会通过 HTTP 将告警发送到告警模块 alertmanger，通过告警的抑制后触发邮件或者 Webhook。Prometheus 支持 PromQL 提供多维度数据模型和灵活的查询，通过监控指标关联多个 tag 的方式，将监控数据进行任意维度的组合以及聚合。</p>
+<p><img src="/images/1717726476-dc9c04b30806e0979fe590596d178aea.png"></p>
+<h2 id="三、MDD-思想：从指标到洞察力"><a href="#三、MDD-思想：从指标到洞察力" class="headerlink" title="三、MDD 思想：从指标到洞察力"></a>三、MDD 思想：从指标到洞察力</h2><p>　　运行中的代码才是有价值的，以 Prometheus 为代表的遵从 MDD 理念的产品，并不会做静态代码检查，而是会对执行过的代码、代码执行次数、错误位置、错误数量等信息进行运行时动态监控。</p>
+<h3 id="3-1-MDD理念的概述"><a href="#3-1-MDD理念的概述" class="headerlink" title="3.1 MDD理念的概述"></a>3.1 MDD理念的概述</h3><p>　　MDD(Metrics-Driven Development) 主张整个应用开发过程由指标驱动，通过实时指标来驱动快速、精确和细粒度的软件迭代。指标驱动开发的理念，可以让程序员可以帮助产品经理和运维人员一起关注相关的业务指标。</p>
+<p>　　MDD 可以使所有可以测量的东西都得到量化和优化，进而为整个开发过程带来可见性，帮助相关人员快速、准确地做出决策，并在发生错误时立即发现问题并修复。MDD 可以感知应用的”脉搏”，并不断根据运行时的数据提供改进策略。</p>
+<p>　　MDD 的关键原则如下：</p>
+<ul>
+<li>将指标分配给指标所有者(业务、应用、基础架构等)。</li>
+<li>创建分层指标并关联趋势。</li>
+<li>指定决策时使用的指标。</li>
+</ul>
+<p>　　TDD 主张在业务代码之前先编写测试代码，MDD 则主张将上线、监控、调试、故障调查及优化等纳入设计阶段，而不是等到实施后才补充。相对于通过指定各种复杂、严格的研发规定、以及开发无数的评审、研讨会来确保软件的安全发布、稳定运行，MDD理念的特别之处在于应用程序本身。在 MDD 理念下，采集必要的监控信息，通过持续交付方式进行快速迭代并进行反馈和修正，所有决定都是基于对不断变化的情况的观察做出的。在软件的设计初期就包括 Metrics 设计，设计一套规则来评价系统的稳定性、健康状态，并监控其他考核目标，将这些作为服务本身的 KPI。通过应用 MDD 理念，可以将 Dev 与 Ops 之间或多个 Dev 团队之间出现的责任博弈降低到最低，甚至使矛盾完全消失，这也有利于团队稳定发展。因此，MDD 可以用于决策支持、预测趋势、测试系统的补充、关联分析等。</p>
+<h3 id="3-2-指导监控实践的3大方法论"><a href="#3-2-指导监控实践的3大方法论" class="headerlink" title="3.2 指导监控实践的3大方法论"></a>3.2 指导监控实践的3大方法论</h3><p>　　在了解了 MDD 理念后，大家还需要了解一些基于指标的方法论，这里以小知识点的形式总结如下：</p>
+<h4 id="1、Google-的四大黄金指标："><a href="#1、Google-的四大黄金指标：" class="headerlink" title="1、Google 的四大黄金指标："></a>1、Google 的四大黄金指标：</h4><p>　　有4个来自 Google SRE 手册的黄金指标，这 4 个指标主要针对应用程序或用户部分。</p>
+<ul>
+<li><ul>
+<li>**延迟(Latency)**：服务请求锁需耗时，例如 HTTP 请求平均延迟。需要区分成功请求和失败请求，因为失败请求可能会以非常低的延迟返回错误结果。</li>
+<li>**流量(Traffic)**：衡量服务容量需求(针对系统而言)，例如每秒处理的 HTTP 请求数或者数据库系统的事务数量。</li>
+<li>**错误(Errors)**：请求失败的速率，用于衡量错误发生的情况，例如 HTTP 500 错误数等显式失败，返回错误内容或无效内容等隐式失败，以及由策略原因导致的失败(比如强制要求响应时间超过 30ms 的请求为错误)。</li>
+<li>**饱和度(Saturation)**：衡量资源的使用情况，例如内存、CPU、I&#x2F;O、磁盘使用量(即将饱和的部分，比如正在快速填充的磁盘)。</li>
+</ul>
+</li>
+</ul>
+<h4 id="2、Netflix-的-USE-方法："><a href="#2、Netflix-的-USE-方法：" class="headerlink" title="2、Netflix 的 USE 方法："></a>2、Netflix 的 USE 方法：</h4><p>　　USE 是 Utilization(使用率)、Saturation(饱和度)、Error(错误)的首字母组合，是 Netflix 的内核和性能工程师 Brendan Gregg 提出的，主要用于分析系统性能问题，可以知道用户快速识别资源瓶颈及错误。</p>
+<ul>
+<li><strong>使用率</strong>：关注系统资源的使用情况。这里资源主要包括但不限于 CPU、内存、网络、磁盘等。100%的使用率通常是系统性能瓶颈的标志。</li>
+<li><strong>饱和度</strong>：例如 CPU 的平均运行排队长度，这里主要是针对资源的饱和度(注意，不同于四大黄金指标)。任何资源在某种程度上的饱和都可能导致系统性能下降。</li>
+<li><strong>错误</strong>：错误数。例如，网卡在数据包传输过程中检测到以太网络冲突了14次。</li>
+</ul>
+<h4 id="3、Weave-Cloud-的-RED-方法："><a href="#3、Weave-Cloud-的-RED-方法：" class="headerlink" title="3、Weave Cloud 的 RED 方法："></a>3、Weave Cloud 的 RED 方法：</h4><p>　　RED 方法是 Weave Cloud 基于 Google 的 4 个黄金指标再结合 Prometheus 及 Kubernetes 容器实践得出的方法论，特别适用于对云原生应用以及微服务架构应用进行监控和度量。在四大黄金指标的原则下，RED 方法可以有效地帮助用户衡量云原生以及微服务应用下的用户体验问题。RED 方法主要关注以下 3 钟关键指标：</p>
+<ul>
+<li><ul>
+<li>(Request) Rate：每秒接受的请求数。</li>
+<li>(Request) Errors：每秒失败的请求数。</li>
+<li>(Request) Duration：每个请求所花费的时间，用时间间隔表示。</li>
+</ul>
+</li>
+</ul>
+<h4 id="4、最佳实践："><a href="#4、最佳实践：" class="headerlink" title="4、最佳实践："></a>4、最佳实践：</h4><p>　　在遵循 Google 四大黄金指标的前提下，对于在线系统，结合 RED 方法和缓存命中率方式进行监测；对于离线系统或者主机监控，以 USE 方法为主进行监测；对于批处理系统，可以采用类似 Pushgateway 的形式进行监控。</p>
+<h2 id="四、监控系统选型和误区讨论"><a href="#四、监控系统选型和误区讨论" class="headerlink" title="四、监控系统选型和误区讨论"></a>四、监控系统选型和误区讨论</h2><h3 id="4-1-黑盒监控和白盒监控"><a href="#4-1-黑盒监控和白盒监控" class="headerlink" title="4.1 黑盒监控和白盒监控"></a>4.1 黑盒监控和白盒监控</h3><p>　　《SRE: Google 运维解密》 一书中指出，监控系统需要有效支持白盒监控和黑盒监控。</p>
+<h3 id="4-2-监控检查的两种模式——拉取和推送"><a href="#4-2-监控检查的两种模式——拉取和推送" class="headerlink" title="4.2 监控检查的两种模式——拉取和推送"></a>4.2 监控检查的两种模式——拉取和推送</h3><p>　　监控系统执行监控检查的模式主要有拉取（Pull）和推送（Push）两种。这两种模式究竟哪种更好？对此，监控领域内部存在相当大的争议。</p>
+<p>　　<strong>拉取模式</strong>（简称拉模式），是一种从监控对象中通过轮询获取监控信息的方式。拉模式更多拉取的是采样值或者统计值，由于有拉取间隔，因此并不能准确获取数值状态的变化，只能看到拉取间隔内的变化，因此可能会有一些毛刺现象，需要进一步进行数据处理。监控和性能测试更关注 p95&#x2F;p99 位的原因就是存在长尾效应。数据采集过程中对数据进行的定义、采样、去尖刺等处理操作也是非常重要的。</p>
+<p>　　<strong>拉模式的优点</strong>是告警可以按照策略分片，告警模块只需要拉取主机需要的数据，且可以完美支持聚合场景；</p>
+<p>　　<strong>拉模式的缺点</strong>在于监控数据体量非常庞大，对存储有较高的要求，实战中可能还需要考虑数据的冷热分离。</p>
+<p>　　<strong>推送模式</strong>（简称推模式），是应用程序基于事件主动将数据推向监控系统的方式。</p>
+<p>　　<strong>推模式的优点</strong>是实时性好，一旦触发一个事件就可以立刻收集发送信息。</p>
+<p>　　<strong>推模式的缺点</strong>是由于事件的不可预知性，大量的数据推送到监控系统，解析和暂存都会消耗大量的内存，这可能对监控的进程产生影响。</p>
+<p>　　Prometheus 在收集数据时，主要采用拉模式（服务端主动去客户端拉取数据），当然它也支持接收推送到 Pushgateway 的事件；而以 Zabbix 为代表的传统监控系统采用推模式(客户端发送数据给服务端)。</p>
+<p><img src="/images/1717726476-13c9dacf5e473e1f1f23a73cf8339c70.png"></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/07/%E7%9B%91%E6%8E%A7%E5%B0%B1%E6%98%AF%E8%89%BA%E6%9C%AF/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/%E6%8A%80%E6%9C%AF%E5%92%96/" rel="tag">技术咖</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/06/06/Alertmanager-%E9%83%A8%E7%BD%B2%E5%92%8C%E9%85%8D%E7%BD%AE/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Alertmanager 部署和配置</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
