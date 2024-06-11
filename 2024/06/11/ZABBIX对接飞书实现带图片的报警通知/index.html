@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>ZABBIX对接飞书实现带图片的报警通知 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-ZABBIX对接飞书实现带图片的报警通知"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  ZABBIX对接飞书实现带图片的报警通知
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/11/ZABBIX%E5%AF%B9%E6%8E%A5%E9%A3%9E%E4%B9%A6%E5%AE%9E%E7%8E%B0%E5%B8%A6%E5%9B%BE%E7%89%87%E7%9A%84%E6%8A%A5%E8%AD%A6%E9%80%9A%E7%9F%A5/" class="article-date">
+  <time datetime="2024-06-11T02:46:37.000Z" itemprop="datePublished">2024-06-11</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>飞书提供了丰富的api来实现消息的通知，包括文本消息、图片消息、富文本消息，本次介绍使用飞书api发送富文本消息，以下是实现思路<br>飞书API地址：<a target="_blank" rel="noopener" href="https://open.feishu.cn/document/ukTMukTMukTM/uITNz4iM1MjLyUzM">https://open.feishu.cn/document/ukTMukTMukTM/uITNz4iM1MjLyUzM</a></p>
+<h3 id="实现思路"><a href="#实现思路" class="headerlink" title="实现思路"></a>实现思路</h3><p><img src="/images/1718073911-fab12ecdb0448fbcabcb9168a1fab4ec.png"></p>
+<p>1.根据正则获取监控项id，需要在动作中定义报警信息<br>2.根据获取的监控项id构造请求获取图片地址，并下载到本地<br>3.需要获取三个授权凭证</p>
+<ul>
+<li>app_access_token ：访问App资源相关接口。</li>
+<li>tenant_access_token ：访问企业资源相关接口。</li>
+<li>user_access_token ：访问用户资源相关接口。</li>
+</ul>
+<p>4.根据zabbix报警的收信人手机号获取user_id，用于后面在群里@相关负责人，或者直接发给某个责任人<br>5.chat_id用于发送给指定的群，这里我提供两种方法获取chat_id，后面会介绍<br>6.上传本地图片到飞书，并获取img_key，image_key用于发送图片信息<br>7.传入zabbix报警消息，并艾特相关负责人发送到飞书群里或者个人</p>
+<h3 id="获取itemID"><a href="#获取itemID" class="headerlink" title="获取itemID"></a>获取itemID</h3><p>利用正则匹配报警信息中的itemID</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_itemid</span>():</span><br><span class="line">    <span class="comment">#获取报警的itemid</span></span><br><span class="line">    itemid=re.search(<span class="string">r&#x27;ITEM ID:(\d+)&#x27;</span>,sys.argv[<span class="number">3</span>]).group(<span class="number">1</span>)</span><br><span class="line">    <span class="keyword">return</span> itemid</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取报警图片地址"><a href="#获取报警图片地址" class="headerlink" title="获取报警图片地址"></a>获取报警图片地址</h3><p>根据传入的itemID，构造请求下载报警图片，并保存到本地</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">get_graph</span>(<span class="params">itemid</span>):</span><br><span class="line">    <span class="comment">#获取报警的图表并保存</span></span><br><span class="line">    session=requests.Session()   <span class="comment">#创建一个session会话</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        loginheaders=&#123;            </span><br><span class="line">        <span class="string">&quot;Host&quot;</span>:host,            </span><br><span class="line">        <span class="string">&quot;Accept&quot;</span>:<span class="string">&quot;text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8&quot;</span></span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">#定义请求消息头</span></span><br><span class="line">        </span><br><span class="line">        payload = &#123;            </span><br><span class="line">        <span class="string">&quot;name&quot;</span>:user,</span><br><span class="line">        <span class="string">&quot;password&quot;</span>:password,  </span><br><span class="line">        <span class="string">&quot;autologin&quot;</span>:<span class="string">&quot;1&quot;</span>,            </span><br><span class="line">        <span class="string">&quot;enter&quot;</span>:<span class="string">&quot;Sign in&quot;</span>,</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">#定义传入的data</span></span><br><span class="line">        login=session.post(url=loginurl,headers=loginheaders,data=payload)</span><br><span class="line">        <span class="comment">#进行登录</span></span><br><span class="line">        graph_params=&#123;</span><br><span class="line">            <span class="string">&quot;from&quot;</span> :<span class="string">&quot;now-10m&quot;</span>,</span><br><span class="line">            <span class="string">&quot;to&quot;</span> : <span class="string">&quot;now&quot;</span>,           </span><br><span class="line">            <span class="string">&quot;itemids&quot;</span> : itemid,                       </span><br><span class="line">            <span class="string">&quot;width&quot;</span> : <span class="string">&quot;400&quot;</span>,</span><br><span class="line">        &#125;</span><br><span class="line">        <span class="comment">#定义获取图片的参数</span></span><br><span class="line">        graph_req=session.get(url=graph_url,params=graph_params)</span><br><span class="line">        <span class="comment">#发送get请求获取图片数据</span></span><br><span class="line">        time_tag=time.strftime(<span class="string">&quot;%Y%m%d%H%M%S&quot;</span>, time.localtime())</span><br><span class="line">        graph_name=<span class="string">&#x27;baojing_&#x27;</span>+time_tag+<span class="string">&#x27;.png&#x27;</span></span><br><span class="line">        <span class="comment">#用报警时间来作为图片名进行保存</span></span><br><span class="line">        graph_name = os.path.join(graph_path, graph_name)</span><br><span class="line">        <span class="comment">#使用绝对路径保存图片</span></span><br><span class="line">        <span class="keyword">with</span> <span class="built_in">open</span>(graph_name,<span class="string">&#x27;wb&#x27;</span>,) <span class="keyword">as</span> f:</span><br><span class="line">            f.write(graph_req.content)</span><br><span class="line">            <span class="comment">#将获取到的图片数据写入到文件中去</span></span><br><span class="line">        </span><br><span class="line">        <span class="keyword">return</span> graph_name</span><br><span class="line">    </span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:        </span><br><span class="line">        <span class="built_in">print</span> (e)        </span><br><span class="line">        <span class="keyword">return</span> <span class="literal">False</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="获取授权凭证"><a href="#获取授权凭证" class="headerlink" title="获取授权凭证"></a>获取授权凭证</h3><h4 id="1-获取-App-ID-和-App-Secret"><a href="#1-获取-App-ID-和-App-Secret" class="headerlink" title="1.获取 App ID 和 App Secret"></a>1.获取 App ID 和 App Secret</h4><p>登录开发者后台，在“我的应用”页面创建企业自建应用。进入企业自建应用详情页，获取App ID和App Secret。<br><img src="/images/1718073911-52187088a96a3a5098abf3b9e573e3c3.png"></p>
+<h4 id="2-获取-tenant-access-token"><a href="#2-获取-tenant-access-token" class="headerlink" title="2.获取 tenant_access_token"></a>2.获取 tenant_access_token</h4><p>一种方法是通过企业自建应用方式获取，另一种是通过应用商店应用获取，这里我使用第一种方法，直接创建应用即可<br><img src="/images/1718073911-789a0819e6922c2021d009bc59406342.png"></p>
+<h4 id="3-创建完应用后可根据APP-ID和-App-Secret构造请求获取"><a href="#3-创建完应用后可根据APP-ID和-App-Secret构造请求获取" class="headerlink" title="3.创建完应用后可根据APP ID和 App Secret构造请求获取"></a>3.创建完应用后可根据APP ID和 App Secret构造请求获取</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">gettenant_access_token</span>():</span><br><span class="line">    tokenurl=<span class="string">&quot;https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal/&quot;</span></span><br><span class="line">    headers=&#123;<span class="string">&quot;Content-Type&quot;</span>:<span class="string">&quot;application/json&quot;</span>&#125;</span><br><span class="line">    data=&#123;</span><br><span class="line">        <span class="string">&quot;app_id&quot;</span>:<span class="string">&quot;cli_9ec625abcdefg&quot;</span>,</span><br><span class="line">        <span class="string">&quot;app_secret&quot;</span>:<span class="string">&quot;f716Gi27Yi25n5K0Wbafgwghhstv&quot;</span></span><br><span class="line"></span><br><span class="line">    &#125;</span><br><span class="line">    request=requests.post(url=tokenurl,headers=headers,json=data)</span><br><span class="line">    response=json.loads(request.content)[<span class="string">&#x27;tenant_access_token&#x27;</span>]</span><br><span class="line">    <span class="keyword">return</span> response</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取user-id"><a href="#获取user-id" class="headerlink" title="获取user_id"></a>获取user_id</h3><p>user_id可以根据注册的手机号或邮箱获取，可以在zabbix中定义用户的手机号，然后传入参数获取user_id</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">getuserid</span>(<span class="params">tenant_access_token</span>):</span><br><span class="line">    <span class="comment">#mobiles=&quot;15101234584&quot;</span></span><br><span class="line">    userurl=<span class="string">&quot;https://open.feishu.cn/open-apis/user/v1/batch_get_id?mobiles=%s&quot;</span>%mobiles</span><br><span class="line">    headers=&#123;<span class="string">&quot;Authorization&quot;</span>:<span class="string">&quot;Bearer %s&quot;</span>%tenant_access_token&#125;</span><br><span class="line">    request=requests.get(url=userurl,headers=headers)</span><br><span class="line">    response=json.loads(request.content)[<span class="string">&#x27;data&#x27;</span>][<span class="string">&#x27;mobile_users&#x27;</span>][mobiles][<span class="number">0</span>][<span class="string">&#x27;user_id&#x27;</span>]</span><br><span class="line">    <span class="keyword">return</span> response</span><br></pre></td></tr></table></figure>
+
+<h3 id="获取chat-id"><a href="#获取chat-id" class="headerlink" title="获取chat_id"></a>获取chat_id</h3><p>这里我提供两种方法获取chat_id，一种是将机器人加入到群里，获取群信息中的chat_id；另一种是通过机器人创建群聊获取群信息，当然还有其他的方法，这里我就不过多介绍了，我将使用第一种方法来获取chat_id</p>
+<h4 id="首先将机器人加入到群聊"><a href="#首先将机器人加入到群聊" class="headerlink" title="首先将机器人加入到群聊"></a>首先将机器人加入到群聊</h4><p><img src="/images/1718073911-5b76736abde66165ca44341dccc861dc.png"></p>
+<h4 id="构造请求获取chat-id"><a href="#构造请求获取chat-id" class="headerlink" title="构造请求获取chat_id"></a>构造请求获取chat_id</h4><figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">getchatid</span>(<span class="params">tenant_access_token</span>):</span><br><span class="line">    <span class="comment">#获取chatid</span></span><br><span class="line">    chaturl=<span class="string">&quot;https://open.feishu.cn/open-apis/chat/v4/list?page_size=20&quot;</span></span><br><span class="line">    headers=&#123;<span class="string">&quot;Authorization&quot;</span>:<span class="string">&quot;Bearer %s&quot;</span>%tenant_access_token,<span class="string">&quot;Content-Type&quot;</span>:<span class="string">&quot;application/json&quot;</span>&#125;</span><br><span class="line">    request=requests.get(url=chaturl,headers=headers)</span><br><span class="line">    response=json.loads(request.content)[<span class="string">&#x27;data&#x27;</span>][<span class="string">&#x27;groups&#x27;</span>][<span class="number">0</span>][<span class="string">&#x27;chat_id&#x27;</span>]</span><br><span class="line">    <span class="keyword">return</span> response</span><br></pre></td></tr></table></figure>
+
+<h3 id="通过api向飞书上传报警图片"><a href="#通过api向飞书上传报警图片" class="headerlink" title="通过api向飞书上传报警图片"></a>通过api向飞书上传报警图片</h3><p>通过上传报警图片，会获取到一个image_key，用于发送富文本消息的图片信息</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">uploadimg</span>(<span class="params">tenant_access_token,graph_name</span>):</span><br><span class="line">    <span class="keyword">with</span> <span class="built_in">open</span>(graph_name,<span class="string">&#x27;rb&#x27;</span>) <span class="keyword">as</span> f:</span><br><span class="line">        image = f.read()</span><br><span class="line">    imgurl=<span class="string">&#x27;https://open.feishu.cn/open-apis/image/v4/put/&#x27;</span></span><br><span class="line">    headers=&#123;<span class="string">&#x27;Authorization&#x27;</span>: <span class="string">&quot;Bearer %s&quot;</span>%tenant_access_token&#125;</span><br><span class="line">    files=&#123;</span><br><span class="line">            <span class="string">&quot;image&quot;</span>: image</span><br><span class="line">        &#125;</span><br><span class="line">    data=&#123;</span><br><span class="line">            <span class="string">&quot;image_type&quot;</span>: <span class="string">&quot;message&quot;</span></span><br><span class="line">        &#125;</span><br><span class="line">    </span><br><span class="line">    resp = requests.post(</span><br><span class="line">        url=imgurl,</span><br><span class="line">        headers=headers,</span><br><span class="line">        files=files,</span><br><span class="line">        data=data)</span><br><span class="line">    resp.raise_for_status()</span><br><span class="line">    content = resp.json()</span><br><span class="line">    <span class="keyword">return</span> content[<span class="string">&#x27;data&#x27;</span>][<span class="string">&#x27;image_key&#x27;</span>]</span><br></pre></td></tr></table></figure>
+
+<h3 id="向飞书群里或者飞书用户发送消息"><a href="#向飞书群里或者飞书用户发送消息" class="headerlink" title="向飞书群里或者飞书用户发送消息"></a>向飞书群里或者飞书用户发送消息</h3><p>这里需要四个参数，分别是user_id、chat_id、tenant_access_token和image_key，并传入报警信息即可发送</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">def</span> <span class="title function_">sendmes</span>(<span class="params">user_id,chat_id,tenant_access_token,image_key</span>):</span><br><span class="line">    sendurl=<span class="string">&quot;https://open.feishu.cn/open-apis/message/v4/send/&quot;</span></span><br><span class="line">    headers=&#123;<span class="string">&quot;Authorization&quot;</span>:<span class="string">&quot;Bearer %s&quot;</span>%tenant_access_token,<span class="string">&quot;Content-Type&quot;</span>:<span class="string">&quot;application/json&quot;</span>&#125;</span><br><span class="line">    <span class="comment">#向群里发送富文本消息</span></span><br><span class="line">    data=&#123;</span><br><span class="line">        <span class="string">&quot;chat_id&quot;</span>:chat_id,</span><br><span class="line">        <span class="string">&quot;msg_type&quot;</span>:<span class="string">&quot;post&quot;</span>,</span><br><span class="line">        <span class="string">&quot;content&quot;</span>:&#123;</span><br><span class="line">            <span class="string">&quot;post&quot;</span>:&#123;</span><br><span class="line">                <span class="string">&quot;zh_cn&quot;</span>:&#123;</span><br><span class="line">                    <span class="string">&quot;title&quot;</span>:subject,</span><br><span class="line">                    <span class="string">&quot;content&quot;</span>:[</span><br><span class="line">                        [</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;text&quot;</span>,</span><br><span class="line">                            <span class="string">&quot;un_escape&quot;</span>: <span class="literal">True</span>,</span><br><span class="line">                            <span class="string">&quot;text&quot;</span>: messages</span><br><span class="line">                        &#125;,</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;at&quot;</span>,</span><br><span class="line">                            <span class="string">&quot;user_id&quot;</span>: user_id</span><br><span class="line"></span><br><span class="line">                        &#125;</span><br><span class="line">                    ],</span><br><span class="line">                    [</span><br><span class="line">                        &#123;</span><br><span class="line">                            <span class="string">&quot;tag&quot;</span>: <span class="string">&quot;img&quot;</span>,</span><br><span class="line">                            <span class="string">&quot;image_key&quot;</span>: image_key,</span><br><span class="line">                            <span class="string">&quot;width&quot;</span>: <span class="number">700</span>,</span><br><span class="line">                            <span class="string">&quot;height&quot;</span>: <span class="number">400</span></span><br><span class="line">                        &#125;</span><br><span class="line">                    ]</span><br><span class="line">                ]</span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    &#125;</span><br><span class="line">  </span><br><span class="line">    request=requests.post(url=sendurl,headers=headers,json=data)</span><br><span class="line">    <span class="built_in">print</span>(request.content)</span><br></pre></td></tr></table></figure>
+
+<h3 id="在ZABBIX上配置报警动作及接收人"><a href="#在ZABBIX上配置报警动作及接收人" class="headerlink" title="在ZABBIX上配置报警动作及接收人"></a>在ZABBIX上配置报警动作及接收人</h3><h4 id="配置报警媒介类型"><a href="#配置报警媒介类型" class="headerlink" title="配置报警媒介类型"></a>配置报警媒介类型</h4><p>注意参数顺序不能乱<br><img src="/images/1718073911-079a5710f57ca8951e2678764c31c1c9.png"></p>
+<h4 id="配置用户的接收信息"><a href="#配置用户的接收信息" class="headerlink" title="配置用户的接收信息"></a>配置用户的接收信息</h4><p>也就是用户注册飞书的手机号<br><img src="/images/1718073911-ac930a6316257ce8c9d066855e01ac6f.png"></p>
+<h4 id="配置动作"><a href="#配置动作" class="headerlink" title="配置动作"></a>配置动作</h4><p><img src="/images/1718073911-96b3826e41c836e88a29b087348210d2.png"></p>
+<h3 id="报警测试"><a href="#报警测试" class="headerlink" title="报警测试"></a>报警测试</h3><h4 id="这里我禁掉了其中一台windows的agent进行测试"><a href="#这里我禁掉了其中一台windows的agent进行测试" class="headerlink" title="这里我禁掉了其中一台windows的agent进行测试"></a>这里我禁掉了其中一台windows的agent进行测试</h4><p><img src="/images/1718073911-15e9ee1ed063f7abbb610d115af7c6f9.png"><br>后续会添加带有图片信息的报警，完整代码请访问github组织遮阳笔记<br><a target="_blank" rel="noopener" href="https://github.com/sunsharing-note/zabbix/blob/master/feishu/_img.py">https://github.com/sunsharing-note/zabbix/blob/master/feishu\_img.py</a></p>
+<hr>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/11/ZABBIX%E5%AF%B9%E6%8E%A5%E9%A3%9E%E4%B9%A6%E5%AE%9E%E7%8E%B0%E5%B8%A6%E5%9B%BE%E7%89%87%E7%9A%84%E6%8A%A5%E8%AD%A6%E9%80%9A%E7%9F%A5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/06/07/%E9%83%A8%E7%BD%B2%E5%BC%80%E5%90%AFbasic%E8%AE%A4%E8%AF%81%E7%9A%84node-exporter%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">部署开启basic认证的node exporter脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
