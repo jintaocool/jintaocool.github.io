@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Prometheus集成consul配置示例 |  Lijintao&#39;s Blog</title>
+      <title>blackbox exporter yml配置示例 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,8 +69,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="Prometheus-Prometheus集成consul配置示例"
-  class="article article-type-Prometheus"
+  id="exporter-blackbox-exporter-yml配置示例"
+  class="article article-type-exporter"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Prometheus集成consul配置示例
+  blackbox exporter yml配置示例
 </h1>
  
 
@@ -88,11 +88,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/06/17/Prometheus%E9%9B%86%E6%88%90consul%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" class="article-date">
-  <time datetime="2024-06-17T01:57:45.000Z" itemprop="datePublished">2024-06-17</time>
+      <a href="/2024/06/17/blackbox-exporter-yml%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" class="article-date">
+  <time datetime="2024-06-17T02:16:55.000Z" itemprop="datePublished">2024-06-17</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+    <a class="article-category-link" href="/categories/exporter/">exporter</a>
   </div>
   
 <div class="word_count">
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">848</span>
+            <span class="post-count">530</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">3 分钟</span>
+            <span class="post-count">2 分钟</span>
         </span>
     </span>
 </div>
@@ -122,24 +122,7 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">定义Node Exporter作业的抓取配置</span></span><br><span class="line">- job_name: node_exporter</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">抓取间隔和超时设置</span></span><br><span class="line">  scrape_interval: 15s  # 每15秒抓取一次数据</span><br><span class="line">  scrape_timeout: 5s   # 抓取超时时间为5秒</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">Consul服务发现配置</span></span><br><span class="line">  consul_sd_configs:</span><br><span class="line">    - server: &#x27;10.250.37.30:8500&#x27;  # Consul服务器地址和端口</span><br><span class="line">      token: &#x27;848b1dc9-aab0-40a7-8e3e-7e8b869a97ac&#x27;  # Consul API访问令牌</span><br><span class="line">      refresh_interval: 30s  # 每30秒从Consul刷新服务列表</span><br><span class="line">      services: [&#x27;selfnode_exporter&#x27;]  # 目标服务名称列表</span><br><span class="line">      tags: [&#x27;linux&#x27;]  # 通过标签过滤服务，仅包含此标签的服务会被发现</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">重标签配置，用于转换或过滤Consul提供的标签信息</span></span><br><span class="line">  relabel_configs:</span><br><span class="line">    # 如果服务标签包含OFF，则过滤掉该服务实例</span><br><span class="line">    - source_labels: [__meta_consul_tags]  </span><br><span class="line">      regex: .*OFF.*</span><br><span class="line">      action: drop</span><br><span class="line"></span><br><span class="line">    # 将Consul服务名映射为Prometheus标签cservice</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service&#x27;]</span><br><span class="line">      target_label: cservice</span><br><span class="line"></span><br><span class="line">    # 将Consul服务的元数据映射为对应的标签</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_vendor&#x27;]</span><br><span class="line">      target_label: vendor</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_region&#x27;]</span><br><span class="line">      target_label: region</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_group&#x27;]</span><br><span class="line">      target_label: group</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_account&#x27;]</span><br><span class="line">      target_label: account</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_name&#x27;]</span><br><span class="line">      target_label: name</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_iid&#x27;]</span><br><span class="line">      target_label: iid</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_exp&#x27;]</span><br><span class="line">      target_label: exp</span><br><span class="line">    - source_labels: [&#x27;__meta_consul_service_metadata_instance&#x27;]</span><br><span class="line">      target_label: instance</span><br><span class="line"></span><br><span class="line">    # 将Consul中的instance标签转换为Prometheus识别的目标地址标签</span><br><span class="line">    - source_labels: [instance]</span><br><span class="line">      target_label: __address__</span><br></pre></td></tr></table></figure>
-
-<p>这段配置是Prometheus配置文件中的一部分，用于定义如何发现和抓取由Consul服务发现管理的Node Exporter实例的数据。下面是对各个部分的详细解释：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">- job_name: node_exporter</span><br><span class="line">job_name: 定义了Prometheus作业的名称，这里是node_exporter，意味着这一配置段是针对Node Exporter的监控配置。</span><br><span class="line">yaml</span><br><span class="line">scrape_interval: 15s</span><br><span class="line">scrape_timeout: 5s</span><br><span class="line">scrape_interval: 设置了抓取目标数据的时间间隔，即每15秒抓取一次数据。</span><br><span class="line">scrape_timeout: 设置了抓取超时时间，如果在5秒内没有收到响应，则认为抓取失败。</span><br></pre></td></tr></table></figure>
-
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">consul_sd_configs:</span><br><span class="line">  - server: &#x27;10.250.37.30:8500&#x27;</span><br><span class="line">    token: &#x27;848b1dc9-aab0-40a7-8e3e-7e8b869a97ac&#x27;</span><br><span class="line">    refresh_interval: 30s</span><br><span class="line">    services: [&#x27;selfnode_exporter&#x27;]</span><br><span class="line">    tags: [&#x27;linux&#x27;]</span><br></pre></td></tr></table></figure>
-<p>consul_sd_configs: 使用Consul服务发现来动态发现要监控的目标。<br>server: 指定Consul服务器的地址和端口。<br>token: Consul API访问所需的访问令牌。<br>refresh_interval: Prometheus查询Consul以获取服务列表的频率，这里是每30秒刷新一次。<br>services: 列出了要发现的服务名称，这里只关注名为selfnode_exporter的服务。<br>tags: 通过标签过滤服务，这里指定了服务必须包含linux标签。</p>
-<p>relabel_configs:<br>接下来是一系列的relabel_configs，用于对从Consul获取到的目标信息进行转换或过滤，以适应Prometheus的标签要求。</p>
-<p>source_labels: 指定一个或多个源标签，这些标签的值将被用于匹配或替换。<br>regex: 如果指定，使用正则表达式匹配源标签的值，用于过滤或提取信息。<br>action: 定义了重标签的动作，如drop（丢弃匹配的样本）、replace（替换标签值）或keep（仅保留匹配的样本）等。<br>例如：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [__meta_consul_tags]</span><br><span class="line">  regex: .*OFF.*</span><br><span class="line">  action: drop</span><br></pre></td></tr></table></figure>
-
-<p>这段配置表示，如果__meta_consul_tags标签的值中包含OFF，则丢弃这个服务实例，不对其进行抓取。</p>
-<p>其他重标签配置则是将Consul的元数据转换为Prometheus标签，如将__meta_consul_service标签的值赋给新的cservice标签，便于在Prometheus中进一步查询和聚合数据。</p>
-<p>最后一条：</p>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">- source_labels: [instance]</span><br><span class="line">  target_label: __address__</span><br></pre></td></tr></table></figure>
-
-<p>这条配置特别重要，它将Consul中服务实例的地址信息（instance标签）重命名为__address__，这是Prometheus识别目标实例地址的关键标签，用于确定从哪里抓取数据。</p>
- 
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">定义Blackbox Exporter的探测模块配置，用于不同的HTTP、ICMP、TCP等协议的健康检查场景。</span></span><br><span class="line"></span><br><span class="line">modules:</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">HTTP 2xx 响应码检查模块，适用于期望服务返回成功状态码（200或204）的场景。</span></span><br><span class="line">  http_2xx:</span><br><span class="line">    prober: http  # 使用HTTP探测器</span><br><span class="line">    http:</span><br><span class="line">      valid_status_codes: [200,204]  # 配置期望的成功状态码</span><br><span class="line">      no_follow_redirects: false  # 默认跟随HTTP重定向</span><br><span class="line">      preferred_ip_protocol: ip4  # 首选IPv4协议进行连接</span><br><span class="line">      ip_protocol_fallback: false  # 禁止在首选协议失败时回退到另一种协议</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">特殊HTTP检查模块，用于验证SSL证书有效性而不跟随重定向，适合监控那些重定向到其他域名的SSL证书。</span></span><br><span class="line">  httpNoRedirect4ssl:</span><br><span class="line">    prober: http</span><br><span class="line">    http:</span><br><span class="line">      valid_status_codes: [200,204,301,302,303]  # 接受成功状态码及重定向状态码</span><br><span class="line">      no_follow_redirects: true  # 不跟随HTTP重定向，以便检查原始域名的SSL证书</span><br><span class="line">      preferred_ip_protocol: ip4</span><br><span class="line">      ip_protocol_fallback: false</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">忽略SSL证书验证的HTTP检查模块，适用于监控那些证书不受信任或自签名的网站。</span></span><br><span class="line">  http200igssl:</span><br><span class="line">    prober: http</span><br><span class="line">    http:</span><br><span class="line">      valid_status_codes: [200]  # 仅接受200状态码作为成功响应</span><br><span class="line">      tls_config:  # TLS配置</span><br><span class="line">        insecure_skip_verify: true  # 跳过SSL证书验证</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">HTTP 4xx错误检查模块，用于监控服务是否正确返回客户端错误状态码。</span></span><br><span class="line">  http_4xx:</span><br><span class="line">    prober: http</span><br><span class="line">    http:</span><br><span class="line">      valid_status_codes: [401,403,404]  # 验证预期的客户端错误状态码</span><br><span class="line">      preferred_ip_protocol: ip4</span><br><span class="line">      ip_protocol_fallback: false</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">HTTP 5xx错误检查模块，监控服务端错误状态码，如服务器故障或网关错误。</span></span><br><span class="line">  http_5xx:</span><br><span class="line">    prober: http</span><br><span class="line">    http:</span><br><span class="line">      valid_status_codes: [500,502]  # 预期的服务端错误状态码</span><br><span class="line">      preferred_ip_protocol: ip4</span><br><span class="line">      ip_protocol_fallback: false</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">HTTP POST请求检查模块，用于需要发送POST请求进行健康检查的场景。</span></span><br><span class="line">  http_post_2xx:</span><br><span class="line">    prober: http</span><br><span class="line">    http:</span><br><span class="line">      method: POST  # 指定HTTP方法为POST</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">ICMP探测模块，用于基本的网络可达性检查。</span></span><br><span class="line">  icmp:</span><br><span class="line">    prober: icmp</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">TCP连接检查模块，验证端口是否开放。</span></span><br><span class="line">  tcp_connect:</span><br><span class="line">    prober: tcp</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">SSH Banner检查模块，用于验证SSH服务的banner信息，确保SSH服务在线并响应。</span></span><br><span class="line">  ssh_banner:</span><br><span class="line">    prober: tcp</span><br><span class="line">    tcp:</span><br><span class="line">      query_response:</span><br><span class="line">        - expect: &quot;^SSH-2.0-&quot;  # 期望从SSH服务接收的起始字符串</span><br><span class="line">        - send: &quot;SSH-2.0-blackbox-ssh-check&quot;  # 发送给SSH服务的标识字符串</span><br></pre></td></tr></table></figure> 
       <!-- reward -->
       
       <div id="reword-out">
@@ -209,12 +192,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/17/Prometheus%E9%9B%86%E6%88%90consul%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/17/blackbox-exporter-yml%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/exporter/" rel="tag">exporter</a></li></ul>
 
     </footer>
   </div>
@@ -222,19 +205,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/06/17/blackbox-exporter-yml%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            blackbox exporter yml配置示例
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/06/14/Prometheus-recording-rule-%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8C%87%E6%A0%87%E6%89%93%E6%A0%87%E7%AD%BE%EF%BC%8C%E6%A0%87%E7%AD%BE%E5%80%BC%E5%BC%95%E7%94%A8labels%E7%9A%84%E6%9F%90%E4%B8%80%E4%B8%AA/" class="article-nav-link">
+      <a href="/2024/06/17/Prometheus%E9%9B%86%E6%88%90consul%E9%85%8D%E7%BD%AE%E7%A4%BA%E4%BE%8B/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">Prometheus recording rule 自定义指标打标签，标签值引用labels的某一个</div>
+        <div class="article-nav-title">Prometheus集成consul配置示例</div>
       </a>
     
   </nav>
