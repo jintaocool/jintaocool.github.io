@@ -1,0 +1,741 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Grafana auth_token自动登录(iframe嵌入第三方系统) |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-Grafana-auth-token自动登录-iframe嵌入第三方系统"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Grafana auth_token自动登录(iframe嵌入第三方系统)
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/06/19/Grafana-auth-token%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95-iframe%E5%B5%8C%E5%85%A5%E7%AC%AC%E4%B8%89%E6%96%B9%E7%B3%BB%E7%BB%9F/" class="article-date">
+  <time datetime="2024-06-19T03:43:09.000Z" itemprop="datePublished">2024-06-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">824</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">3 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>用Grafana可以很容易地创建Dashboard，并且后期修改和更新很方便，由于它的易用性和灵活性很适合用来做系统和生产的监控。但是Grafana的UI设计似乎对普通用户不是很友好，如果让用户直接登录Grafana去搜索浏览Dashboad不是很合适。由此自然就产生了把Grafana嵌入第三方系统的需求，如果嵌入的dashboard是匿名可以访问的，则直接通过iframe嵌入即可。本文旨在解决那些需要登录才能浏览的dashboard嵌入问题。</p>
+<h2 id="重要提示"><a href="#重要提示" class="headerlink" title="重要提示"></a>重要提示</h2><ul>
+<li>Grafana版本要用9.1.0之后的版本</li>
+</ul>
+<p>auth_token在Grafana 9.1.0之后才开始支持：<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana/issues/63254">https://github.com/grafana/grafana/issues/63254</a></p>
+<ul>
+<li>必须启动的配置</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">[security]</span><br><span class="line">allow_embedding = true</span><br><span class="line"></span><br><span class="line">[auth.anonymous]</span><br><span class="line">enabled = true</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>调试过程中一定要记得把dashbaord的View权限去掉，不然可能会导致误你以为用的是token访问，但其实可能是匿名访问的。</li>
+</ul>
+<p>如果auth_token登录成功的话，可以在界面上看到实际上登录的用户就是你token payload 里面sub指定的用户。另外如果指定的用户不存在，启用了auto_sign_up会自动创用户。</p>
+<p><img src="/images/1718768473-2d72a86fa008cce9ea6759d01b29593c.png"></p>
+<h2 id="创建token"><a href="#创建token" class="headerlink" title="创建token"></a>创建token</h2><p>在线生成JWK：<a target="_blank" rel="noopener" href="https://mkjwk.org/">https://mkjwk.org/</a></p>
+<ul>
+<li>生成jwk，这里选择HS256加密算法。</li>
+</ul>
+<p><img src="/images/1718768473-ba3822e7d415c447a5cf17b7c83e26ec.png"></p>
+<p>得到jwk：</p>
+<p><a href="javascript:" title="复制代码"></a></p>
+<p>{</p>
+<p>  “kty”: “oct”,</p>
+<p>  “kid”: “23f238f0-8d83-4c56-9a44-b7426011544d”,</p>
+<p>  “k”: “hLc8OyEl2D8xtftERMtv3zMbg0GkZr3LMLuhGGerans”,</p>
+<p>  “alg”: “HS256”</p>
+<p>}</p>
+<p><a href="javascript:" title="复制代码"></a></p>
+<ul>
+<li> 把jwk放到keys里面保存成jwks.json文件，放到Grafana安装的配置目录下（conf&#x2F;jwks.json）。</li>
+</ul>
+<p><a href="javascript:" title="复制代码"></a></p>
+<p>{</p>
+<p>  “keys”: [</p>
+<p>    {</p>
+<p>      “kty”: “oct”,</p>
+<p>      “kid”: “23f238f0-8d83-4c56-9a44-b7426011544d”,</p>
+<p>      “k”: “hLc8OyEl2D8xtftERMtv3zMbg0GkZr3LMLuhGGerans”,</p>
+<p>      “alg”: “HS256”</p>
+<p>    }</p>
+<p>  ]</p>
+<p>}</p>
+<p><a href="javascript:" title="复制代码"></a></p>
+<ul>
+<li>生成token</li>
+</ul>
+<p>token加密解密站点：<a target="_blank" rel="noopener" href="https://jwt.io/">https://jwt.io/</a></p>
+<ol>
+<li>把jwk的kid填到HEADER里面。</li>
+<li>PAYLOAD里面的sub填上要登录的用户名。</li>
+<li>注意一下token的过期时间，exp里面的数值是timestamp。</li>
+<li>iss的值参考Grafana配置上的这句“expect_claims &#x3D; {“iss”: “<a target="_blank" rel="noopener" href="https://jwt.io/%22%7D%E2%80%9D%E9%85%8D%E7%BD%AE%EF%BC%8C%E5%A6%82%E6%9E%9C%E6%B2%A1%E6%9C%89%E9%85%8D%E7%BD%AE%E7%9A%84%E8%AF%9D%E5%8F%AF%E4%BB%A5%E4%B8%8D%E8%AE%BEiss%E3%80%82">https://jwt.io/&quot;}”配置，如果没有配置的话可以不设iss。</a></li>
+<li>把jwk的k的值填到VERIFY SIGNATURE的secrect中，并勾选“secret base64 encoded”选项。</li>
+</ol>
+<p>完成上面步骤之后就得到了左边Encoded里面的这串字符串就是编码之后的token。</p>
+<p><img src="/images/1718768473-7c0d186e785c7b0a1c50eb05e053875c.png"></p>
+<h2 id="Grafana配置"><a href="#Grafana配置" class="headerlink" title="Grafana配置"></a>Grafana配置</h2><p>允许嵌入到iframe：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[security]</span><br><span class="line">allow_embedding = true</span><br></pre></td></tr></table></figure>
+
+<p>允许匿名访问：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[auth.anonymous]</span><br><span class="line">enabled = true</span><br></pre></td></tr></table></figure>
+
+<p>启用jwt认证：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">[auth.jwt]</span><br><span class="line">enabled = true</span><br><span class="line">enable_login_token = true</span><br><span class="line">#设置通过http header登录的名字</span><br><span class="line">header_name = X-JWT-Assertion</span><br><span class="line">#设置角色名字，如有需要</span><br><span class="line">role_attribute_path = role</span><br><span class="line">#设置jwk文件的路径</span><br><span class="line">jwk_set_file =conf/jwks.json</span><br><span class="line">cache_ttl = 60m</span><br><span class="line">#安全特性，设置是否需要token带预期的声明。</span><br><span class="line">expect_claims = &#123;&quot;iss&quot;: &quot;https://jwt.io/&quot;&#125;</span><br><span class="line">role_attribute_strict = false</span><br><span class="line">allow_assign_grafana_admin = false</span><br><span class="line">skip_org_role_sync = true</span><br><span class="line">username_claim = sub</span><br><span class="line">email_claim = email</span><br><span class="line">#设置是否自动注册新用户，启用的话，如果sub指定的用户不存在，则Grafana会自动注册。</span><br><span class="line">auto_sign_up = true</span><br><span class="line">#启用url登录，也就是我们在url设置auth_token参数可以自动登录</span><br><span class="line">url_login = true</span><br></pre></td></tr></table></figure>
+
+<p>重新启动一下Grafana，如果启动不成功，请检查一下jwk_set_file设置的路径是否正确。</p>
+<p>完成以上配置之后，可以尝试一下token登录。</p>
+<p>例子：<a target="_blank" rel="noopener" href="http://localhost:3000/d/ddfd01d0-d493-4672-9a0b-51ccb7d03229/new-dashboard?orgId=1&auth%5C_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjIzZjIzOGYwLThkODMtNGM1Ni05YTQ0LWI3NDI2MDExNTQ0ZCJ9.eyJzdWIiOiJhZG1pbiIsIm5hbWUiOiJBZG1pbiIsImV4cCI6NDg1MDYzMzAzNSwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJodHRwczovL2p3dC5pby8ifQ.xq3yaRuGbbGxBSGDpFf7W9LmKZpWRdsttpWnJAhdq6s">http://localhost:3000/d/ddfd01d0-d493-4672-9a0b-51ccb7d03229/new-dashboard?orgId=1&amp;auth\_token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6IjIzZjIzOGYwLThkODMtNGM1Ni05YTQ0LWI3NDI2MDExNTQ0ZCJ9.eyJzdWIiOiJhZG1pbiIsIm5hbWUiOiJBZG1pbiIsImV4cCI6NDg1MDYzMzAzNSwiaWF0IjoxNTE2MjM5MDIyLCJpc3MiOiJodHRwczovL2p3dC5pby8ifQ.xq3yaRuGbbGxBSGDpFf7W9LmKZpWRdsttpWnJAhdq6s</a></p>
+<p>注意一下右上角，检查是否通过token登录成功。</p>
+<p><img src="/images/1718768473-8ef78760a6de56136790b86f0704f21b.png"></p>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
+<li>参考文章：<a target="_blank" rel="noopener" href="https://www.cnblogs.com/yinxy/p/14893595.html">https://www.cnblogs.com/yinxy/p/14893595.html</a></li>
+<li>官方文档：<a target="_blank" rel="noopener" href="https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/jwt/">https://grafana.com/docs/grafana/latest/setup-grafana/configure-security/configure-authentication/jwt/</a></li>
+<li>官方demo：<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana-iframe-oauth-sample">https://github.com/grafana/grafana-iframe-oauth-sample</a></li>
+<li>auth_token在Grafana 9.1.0之后才开始支持：<a target="_blank" rel="noopener" href="https://github.com/grafana/grafana/issues/63254">https://github.com/grafana/grafana/issues/63254</a></li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/19/Grafana-auth-token%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95-iframe%E5%B5%8C%E5%85%A5%E7%AC%AC%E4%B8%89%E6%96%B9%E7%B3%BB%E7%BB%9F/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/06/17/Zabbix%E5%91%8A%E8%AD%A6%E9%82%AE%E4%BB%B6%E5%AE%9E%E7%8E%B0%E5%B8%A6%E6%95%B0%E6%8D%AE%E5%9B%BE%E7%89%87/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix告警邮件实现带数据图片</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
+        <i class="ri-rss-line"></i>
+      </a>
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
