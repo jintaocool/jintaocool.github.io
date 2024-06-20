@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Cloudpods 多云管理平台部署 |  Lijintao&#39;s Blog</title>
+      <title>Podman 容器管理工具 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,8 +69,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="CMP-Cloudpods-多云管理平台部署"
-  class="article article-type-CMP"
+  id="Docker-Podman-容器管理工具"
+  class="article article-type-Docker"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Cloudpods 多云管理平台部署
+  Podman 容器管理工具
 </h1>
  
 
@@ -88,11 +88,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2024/06/20/Cloudpods-%E5%A4%9A%E4%BA%91%E7%AE%A1%E7%90%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2/" class="article-date">
-  <time datetime="2024-06-20T08:33:41.000Z" itemprop="datePublished">2024-06-20</time>
+      <a href="/2024/06/20/Podman-%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7/" class="article-date">
+  <time datetime="2024-06-20T08:44:59.000Z" itemprop="datePublished">2024-06-20</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/CMP/">CMP</a>
+    <a class="article-category-link" href="/categories/Docker/">Docker</a>
   </div>
   
 <div class="word_count">
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">693</span>
+            <span class="post-count">739</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">2 分钟</span>
+            <span class="post-count">3 分钟</span>
         </span>
     </span>
 </div>
@@ -124,39 +124,62 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h1 id="简介"><a href="#简介" class="headerlink" title="简介"></a><a href="#%E7%AE%80%E4%BB%8B"></a><a href="#%E7%AE%80%E4%BB%8B" title="简介"></a>简介</h1><p>Cloudpods 是一款简单、可靠的企业IaaS资源管理软件。帮助未云化企业全面云化IDC物理资源，提升企业IT管理效率。</p>
-<p>Cloudpods 帮助客户在一个地方管理所有云计算资源。统一管理异构IT基础设施资源，极大简化多云架构复杂度和难度，帮助企业轻松驾驭多云环境。</p>
-<h2 id="功能"><a href="#功能" class="headerlink" title="功能"></a><a href="#%E5%8A%9F%E8%83%BD"></a><a href="#%E5%8A%9F%E8%83%BD" title="功能"></a>功能</h2><ul>
-<li><p>多云统一登录，允许以统一的身份访问各个云平台的原生控制台的SSO。（免密一键登录，自动创建SSO账号）</p>
-</li>
-<li><p>多云纳管，Cloudpods 支持管理多云资源的功能，可以管理大多数的主流云，包括私有云，例如OpenStack，PVE、Nutanix以及公有云，例如AWS，Azure，GCP，阿里云，华为云和腾讯云、火山引擎等。管理其云服务器、网络、存储、数据、中间件等。</p>
-</li>
-<li><p>VMware纳管，实现VMware vShpere虚拟化集群的自助服务和自动化。</p>
-</li>
-<li><p>支持LDAP&#x2F;AD认证源外部认证源。</p>
-</li>
-<li><p>内置私有云，Cloudpods 基于 KVM 实现了轻量级私有云，包含了虚拟机、存储、网络、GPU卡和裸金属等功能。</p>
-</li>
-<li><p>纳管物理机，支持通过IPMI、PXE 管理裸金属服务器。</p>
-</li>
-</ul>
-<h3 id="登录界面"><a href="#登录界面" class="headerlink" title="登录界面"></a><a href="#%E7%99%BB%E5%BD%95%E7%95%8C%E9%9D%A2"></a><a href="#%E7%99%BB%E5%BD%95%E7%95%8C%E9%9D%A2" title="登录界面"></a>登录界面</h3><p>[<img src="/images/1718872238-8ba8662117e39229654cb47473284751.png">]</p>
-<h3 id="云账号新建"><a href="#云账号新建" class="headerlink" title="云账号新建"></a><a href="#%E4%BA%91%E8%B4%A6%E5%8F%B7%E6%96%B0%E5%BB%BA"></a><a href="#%E4%BA%91%E8%B4%A6%E5%8F%B7%E6%96%B0%E5%BB%BA" title="云账号新建"></a>云账号新建</h3><p>[<img src="/images/1718872238-df1d89e7aa2d15a9f25b3f04fc8340ee.png">]</p>
-<h2 id="环境"><a href="#环境" class="headerlink" title="环境"></a><a href="#%E7%8E%AF%E5%A2%83"></a><a href="#%E7%8E%AF%E5%A2%83" title="环境"></a>环境</h2><p>Rocky Linux 8.10</p>
-<p>Docker CE 26.1.3</p>
-<p>配置要求 6C10G 300G硬盘以上</p>
-<h1 id="Docker-CE安装"><a href="#Docker-CE安装" class="headerlink" title="Docker CE安装"></a><a href="#Docker-CE%E5%AE%89%E8%A3%85"></a><a href="#Docker-CE%E5%AE%89%E8%A3%85" title="Docker CE安装"></a>Docker CE安装</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">安装必要的一些系统工具</span></span><br><span class="line">dnf install -y yum-utils device-mapper-persistent-data lvm2 git</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">添加软件源信息</span></span><br><span class="line">yum-config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">更新并安装 docker-ce 以及 compose 插件</span></span><br><span class="line"></span><br><span class="line">dnf -y install docker-ce docker-ce-cli docker-compose-plugin</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">开启 docker 服务</span></span><br><span class="line">systemctl enable --now docker</span><br></pre></td></tr></table></figure>
-
-<h1 id="Cloudpods-CMP-多云管理版本安装"><a href="#Cloudpods-CMP-多云管理版本安装" class="headerlink" title="Cloudpods CMP 多云管理版本安装"></a><a href="#Cloudpods-CMP-%E5%A4%9A%E4%BA%91%E7%AE%A1%E7%90%86%E7%89%88%E6%9C%AC%E5%AE%89%E8%A3%85"></a><a href="#Cloudpods-CMP-%E5%A4%9A%E4%BA%91%E7%AE%A1%E7%90%86%E7%89%88%E6%9C%AC%E5%AE%89%E8%A3%85" title="Cloudpods CMP 多云管理版本安装"></a>Cloudpods CMP 多云管理版本安装</h1><ul>
-<li><p>该方案通过 Docker Compose 部署 Cloudpods 多云管理版本，该方式部署的是 All in One 环境，即所有的多云管理服务都使用容器运行在一个节点。</p>
-</li>
-<li><p>该部署方法仅适用于多云管理功能的使用，比如管理公有云(aws, 阿里云, 腾讯云等)或者其它私有云(zstack, openstack 等)，无法使用内置私有云相关功能(因为内置私有云需要节点上面安装配置 qemu, openvswitch 等各种虚拟化软件)。</p>
-</li>
-</ul>
-<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line">git clone -b release/3.11 https://github.com/yunionio/ocboot &amp;&amp; cd ./ocboot</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">下载 ocboot 工具到本地</span></span><br><span class="line"></span><br><span class="line">cd compose</span><br><span class="line">ls -alh docker-compose.yml</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">进入docker compose 目录，确认配置文件存在。</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">docker compose pull</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">拉起所需所有的镜像文件</span></span><br><span class="line"></span><br><span class="line">docker compose up -d</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">后台运行</span></span><br><span class="line"></span><br><span class="line">docker compose logs -f</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查看运行日志</span></span><br></pre></td></tr></table></figure>
-
-<p>等服务启动完成后（大约60个），就可以登录<a target="_blank" rel="noopener" href="https://ip/">https://ip</a> 访问前端服务，默认登录用户密码为：admin 和 admin@123 。</p>
-<h1 id="官方文档"><a href="#官方文档" class="headerlink" title="官方文档"></a><a href="#%E5%AE%98%E6%96%B9%E6%96%87%E6%A1%A3"></a><a href="#%E5%AE%98%E6%96%B9%E6%96%87%E6%A1%A3" title="官方文档"></a>官方文档</h1><p><a target="_blank" rel="noopener" href="https://www.cloudpods.org/docs/introduction/" title="https://www.cloudpods.org/docs/introduction/">https://www.cloudpods.org/docs/introduction/</a></p>
+  <h1 id="介绍"><a href="#介绍" class="headerlink" title="介绍"></a><a href="#%E4%BB%8B%E7%BB%8D"></a><a href="#%E4%BB%8B%E7%BB%8D" title="介绍"></a>介绍</h1><p>Podman是一个用于在 Linux 系统上构建、管理和运行<a target="_blank" rel="noopener" href="https://opencontainers.org/">OCI标准</a>容器的CLI工具，是Docker的直接替代品。</p>
+<p>由红帽主导，与开源社区一起开发。在RHEL8开始预装并替代Docker。命令上与Docker并无区别。</p>
+<p>主要特点是不需要守护进程，可以支持非root用户运行容器，提高了安全性和可访问性。</p>
+<p>本教程也适用于RHEL其他衍生版本，如Rocky Linux。</p>
+<h1 id="安装"><a href="#安装" class="headerlink" title="安装"></a><a href="#%E5%AE%89%E8%A3%85"></a><a href="#%E5%AE%89%E8%A3%85" title="安装"></a>安装</h1><h2 id="RHEL8-9安装"><a href="#RHEL8-9安装" class="headerlink" title="RHEL8-9安装"></a><a href="#RHEL8-9%E5%AE%89%E8%A3%85"></a><a href="#RHEL8-9%E5%AE%89%E8%A3%85" title="RHEL8-9安装"></a>RHEL8-9安装</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;dnf install podman podman-docker&lt;br&gt;&lt;br&gt;# 安装podman及docker的命令兼容程序。&lt;br&gt;&lt;br&gt;systemctl enable --now podman&lt;br&gt;&lt;br&gt;# 启动并设置开机启动。&lt;br&gt;&lt;br&gt;podman run hello-world&lt;br&gt;&lt;br&gt;docker run hello-world&lt;br&gt;&lt;br&gt;# 命令示例，两者都可用，但docker命令无法自动不全。&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="安装podman-compose（需要提前安装epel-yum源）"><a href="#安装podman-compose（需要提前安装epel-yum源）" class="headerlink" title="安装podman-compose（需要提前安装epel yum源）"></a><a href="#%E5%AE%89%E8%A3%85podman-compose%EF%BC%88%E9%9C%80%E8%A6%81%E6%8F%90%E5%89%8D%E5%AE%89%E8%A3%85epel-yum%E6%BA%90%EF%BC%89"></a><a href="#%E5%AE%89%E8%A3%85podman-compose%EF%BC%88%E9%9C%80%E8%A6%81%E6%8F%90%E5%89%8D%E5%AE%89%E8%A3%85epel-yum%E6%BA%90%EF%BC%89" title="安装podman-compose（需要提前安装epel yum源）"></a>安装podman-compose（需要提前安装epel yum源）</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;</code></td>
+<td><code>cmake&lt;br&gt;dnf install podman-compose&lt;br&gt;&lt;br&gt;# 安装compose工具，用于管理或运行多个容器。可直接替代docker-compose。&lt;br&gt;&lt;br&gt;podman-compose up -d&lt;br&gt;podman-compose down&lt;br&gt;&lt;br&gt;# 命令示例&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h1 id="默认仓库顺序"><a href="#默认仓库顺序" class="headerlink" title="默认仓库顺序"></a><a href="#%E9%BB%98%E8%AE%A4%E4%BB%93%E5%BA%93%E9%A1%BA%E5%BA%8F"></a><a href="#%E9%BB%98%E8%AE%A4%E4%BB%93%E5%BA%93%E9%A1%BA%E5%BA%8F" title="默认仓库顺序"></a>默认仓库顺序</h1><h2 id="说明"><a href="#说明" class="headerlink" title="说明"></a><a href="#%E8%AF%B4%E6%98%8E"></a><a href="#%E8%AF%B4%E6%98%8E" title="说明"></a>说明</h2><p>红帽把自己的两个仓库源放在了前面，导致拉取前两个仓库源不存在的镜像时候，要手动选择。</p>
+<p>很麻烦🤬</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;</code></td>
+<td><code>bash&lt;br&gt;podman pull songxwn/webnettools:1.4&lt;br&gt;Emulate Docker CLI using podman. Create /etc/containers/nodocker to quiet msg.&lt;br&gt;? Please select an image: &lt;br&gt;  ▸ registry.access.redhat.com/songxwn/webnettools:1.4&lt;br&gt;    registry.redhat.io/songxwn/webnettools:1.4&lt;br&gt;    docker.io/songxwn/webnettools:1.4&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="修改"><a href="#修改" class="headerlink" title="修改"></a><a href="#%E4%BF%AE%E6%94%B9"></a><a href="#%E4%BF%AE%E6%94%B9" title="修改"></a>修改</h2><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;vim /etc/containers/registries.conf&lt;br&gt;&lt;br&gt;&lt;br&gt;unqualified-search-registries = [&quot;docker.io&quot;, &quot;registry.redhat.io&quot;, &quot;registry.access.redhat.com&quot;]&lt;br&gt;&lt;br&gt;&lt;br&gt;# 将unqualified-search-registries选项，修改为上面的即可。&lt;br&gt;&lt;br&gt;&lt;br&gt;systemctl restart podman&lt;br&gt;&lt;br&gt;# 然后重启一下即可。&lt;br&gt;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>PS：也可以修改为<a target="_blank" rel="noopener" href="https://yeasy.gitbook.io/docker_practice/install/mirror">国内的Docker Hub源</a>，如网易的 <code>https://hub-mirror.c.163.com</code></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a><a href="#%E5%8F%82%E8%80%83"></a><a href="#%E5%8F%82%E8%80%83" title="参考"></a>参考</h1><p><a target="_blank" rel="noopener" href="https://computingforgeeks.com/create-docker-container-registry-with-podman-letsencrypt/">https://computingforgeeks.com/create-docker-container-registry-with-podman-letsencrypt/</a></p>
  
       <!-- reward -->
       
@@ -227,12 +250,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/20/Cloudpods-%E5%A4%9A%E4%BA%91%E7%AE%A1%E7%90%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/06/20/Podman-%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/CMP/" rel="tag">CMP</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Docker/" rel="tag">Docker</a></li></ul>
 
     </footer>
   </div>
@@ -240,19 +263,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2024/06/20/Podman-%E5%AE%B9%E5%99%A8%E7%AE%A1%E7%90%86%E5%B7%A5%E5%85%B7/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            Podman 容器管理工具
-          
-        </div>
-      </a>
     
-    
-      <a href="/2024/06/19/Grafana-auth-token%E8%87%AA%E5%8A%A8%E7%99%BB%E5%BD%95-iframe%E5%B5%8C%E5%85%A5%E7%AC%AC%E4%B8%89%E6%96%B9%E7%B3%BB%E7%BB%9F/" class="article-nav-link">
+      <a href="/2024/06/20/Cloudpods-%E5%A4%9A%E4%BA%91%E7%AE%A1%E7%90%86%E5%B9%B3%E5%8F%B0%E9%83%A8%E7%BD%B2/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">Grafana auth_token自动登录(iframe嵌入第三方系统)</div>
+        <div class="article-nav-title">Cloudpods 多云管理平台部署</div>
       </a>
     
   </nav>
