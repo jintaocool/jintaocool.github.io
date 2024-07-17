@@ -234,7 +234,7 @@
 <p>　　关于区间向量选择还需要补充的就是，它返回的是一定范围内所有的样本数据，虽然刮擦时间是相同的，但是多个时间序列的时间戳往往并不会对齐，如下所示：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">http_requests_total&#123;code=&quot;200&quot;,job=&quot;HelloWorld&quot;,method=&quot;get&quot;&#125;=[</span><br><span class="line">1@1518096812.678</span><br><span class="line">1@1518096817.678</span><br><span class="line">1@1518096822.678</span><br><span class="line">1@1518096827.678</span><br><span class="line">1@1518096832.678</span><br><span class="line">1@1518096837.678</span><br><span class="line">]</span><br><span class="line">http_requests_total&#123;code=&quot;200&quot;,job=&quot;HelloWorld&quot;,method=&quot;get&quot;&#125;=[</span><br><span class="line">4@1518096813.233</span><br><span class="line">4@1518096818.233</span><br><span class="line">4@1518096823.233</span><br><span class="line">4@1518096828.233</span><br><span class="line">4@1518096833.233</span><br><span class="line">4@1518096838.233</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
 
-<p>　　这是因为距离向量会保留样本的原始时间戳，不同 target 的刮擦被分布以均匀的负载，所以虽然我们可以控制刮擦和规则评估的频率，比如 5秒&#x2F;次（第一组 12、17、22、27、32、37；第二组 13、18、23、28、33、28），但是我们无法控制他们完全对齐时间戳(<a href="mailto:&#49;&#64;&#x31;&#53;&#49;&#x38;&#x30;&#x39;&#x36;&#56;&#49;&#50;&#x2e;&#x36;&#x37;&#56;">&#49;&#64;&#x31;&#53;&#49;&#x38;&#x30;&#x39;&#x36;&#56;&#49;&#50;&#x2e;&#x36;&#x37;&#56;</a>和<a href="mailto:&#x34;&#x40;&#x31;&#x35;&#x31;&#56;&#48;&#x39;&#x36;&#x38;&#49;&#x33;&#x2e;&#50;&#51;&#51;">&#x34;&#x40;&#x31;&#x35;&#x31;&#56;&#48;&#x39;&#x36;&#x38;&#49;&#x33;&#x2e;&#50;&#51;&#51;</a>)，因为假如有成百上千的 target，每次5秒的刮擦都会导致这些 target 在不同的位置被处理，所以时间序列一定会存在略微不同的时间点的。但是这在实际生产中并不是非常重要(偶发的不对系统造成影响的瞬时毛刺数据不是很重要)，因为 Prometheus 等指标监控本身的定位就不像 Log 监控那样精准，而是趋势准确。</p>
+<p>　　这是因为距离向量会保留样本的原始时间戳，不同 target 的刮擦被分布以均匀的负载，所以虽然我们可以控制刮擦和规则评估的频率，比如 5秒&#x2F;次（第一组 12、17、22、27、32、37；第二组 13、18、23、28、33、28），但是我们无法控制他们完全对齐时间戳(<a href="mailto:&#x31;&#64;&#x31;&#53;&#x31;&#x38;&#x30;&#57;&#x36;&#56;&#x31;&#x32;&#46;&#54;&#x37;&#x38;">&#x31;&#64;&#x31;&#53;&#x31;&#x38;&#x30;&#57;&#x36;&#56;&#x31;&#x32;&#46;&#54;&#x37;&#x38;</a>和<a href="mailto:&#52;&#x40;&#x31;&#x35;&#x31;&#x38;&#48;&#x39;&#x36;&#56;&#49;&#x33;&#x2e;&#50;&#51;&#x33;">&#52;&#x40;&#x31;&#x35;&#x31;&#x38;&#48;&#x39;&#x36;&#56;&#49;&#x33;&#x2e;&#50;&#51;&#x33;</a>)，因为假如有成百上千的 target，每次5秒的刮擦都会导致这些 target 在不同的位置被处理，所以时间序列一定会存在略微不同的时间点的。但是这在实际生产中并不是非常重要(偶发的不对系统造成影响的瞬时毛刺数据不是很重要)，因为 Prometheus 等指标监控本身的定位就不像 Log 监控那样精准，而是趋势准确。</p>
 <p>　　最后，我们结合本节介绍的知识，来看几个关于 CPU 和 PromQL 实战案例，夯实下理论。</p>
 <p>　　案例一：计算 2 分钟内系统进程的 CPU 使用率。</p>
 <p>　　rate是PromQL内置函数，获取一段时间窗口的平均量。取一段时间增量的平均每秒数量，2m内总增量&#x2F;2m</p>
@@ -569,10 +569,6 @@
         <i class="ri-search-line"></i>
       </a>
       
-      
-      <a class="nav-item-link" target="_blank" href="/atom.xml" title="RSS Feed">
-        <i class="ri-rss-line"></i>
-      </a>
       
     </li>
   </ul>
