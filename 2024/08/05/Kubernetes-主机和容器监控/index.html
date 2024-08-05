@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Kubernetes 主机和容器监控 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-Kubernetes-主机和容器监控"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Kubernetes 主机和容器监控
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/05/Kubernetes-%E4%B8%BB%E6%9C%BA%E5%92%8C%E5%AE%B9%E5%99%A8%E7%9B%91%E6%8E%A7/" class="article-date">
+  <time datetime="2024-08-05T09:45:20.000Z" itemprop="datePublished">2024-08-05</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.7k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">22 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>一. 系统介绍  </p>
+<p>一套云原生推荐的,开源的K8S监控系统,涵盖主机 容器 网络 等资源监控</p>
+<p>二. 架构介绍</p>
+<p><img src="/images/1722851036-36dfba0d09aa5e2aeb9972bc44d835cb.png"></p>
+<p>三. 组件介绍</p>
+<p>1. node-exporter</p>
+<p>1. prometheus的exporter，收集Node级别的监控数据</p>
+<p>2. Prometheus Server</p>
+<p>1. 主要用于存储监控数据,server去exporter拉取监控数据并进行存储</p>
+<p>2. 根据告警规则产生告警并发送给Alertmanager</p>
+<p>3. 通过PromQL查看监控数据</p>
+<p>3. Exporters&#x2F;Job</p>
+<p>1. 监控指标数据采集组件,如node_exporter redis_exporter mongo_exporter等</p>
+<p>2. 负责收集目标对象的性能数据,如主机,容器等</p>
+<p>3. 提供http接口供Prometheus Server提取监控数据</p>
+<p>4. Short-lived jobs</p>
+<p>瞬时任务的场景，无法通过pull方式拉取，需要使用push方式，与PushGateway搭配使用</p>
+<p>5. PushGateway</p>
+<p>特殊场景监控数据中转站,此组件收到监控数据后由prometheus server进行拉取存储</p>
+<p>6. Alertmanager</p>
+<p>实现告警功能,Prometheus server会将告警信息发送到此组件,Alertmanager则根据告警配置方式处理告警信息,如: 邮件 webhook等</p>
+<p>7. Service Discovery</p>
+<p>prometheus自身服务发现机制</p>
+<p>Prometheus支持多种服务发现机制：文件、DNS、Consul、Kubernetes、OpenStack、EC2等等。基于服务发现的过程是通过第三方提供的接口，Prometheus查询到需要监控的Target列表，然后轮训这些Target获取监控数据</p>
+<p>8. Prometheus Operator</p>
+<p>够帮助用户自动化的创建以及管理Prometheus Server以及其相应的配置</p>
+<p>1. 管理ServiceMonitor监控配置 [servicemonitors.monitoring.coreos.com]   通过serviceMonitorSelector关联</p>
+<p>2. 管理PrometheusRule告警配置 [prometheusrules.monitoring.coreos.com]   通过ruleSelector关联</p>
+<p>3. 创建和管理Alertmanager实例 [alertmanagers.monitoring.coreos.com] 管理alertmanager  通过alerting指定Alertmanager 服务发现与prometheuse进行关联</p>
+<p>4. 创建和管理Prometheus Server实例 [prometheuses.monitoring.coreos.com] 管理prometheuse</p>
+<p>8.1 管理PrometheusRule告警配置</p>
+<p>告警规则有类型为Prometheus的资源类型管理,通过如下字段进行关联,所以我们要想自定义一个报警规则，只需要创建一个能够被 prometheus 对象匹配的 </p>
+<p>PrometheusRule 对象即可, 创建后Prometheus Operator会自动将告警规则写入到configmap作为prometheus的告警规则</p>
+<p>ruleSelector:  matchLabels:    prometheus: k8s    role: alert-rules kubectl get cm -n monitoring –show-labels</p>
+<p>8.2 管理 Prometheus 配置文件</p>
+<p>Secret资源类型: prometheus.yaml.gz</p>
+<p>此文件为gzip文件,被base64进行加密存储到Secret 该secret由operator维护</p>
+<p>Prometheus会每隔3min监听一次此文件变化,然后将其gunzip再写入到prometheus-env.yaml，给prometheus使用</p>
+<p>Operator定期监控查询ServiceMonitor，ls定义了各种各样的service 也就是被监控的对象，也是最终出现在 Prometheus的Target 列表的内</p>
+<p>主要工作原理架构图</p>
+<p><img src="/images/1722851036-a157b4c38b11d668ff2f4447215879d5.png"></p>
+<p>9. ServiceMonitor</p>
+<p>运维过程可能会时常修改监控配置项,通过ServiceMonitor自动化管理prometheus配置</p>
+<p>ServiceMonitor 也是一个自定义资源，它描述了一组被 Prometheus 监控的 targets 列表。该资源通过 Labels 来选取对应的 Service Endpoint，让 Prometheus Server 通过选取的 Service 来获取 Metrics 信息。</p>
+<p>10. Prometheus-adapter</p>
+<p>聚合指标数据进apiserver</p>
+<p>Custom Metrics(自定义指标)</p>
+<p>提供API custom.metrics.k8s.io</p>
+<p>11. Kube-state-metrics</p>
+<p>将prometheus中可以用PromQL查询到的指标数据转换成k8s对应的数据</p>
+<p>四. 工作流程</p>
+<ol>
+<li><p>Prometheus server定期从配置好的 jobs 或者exporters中拉metrics，或者接收来自Pushgateway发过来的metrics，或者从其他的Prometheus server中拉 metrics；</p>
+</li>
+<li><p>Prometheus server将收集到的metrics数据存储到本地，并运行已定义好的alert.rules，记录新的时间序列或者向Alertmanager推送警报；</p>
+</li>
+<li><p>Alertmanager根据配置文件，对接收到的警报进行处理，发出告警；</p>
+</li>
+<li><p>对采集的数据进行可视化展示</p>
+</li>
+</ol>
+<p>FAQ</p>
+<p>ServiceMonitor既然是Operator架构里面的东西,那他是如何和Prometheus进行关联应用的呢?</p>
+<p>Prometheus与ServiceMonitor之间的关联关系使用serviceMonitorSelector定义,因此需要让prometheus关联上ServiceMonitor,需要在Pormtheus定义中使用serviceMonitorSelector</p>
+<p>apiVersion: v1 items: - apiVersion: monitoring.coreos.com&#x2F;v1  kind: Prometheus  metadata:    labels:      prometheus: k8s    name: k8s    namespace: monitoring  spec:    alerting:      alertmanagers:      - name: alertmanager-main        namespace: monitoring        port: web    baseImage: quay.io&#x2F;prometheus&#x2F;prometheus    externalLabels:      cluster: tjheywa    nodeSelector:      kubernetes.io&#x2F;os: linux    podMonitorSelector: {}    replicas: 2    serviceAccountName: prometheus-k8s    serviceMonitorNamespaceSelector: {}  #关联的Namespace    serviceMonitorSelector: {}   #使用此配置.关联所有也可增加matchLabels进行关联</p>
+<p>对于用户而言，可能还是希望能够手动管理Prometheus配置文件，而非通过Prometheus Operator自动完成,此时如何应对?</p>
+<p>当用户创建的Prometheus中关联ServiceMonitor这类会影响配置文件内容的定义时，Promethues Operator会自动管理。而如果Prometheus定义中不包含任何与配置相关的定义，那么Secret的管理权限就落到了用户自己手中</p>
+<p>Secret资源类型: prometheus.yaml.gz</p>
+<p>此文件为gzip文件,被base64进行加密存储到Secret 该secret由operator维护</p>
+<p>Prometheus会每隔3min监听一次此文件变化,然后将其gunzip再写入到prometheus-env.yaml，给prometheus使用</p>
+<p>五. Kubernetes监控指标</p>
+<p>1. 资源和利用率指标</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指标</td>
+<td>名称</td>
+<td>描述</td>
+</tr>
+<tr>
+<td>CPU使用率</td>
+<td>usageNanoCores</td>
+<td>节[[点或Pod每秒使用的CPU核数。</td>
+</tr>
+<tr>
+<td>CPU容量</td>
+<td>capacity_cpu</td>
+<td>节点上可用的CPU内核数量（不适用于Pod）。</td>
+</tr>
+<tr>
+<td>内存使用情况</td>
+<td>used{resource:memory,units:bytes}</td>
+<td>节点或Pod使用的内存量（以字节为单位）。</td>
+</tr>
+<tr>
+<td>内存容量</td>
+<td>capacity_memory{units:bytes}</td>
+<td>节点可用的内存容量（不适用于Pod），以字节为单位。</td>
+</tr>
+<tr>
+<td>网络流量</td>
+<td>rx{resource:network,units:bytes} tx{resource:network,units:bytes}</td>
+<td>节点（或Pod）看到的总网络流量（已接收（传入）流量和已传输（传出）流量），以字节为单位。</td>
+</tr>
+</tbody></table>
+<p>2. 状态指标</p>
+<p>主要由kube-state-metrics 提供</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指标</td>
+<td>名称</td>
+<td></td>
+<td>描述</td>
+<td>是否已有</td>
+</tr>
+<tr>
+<td>节点状态</td>
+<td>kube_node_status_condition {status:true,condition:OutOfDisk| MemoryPressure|PIDPressure| DiskPressure|NetworkUnavailable}</td>
+<td></td>
+<td>当status为true时，指示该节点当前正在经历该条件。</td>
+<td></td>
+</tr>
+<tr>
+<td>循环崩溃(Crash Loops)</td>
+<td>kube_pod_container_status_waiting_reason {reason：CrashLoopBackOff}</td>
+<td></td>
+<td>指示pod中的容器是否正在发生循环崩溃。</td>
+<td></td>
+</tr>
+<tr>
+<td>任务状态（失败）</td>
+<td>kube_job_status_failed</td>
+<td></td>
+<td>指示任务是否失败。</td>
+<td></td>
+</tr>
+<tr>
+<td>持久卷状态（失败）</td>
+<td>kube_persistentvolume_status _phase {phase：Failed}</td>
+<td></td>
+<td>指示持久卷是否失败。</td>
+<td></td>
+</tr>
+<tr>
+<td>Pod状态（Pending）</td>
+<td>kube_pod_status_phase{phase:Pending}</td>
+<td></td>
+<td>指示Pod是否处于挂起状态。</td>
+<td></td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>kube_deployment_metadata _generation</td>
+<td></td>
+<td>代表Deployment的序列号。</td>
+<td></td>
+</tr>
+<tr>
+<td>Deployment</td>
+<td>kube_deployment_status_observed_generation</td>
+<td></td>
+<td>代表控制器观察到的当前Deployment生成的序列号。</td>
+<td></td>
+</tr>
+<tr>
+<td>DaemonSet期望的节点数</td>
+<td>kube_daemonset_status_ desired_number_scheduled</td>
+<td></td>
+<td>DaemonSet期望的节点数。</td>
+<td></td>
+</tr>
+<tr>
+<td>DaemonSet当前的节点数</td>
+<td>kube_daemonset_status_ current_number_scheduled</td>
+<td></td>
+<td>DaemonSet运行中的节点数。</td>
+<td></td>
+</tr>
+<tr>
+<td>期望的StatefulSet副本</td>
+<td>kube_statefulset_status_replicas</td>
+<td></td>
+<td>每个StatefulSet期望的副本数。</td>
+<td></td>
+</tr>
+<tr>
+<td>准备就绪的StatefulSet副本</td>
+<td>kube_statefulset_status_replicas _ready</td>
+<td></td>
+<td>每个StatefulSet准备好的副本数。</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>3. 系统组件各项指标</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>指标</td>
+<td>名称</td>
+<td>描述</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>etcd集群是否有leader</td>
+<td>etcd_server_has_leader</td>
+<td>指示该成员是否知道其leader是谁。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>etcd集群中leader变动总数</td>
+<td>etcd_server_leader_changes_ seen_total</td>
+<td>etcd集群中leader变更总数。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>API延迟数</td>
+<td>apiserver_request_latencies_count</td>
+<td>API请求总数；用于计算每个请求的平均延迟。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>API延迟总和</td>
+<td>apiserver_request_latencies_sum</td>
+<td>所有API请求持续时间的总和；用于计算每个请求的平均延迟。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>队列等待时间</td>
+<td>workqueue_queue_duration_ seconds</td>
+<td>每个控制器管理器中的工作队列等待所花费的总时间。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>队列持续时间</td>
+<td>workqueue_work_duration_ seconds</td>
+<td>每个控制器管理器中的工作队列处理操作所花费的总时间。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>调度失败Pod的总尝试次数</td>
+<td>scheduler_schedule_attempts _total {result：unschedulable}</td>
+<td>调度程序尝试在节点上调度失败了Pod的总尝试次数。</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Pod调度延迟</td>
+<td>scheduler_e2e_scheduling_ delay_microseconds（&lt;v1.14） 或&#x3D;”” scheduler_e2e_scheduling_&#x3D;”” duration_seconds&lt;&#x3D;”” span&#x3D;””&gt;</td>
+<td>将Pod调度到节点上所花费的总时间。</td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>4. 高频重要告警规则</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>报警名称</td>
+<td>表达式</td>
+<td>报警触发条件</td>
+<td>是否已存在</td>
+</tr>
+<tr>
+<td>CPUThrottlingHigh</td>
+<td>100 * sum by(container, pod, namespace) (increase(container_cpu_cfs_throttled_periods_total{container!&#x3D;””}[5m])) sum by(container, pod, namespace) (increase(container_cpu_cfs_periods_total[5m])) &gt; 25</td>
+<td>Pod的CPU使用率大于75%</td>
+<td></td>
+</tr>
+<tr>
+<td>PodMemory80</td>
+<td>sum(container_memory_working_set_bytes{image!&#x3D;””}) by(pod, namespace)<br><br>sum(container_spec_memory_limit_bytes{image!&#x3D;””}) by(pod, namespace) * 100 !&#x3D; +inf &gt; 80</td>
+<td>Pod的MEM使用率大于80%。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeCPUOvercommit</td>
+<td>sum(namespace:kube_pod_container_resource_requests_cpu_cores:sum) sum(kube_node_status_allocatable_cpu_cores) &gt; (count(kube_node_status_allocatable_cpu_cores) - 1) count(kube_node_status_allocatable_cpu_cores)</td>
+<td>集群 CPU 过度使用。CPU 已经过度使用无法容忍节点故障，节点资源使用的总量超过节点的 CPU 总量，所以如果有节点故障将影响集群资源运行因为所需资源将无法被分配</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeMemOvercommit</td>
+<td>sum(namespace:kube_pod_container_resource_requests_memory_bytes:sum)<br><br> &#x2F; sum(kube_node_status_allocatable_memory_bytes) &gt; (count(kube_node_status_allocatable_memory_bytes)<br><br> - 1) count(kube_node_status_allocatable_memory_bytes)</td>
+<td>集群内存过度使用。内存已经过度使用无法容忍节点故障，节点资源使用的总量超过节点的内存总量，所以如果有节点故障将影响集群资源运行因为所需资源将无法被分配</td>
+<td></td>
+</tr>
+<tr>
+<td>ClusterAllocatableMemoryLack</td>
+<td>sum(sum by(node) (kube_pod_container_resource_requests_memory_bytes) * on(node) kube_node_labels{label_dedicated&#x3D;””,label_kubernetes_io_role&#x3D;”node”}) sum(kube_node_status_allocatable_memory_bytes * on(node) kube_node_labels{label_dedicated&#x3D;””,label_kubernetes_io_role&#x3D;”node”}) * 100 &gt; 80</td>
+<td>集群可调度内存资源短缺</td>
+<td></td>
+</tr>
+<tr>
+<td>ClusterAllocatableCpuLack</td>
+<td>sum(sum<br><br> by(node) (kube_pod_container_resource_requests_cpu_cores) * on(node) kube_node_labels{label_dedicated&#x3D;””,label_kubernetes_io_role&#x3D;”node”})<br><br> &#x2F; sum(kube_node_status_allocatable_cpu_cores * on(node) kube_node_labels{label_dedicated&#x3D;””,label_kubernetes_io_role&#x3D;”node”})<br><br> * 100 &gt; 90</td>
+<td>集群可调度 CPU 资源短缺</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeMemoryTooHigh</td>
+<td>100 - (node_memory_MemAvailable_bytes{job&#x3D;”node-exporter”} node_memory_MemTotal_bytes{job&#x3D;”node-exporter”} * 100) &gt; 85</td>
+<td>节点内存使用率高于85%</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeLoad1TooHigh</td>
+<td>(node_load1{job&#x3D;”node-exporter”} * on(namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) on(node) node:node_num_cpu:sum &gt; 2</td>
+<td>节点负载较高</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletTooManyPods</td>
+<td>kubelet_running_pod_count{job&#x3D;”kubelet”} &gt; 180 * 0.9</td>
+<td>节点Pod过多</td>
+<td></td>
+</tr>
+<tr>
+<td>KubernetesContainerOomKiller</td>
+<td>(kube_pod_container_status_restarts_total - kube_pod_container_status_restarts_total offset 10m &gt;&#x3D; 1) and ignoring (reason) min_over_time(kube_pod_container_status_last_terminated_reason{reason&#x3D;”OOMKilled”}[10m]) &#x3D;&#x3D; 1</td>
+<td>最近10分钟发生OOM的Pod</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeStatefulSetUpdateNotRolledOut</td>
+<td>(<br><br>         kube_statefulset_status_replicas_ready{job&#x3D;”kube-state-metrics”}<br><br>           !&#x3D;<br><br>         kube_statefulset_status_replicas{job&#x3D;”kube-state-metrics”}<br><br>       ) and (<br><br>         changes(kube_statefulset_status_replicas_updated{job&#x3D;”kube-state-metrics”}[5m])<br><br>           &#x3D;&#x3D;<br><br>         0<br><br>       )</td>
+<td>StatefulSet  更新失败且未回滚，对比版本号和副本数</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePodCrashLooping</td>
+<td>rate(kube_pod_container_status_restarts_total{job&#x3D;”kube-state-metrics”}[5m]) * 60 * 5 &gt; 0</td>
+<td>Pod 重启时间，重启时间超过5m</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePodNotReady</td>
+<td>sum by(namespace, pod) (kube_pod_status_phase{job&#x3D;”kube-state-metrics”,phase&#x3D;~”Failed|Pending|Unknown”}) &gt; 0</td>
+<td>容器组未就绪</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeStatefulSetReplicasMismatch</td>
+<td>kube_statefulset_status_replicas_ready{job&#x3D;”kube-state-metrics”} !&#x3D; kube_statefulset_status_replicas{job&#x3D;”kube-state-metrics”}</td>
+<td>监测 StatefulSet 副本是否达到预期</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDaemonSetRolloutStuck</td>
+<td>kube_daemonset_status_number_ready{job&#x3D;”kube-state-metrics”} kube_daemonset_status_desired_number_scheduled{job&#x3D;”kube-state-metrics”} * 100 &lt; 100</td>
+<td>监测 DaemonSet 是否处于就绪状态</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeExporterDown</td>
+<td>ALERTS{alertname&#x3D;”NodeExporterDown”}</td>
+<td>NodeExporter未就绪</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeDiskRunningFull</td>
+<td>(node:node_filesystem_usage: &gt; 0.85) and (predict_linear(node:node_filesystem_avail:[6h], 3600 * 24) &lt; 0)</td>
+<td>磁盘使用率大于85%,将在24小时用满</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletDown</td>
+<td>absent(up{job&#x3D;”kubelet”}<br><br>=&#x3D; 1)</td>
+<td>KubeletDown</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPIDown</td>
+<td>absent(up{job&#x3D;”apiserver”} &#x3D;&#x3D; 1)</td>
+<td>APIserver 失联，监控 APIServer 服务，失联原因可能是服务 down 还可能是网络出现状况</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeControllerManagerDown</td>
+<td>absent(up{job&#x3D;”kube-controller-manager”} &#x3D;&#x3D; 1)</td>
+<td>监测 KubeControllerManager 服务，Down 或者网络不通</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPIErrorsHigh</td>
+<td>sum(rate(apiserver_request_total{code&#x3D;~”^(?:5..)$”,job&#x3D;”apiserver”}[5m])) sum(rate(apiserver_request_total{job&#x3D;”apiserver”}[5m])) * 100 &gt; 3</td>
+<td>Apiserver 收到的请求错误率较高</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeNodeNotReady</td>
+<td>kube_node_status_condition{condition&#x3D;”Ready”,job&#x3D;”kube-state-metrics”,status&#x3D;”true”} &#x3D;&#x3D; 0</td>
+<td>节点是否处于就绪状态。检测节点是否为就绪状态</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeNodeUnreachable</td>
+<td>kube_node_spec_unschedulable{job&#x3D;”kube-state-metrics”} &#x3D;&#x3D; 1</td>
+<td>节点状态为 Unreachable</td>
+<td>无</td>
+</tr>
+<tr>
+<td>KubeNodeReadinessFlapping</td>
+<td>sum(changes(kube_node_status_condition{status&#x3D;”true”,condition&#x3D;”Ready”}[15m])) by (node) &gt; 2</td>
+<td>监测集群状态，查看集群内节点状态改变的频率</td>
+<td>无</td>
+</tr>
+<tr>
+<td>Etcdlived</td>
+<td>up{job&#x3D;”etcd-k8s”} &lt; 1</td>
+<td>etcd 存活检测</td>
+<td>无</td>
+</tr>
+<tr>
+<td>EtcdCluseterUnavailable</td>
+<td>count(up{job&#x3D;”etcd-k8s”} &#x3D;&#x3D; 0) &gt; (count(up{job&#x3D;”etcd-k8s”}) 2 - 1)</td>
+<td>etcd 集群健康检查，down 数量大于集群可允许故障数量</td>
+<td>无</td>
+</tr>
+<tr>
+<td>EtcdLeaderCheck</td>
+<td>etcd_server_has_leader{job&#x3D;~”.*etcd.*“} &#x3D;&#x3D; 0</td>
+<td>检查Etcd是否有leader</td>
+<td>无</td>
+</tr>
+<tr>
+<td>EtcdBackendFsync</td>
+<td>histogram_quantile(0.99, sum(rate(etcd_disk_backend_commit_duration_seconds_bucket[5m])) by (instance, le)) &gt; 100</td>
+<td>etcd io 监测，后端提交 延时大于100</td>
+<td>无</td>
+</tr>
+<tr>
+<td></td>
+<td>rate(etcd_server_leader_changes_seen_total{job&#x3D;~”.*etcd.*“}[15m]) &gt; 3</td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>EtcdWalFsync</td>
+<td>histogram_quantile(0.99, sum(rate(etcd_disk_wal_fsync_duration_seconds_bucket[5m])) by (instance, le)) &gt; 100</td>
+<td>etcd io 监测，文件同步到磁盘延时</td>
+<td>无</td>
+</tr>
+<tr>
+<td>DnsRequest</td>
+<td>sum(irate(coredns_dns_request_count_total{zone !&#x3D;”dropped”}[1m])) &gt; 100</td>
+<td>DNS 查询速率，每分钟查询超过100告警</td>
+<td>无</td>
+</tr>
+<tr>
+<td>CoreDNSErrorsHigh</td>
+<td>sum(rate(coredns_dns_responses_total{job&#x3D;”kube-dns”,rcode&#x3D;”SERVFAIL”}[5m]))<br><br>  sum(rate(coredns_dns_responses_total{job&#x3D;”kube-dns”}[5m])) &gt; 0.01</td>
+<td>异常查询，异常状态码，不是 NOERROR</td>
+<td>无</td>
+</tr>
+<tr>
+<td>CoreDNSDown</td>
+<td>absent(up{job&#x3D;”kube-dns”}<br><br>=&#x3D; 1)</td>
+<td>CoreDNSDown</td>
+<td></td>
+</tr>
+<tr>
+<td>CoreDNSLatencyHigh</td>
+<td>histogram_quantile(0.99, sum(rate(coredns_dns_request_duration_seconds_bucket{job&#x3D;”kube-dns”}[5m])) by(server, zone, le)) &gt; 4</td>
+<td>DNS延迟高过高</td>
+<td></td>
+</tr>
+<tr>
+<td>NginxHighHttp4xxErrorRate</td>
+<td>sum(rate(nginx_ingress_controller_requests{status&#x3D;~”4..”}[1m])) sum(rate(nginx_ingress_controller_requests[1m])) * 100 &gt; 5</td>
+<td>Nginx 高 HTTP 4xx 错误率（实例 ）</td>
+<td></td>
+</tr>
+<tr>
+<td>NginxHighHttp5xxErrorRate</td>
+<td>sum(rate(nginx_ingress_controller_requests{status&#x3D;~”^5..”}[1m])) sum(rate(nginx_ingress_controller_requests[1m])) * 100 &gt; 5</td>
+<td>Nginx 高 HTTP 5xx 错误率（实例 )</td>
+<td></td>
+</tr>
+<tr>
+<td>NginxLatencyHigh</td>
+<td>histogram_quantile(0.99, sum(rate(nginx_ingress_controller_request_duration_seconds_bucket[30m])) by (host, node)) &gt; 10</td>
+<td>Nginx 延迟高（实例 ）</td>
+<td></td>
+</tr>
+<tr>
+<td></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+</tbody></table>
+<p>5. 其他告警规则</p>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>报警名称</td>
+<td>表达式</td>
+<td>采集数据时间（分钟）</td>
+<td>报警触发条件</td>
+<td>是否已存在</td>
+</tr>
+<tr>
+<td>KubeStateMetricsListErrors</td>
+<td>(sum(rate(kube_state_metrics_list_total{job&#x3D;”kube-state-metrics”,result&#x3D;”error”}[5m])) sum(rate(kube_state_metrics_list_total{job&#x3D;”kube-state-metrics”}[5m]))) &gt; 0.01</td>
+<td>15</td>
+<td>Metric List出错。</td>
+<td>否</td>
+</tr>
+<tr>
+<td>KubeStateMetricsWatchErrors</td>
+<td>(sum(rate(kube_state_metrics_watch_total{job&#x3D;”kube-state-metrics”,result&#x3D;”error”}[5m])) sum(rate(kube_state_metrics_watch_total{job&#x3D;”kube-state-metrics”}[5m]))) &gt; 0.01</td>
+<td>15</td>
+<td>Metric Watch出错。</td>
+<td>否</td>
+</tr>
+<tr>
+<td>NodeFilesystemAlmostOutOfSpace</td>
+<td>( node_filesystem_avail_bytes{job&#x3D;”node-exporter”,fstype!&#x3D;””} node_filesystem_size_bytes{job&#x3D;”node-exporter”,fstype!&#x3D;””} * 100 &lt; 5 and node_filesystem_readonly{job&#x3D;”node-exporter”,fstype!&#x3D;””} &#x3D;&#x3D; 0 )</td>
+<td>60</td>
+<td>Node文件系统即将无空间。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeFilesystemSpaceFillingUp</td>
+<td>( node_filesystem_avail_bytes{job&#x3D;”node-exporter”,fstype!&#x3D;””} node_filesystem_size_bytes{job&#x3D;”node-exporter”,fstype!&#x3D;””} * 100 &lt; 40 and predict_linear(node_filesystem_avail_bytes{job&#x3D;”node-exporter”,fstype!&#x3D;””}[6h], 24*60*60) &lt; 0 and node_filesystem_readonly{job&#x3D;”node-exporter”,fstype!&#x3D;””} &#x3D;&#x3D; 0 )</td>
+<td>60</td>
+<td>Node文件系统空间即将占满。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeFilesystemFilesFillingUp</td>
+<td>( node_filesystem_files_free{job&#x3D;”node-exporter”,fstype!&#x3D;””} node_filesystem_files{job&#x3D;”node-exporter”,fstype!&#x3D;””} * 100 &lt; 40 and predict_linear(node_filesystem_files_free{job&#x3D;”node-exporter”,fstype!&#x3D;””}[6h], 24*60*60) &lt; 0 and node_filesystem_readonly{job&#x3D;”node-exporter”,fstype!&#x3D;””} &#x3D;&#x3D; 0 )</td>
+<td>60</td>
+<td>Node文件系统文件即将占满。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeFilesystemAlmostOutOfFiles</td>
+<td>( node_filesystem_files_free{job&#x3D;”node-exporter”,fstype!&#x3D;””} node_filesystem_files{job&#x3D;”node-exporter”,fstype!&#x3D;””} * 100 &lt; 3 and node_filesystem_readonly{job&#x3D;”node-exporter”,fstype!&#x3D;””} &#x3D;&#x3D; 0 )</td>
+<td>60</td>
+<td>Node文件系统几乎无文件。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeNetworkReceiveErrs</td>
+<td>increase(node_network_receive_errs_total[2m]) &gt; 10</td>
+<td>60</td>
+<td>Node网络接收错误。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeNetworkTransmitErrs</td>
+<td>increase(node_network_transmit_errs_total[2m]) &gt; 10</td>
+<td>60</td>
+<td>Node网络传输错误。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeHighNumberConntrackEntriesUsed</td>
+<td>(node_nf_conntrack_entries node_nf_conntrack_entries_limit) &gt; 0.75</td>
+<td>无</td>
+<td>使用大量Conntrack条目。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeClockSkewDetected</td>
+<td>( node_timex_offset_seconds &gt; 0.05 and deriv(node_timex_offset_seconds[5m]) &gt;&#x3D; 0 ) or ( node_timex_offset_seconds &lt; -0.05 and deriv(node_timex_offset_seconds[5m]) &lt;&#x3D; 0 )</td>
+<td>10</td>
+<td>出现时间偏差。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeClockNotSynchronising</td>
+<td>min_over_time(node_timex_sync_status[5m]) &#x3D;&#x3D; 0</td>
+<td>10</td>
+<td>出现时间不同步。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePodCrashLooping</td>
+<td>rate(kube_pod_container_status_restarts_total{job&#x3D;”kube-state-metrics”}[15m]) * 60 * 5 &gt; 0</td>
+<td>15</td>
+<td>出现循环崩溃。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePodNotReady</td>
+<td>sum by (namespace, pod) (max by(namespace, pod) (kube_pod_status_phase{job&#x3D;”kube-state-metrics”, phase&#x3D;~”Pending|Unknown”}) * on(namespace, pod) group_left(owner_kind) max by(namespace, pod, owner_kind) (kube_pod_owner{owner_kind!&#x3D;”Job”})) &gt; 0</td>
+<td>15</td>
+<td>Pod未准备好。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDeploymentGenerationMismatch</td>
+<td>kube_deployment_status_observed_generation{job&#x3D;”kube-state-metrics”} !&#x3D; kube_deployment_metadata_generation{job&#x3D;”kube-state-metrics”}</td>
+<td>15</td>
+<td>出现部署版本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDeploymentReplicasMismatch</td>
+<td>( kube_deployment_spec_replicas{job&#x3D;”kube-state-metrics”} !&#x3D; kube_deployment_status_replicas_available{job&#x3D;”kube-state-metrics”} ) and ( changes(kube_deployment_status_replicas_updated{job&#x3D;”kube-state-metrics”}[5m]) &#x3D;&#x3D; 0 )</td>
+<td>15</td>
+<td>出现部署副本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeStatefulSetReplicasMismatch</td>
+<td>( kube_statefulset_status_replicas_ready{job&#x3D;”kube-state-metrics”} !&#x3D; kube_statefulset_status_replicas{job&#x3D;”kube-state-metrics”} ) and ( changes(kube_statefulset_status_replicas_updated{job&#x3D;”kube-state-metrics”}[5m]) &#x3D;&#x3D; 0 )</td>
+<td>15</td>
+<td>状态集副本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeStatefulSetGenerationMismatch</td>
+<td>kube_statefulset_status_observed_generation{job&#x3D;”kube-state-metrics”} !&#x3D; kube_statefulset_metadata_generation{job&#x3D;”kube-state-metrics”}</td>
+<td>15</td>
+<td>状态集版本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeStatefulSetUpdateNotRolledOut</td>
+<td>max without (revision) ( kube_statefulset_status_current_revision{job&#x3D;”kube-state-metrics”} unless kube_statefulset_status_update_revision{job&#x3D;”kube-state-metrics”} ) * ( kube_statefulset_replicas{job&#x3D;”kube-state-metrics”} !&#x3D; kube_statefulset_status_replicas_updated{job&#x3D;”kube-state-metrics”} )</td>
+<td>15</td>
+<td>状态集更新未退出。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDaemonSetRolloutStuck</td>
+<td>kube_daemonset_status_number_ready{job&#x3D;”kube-state-metrics”} kube_daemonset_status_desired_number_scheduled{job&#x3D;”kube-state-metrics”} &lt; 1.00</td>
+<td>15</td>
+<td>DaemonSet退出回退。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeContainerWaiting</td>
+<td>sum by (namespace, pod, container) (kube_pod_container_status_waiting_reason{job&#x3D;”kube-state-metrics”}) &gt; 0</td>
+<td>60</td>
+<td>容器等待。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDaemonSetNotScheduled</td>
+<td>kube_daemonset_status_desired_number_scheduled{job&#x3D;”kube-state-metrics”} - kube_daemonset_status_current_number_scheduled{job&#x3D;”kube-state-metrics”} &gt; 0</td>
+<td>10</td>
+<td>DaemonSet无计划。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeDaemonSetMisScheduled</td>
+<td>kube_daemonset_status_number_misscheduled{job&#x3D;”kube-state-metrics”} &gt; 0</td>
+<td>15</td>
+<td>Daemon缺失计划。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeCronJobRunning</td>
+<td>time() - kube_cronjob_next_schedule_time{job&#x3D;”kube-state-metrics”} &gt; 3600</td>
+<td>60</td>
+<td>若Cron任务完成时间大于1小。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeJobCompletion</td>
+<td>kube_job_spec_completions{job&#x3D;”kube-state-metrics”} - kube_job_status_succeeded{job&#x3D;”kube-state-metrics”} &gt; 0</td>
+<td>60</td>
+<td>任务完成。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeJobFailed</td>
+<td>kube_job_failed{job&#x3D;”kube-state-metrics”} &gt; 0</td>
+<td>15</td>
+<td>任务失败。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeHpaReplicasMismatch</td>
+<td>(kube_hpa_status_desired_replicas{job&#x3D;”kube-state-metrics”} !&#x3D; kube_hpa_status_current_replicas{job&#x3D;”kube-state-metrics”}) and changes(kube_hpa_status_current_replicas[15m]) &#x3D;&#x3D; 0</td>
+<td>15</td>
+<td>HPA副本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeHpaMaxedOut</td>
+<td>kube_hpa_status_current_replicas{job&#x3D;”kube-state-metrics”} &#x3D;&#x3D; kube_hpa_spec_max_replicas{job&#x3D;”kube-state-metrics”}</td>
+<td>15</td>
+<td>HPA副本超过最大值。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeCPUOvercommit</td>
+<td>sum(namespace:kube_pod_container_resource_requests_cpu_cores:sum{}) sum(kube_node_status_allocatable_cpu_cores) &gt; (count(kube_node_status_allocatable_cpu_cores)-1) count(kube_node_status_allocatable_cpu_cores)</td>
+<td>5</td>
+<td>CPU过载。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeMemoryOvercommit</td>
+<td>sum(namespace:kube_pod_container_resource_requests_memory_bytes:sum{}) sum(kube_node_status_allocatable_memory_bytes) &gt; (count(kube_node_status_allocatable_memory_bytes)-1) count(kube_node_status_allocatable_memory_bytes)</td>
+<td>5</td>
+<td>存储过载。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeCPUQuotaOvercommit</td>
+<td>sum(kube_resourcequota{job&#x3D;”kube-state-metrics”, type&#x3D;”hard”, resource&#x3D;”cpu”}) sum(kube_node_status_allocatable_cpu_cores) &gt; 1.5</td>
+<td>5</td>
+<td>CPU额度过载。</td>
+<td>无该指标</td>
+</tr>
+<tr>
+<td>KubeMemoryQuotaOvercommit</td>
+<td>sum(kube_resourcequota{job&#x3D;”kube-state-metrics”, type&#x3D;”hard”, resource&#x3D;”memory”}) sum(kube_node_status_allocatable_memory_bytes{job&#x3D;”node-exporter”}) &gt; 1.5</td>
+<td>5</td>
+<td>存储额度过载。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeQuotaExceeded</td>
+<td>kube_resourcequota{job&#x3D;”kube-state-metrics”, type&#x3D;”used”} ignoring(instance, job, type) (kube_resourcequota{job&#x3D;”kube-state-metrics”, type&#x3D;”hard”} &gt; 0) &gt; 0.90</td>
+<td>15</td>
+<td>若配额超过限制。</td>
+<td></td>
+</tr>
+<tr>
+<td>CPUThrottlingHigh</td>
+<td>sum(increase(container_cpu_cfs_throttled_periods_total{container!&#x3D;””, }[5m])) by (container, pod, namespace) sum(increase(container_cpu_cfs_periods_total{}[5m])) by (container, pod, namespace) &gt; ( 25 &#x2F; 100 )</td>
+<td>15</td>
+<td>CPU过热。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePersistentVolumeFillingUp</td>
+<td>kubelet_volume_stats_available_bytes{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”} &#x2F; kubelet_volume_stats_capacity_bytes{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”} &lt; 0.03</td>
+<td>1</td>
+<td>存储卷容量即将不足。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubePersistentVolumeErrors</td>
+<td>kube_persistentvolume_status_phase{phase&#x3D;~”Failed|Pending”,job&#x3D;”kube-state-metrics”} &gt; 0</td>
+<td>5</td>
+<td>存储卷容量出错。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeVersionMismatch</td>
+<td>count(count by (gitVersion) (label_replace(kubernetes_build_info{job!~”kube-dns|coredns”},”gitVersion”,”$1”,”gitVersion”,”(v[0-9]*.[0-9]*.[0-9]*).*“))) &gt; 1</td>
+<td>15</td>
+<td>版本不匹配。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeClientErrors</td>
+<td>(sum(rate(rest_client_requests_total{code&#x3D;~”5..”}[5m])) by (instance, job) &#x2F; sum(rate(rest_client_requests_total[5m])) by (instance, job)) &gt; 0.01</td>
+<td>15</td>
+<td>客户端出错。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPIErrorBudgetBurn</td>
+<td>sum(apiserver_request:burnrate1h) &gt; (14.40 * 0.01000) and sum(apiserver_request:burnrate5m) &gt; (14.40 * 0.01000)</td>
+<td>2</td>
+<td>API错误过多。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPILatencyHigh</td>
+<td>( cluster:apiserver_request_duration_seconds:mean5m{job&#x3D;”apiserver”} &gt; on (verb) group_left() ( avg by (verb) (cluster:apiserver_request_duration_seconds:mean5m{job&#x3D;”apiserver”} &gt;&#x3D; 0) + 2*stddev by (verb) (cluster:apiserver_request_duration_seconds:mean5m{job&#x3D;”apiserver”} &gt;&#x3D; 0) ) ) &gt; on (verb) group_left() 1.2 * avg by (verb) (cluster:apiserver_request_duration_seconds:mean5m{job&#x3D;”apiserver”} &gt;&#x3D; 0) and on (verb,resource) cluster_quantile:apiserver_request_duration_seconds:histogram_quantile{job&#x3D;”apiserver”,quantile&#x3D;”0.99”} &gt; 1</td>
+<td>5</td>
+<td>API延迟过高。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPIErrorsHigh</td>
+<td>sum(rate(apiserver_request_total{job&#x3D;”apiserver”,code&#x3D;~”5..”}[5m])) by (resource,subresource,verb) &#x2F; sum(rate(apiserver_request_total{job&#x3D;”apiserver”}[5m])) by (resource,subresource,verb) &gt; 0.05</td>
+<td>10</td>
+<td>API错误过多。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeClientCertificateExpiration</td>
+<td>apiserver_client_certificate_expiration_seconds_count{job&#x3D;”apiserver”} &gt; 0 and on(job) histogram_quantile(0.01, sum by (job, le) (rate(apiserver_client_certificate_expiration_seconds_bucket{job&#x3D;”apiserver”}[5m]))) &lt; 604800</td>
+<td>无</td>
+<td>客户端认证过期。</td>
+<td></td>
+</tr>
+<tr>
+<td>AggregatedAPIErrors</td>
+<td>sum by(name, namespace)(increase(aggregator_unavailable_apiservice_count[5m])) &gt; 2</td>
+<td>无</td>
+<td>聚合API出错。</td>
+<td></td>
+</tr>
+<tr>
+<td>AggregatedAPIDown</td>
+<td>sum by(name, namespace)(sum_over_time(aggregator_unavailable_apiservice[5m])) &gt; 0</td>
+<td>5</td>
+<td>聚合API下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeAPIDown</td>
+<td>absent(up{job&#x3D;”apiserver”} &#x3D;&#x3D; 1)</td>
+<td>15</td>
+<td>API下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeNodeNotReady</td>
+<td>kube_node_status_condition{job&#x3D;”kube-state-metrics”,condition&#x3D;”Ready”,status&#x3D;”true”} &#x3D;&#x3D; 0</td>
+<td>15</td>
+<td>Node未准备好。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeNodeUnreachable</td>
+<td>kube_node_spec_taint{job&#x3D;”kube-state-metrics”,key&#x3D;”node.kubernetes.io&#x2F;unreachable”,effect&#x3D;”NoSchedule”} &#x3D;&#x3D; 1</td>
+<td>2</td>
+<td>Node无法获取。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletTooManyPods</td>
+<td>max(max(kubelet_running_pod_count{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”}) by(instance) * on(instance) group_left(node) kubelet_node_name{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”}) by(node) &#x2F; max(kube_node_status_capacity_pods{job&#x3D;”kube-state-metrics”} !&#x3D; 1) by(node) &gt; 0.95</td>
+<td>15</td>
+<td>Pod过多。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeNodeReadinessFlapping</td>
+<td>sum(changes(kube_node_status_condition{status&#x3D;”true”,condition&#x3D;”Ready”}[15m])) by (node) &gt; 2</td>
+<td>15</td>
+<td>准备状态变更次数过多。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletPlegDurationHigh</td>
+<td>node_quantile:kubelet_pleg_relist_duration_seconds:histogram_quantile{quantile&#x3D;”0.99”} &gt;&#x3D; 10</td>
+<td>5</td>
+<td>PLEG持续时间过长。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletPodStartUpLatencyHigh</td>
+<td>histogram_quantile(0.99, sum(rate(kubelet_pod_worker_duration_seconds_bucket{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”}[5m])) by (instance, le)) * on(instance) group_left(node) kubelet_node_name{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”} &gt; 60</td>
+<td>15</td>
+<td>Pod启动延迟过高。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeletDown</td>
+<td>absent(up{job&#x3D;”kubelet”, metrics_path&#x3D;”&#x2F;metrics”} &#x3D;&#x3D; 1)</td>
+<td>15</td>
+<td>Kubelet下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeSchedulerDown</td>
+<td>absent(up{job&#x3D;”kube-scheduler”} &#x3D;&#x3D; 1)</td>
+<td>15</td>
+<td>Kube-scheduler日程下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>KubeControllerManagerDown</td>
+<td>absent(up{job&#x3D;”kube-controller-manager”} &#x3D;&#x3D; 1)</td>
+<td>15</td>
+<td>Controller Manager下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>TargetDown</td>
+<td>100 * (count(up &#x3D;&#x3D; 0) BY (job, namespace, service) &#x2F; count(up) BY (job, namespace, service)) &gt; 10</td>
+<td>10</td>
+<td>目标下线。</td>
+<td></td>
+</tr>
+<tr>
+<td>NodeNetworkInterfaceFlapping</td>
+<td>changes(node_network_up{job&#x3D;”node-exporter”,device!~”veth.+”}[2m]) &gt; 2</td>
+<td>2</td>
+<td>网络接口状态变更过频繁。</td>
+<td></td>
+</tr>
+</tbody></table>
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>报警名称</td>
+<td>表达式</td>
+<td>采集数据时间（分钟）</td>
+<td>报警触发条件</td>
+<td>是否已存在</td>
+</tr>
+<tr>
+<td>PodCpu75</td>
+<td>100 * (sum(rate(container_cpu_usage_seconds_total[1m])) by (pod_name) &#x2F; sum(label_replace(kube_pod_container_resource_limits_cpu_cores, “pod_name”, “$1”, “pod”, “(.*)”)) by (pod_name))&gt;75</td>
+<td>7</td>
+<td>Pod的CPU使用率大于75%。</td>
+<td></td>
+</tr>
+<tr>
+<td>PodMemory75</td>
+<td>100 * (sum(container_memory_working_set_bytes) by (pod_name) &#x2F; sum(label_replace(kube_pod_container_resource_limits_memory_bytes, “pod_name”, “$1”, “pod”, “(.*)”)) by (pod_name))&gt;75</td>
+<td>5</td>
+<td>Pod的内存使用率大于75%。</td>
+<td></td>
+</tr>
+<tr>
+<td>pod_status_no_running</td>
+<td>sum (kube_pod_status_phase{phase!&#x3D;”Running”}) by (pod,phase)</td>
+<td>5</td>
+<td>Pod的状态为未运行。</td>
+<td></td>
+</tr>
+<tr>
+<td>PodMem4GbRestart</td>
+<td>(sum (container_memory_working_set_bytes{id!&#x3D;”&#x2F;“})by (pod_name,container_name) &#x2F;1024&#x2F;1024&#x2F;1024)&gt;4</td>
+<td>5</td>
+<td>Pod的内存大于4GB。</td>
+<td></td>
+</tr>
+<tr>
+<td>PodRestart</td>
+<td>sum (increase (kube_pod_container_status_restarts_total{}[2m])) by (namespace,pod) &gt;0</td>
+<td>5</td>
+<td>Pod重启。</td>
+<td></td>
+</tr>
+</tbody></table>
+<p>六. SLA 指标逻辑</p>
+<p>创建deployment</p>
+<p>检测pod运行状态是否running</p>
+<p>暴露服务</p>
+<p>创建ingress</p>
+<p>curl判断http_code是否等于200</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/05/Kubernetes-%E4%B8%BB%E6%9C%BA%E5%92%8C%E5%AE%B9%E5%99%A8%E7%9B%91%E6%8E%A7/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/05/Grafana-Loki-%E5%AD%A6%E4%B9%A0%E4%B9%8B%E8%B8%A9%E5%9D%91%E8%AE%B0/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Grafana Loki 学习之踩坑记</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
