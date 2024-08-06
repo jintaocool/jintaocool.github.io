@@ -1,0 +1,812 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus长期远程存储方案 VictoriaMetrics 入门实践 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-Prometheus长期远程存储方案-VictoriaMetrics-入门实践"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus长期远程存储方案 VictoriaMetrics 入门实践
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/06/Prometheus%E9%95%BF%E6%9C%9F%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8%E6%96%B9%E6%A1%88-VictoriaMetrics-%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5/" class="article-date">
+  <time datetime="2024-08-06T09:00:23.000Z" itemprop="datePublished">2024-08-06</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">19 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>VictoriaMetrics(简称VM) 是一个支持高可用、经济高效且可扩展的监控解决方案和时间序列数据库，可用于 Prometheus 监控数据做长期远程存储。</p>
+<p>前面章节我们介绍了 Thanos 方案也可以用来解决 Prometheus 的高可用和远程存储的问题，那么为什么我们还要使用 VictoriaMetrics 呢？相对于 Thanos，VictoriaMetrics 主要是一个可水平扩容的<strong>本地全量持久化存储方案</strong>，VictoriaMetrics 不仅仅是时序数据库，它的优势主要体现在以下几点。</p>
+<ul>
+<li><p>对外支持 Prometheus 相关的 API，可以直接用于 Grafana 作为 Prometheus 数据源使用</p>
+</li>
+<li><p>指标数据摄取和查询具备高性能和良好的可扩展性，性能比 InfluxDB 和 TimescaleDB 高出 20 倍</p>
+</li>
+<li><p>这处理高基数时间序列时，内存方面也做了优化，比 InfluxDB 少 10x 倍，比 Prometheus、Thanos 或 Cortex 少 7 倍</p>
+</li>
+<li><p>高性能的数据压缩方式，与 TimescaleDB 相比，可以将多达 70 倍的数据点存入有限的存储空间，与 Prometheus、Thanos 或 Cortex 相比，所需的存储空间减少 7 倍</p>
+</li>
+<li><p>它针对具有高延迟 IO 和低 IOPS 的存储进行了优化</p>
+</li>
+<li><p>提供全局的查询视图，多个 Prometheus 实例或任何其他数据源可能会将数据摄取到 VictoriaMetrics</p>
+</li>
+<li><p>操作简单</p>
+</li>
+<li><p>VictoriaMetrics 由一个没有外部依赖的小型可执行文件组成</p>
+</li>
+<li><p>所有的配置都是通过明确的命令行标志和合理的默认值完成的</p>
+</li>
+<li><p>所有数据都存储在 - storageDataPath 命令行参数指向的目录中</p>
+</li>
+<li><p>可以使用 <code>vmbackup/vmrestore</code><br>工具轻松快速地从实时快照备份到 S3 或 GCS 对象存储中</p>
+</li>
+<li><p>支持从第三方时序数据库获取数据源</p>
+</li>
+<li><p>由于存储架构，它可以保护存储在非正常关机（即 OOM、硬件重置或 kill -9）时免受数据损坏</p>
+</li>
+<li><p>同样支持指标的 relabel 操作</p>
+</li>
+</ul>
+<h2 id="架构"><a href="#架构" class="headerlink" title="架构"></a>架构</h2><p>VM 分为单节点和集群两个方案，根据业务需求选择即可。单节点版直接运行一个二进制文件既，官方建议采集数据点(data points)低于 100w&#x2F;s，推荐 VM 单节点版，简单好维护，但不支持告警。集群版支持数据水平拆分。下图是 <code>VictoriaMetrics</code><br>集群版官方的架构图。</p>
+<p><img src="/images/1722934771-81bf8ac393442b3abaa464d5e65ab165.png"></p>
+<p>主要包含以下几个组件：</p>
+<ul>
+<li><p><code>vmstorage</code><br>：数据存储以及查询结果返回，默认端口为 8482</p>
+</li>
+<li><p><code>vminsert</code><br>：数据录入，可实现类似分片、副本功能，默认端口 8480</p>
+</li>
+<li><p><code>vmselect</code><br>：数据查询，汇总和数据去重，默认端口 8481</p>
+</li>
+<li><p><code>vmagent</code><br>：数据指标抓取，支持多种后端存储，会占用本地磁盘缓存，默认端口 8429</p>
+</li>
+<li><p><code>vmalert</code><br>：报警相关组件，不如果不需要告警功能可以不使用该组件，默认端口为 8880</p>
+</li>
+</ul>
+<p>集群方案把功能拆分为 vmstorage、 vminsert、vmselect 组件，如果要替换 Prometheus，还需要使用 vmagent、vmalert。从上图也可以看出 vminsert 以及 vmselect 都是无状态的，所以扩展很简单，只有 vmstorage 是有状态的。</p>
+<p><code>vmagent</code><br>的主要目的是用来收集指标数据然后存储到 VM 以及 Prometheus 兼容的存储系统中（支持 remote_write 协议即可）。</p>
+<p>下图是 vmagent 的一个简单架构图，可以看出该组件也实现了 metrics 的 push 功能，此外还有很多其他特性：</p>
+<ul>
+<li><p>替换 prometheus 的 scraping target</p>
+</li>
+<li><p>支持基于 prometheus relabeling 的模式添加、移除、修改 labels，可以方便在数据发送到远端存储之前进行数据的过滤</p>
+</li>
+<li><p>支持多种数据协议，influx line 协议，graphite 文本协议，opentsdb 协议，prometheus remote write 协议，json lines 协议，csv 数据</p>
+</li>
+<li><p>支持收集数据的同时，并复制到多种远端存储系统</p>
+</li>
+<li><p>支持不可靠远端存储（通过本地存储 <code>-remoteWrite.tmpDataPath</code><br>)，同时支持最大磁盘占用</p>
+</li>
+<li><p>相比 prometheus 使用较少的内存、cpu、磁盘 io 以及网络带宽</p>
+</li>
+</ul>
+<p><img src="/images/1722934771-3fab296c0380f98e9d9be97b057d8127.png"></p>
+<p>接下来我们就分别来介绍了 VM 的单节点和集群两个方案的使用。</p>
+<h2 id="单节点"><a href="#单节点" class="headerlink" title="单节点"></a>单节点</h2><p>这里我们采集 node-exporter 为例进行说明，首先使用 Prometheus 采集数据，然后将 Prometheus 数据远程写入 VM 远程存储，由于 VM 提供了 <code>vmagent</code><br>组件，最后我们使用 VM 来完全替换 Prometheus，可以使架构更简单、更低的资源占用。</p>
+<p>这里我们将所有资源运行在 <code>kube-vm</code><br>命名空间之下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl create ns kube-vm</span><br></pre></td></tr></table></figure>
+
+<p>首先我们这 <code>kube-vm</code><br>命名空间下面使用 DaemonSet 控制器运行 node-exporter，对应的资源清单文件如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br></pre></td><td class="code"><pre><span class="line"># vm-node-exporter.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">DaemonSet</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">node-exporter</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">node-exporter</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">node-exporter</span><br><span class="line">spec:</span><br><span class="line">hostPID:</span><br><span class="line">true</span><br><span class="line">hostIPC:</span><br><span class="line">true</span><br><span class="line">hostNetwork:</span><br><span class="line">true</span><br><span class="line">nodeSelector:</span><br><span class="line">kubernetes.io/os:</span><br><span class="line">linux</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">node-exporter</span><br><span class="line">image:</span><br><span class="line">prom/node-exporter:v1.3.1</span><br><span class="line">args:</span><br><span class="line">-</span><br><span class="line">--web.listen-address=$(HOSTIP):9111</span><br><span class="line">-</span><br><span class="line">--path.procfs=/host/proc</span><br><span class="line">-</span><br><span class="line">--path.sysfs=/host/sys</span><br><span class="line">-</span><br><span class="line">--path.rootfs=/host/root</span><br><span class="line">-</span><br><span class="line">--no-collector.hwmon</span><br><span class="line"># 禁用不需要的一些采集器</span><br><span class="line">-</span><br><span class="line">--no-collector.nfs</span><br><span class="line">-</span><br><span class="line">--no-collector.nfsd</span><br><span class="line">-</span><br><span class="line">--no-collector.nvme</span><br><span class="line">-</span><br><span class="line">--no-collector.dmi</span><br><span class="line">-</span><br><span class="line">--no-collector.arp</span><br><span class="line">-</span><br><span class="line">--collector.filesystem.ignored-mount-points=^/(dev|proc|sys|var/lib/containerd/.+|/var/lib/docker/.+|var/lib/kubelet/pods/.+)($|/)</span><br><span class="line">-</span><br><span class="line">--collector.filesystem.ignored-fs-types=^(autofs|binfmt_misc|cgroup|configfs|debugfs|devpts|devtmpfs|fusectl|hugetlbfs|mqueue|overlay|proc|procfs|pstore|rpc_pipefs|securityfs|sysfs|tracefs)$</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">9111</span><br><span class="line">env:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">HOSTIP</span><br><span class="line">valueFrom:</span><br><span class="line">fieldRef:</span><br><span class="line">fieldPath:</span><br><span class="line">status.hostIP</span><br><span class="line">resources:</span><br><span class="line">requests:</span><br><span class="line">cpu:</span><br><span class="line">150m</span><br><span class="line">memory:</span><br><span class="line">180Mi</span><br><span class="line">limits:</span><br><span class="line">cpu:</span><br><span class="line">150m</span><br><span class="line">memory:</span><br><span class="line">180Mi</span><br><span class="line">securityContext:</span><br><span class="line">runAsNonRoot:</span><br><span class="line">true</span><br><span class="line">runAsUser:</span><br><span class="line">65534</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">proc</span><br><span class="line">mountPath:</span><br><span class="line">/host/proc</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">sys</span><br><span class="line">mountPath:</span><br><span class="line">/host/sys</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">root</span><br><span class="line">mountPath:</span><br><span class="line">/host/root</span><br><span class="line">mountPropagation:</span><br><span class="line">HostToContainer</span><br><span class="line">readOnly:</span><br><span class="line">true</span><br><span class="line">tolerations:</span><br><span class="line"># 添加容忍</span><br><span class="line">-</span><br><span class="line">operator:</span><br><span class="line">&quot;Exists&quot;</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">proc</span><br><span class="line">hostPath:</span><br><span class="line">path:</span><br><span class="line">/proc</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">dev</span><br><span class="line">hostPath:</span><br><span class="line">path:</span><br><span class="line">/dev</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">sys</span><br><span class="line">hostPath:</span><br><span class="line">path:</span><br><span class="line">/sys</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">root</span><br><span class="line">hostPath:</span><br><span class="line">path:</span><br><span class="line">/</span><br></pre></td></tr></table></figure>
+
+<p>由于前面章节中我们也创建了 node-exporter，为了防止端口冲突，这里我们使用参数 <code>--web.listen-address=$(HOSTIP):9111</code><br>配置端口为 <code>9111</code><br>。直接应用上面的资源清单即可。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-node-exporter.yaml</span><br><span class="line">☸ ➜ kubectl get pods -n kube-vm -owide</span><br><span class="line">NAME                  READY   STATUS    RESTARTS   AGE    IP              NODE      NOMINATED NODE   READINESS GATES</span><br><span class="line">node-exporter-c4d76   1/1     Running   0          118s   192.168.0.109   node2     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">node-exporter-hzt8s   1/1     Running   0          118s   192.168.0.111   master1   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">node-exporter-zlxwb   1/1     Running   0          118s   192.168.0.110   node1     &lt;none&gt;           &lt;none&gt;</span><br></pre></td></tr></table></figure>
+
+<p>然后重新部署一套独立的 Prometheus，为了简单我们直接使用 <code>static_configs</code><br>静态配置方式来抓取 node-exporter 的指标，配置清单如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># vm-prom-config.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">ConfigMap</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">data:</span><br><span class="line">prometheus.yaml:</span><br><span class="line">|    global:      scrape_interval: 15s      scrape_timeout: 15s    scrape_configs:    - job_name: &quot;nodes&quot;      static_configs:      - targets: [&#x27;192.168.0.109:9111&#x27;, &#x27;192.168.0.110:9111&#x27;, &#x27;192.168.0.111:9111&#x27;]      relabel_configs: # 通过 relabeling 从 __address__ 中提取 IP 信息，为了后面验证 VM 是否兼容 relabeling      - source_labels: [__address__]        regex: &quot;(.*):(.*)&quot;        replacement: &quot;$&#123;1&#125;&quot;        target_label: &#x27;ip&#x27;        action: replace</span><br></pre></td></tr></table></figure>
+
+<p>上面配置中通过 <code>relabel</code><br>操作从 <code>__address__</code><br>中将 IP 信息提取出来，后面可以用来验证 VM 是否兼容 <code>relabel</code><br>操作。</p>
+<p>同样要给 Prometheus 数据做持久化，所以也需要创建一个对应的 PVC 资源对象：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br></pre></td><td class="code"><pre><span class="line"># apiVersion: storage.k8s.io/v1</span><br><span class="line"># kind: StorageClass</span><br><span class="line"># metadata:</span><br><span class="line">#   name: local-storage</span><br><span class="line"># provisioner: kubernetes.io/no-provisioner</span><br><span class="line"># volumeBindingMode: WaitForFirstConsumer</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolume</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus-data</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">capacity:</span><br><span class="line">storage:</span><br><span class="line">20Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br><span class="line">local:</span><br><span class="line">path:</span><br><span class="line">/data/k8s/prometheus</span><br><span class="line">persistentVolumeReclaimPolicy:</span><br><span class="line">Retain</span><br><span class="line">nodeAffinity:</span><br><span class="line">required:</span><br><span class="line">nodeSelectorTerms:</span><br><span class="line">-</span><br><span class="line">matchExpressions:</span><br><span class="line">-</span><br><span class="line">key:</span><br><span class="line">kubernetes.io/hostname</span><br><span class="line">operator:</span><br><span class="line">In</span><br><span class="line">values:</span><br><span class="line">-</span><br><span class="line">node2</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolumeClaim</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus-data</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">resources:</span><br><span class="line">requests:</span><br><span class="line">storage:</span><br><span class="line">20Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br></pre></td></tr></table></figure>
+
+<p>然后直接创建 Prometheus 即可，将上面的 PVC 和 ConfigMap 挂载到容器中，通过 <code>--config.file</code><br>参数指定配置文件文件路径，指定 TSDB 数据路径等，资源清单文件如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br></pre></td><td class="code"><pre><span class="line"># vm-prom-deploy.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">Deployment</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">prometheus</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">prometheus</span><br><span class="line">spec:</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">data</span><br><span class="line">persistentVolumeClaim:</span><br><span class="line">claimName:</span><br><span class="line">prometheus-data</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">config-volume</span><br><span class="line">configMap:</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">image:</span><br><span class="line">prom/prometheus:v2.35.0</span><br><span class="line">name:</span><br><span class="line">prometheus</span><br><span class="line">args:</span><br><span class="line">-</span><br><span class="line">&quot;--config.file=/etc/prometheus/prometheus.yaml&quot;</span><br><span class="line">-</span><br><span class="line">&quot;--storage.tsdb.path=/prometheus&quot;</span><br><span class="line"># 指定tsdb数据路径</span><br><span class="line">-</span><br><span class="line">&quot;--storage.tsdb.retention.time=2d&quot;</span><br><span class="line">-</span><br><span class="line">&quot;--web.enable-lifecycle&quot;</span><br><span class="line"># 支持热更新，直接执行localhost:9090/-/reload立即生效</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">9090</span><br><span class="line">name:</span><br><span class="line">http</span><br><span class="line">securityContext:</span><br><span class="line">runAsUser:</span><br><span class="line">0</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">&quot;/etc/prometheus&quot;</span><br><span class="line">name:</span><br><span class="line">config-volume</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">&quot;/prometheus&quot;</span><br><span class="line">name:</span><br><span class="line">data</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">Service</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">app:</span><br><span class="line">prometheus</span><br><span class="line">type:</span><br><span class="line">NodePort</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">web</span><br><span class="line">port:</span><br><span class="line">9090</span><br><span class="line">targetPort:</span><br><span class="line">http</span><br></pre></td></tr></table></figure>
+
+<p>直接应用上面的资源清单即可。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-prom-config.yaml</span><br><span class="line">☸ ➜ kubectl apply -f vm-prom-pvc.yaml</span><br><span class="line">☸ ➜ kubectl apply -f vm-prom-deploy.yaml</span><br><span class="line">☸ ➜ kubectl get pods -n kube-vm -owide</span><br><span class="line">NAME                      READY   STATUS    RESTARTS   AGE     IP              NODE      NOMINATED NODE   READINESS GATES</span><br><span class="line">node-exporter-c4d76       1/1     Running   0          27m     192.168.0.109   node2     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">node-exporter-hzt8s       1/1     Running   0          27m     192.168.0.111   master1   &lt;none&gt;           &lt;none&gt;</span><br><span class="line">node-exporter-zlxwb       1/1     Running   0          27m     192.168.0.110   node1     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">prometheus-dfc9f6-2w2vf   1/1     Running   0          4m58s   10.244.2.102    node2     &lt;none&gt;           &lt;none&gt;</span><br><span class="line">☸ ➜ kubectl get svc -n kube-vm</span><br><span class="line">NAME         TYPE       CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE</span><br><span class="line">prometheus   NodePort   10.103.38.114   &lt;none&gt;        9090:31890/TCP   4m10s</span><br></pre></td></tr></table></figure>
+
+<p>部署完成后可以通过 <code>http://&lt;node-ip&gt;:31890</code><br>访问 Prometheus，正常可以看到采集的 3 个 node 节点的指标任务。</p>
+<p><img src="/images/1722934771-e48e9d903986c46fcd9cb04514a94ff1.png"></p>
+<p>同样的方式重新部署 Grafana，资源清单如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br></pre></td><td class="code"><pre><span class="line"># vm-grafana.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">Deployment</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">grafana</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">grafana</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">grafana</span><br><span class="line">spec:</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">persistentVolumeClaim:</span><br><span class="line">claimName:</span><br><span class="line">grafana-data</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">grafana</span><br><span class="line">image:</span><br><span class="line">grafana/grafana:main</span><br><span class="line">imagePullPolicy:</span><br><span class="line">IfNotPresent</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">3000</span><br><span class="line">name:</span><br><span class="line">grafana</span><br><span class="line">securityContext:</span><br><span class="line">runAsUser:</span><br><span class="line">0</span><br><span class="line">env:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">GF_SECURITY_ADMIN_USER</span><br><span class="line">value:</span><br><span class="line">admin</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">GF_SECURITY_ADMIN_PASSWORD</span><br><span class="line">value:</span><br><span class="line">admin321</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">/var/lib/grafana</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">Service</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">grafana</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">type:</span><br><span class="line">NodePort</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">port:</span><br><span class="line">3000</span><br><span class="line">selector:</span><br><span class="line">app:</span><br><span class="line">grafana</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolume</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">grafana-data</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">capacity:</span><br><span class="line">storage:</span><br><span class="line">1Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br><span class="line">local:</span><br><span class="line">path:</span><br><span class="line">/data/k8s/grafana</span><br><span class="line">persistentVolumeReclaimPolicy:</span><br><span class="line">Retain</span><br><span class="line">nodeAffinity:</span><br><span class="line">required:</span><br><span class="line">nodeSelectorTerms:</span><br><span class="line">-</span><br><span class="line">matchExpressions:</span><br><span class="line">-</span><br><span class="line">key:</span><br><span class="line">kubernetes.io/hostname</span><br><span class="line">operator:</span><br><span class="line">In</span><br><span class="line">values:</span><br><span class="line">-</span><br><span class="line">node2</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolumeClaim</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">grafana-data</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">resources:</span><br><span class="line">requests:</span><br><span class="line">storage:</span><br><span class="line">1Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-grafana.yaml</span><br><span class="line">☸ ➜ kubectl get svc -n kube-vm |grep grafana</span><br><span class="line">grafana      NodePort   10.97.111.153   &lt;none&gt;        3000:31800/TCP   62s</span><br></pre></td></tr></table></figure>
+
+<p>同样通过 <code>http://&lt;node-ip&gt;:31800</code><br>就可以访问 Grafana 了，进入 Grafana 配置 Prometheus 数据源。</p>
+<p><img src="/images/1722934771-95284d9889d3f8f9a9eac02e855bdb16.png"></p>
+<p>然后导入 16098 这个 Dashboard，导入后效果如下图所示。</p>
+<p><img src="/images/1722934771-1561d458de9f8f8d66c8bcb4c3b2cc29.png"></p>
+<p>到这里就完成了使用 Prometheus 收集节点监控指标，接下来我们来使用 VM 来改造现有方案。</p>
+<h3 id="远程存储-VictoriaMetrics"><a href="#远程存储-VictoriaMetrics" class="headerlink" title="远程存储 VictoriaMetrics"></a>远程存储 VictoriaMetrics</h3><p>首先需要一个单节点模式的 VM，运行 VM 很简单，可以直接下载对应的二进制文件启动，也可以使用 docker 镜像一键启动，我们这里同样部署到 Kubernetes 集群中。资源清单文件如下所示。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br></pre></td><td class="code"><pre><span class="line"># vm-grafana.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">Deployment</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">victoria-metrics</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">victoria-metrics</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">victoria-metrics</span><br><span class="line">spec:</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">persistentVolumeClaim:</span><br><span class="line">claimName:</span><br><span class="line">victoria-metrics-data</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">vm</span><br><span class="line">image:</span><br><span class="line">victoriametrics/victoria-metrics:v1.76.1</span><br><span class="line">imagePullPolicy:</span><br><span class="line">IfNotPresent</span><br><span class="line">args:</span><br><span class="line">-</span><br><span class="line">-storageDataPath=/var/lib/victoria-metrics-data</span><br><span class="line">-</span><br><span class="line">-retentionPeriod=1w</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">8428</span><br><span class="line">name:</span><br><span class="line">http</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">/var/lib/victoria-metrics-data</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">Service</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">victoria-metrics</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">type:</span><br><span class="line">NodePort</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">port:</span><br><span class="line">8428</span><br><span class="line">selector:</span><br><span class="line">app:</span><br><span class="line">victoria-metrics</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolume</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">victoria-metrics-data</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">capacity:</span><br><span class="line">storage:</span><br><span class="line">20Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br><span class="line">local:</span><br><span class="line">path:</span><br><span class="line">/data/k8s/vm</span><br><span class="line">persistentVolumeReclaimPolicy:</span><br><span class="line">Retain</span><br><span class="line">nodeAffinity:</span><br><span class="line">required:</span><br><span class="line">nodeSelectorTerms:</span><br><span class="line">-</span><br><span class="line">matchExpressions:</span><br><span class="line">-</span><br><span class="line">key:</span><br><span class="line">kubernetes.io/hostname</span><br><span class="line">operator:</span><br><span class="line">In</span><br><span class="line">values:</span><br><span class="line">-</span><br><span class="line">node2</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">PersistentVolumeClaim</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">victoria-metrics-data</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">accessModes:</span><br><span class="line">-</span><br><span class="line">ReadWriteOnce</span><br><span class="line">resources:</span><br><span class="line">requests:</span><br><span class="line">storage:</span><br><span class="line">20Gi</span><br><span class="line">storageClassName:</span><br><span class="line">local-storage</span><br></pre></td></tr></table></figure>
+
+<p>这里我们使用 <code>-storageDataPath</code><br>参数指定了数据存储目录，然后同样将该目录进行了持久化，<code>-retentionPeriod</code><br>参数可以用来配置数据的保持周期。直接应用上面的资源清单即可。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-single-node-deploy.yaml</span><br><span class="line">☸ ➜ kubectl get svc victoria-metrics -n kube-vm</span><br><span class="line">NAME               TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE</span><br><span class="line">victoria-metrics   NodePort   10.106.216.248   &lt;none&gt;        8428:31953/TCP   75m</span><br><span class="line">☸ ➜ kubectl get pods -n kube-vm -l app=victoria-metrics</span><br><span class="line">NAME                                READY   STATUS    RESTARTS   AGE</span><br><span class="line">victoria-metrics-57d47f4587-htb88   1/1     Running   0          3m12s</span><br><span class="line">☸ ➜ kubectl logs -f victoria-metrics-57d47f4587-htb88 -n kube-vm</span><br><span class="line">2022-04-22T08:59:14.431Z        info    VictoriaMetrics/lib/logger/flag.go:12   build version: victoria-metrics-20220412-134346-tags-v1.76.1-0-gf8de318bf</span><br><span class="line">2022-04-22T08:59:14.431Z        info    VictoriaMetrics/lib/logger/flag.go:13   command line flags</span><br><span class="line">2022-04-22T08:59:14.431Z        info    VictoriaMetrics/lib/logger/flag.go:20   flag &quot;retentionPeriod&quot;=&quot;1w&quot;</span><br><span class="line">2022-04-22T08:59:14.431Z        info    VictoriaMetrics/lib/logger/flag.go:20   flag &quot;storageDataPath&quot;=&quot;/var/lib/victoria-metrics-data&quot;</span><br><span class="line">2022-04-22T08:59:14.431Z        info    VictoriaMetrics/app/victoria-metrics/main.go:52 starting VictoriaMetrics at &quot;:8428&quot;...</span><br><span class="line">2022-04-22T08:59:14.432Z        info    VictoriaMetrics/app/vmstorage/main.go:97        opening storage at &quot;/var/lib/victoria-metrics-data&quot; with -retentionPeriod=1w</span><br><span class="line">......</span><br><span class="line">2022-04-22T08:59:14.449Z        info    VictoriaMetrics/app/victoria-metrics/main.go:61 started VictoriaMetrics in 0.017 seconds</span><br><span class="line">2022-04-22T08:59:14.449Z        info    VictoriaMetrics/lib/httpserver/httpserver.go:91 starting http server at http://127.0.0.1:8428/</span><br></pre></td></tr></table></figure>
+
+<p>到这里我们单节点的 <code>VictoriaMetrics</code><br>就部署成功了。接下来我们只需要在 Prometheus 中配置远程写入我们的 VM 即可，更改 Prometheus 配置：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"># vm-prom-config2.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">ConfigMap</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">data:</span><br><span class="line">prometheus.yaml:</span><br><span class="line">|    global:      scrape_interval: 15s      scrape_timeout: 15s    remote_write:    # 远程写入到远程 VM 存储    - url: http://victoria-metrics:8428/api/v1/write    scrape_configs:    - job_name: &quot;nodes&quot;      static_configs:      - targets: [&#x27;192.168.0.109:9111&#x27;, &#x27;192.168.0.110:9111&#x27;, &#x27;192.168.0.111:9111&#x27;]      relabel_configs: # 通过 relabeling 从 __address__ 中提取 IP 信息，为了后面验证 VM 是否兼容 relabeling      - source_labels: [__address__]        regex: &quot;(.*):(.*)&quot;        replacement: &quot;$&#123;1&#125;&quot;        target_label: &#x27;ip&#x27;        action: replace</span><br></pre></td></tr></table></figure>
+
+<p>重新更新 Prometheus 的配置资源对象：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-prom-config2.yaml</span><br><span class="line"># 更新后执行 reload 操作重新加载 prometheus 配置</span><br><span class="line">☸ ➜ curl -X POST &quot;http://192.168.0.111:31890/-/reload&quot;</span><br></pre></td></tr></table></figure>
+
+<p>配置生效后 Prometheus 就会开始将数据远程写入 VM 中，我们可以查看 VM 的持久化数据目录是否有数据产生来验证：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ ll /data/k8s/vm/data/</span><br><span class="line">total 0</span><br><span class="line">drwxr-xr-x 4 root root 38 Apr 22 17:15 big</span><br><span class="line">-rw-r--r-- 1 root root  0 Apr 22 16:59 flock.lock</span><br><span class="line">drwxr-xr-x 4 root root 38 Apr 22 17:15 small</span><br></pre></td></tr></table></figure>
+
+<p>现在我们去直接将 Grafana 中的数据源地址修改成 VM 的地址：</p>
+<p><img src="/images/1722934771-5e9c91e70ebec47f0cabddcfb86bb672.png"></p>
+<p>修改完成后重新访问 node-exporter 的 dashboard，正常可以显示，证明 VM 是兼容的。</p>
+<p><img src="/images/1722934771-da531a6c24d56e1ffc67f2359b9b4651.png"></p>
+<h3 id="替换-Prometheus"><a href="#替换-Prometheus" class="headerlink" title="替换 Prometheus"></a>替换 Prometheus</h3><p>上面我们将 Prometheus 数据远程写入到了 VM，但是 Prometheus 开启 remote write 功能后会增加其本身的资源占用，理论上其实我们也可以完全用 VM 来替换掉 Prometheus，这样就不需要远程写入了，而且本身 VM 就比 Prometheus 占用更少的资源。</p>
+<p>现在我们先停掉 Prometheus 的服务：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl scale deploy prometheus --replicas=0 -n kube-vm</span><br></pre></td></tr></table></figure>
+
+<p>然后将 Prometheus 的配置文件挂载到 VM 容器中，使用参数 <code>-promscrape.config</code><br>来指定 Prometheus 的配置文件路径，如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br></pre></td><td class="code"><pre><span class="line"># vm-single-node-deploy2.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">Deployment</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">victoria-metrics</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">victoria-metrics</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">victoria-metrics</span><br><span class="line">spec:</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">persistentVolumeClaim:</span><br><span class="line">claimName:</span><br><span class="line">victoria-metrics-data</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br><span class="line">configMap:</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">vm</span><br><span class="line">image:</span><br><span class="line">victoriametrics/victoria-metrics:v1.76.1</span><br><span class="line">imagePullPolicy:</span><br><span class="line">IfNotPresent</span><br><span class="line">args:</span><br><span class="line">-</span><br><span class="line">-storageDataPath=/var/lib/victoria-metrics-data</span><br><span class="line">-</span><br><span class="line">-retentionPeriod=1w</span><br><span class="line">-</span><br><span class="line">-promscrape.config=/etc/prometheus/prometheus.yaml</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">8428</span><br><span class="line">name:</span><br><span class="line">http</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">/var/lib/victoria-metrics-data</span><br><span class="line">name:</span><br><span class="line">storage</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">/etc/prometheus</span><br><span class="line">name:</span><br><span class="line">prometheus-config</span><br></pre></td></tr></table></figure>
+
+<p>记得先将 Prometheus 配置文件中的 remote_write 模块去掉，然后重新更新 VM 即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-prom-config.yaml</span><br><span class="line">☸ ➜ kubectl apply -f vm-single-node-deploy2.yaml</span><br><span class="line">☸ ➜ kubectl get pods -n kube-vm -l app=victoria-metrics</span><br><span class="line">NAME                                READY   STATUS    RESTARTS       AGE</span><br><span class="line">victoria-metrics-8466844968-ncfnp   1/1     Running   2 (3m3s ago)   3m45s</span><br><span class="line">☸ ➜ kubectl logs -f victoria-metrics-8466844968-ncfnp -n kube-vm</span><br><span class="line">......</span><br><span class="line">2022-04-22T10:01:59.837Z        info    VictoriaMetrics/app/victoria-metrics/main.go:61 started VictoriaMetrics in 0.022 seconds</span><br><span class="line">2022-04-22T10:01:59.837Z        info    VictoriaMetrics/lib/httpserver/httpserver.go:91 starting http server at http://127.0.0.1:8428/</span><br><span class="line">2022-04-22T10:01:59.837Z        info    VictoriaMetrics/lib/httpserver/httpserver.go:92 pprof handlers are exposed at http://127.0.0.1:8428/debug/pprof/</span><br><span class="line">2022-04-22T10:01:59.838Z        info    VictoriaMetrics/lib/promscrape/scraper.go:103   reading Prometheus configs from &quot;/etc/prometheus/prometheus.yaml&quot;</span><br><span class="line">2022-04-22T10:01:59.838Z        info    VictoriaMetrics/lib/promscrape/config.go:96     starting service discovery routines...</span><br><span class="line">2022-04-22T10:01:59.839Z        info    VictoriaMetrics/lib/promscrape/config.go:102    started service discovery routines in 0.000 seconds</span><br><span class="line">2022-04-22T10:01:59.840Z        info    VictoriaMetrics/lib/promscrape/scraper.go:395   static_configs: added targets: 3, removed targets: 0; total targets: 3</span><br></pre></td></tr></table></figure>
+
+<p>从 VM 日志中可以看出成功读取了 Prometheus 的配置，并抓取了 3 个指标（node-exporter）。现在我们再去 Grafana 查看 node-exporter 的 Dashboard 是否可以正常显示。先保证数据源是 VM 的地址。</p>
+<p><img src="/images/1722934771-1c89ef6f4e99c2bca4e11fce15a6f7e5.png"></p>
+<p>这样我们就使用 VM 替换掉了 Prometheus，我们也可以这 Grafana 的 Explore 页面去探索采集到的指标。</p>
+<p><img src="/images/1722934771-3af5d32a25420041715ec598de2a9bc8.png"></p>
+<h2 id="UI-界面"><a href="#UI-界面" class="headerlink" title="UI 界面"></a>UI 界面</h2><p>VM 单节点版本本身自带了一个 Web UI 界面 - vmui，不过目前功能比较简单，可以直接通过 VM 的 NodePort 端口进行访问。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl get svc victoria-metrics -n kube-vm</span><br><span class="line">NAME               TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE</span><br><span class="line">victoria-metrics   NodePort   10.106.216.248   &lt;none&gt;        8428:31953/TCP   75m</span><br></pre></td></tr></table></figure>
+
+<p>我们这里可以通过 <code>http://&lt;node-ip&gt;:31953</code><br>访问到 vmui：</p>
+<p><img src="/images/1722934771-aef5241b768e59ffcfdf1d744ff2ad0d.png"></p>
+<p>可以通过 <code>/vmui</code><br>这个 endpoint 访问 UI 界面：</p>
+<p><img src="/images/1722934771-39972cbcc03f2557cd72db849452a3fc.png"></p>
+<p>如果你想查看采集到的指标 targets，那么可以通过 <code>/targets</code><br>这个 endpoint 来获取：</p>
+<p><img src="/images/1722934771-787b5abc89ba3b5a134d5290e6d7b6c8.png"></p>
+<p>这些功能基本上可以满足我们的一些需求，但是还是太过简单，如果你习惯了 Prometheus 的 UI 界面，那么我们可以使用 <code>promxy</code><br>来代替 <code>vmui</code><br>，而且 <code>promxy</code><br>还可以进行多个 VM 单节点的数据聚合，以及 targets 查看等，对应的资源清单文件如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br></pre></td><td class="code"><pre><span class="line"># vm-promxy.yaml</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">ConfigMap</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">promxy-config</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">data:</span><br><span class="line">config.yaml:</span><br><span class="line">|    promxy:      server_groups:      - static_configs:        - targets: [victoria-metrics:8428]  # 指定vm地址，有多个则往后追加即可        path_prefix: /prometheus  # 配置前缀</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">apps/v1</span><br><span class="line">kind:</span><br><span class="line">Deployment</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">promxy</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">selector:</span><br><span class="line">matchLabels:</span><br><span class="line">app:</span><br><span class="line">promxy</span><br><span class="line">template:</span><br><span class="line">metadata:</span><br><span class="line">labels:</span><br><span class="line">app:</span><br><span class="line">promxy</span><br><span class="line">spec:</span><br><span class="line">containers:</span><br><span class="line">-</span><br><span class="line">args:</span><br><span class="line">-</span><br><span class="line">&quot;--config=/etc/promxy/config.yaml&quot;</span><br><span class="line">-</span><br><span class="line">&quot;--web.enable-lifecycle&quot;</span><br><span class="line">-</span><br><span class="line">&quot;--log-level=trace&quot;</span><br><span class="line">env:</span><br><span class="line">-</span><br><span class="line">name:</span><br><span class="line">ROLE</span><br><span class="line">value:</span><br><span class="line">&quot;1&quot;</span><br><span class="line">command:</span><br><span class="line">-</span><br><span class="line">&quot;/bin/promxy&quot;</span><br><span class="line">image:</span><br><span class="line">quay.io/jacksontj/promxy</span><br><span class="line">imagePullPolicy:</span><br><span class="line">Always</span><br><span class="line">name:</span><br><span class="line">promxy</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">containerPort:</span><br><span class="line">8082</span><br><span class="line">name:</span><br><span class="line">web</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">&quot;/etc/promxy/&quot;</span><br><span class="line">name:</span><br><span class="line">promxy-config</span><br><span class="line">readOnly:</span><br><span class="line">true</span><br><span class="line">-</span><br><span class="line">args:</span><br><span class="line"># container to reload configs on configmap change</span><br><span class="line">-</span><br><span class="line">&quot;--volume-dir=/etc/promxy&quot;</span><br><span class="line">-</span><br><span class="line">&quot;--webhook-url=http://localhost:8082/-/reload&quot;</span><br><span class="line">image:</span><br><span class="line">jimmidyson/configmap-reload:v0.1</span><br><span class="line">name:</span><br><span class="line">promxy-server-configmap-reload</span><br><span class="line">volumeMounts:</span><br><span class="line">-</span><br><span class="line">mountPath:</span><br><span class="line">&quot;/etc/promxy/&quot;</span><br><span class="line">name:</span><br><span class="line">promxy-config</span><br><span class="line">readOnly:</span><br><span class="line">true</span><br><span class="line">volumes:</span><br><span class="line">-</span><br><span class="line">configMap:</span><br><span class="line">name:</span><br><span class="line">promxy-config</span><br><span class="line">name:</span><br><span class="line">promxy-config</span><br><span class="line">---</span><br><span class="line">apiVersion:</span><br><span class="line">v1</span><br><span class="line">kind:</span><br><span class="line">Service</span><br><span class="line">metadata:</span><br><span class="line">name:</span><br><span class="line">promxy</span><br><span class="line">namespace:</span><br><span class="line">kube-vm</span><br><span class="line">spec:</span><br><span class="line">type:</span><br><span class="line">NodePort</span><br><span class="line">ports:</span><br><span class="line">-</span><br><span class="line">port:</span><br><span class="line">8082</span><br><span class="line">selector:</span><br><span class="line">app:</span><br><span class="line">promxy</span><br></pre></td></tr></table></figure>
+
+<p>直接应用上面的资源对象即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">☸ ➜ kubectl apply -f vm-promxy.yaml</span><br><span class="line">☸ ➜ kubectl get pods -n kube-vm -l app=promxy</span><br><span class="line">NAME                      READY   STATUS    RESTARTS   AGE</span><br><span class="line">promxy-5f7dfdbc64-l4kjq   2/2     Running   0          6m45s</span><br><span class="line">☸ ➜ kubectl get svc promxy -n kube-vm</span><br><span class="line">NAME               TYPE       CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE</span><br><span class="line">promxy             NodePort   10.110.19.254    &lt;none&gt;        8082:30618/TCP   6m12s</span><br></pre></td></tr></table></figure>
+
+<p>访问 Promxy 的页面效果和 Prometheus 自带的 Web UI 基本一致的。</p>
+<p><img src="/images/1722934771-e008e693d5946d3e92ef97b7e5348f89.png"></p>
+<p>这里面我们简单介绍了单机版的 <code>victoriametrics</code><br>的基本使用。关于集群版的使用请关注后续文章。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/06/Prometheus%E9%95%BF%E6%9C%9F%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8%E6%96%B9%E6%A1%88-VictoriaMetrics-%E5%85%A5%E9%97%A8%E5%AE%9E%E8%B7%B5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/06/Prometheus%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8-VictoriaMetrics-%E7%AE%80%E4%BB%8B/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus远程存储 VictoriaMetrics 简介</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
