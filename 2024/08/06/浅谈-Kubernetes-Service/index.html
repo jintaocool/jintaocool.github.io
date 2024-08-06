@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>浅谈 Kubernetes Service |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-浅谈-Kubernetes-Service"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  浅谈 Kubernetes Service
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/06/%E6%B5%85%E8%B0%88-Kubernetes-Service/" class="article-date">
+  <time datetime="2024-08-06T01:34:26.000Z" itemprop="datePublished">2024-08-06</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">9 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>01</p>
+<p>Service基本概念</p>
+<p>在kubernetes中，pod是应用程序的载体，我们可以通过pod的ip来访问应用程序，但是pod的ip地址不是固定的，直接访问pod ip 会带来很多问题。</p>
+<p>为了解决这个问题，kubernetes提供了Service资源，Kubernetes Service 定义了这样一种抽象：逻辑上的一组 Pod，一种可以访问它们的策略。通过访问Service的入口地址就能访问到后面的pod服务。</p>
+<h2 id="1-1-如何将Pod与Service关联起来——Endpoint"><a href="#1-1-如何将Pod与Service关联起来——Endpoint" class="headerlink" title="1.1. 如何将Pod与Service关联起来——Endpoint"></a>1.1. 如何将Pod与Service关联起来——Endpoint</h2><p>Endpoint是kubernetes中的一个资源对象，存储在etcd中，用来记录一个service对应的所有pod的访问地址，它是根据service配置文件中selector描述产生的。</p>
+<p>一个Service由一组Pod组成，这些Pod通过Endpoints暴露出来，Endpoints是实现实际服务的端点集合。换句话说，service和pod之间的联系是通过endpoints实现的。</p>
+<p><img src="/images/1722907980-0db0a4ebb32366ecd48a21240c26cc4b.png"></p>
+<p>图Endpoint如何关联service和pod</p>
+<h2 id="1-2-从Endpoint到-EndpointSlice"><a href="#1-2-从Endpoint到-EndpointSlice" class="headerlink" title="1.2. 从Endpoint到****EndpointSlice"></a>1.2. <strong>从End<strong><strong>point</strong></strong>到****EndpointSlice</strong></h2><p>Endpoint 包含Service所有的Pod IP, 因此当一个Pod发生重启时，Pod IP发生改变，需要对整个Endpoint对象重新计算并存储。</p>
+<p>当Pod数量较少的情况下，这个不是大问题。但是当数量很多时，需要的大量的网络IO。当一个Pod发生重启时，引入EndpointSlice，只需要更新发生改变的数组元素就可以了。核心点在于在etcd里存储过程中不把整块数据一块存放（像原来Endpoint那样），而是分成几块分开存储。</p>
+<p>EndpointSlice是Endpoint对象的集合。kubernetes会给任何带选择器的Service对象创建EndpointSlice. EndpintSlice对象包含Service 选择器匹配到的所有Pod 的网络地址。EndpointSlice通过&lt;协议，端口，Service名字&gt; 对Endpoint进行分组。</p>
+<h2 id="1-3-如何将Service信息转化成对应的访问规则并进行转发——ku-be-proxy"><a href="#1-3-如何将Service信息转化成对应的访问规则并进行转发——ku-be-proxy" class="headerlink" title="1.3. 如何将Service信息转化成对应的访问规则并进行转发——ku****be-proxy"></a>1.3. <strong>如何将Service信息转化成对应的访问规则并进行转发<strong><strong>——</strong></strong>ku****be-proxy</strong></h2><p>我们知道k8s有很多组件工具，其中网络代理工具使用的是kube-proxy，每个Node节点上都运行着一个kube-proxy，kube-proxy可以转发TCP，UDP，SCTP流。那Service跟kube-proxy是如何协同工作的呢？</p>
+<p>当创建Service的时候会通过api-server向etcd写入创建的service的信息，而kube-proxy会基于监听的机制发现这种Service的变动，然后它会将最新的Service信息转换成对应的访问规则。</p>
+<p><img src="/images/1722907980-25639f0077b9bdce24ee6bddae6e1e41.png"></p>
+<p>图kube-proxy工作原理</p>
+<h1 id="注：kube-proxy的三种模式：userspace-模式、iptables模式、ipvs模式，可以通过KubeProxyConfiguration资源类型的的ProxyMode字段进行配置。各种模式的优缺点对比如下："><a href="#注：kube-proxy的三种模式：userspace-模式、iptables模式、ipvs模式，可以通过KubeProxyConfiguration资源类型的的ProxyMode字段进行配置。各种模式的优缺点对比如下：" class="headerlink" title="注：kube-proxy的三种模式：userspace 模式、iptables模式、ipvs模式，可以通过KubeProxyConfiguration资源类型的的ProxyMode字段进行配置。各种模式的优缺点对比如下："></a>注：kube-proxy的三种模式：userspace 模式、iptables模式、ipvs模式，可以通过KubeProxyConfiguration资源类型的的ProxyMode字段进行配置。各种模式的优缺点对比如下：</h1><table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td></td>
+<td>是否承担四层负载均衡角色</td>
+<td>效率</td>
+<td>其他</td>
+</tr>
+<tr>
+<td>userspace</td>
+<td>是</td>
+<td>低</td>
+<td></td>
+</tr>
+<tr>
+<td>iptables</td>
+<td>否</td>
+<td>较高</td>
+<td>后端Pod不可用时无法进行重试、适合中小规模的K8s集群</td>
+</tr>
+<tr>
+<td>ipvs</td>
+<td>是</td>
+<td>更高</td>
+<td>支持更多的LB算法、适合大规模的K8s集群</td>
+</tr>
+</tbody></table>
+<h2 id="1-4-如何通过servicename访问Pod服务——kube-dns"><a href="#1-4-如何通过servicename访问Pod服务——kube-dns" class="headerlink" title="1.4. 如何通过servicename访问Pod服务——kube-dns"></a>1.4. <strong>如何通过servicename访问Pod服务——kube-dns</strong></h2><p>除了Kube-proxy,我们还经常听到kube-dns,kube-dns功能主要是处理Pod通过servicename访问服务，即服务名称(servicename)到clusterIP的解析。Kubernetes DNS pod 中包括 3 个容器。</p>
+<p>lkubedns：kubedns 进程监视 Kubernetes master 中的 Service 和 Endpoint 的变化，并维护内存查找结构来服务DNS请求。</p>
+<p>ldnsmasq：dnsmasq 容器添加 DNS 缓存以提高性能。</p>
+<p>lsidecar：sidecar 容器在执行双重健康检查（针对 dnsmasq 和 kubedns）时提供单个健康检查端点（监听在10054端口）</p>
+<p>除了kube-dns，coredns 也可以实现通过servicename访问服务，coredns是一个高速并且十分灵活的dns服务。coredns的优点是非常灵活的配置，可以根据不同的需求给不同的域名配置不同的插件,k8s 1.9 版本后的默认的dns解析。缺点是缓存的效率不如 dnsmasq，对集群内部域名解析的速度不如 kube-dns（10% 左右）。</p>
+<p>02</p>
+<p>Service的类型</p>
+<h2 id="2-1-ClusterIP"><a href="#2-1-ClusterIP" class="headerlink" title="2.1. ClusterIP"></a>2.1. <strong>ClusterIP</strong></h2><p>默认值，它是Kubernetes系统自动分配Service网段中的IP</p>
+<p><img src="/images/1722907980-23a83363bc10023f1a0c5a3b73d036e7.png"></p>
+<p>图创建ClusterIP Service资源</p>
+<p><img src="/images/1722907980-d90e0d8821a08ba2738a2fce181b1290.png"></p>
+<p>图查看ClusterIP Service资源详情</p>
+<p><strong>使用场景：</strong>当服务只需要在集群内部被访问时，比如一些中间件服务，建议使用该类型。</p>
+<p><strong>优缺点：</strong>因为只局限于集群内部访问，保证了服务的网络隔离，具有安全性。</p>
+<h2 id="2-2-headless-类型的Service"><a href="#2-2-headless-类型的Service" class="headerlink" title="2.2. headless****类型的Service"></a>2.2. <strong>headless****类型的Service</strong></h2><p>Headless Service也是一种Service，但不同的是会定义spec:clusterIP: None，也就是不需要Cluster IP的Service。</p>
+<p><img src="/images/1722907980-15b42cc450d2509d9254b289ab939f20.png"></p>
+<p>图创建headless Service资源</p>
+<p><img src="/images/1722907980-c907fb740eef296d4813a350925825a7.png"></p>
+<p>图查看headless Service资源详情</p>
+<p><strong>使用场景：</strong></p>
+<p>1、在某些场景中，开发人员可能不想使用Service提供的负载均衡功能，而希望自己来控制负载均衡策略。</p>
+<p>2、headless Service还有一个很重要的场景是发现所有的pod（包括未就绪的pod），只有准备就绪的pod能够作为服务的后端。但有时希望即使pod没有准备就绪，服务发现机制也能够发现所有匹配服务标签选择器的pod。比如zk集群，zk节点pod之间必须互相识别之后进行选举，pod状态才会变为就绪，使用headless完美的解决这个问题。</p>
+<p><strong>优缺点</strong>：</p>
+<p>1、这类Service不会分配Cluster IP，如果想要访问service，只能通过service的域名进行查询。</p>
+<h2 id="2-3-NodePort"><a href="#2-3-NodePort" class="headerlink" title="2.3. NodePort"></a>2.3. <strong>NodePort</strong></h2><p>通过每个集群节点上的 IP 和静态端口（NodePort）暴露服务。NodePort 服务会路由到 ClusterIP 服务，该 ClusterIP 服务会自动创建。通过请求 <NodeIP>:<NodePort>，可从集群的外部访问该 NodePort 服务。</p>
+<p><img src="/images/1722907980-ec199d0b6c2b8039aba4ee4648916266.png"></p>
+<p>图创建nodeport Service资源</p>
+<p><img src="/images/1722907980-e73f6bc630598bac99bd9b8e5779075f.png"></p>
+<p>图查看nodeport Service资源</p>
+<p><strong>使用场景：</strong></p>
+<p>1、建议在测试及非生产环境使用，不推荐在生产环境中直接通过集群节点对外甚至公网提供服务。</p>
+<p><strong>优缺点：</strong></p>
+<p>1、从安全上考虑，使用该类型会直接暴露集群节点，容易受到攻击。</p>
+<p>2、通常认为集群节点是动态的、可伸缩的，使用该类型使得对外提供服务的地址和集群节点产生了耦合。</p>
+<h2 id="2-4-LoadBalancer："><a href="#2-4-LoadBalancer：" class="headerlink" title="2.4. LoadBalancer："></a>2.4. <strong>LoadBalancer：</strong></h2><p>使用云提供商的负载均衡器向外部暴露服务。外部负载均衡器可以将流量路由到自动创建的 NodePort 服务和 ClusterIP 服务上。在使用支持外部负载均衡器的云提供商的服务时，设置 type 的值为 “LoadBalancer”，将为 Service 提供负载均衡器。负载均衡器是异步创建的，关于被提供的负载均衡器的信息将会通过 Service 的 status.loadBalancer 字段发布出去。</p>
+<p><strong>使用场景：</strong>使用外接负载均衡器完成到服务的负载分发</p>
+<p><strong>优缺点：</strong>具有使用限制：此模式需要外部云环境支持，通常在公有云上配合SLB使用。</p>
+<h2 id="2-5-ExternalName"><a href="#2-5-ExternalName" class="headerlink" title="2.5. ExternalName"></a>2.5. <strong>ExternalName</strong></h2><p>把集群外部的服务引入集群内部，直接使用，对使用者做到了透明，让使用者感觉就好像调用自己命名空间的服务一样。</p>
+<p><img src="/images/1722907980-bbef5a52b89fc78e84c7ddde2b581cbf.png"></p>
+<p>图创建ExternalName Service资源</p>
+<p><strong>使用场景：</strong>具有 URI 的远程托管数据库</p>
+<p><strong>优缺点：</strong></p>
+<p>1、将外部服务映射到内部服务可未来灵活地将这些服务纳入集群，同时最大限度地减少重构工作。</p>
+<p>2、可以更轻松地管理和了解组织所使用的外部服务。</p>
+<p>03</p>
+<p>Ingress介绍</p>
+<h2 id="3-1-为什么要引入Ingress"><a href="#3-1-为什么要引入Ingress" class="headerlink" title="3.1. 为什么要引入Ingress"></a>3.1. <strong>为什么要引入Ingress</strong></h2><p>在上面介绍了Service的几种类型，Service对集群之外暴露服务的主要方式有两种：NotePort和LoadBalancer，但是这两种方式，都有一定的缺点：</p>
+<p>1.NodePort方式的缺点是会占用很多集群机器的端口，那么当集群服务变多的时候，这个缺点就愈发明显</p>
+<p>2.LB方式的缺点是每个service需要一个LB，浪费、麻烦，并且需要kubernetes之外设备的支持</p>
+<p>3.Service只支持4层负载均衡，不支持7层复杂均衡</p>
+<p>基于这种现状，kubernetes提供了Ingress资源对象，Ingress是 Kubernetes 处理边缘入口流量的一种方式。由于 Kubernetes 集群内的服务都是虚拟网络，外部流量访问集群内部至少需要一个公网ip和端口映射。Ingress 是 Kubernetes 应对集群管理外部访问流量的场景抽象出来一个资源对象，用来描述集群外部如何访问集群内部服务的方式。</p>
+<h2 id="3-2-Ingress是如何工作的"><a href="#3-2-Ingress是如何工作的" class="headerlink" title="3.2. Ingress是如何工作的"></a>3.2. <strong>In<strong><strong>gress</strong></strong>是如何工作的</strong></h2><p>以Nginx Ingress为例，支持7层的负载均衡，是kubernetes对反向代理的一个抽象，它的工作原理类似于Nginx，可以理解成在Ingress里建立诸多映射规则，Ingress Controller通过监听这些配置规则并转化成Nginx的反向代理配置 , 然后对外部提供服务。在这里有两个核心概念：</p>
+<p>lingress：kubernetes中的一个对象，作用是定义请求如何转发到service的规则</p>
+<p>lingress controller：具体实现反向代理及负载均衡的程序，对ingress定义的规则进行解析，根据配置的规则来实现请求转发，实现方式有很多，比如Nginx, Contour, Haproxy等等</p>
+<p>Nginx Ingress Controller 由用户部署在 Kubernetes 集群中，通过访问集群的 API Server 来实时监听用户应用到集群中的 Ingress 资源，经 Controller 解析并转化为 Nginx 配置文件（nginx.conf)，然后通过 reload 数据面 Nginx 的方式使得配置生效。当外部请求访问集群入口点 Nginx Ingress Controller 时，匹配 Nginx Ingress 转发规则的流量转发到后端 Service 所对应的 Pod，由 Pod 处理外部请求。</p>
+<p><img src="/images/1722907980-b6ac132c4b16808bd6b283b6db853627.png"></p>
+<p>图Ingress工作原理</p>
+<h1 id="参考文献"><a href="#参考文献" class="headerlink" title="参考文献"></a><strong>参考文献</strong></h1><p>Ø<a target="_blank" rel="noopener" href="https://kubernetes.io/zh-cn/docs/reference/config-api/kube-proxy-config.v1alpha1/#kubeproxy-config-k8s-io-v1alpha1-ProxyMode">https://kubernetes.io/zh-cn/docs/reference/config-api/kube-proxy-config.v1alpha1/#kubeproxy-config-k8s-io-v1alpha1-ProxyMode</a></p>
+<p>Ø<a target="_blank" rel="noopener" href="https://kubernetes.io/zh-cn/docs/concepts/services-networking/endpoint-slices/">https://kubernetes.io/zh-cn/docs/concepts/services-networking/endpoint-slices/</a></p>
+<p>Ø<a target="_blank" rel="noopener" href="https://kubernetes.io/zh-cn/blog/2018/07/10/coredns-ga-for-kubernetes-cluster-dns/">https://kubernetes.io/zh-cn/blog/2018/07/10/coredns-ga-for-kubernetes-cluster-dns/</a></p>
+<p>Ø<a target="_blank" rel="noopener" href="https://kubernetes.io/zh-cn/docs/concepts/services-networking/ingress/">https://kubernetes.io/zh-cn/docs/concepts/services-networking/ingress/</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/06/%E6%B5%85%E8%B0%88-Kubernetes-Service/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/05/%E5%9F%BA%E4%BA%8E%E7%9C%9F%E5%AE%9E%E5%9C%BA%E6%99%AF%E8%A7%A3%E8%AF%BB-K8s-Pod-%E7%9A%84%E5%90%84%E7%A7%8D%E5%BC%82%E5%B8%B8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">基于真实场景解读 K8s Pod 的各种异常</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
