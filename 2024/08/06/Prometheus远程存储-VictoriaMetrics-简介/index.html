@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus远程存储 VictoriaMetrics 简介 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-Prometheus远程存储-VictoriaMetrics-简介"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus远程存储 VictoriaMetrics 简介
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/06/Prometheus%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8-VictoriaMetrics-%E7%AE%80%E4%BB%8B/" class="article-date">
+  <time datetime="2024-08-06T08:56:33.000Z" itemprop="datePublished">2024-08-06</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>VictoriaMetrics 是一个快速、经济高效且可扩展的监控解决方案和时间序列数据库，不仅可以作为 Prometheus 的远程存储，还可以使用其组件完全替换 Prometheus。</p>
+<p><img src="/images/1722934523-ce278080c269f83da0f555a375e88935.png"></p>
+<p>它主要有以下特性:</p>
+<ul>
+<li><p>支持 Prometheus querying API,Graphite API. 可以在 Grafana 中直接使用</p>
+</li>
+<li><p>实现了基于 PromQL 的查询语言 - MetricsQL, 提供了一些高级功能</p>
+</li>
+<li><p>提供了全局视图，支持多个 Prometheus 实例或任何其他数据源同时向 VictoriaMetrics 写入数据，查询时数据可以保证唯一</p>
+</li>
+<li><p>占用资源少，且高性能.</p>
+</li>
+<li><p>支持多种方式获取 metrics. 如:</p>
+</li>
+<li><p>file_sd_config</p>
+</li>
+<li><p>kubernetes_sd_config</p>
+</li>
+<li><p>consul_sd_config</p>
+</li>
+<li><p>从 exporter 直接获取，与 prometheus 完全兼容。除 static_config 外，还支持多种服务发现方式，如:</p>
+</li>
+<li><p>通过 Prometheus 远程写入</p>
+</li>
+<li><p>通过 Post 请求将指定 JSON 格式的数据直接写入</p>
+</li>
+<li><p>支持 metrics relabel. 与 prometheus 完全兼容</p>
+</li>
+<li><p>支持单机模式与集群模式</p>
+</li>
+</ul>
+<h2 id="单机模式"><a href="#单机模式" class="headerlink" title="单机模式"></a>单机模式</h2><p>单机模式比较简单，直接下载二进制或 Docker 镜像 并使用指定的命令行启动.</p>
+<p>单机模式可能用到的组件.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">- victoria-metrics: metrics 数据抓取或存储</span><br><span class="line">- vmalert: 按照指定的规则将 metrics 数据聚合或向 alertmanager 发送告警</span><br><span class="line">- vmauth: 启用用户认证功能</span><br></pre></td></tr></table></figure>
+
+<p>以二进制为例，可以通过</p>
+<ul>
+<li><p><code>-storageDataPath</code><br>参数指定数据存储的目录。默认为 <code>victoria-metrics-data</code>  </p>
+</li>
+<li><p><code>-retentionPeriod</code><br>参数指定数据保存的时长。默认为 <code>1 month</code>  </p>
+</li>
+<li><p><code>-httpListenAddr</code><br>参数指定监听的 HTTP 套接字。默认为 <code>:8428</code>  </p>
+</li>
+<li><p><code>-loggerTimezon</code><br>参数指定日志的时区，默认为 <code>UTC</code><br>. 建议设置为 <code>Asia/Shanghai</code>  </p>
+</li>
+<li><p><code>-maxInsertRequestSize</code><br>参数限制 Prometheus remote_write API 的请求大小。默认为 <code>33554432 byte</code><br>. 支持可选的单位为 <code>KB, MB, GB, KiB, MiB, GiB</code>  </p>
+</li>
+<li><p><code>-promscrape.config</code><br>参数指定 Prometheus 配置文件路径。该配置文件只需要包含 <code>scrape_configs</code><br>部分配置即可.(经测试 VictoriaMetrics 支持 <code>scrape_configs</code><br>中的 <code>relabel_configs</code><br>和 <code>metric_relabel_configs</code><br>)</p>
+</li>
+<li><p><code>-promscrape.config.strictParse</code><br>参数设置是否会严格校验 <code>-promscrape.config</code><br>指定的配置文件。默认情况下，不支持的字段会跳过，兼容 Prometheus 的配置文件</p>
+</li>
+<li><p><code>-promscrape.configCheckInterval</code><br>参数设置检查 Prometheus 配置文件是否变更的时间间隔。若变更，则重新加载。默认关闭</p>
+</li>
+<li><p><code>-relabelConfig</code><br>参数指定 relabel 的规则.</p>
+</li>
+<li><p><code>-relabelDebug</code><br>参数指定日志中是否指定 relabel 前后的 metrics. 多用于调试.</p>
+</li>
+<li><p><code>-selfScrapeInstance</code><br>参数设置抓取自身 metrics 时，<code>instance</code><br>标签的值。默认 <code>self</code>  </p>
+</li>
+<li><p><code>-selfScrapeInterval</code><br>参数设置抓取自身 metrics 的时间间隔</p>
+</li>
+<li><p><code>-selfScrapeJob</code><br>参数设置设置抓取自身 metrics 时，<code>instance</code><br>标签的值。默认 <code>victoria-metrics</code></p>
+</li>
+</ul>
+<p>从参数看来，单机模式下的 <code>VictoriaMetrics</code><br>可以</p>
+<ol>
+<li>作为 Prometheus 的远程存储</li>
+</ol>
+<p>启动 VictoriaMetrics 脚本如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"># start_VictoriaMetrics.sh</span><br><span class="line">cd $&#123;victoria-metrics-home&#125;</span><br><span class="line">./victoria-metrics \</span><br><span class="line">  -storageDataPath &lt;storageDataPath&gt; \</span><br><span class="line">  -retentionPeriod &lt;dataKeepTime&gt; \</span><br><span class="line">  -maxInsertRequestSize &lt;req_size&gt; \</span><br><span class="line">  -httpListenAddr &lt;IP:port&gt; \</span><br><span class="line">  -loggerTimezon Asia/Shanghai &amp;&gt; victoria-metrics.log &amp;</span><br></pre></td></tr></table></figure>
+
+<p>Prometheus 远程写入相关配置如下:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># prometheus.yml</span><br><span class="line"># ...</span><br><span class="line">remote_write:</span><br><span class="line">  - url: http://&lt;victoriametrics-addr&gt;:8428/api/v1/write</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>指定 <code>promscrape.config</code><br>直接抓取并存储 metrics.</li>
+</ol>
+<p>这种方式启动与作为远程存储启动方式基本与存储方式大同小异，只需要指定对应配置文件即可。在直接抓取 metrics 过程中，VictoriaMetrics 需要一些其他的组件去实现 Prometheus 中的功能。比如</p>
+<ul>
+<li><p>Prometheus 中规则 (包括 metrics 聚合规则与告警规则) 需要 <code>vmalert</code><br>组件来实现。且 <code>vmalert</code><br>只是发送告警到 <code>Alertmanager</code><br>.<code>vmalert</code><br>支持的规则与 Prometheus 的规则一致。有关 <code>vmalert</code><br>的使用，参见官方文档</p>
+</li>
+<li><p>Prometheus 中认证相配置 需要 <code>vmauth</code><br>组件来实现，参见官方文档</p>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">cd $&#123;victoria-metrics-home&#125;</span><br><span class="line"></span><br><span class="line">./victoria-metrics \</span><br><span class="line">  -storageDataPath &lt;storageDataPath&gt; \</span><br><span class="line">  -retentionPeriod &lt;dataKeepTime&gt; \</span><br><span class="line">  -maxInsertRequestSize &lt;req_size&gt; \</span><br><span class="line">  -httpListenAddr &lt;metrics_IP:port&gt; \</span><br><span class="line">  -promscrape.config &lt;prometheus.yml&gt; \</span><br><span class="line">  -promscrape.configCheckInterval 1m \</span><br><span class="line">  -loggerTimezon Asia/Shanghai &amp;&gt; victoria-metrics.log &amp;</span><br><span class="line"></span><br><span class="line">./vmalert \</span><br><span class="line">  -httpListenAddr &quot;:8880&quot; \</span><br><span class="line">  -rule &lt;record_rule_file or alert_rule_file&gt; \</span><br><span class="line">  -datasource.url &lt;metrics_IP:port&gt; \</span><br><span class="line">  -notifier.url &lt;AlertManager URL&gt; \ # AlertManager URL</span><br><span class="line">  -remoteWrite.url &lt;metrics_IP:port&gt; \ # 聚合后的 metrics 写入的位置,一般为 victoria-metrics 的端口</span><br><span class="line">  -remoteRead.url &lt;metrics_IP:port&gt; \</span><br><span class="line">  -external.label &lt;key=value&gt; # 为聚合后的 metrics 添加标签</span><br><span class="line"></span><br><span class="line">./vmauth \</span><br><span class="line">  -httpListenAddr &quot;:8427&quot; \</span><br><span class="line">  -auth.config &lt;auth_config&gt;</span><br></pre></td></tr></table></figure>
+
+<p>为了加强数据的安全性，可以将 victoria-metrics 存储监听在 localhost. 启用 auth. 配置一些自定义用户信息. <code>vmauth</code><br>配置文件示例如下. Grafana 可使用该用户获取数据.</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">users:</span><br><span class="line">- username: &quot;local-single-node&quot;</span><br><span class="line">  password: &quot;***&quot;</span><br><span class="line">  url_prefix: &quot;http://localhost:8428&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="集群模式"><a href="#集群模式" class="headerlink" title="集群模式"></a>集群模式</h2><p>VictoriaMetrics 集群模式相对来说比较复杂。主要由 <code>vmstorage</code><br>,<code>vminsert</code><br>,<code>vmselect</code><br>三部分组成，这三个组件每个组件都可以单独进行扩展。其中:</p>
+<ul>
+<li><p>vmstorage 负责提供数据存储服务</p>
+</li>
+<li><p>vminsert 是数据存储 vmstorage 的代理，使用一致性 hash 算法进行写入分片</p>
+</li>
+<li><p>vmselect 负责数据查询，根据输入的查询条件从 vmstorage 中查询数据</p>
+</li>
+</ul>
+<p>vmstorage 采用 shared-nothing 架构，优点是 vmstorage 的节点相互之间无感知，相互之间无需通信，不共享任何数据，增加了集群的可用性，简化了集群的扩展的难度与运维工作.</p>
+<h3 id="特性"><a href="#特性" class="headerlink" title="特性"></a>特性</h3><p>VictoriaMetrics 集群模式支持</p>
+<ol>
+<li>性能和容量水平扩展</li>
+</ol>
+<ul>
+<li><p><code>vminsert</code><br>和 <code>vmselect</code><br>是无状态的。可以随时添加 删除。添加更多的 <code>vminsert</code><br>和 <code>vmselect</code><br>节点可以扩展数据写入与查询的效率</p>
+</li>
+<li><p><code>vmstorage</code><br>节点保存抓取的数据，因此无法在不丢失数据的情况下删除它们。添加更多 <code>vmstorage</code><br>节点可扩展集群容量。添加 <code>vmstorage</code><br>的步骤如下:</p>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">1. 使用与集群中现有节点相同的 -retentionPeriod 启动新的 vmstorage 节点</span><br><span class="line">2. 使用包含 &lt;new_vmstorage_host&gt; 的新 -storageNode 参数逐渐重新启动所有 vmselect 节点</span><br><span class="line">3. 使用包含 &lt;new_vmstorage_host&gt; 的新 -storageNode 参数逐渐重新启动所有 vminsert 节点</span><br></pre></td></tr></table></figure>
+
+<ol>
+<li>支持时间序列数据的多个名称空间 (租户). 多个租户之间相互隔离</li>
+</ol>
+<p>VictoriaMetrics 集群支持多个独立的租户。租户由 <code>accountID</code><br>或 <code>accountID:projectID</code><br>标识，他们放在 url 中。如 <code>http://&lt;vminsert&gt;:8480/insert/&lt;accountID&gt;/&lt;suffix&gt;</code><br>,<code>http://&lt;vmselect&gt;:8481/select/&lt;accountID&gt;/prometheus/&lt;suffix&gt;</code><br>等.</p>
+<ul>
+<li><p>每个 accountID 和 projectID 由范围 [0 .. 2^32) 中的任意 32 位整数标识。如果不指定，则默自动分配为 0.</p>
+</li>
+<li><p>当第一个数据点写入给定租户时，会自动创建租户</p>
+</li>
+<li><p>所有租户的数据均匀分布在可用的 vmstorage 节点中。这保证了当不同租户具有不同的数据量和不同的查询负载时，vmstorage 节点之间的负载均匀</p>
+</li>
+<li><p>数据库性能依赖于租户的数量，主要取决于所有租户中活动的时间序列的总数.</p>
+</li>
+<li><p>VictoriaMetrics 不支持在单个请求中查询多个租户</p>
+</li>
+</ul>
+<ol>
+<li>支持数据副本</li>
+</ol>
+<p>默认情况下，VictoriaMetrics 将副本写入到 <code>-storageDataPath</code><br>指向的底层存储.</p>
+<p>可以通过 <code>vminsert</code><br>指定 <code>-replicationFactor=N</code><br>标志位来启用数据副本。这保证在最多 <code>N-1</code><br>个 vmstorage 节点不可用时，所有数据扔可用于查询。集群必须至少包含 <code>2*N-1</code><br>个 vmstorage 节点.</p>
+<p>启用复制后，<code>vmselect</code><br>必须指定 <code>-dedup.minScrapeInterval=1ms</code><br>命令行标志.</p>
+<h3 id="快速部署"><a href="#快速部署" class="headerlink" title="快速部署"></a>快速部署</h3><p>使用 3 个节点部署相关服务。节点 IP 分别为 IP1, IP2, IP3</p>
+<p>在每个节点上运行如下脚本来启动 <code>vmstroage</code><br>,<code>vminsert</code><br>,<code>vmselect</code>  </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/bash</span><br><span class="line"></span><br><span class="line">victoria_home=&quot;/data1/victoria-metrics&quot;</span><br><span class="line">bin=$&#123;victoria_home&#125;/bin</span><br><span class="line">conf=$&#123;victoria_home&#125;/conf</span><br><span class="line">data=$&#123;victoria_home&#125;/data</span><br><span class="line">log=$&#123;victoria_home&#125;/log</span><br><span class="line"></span><br><span class="line">LOG_LEVEL=INFO</span><br><span class="line">TIMEZONE=&quot;Asia/Shanghai&quot;</span><br><span class="line"></span><br><span class="line">cd $&#123;victoria_home&#125;</span><br><span class="line"></span><br><span class="line">$&#123;bin&#125;/vmstorage-prod \</span><br><span class="line">  -httpListenAddr &quot;nodeIP:8482&quot; \</span><br><span class="line">  -storageDataPath $&#123;data&#125; \</span><br><span class="line">  -retentionPeriod 30d \</span><br><span class="line">  -vminsertAddr &quot;nodeIP:8400&quot; \  # insert 端口,由 vminsert 连接</span><br><span class="line">  -vmselectAddr &quot;nodeIP:8401&quot; \   # select 端口,由 vmselect 连接</span><br><span class="line">  -loggerTimezone $&#123;TIMEZONE&#125; \</span><br><span class="line">  -loggerLevel $&#123;LOG_LEVEL&#125; &amp;&gt; $&#123;log&#125;/storage.log &amp;</span><br><span class="line"></span><br><span class="line">$&#123;bin&#125;/vminsert-prod \</span><br><span class="line">  -httpListenAddr &quot;nodeIP:8480&quot; \</span><br><span class="line">  -storageNode IP1:8400,IP2:8400,IP3:8400 \</span><br><span class="line">  -loggerTimezone $&#123;TIMEZONE&#125; \</span><br><span class="line">  -loggerLevel $&#123;LOG_LEVEL&#125; &amp;&gt; $&#123;log&#125;/insert.log &amp;</span><br><span class="line"></span><br><span class="line">$&#123;bin&#125;/vmselect-prod \</span><br><span class="line">  -httpListenAddr &quot;nodeIP:8481&quot; \</span><br><span class="line">  -selectNode IP1:8481,IP2:8481,IP3:8481 \</span><br><span class="line">  -storageNode IP1:8401,IP2:8401,IP3:8401 \</span><br><span class="line">  -loggerTimezone $&#123;TIMEZONE&#125; \</span><br><span class="line">  -loggerLevel $&#123;LOG_LEVEL&#125; &amp;&gt; $&#123;log&#125;/select.log &amp;</span><br></pre></td></tr></table></figure>
+
+<p>启动后，可以分别配置 Prometheus 和 Grafana 对 metrics 数据写入读取。详见官方文档</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># prometheus.yml</span><br><span class="line">remote_write:</span><br><span class="line">  - url: &quot;http://&lt;vminsert&gt;:8480/insert/&lt;accountID&gt;/&lt;suffix&gt;&quot;</span><br><span class="line">   # accountID 默认为 0</span><br><span class="line">   # suffix 可以为 `prometheus` 或 `prometheus/api/v1/write`</span><br><span class="line">    write_relabel_configs:</span><br><span class="line">      - source_labels: [__name__]</span><br><span class="line">        regex: &#x27;go_.*&#x27;</span><br><span class="line">        action: drop</span><br></pre></td></tr></table></figure>
+
+<p>Grafana 数据源地址可配置为 <code>http://&lt;vmselect&gt;:8481/select/&lt;accountID&gt;/prometheus</code><br>. 此时 <code>accountID</code><br>必须与 <code>prometheus.yml</code><br>中配置的 <code>accountID</code><br>一致.</p>
+<p>最后可使用 <code>vmauth</code><br>对数据读取时进行验证，保证数据安全性.</p>
+<hr>
+<h2 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h2><ul>
+<li><p><a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/">https://docs.victoriametrics.com/</a></p>
+</li>
+<li><p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/368912946">https://zhuanlan.zhihu.com/p/368912946</a></p>
+</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/06/Prometheus%E8%BF%9C%E7%A8%8B%E5%AD%98%E5%82%A8-VictoriaMetrics-%E7%AE%80%E4%BB%8B/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/06/%E6%B5%85%E8%B0%88-Kubernetes-Service/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">浅谈 Kubernetes Service</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
