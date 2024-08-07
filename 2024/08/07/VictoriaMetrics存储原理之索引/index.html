@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>VictoriaMetrics存储原理之索引 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-VictoriaMetrics存储原理之索引"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  VictoriaMetrics存储原理之索引
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/07/VictoriaMetrics%E5%AD%98%E5%82%A8%E5%8E%9F%E7%90%86%E4%B9%8B%E7%B4%A2%E5%BC%95/" class="article-date">
+  <time datetime="2024-08-07T02:24:39.000Z" itemprop="datePublished">2024-08-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">6.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">27 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>我们来分析下当 <code>vmstorage</code> 接收到数据后是如何保存监控指标的。</p>
+<p>现在我们使用 <code>csv</code><br>来导入一行指标数据，直接使用下面的请求即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -d &quot;GOOG,1.23,4.56,NYSE&quot; &#x27;http://127.0.0.1:8480/insert/0/prometheus/api/v1/import/csv?format=2:metric:ask,3:metric:bid,1:label:ticker,4:label:market&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>执行上面的请求后，在 <code>vmstorage</code><br>组件下面会收到如下所示的一些日志信息：<img src="/images/1722997415-24dac86d69a2fa15ea367f59474d08d2.png"></p>
+<p>同时在数据目录 <code>vmstorage-data</code><br>下面也多了一个 <code>cache</code><br>目录，而且 <code>data</code><br>下面的 <code>small</code><br>目录和 <code>indexdb</code><br>目录下面也生成了一些文件，这些文件就是用来存储指标数据的。<img src="/images/1722997415-8d6f1f6bf189b894e7ce19f4601d0c46.png"></p>
+<p>接下来我们就来仔细分析下这些文件是干什么的，以及这些文件的存储格式是怎样的。</p>
+<p>要想弄明白 <code>vmstorage</code><br>是如何去存储数据的，首先我们要先弄明白几个概念。</p>
+<h3 id="存储格式"><a href="#存储格式" class="headerlink" title="存储格式"></a>存储格式</h3><p>下图是 VictoriaMetrics 支持的 Prometheus 协议的一个写入示例。<img src="/images/1722997415-43f51aa58ea7059b31a7c1816123e59e.png"></p>
+<p>VM 在收到写入请求时，会对请求中包含的时序数据做转换处理。首先根据包含 metric 和 labels 的 MetricName 生成一个唯一标识 <code>TSID</code><br>，然后 <code>metric(指标名称__name__) + labels + TSID</code><br>作为索引 index，<code>TSID + timestamp + value</code><br>作为数据 data，最后索引 index 和数据 data 分别进行存储和检索。<img src="/images/1722997415-e7ea890b6990cb3f9028ed7aa40bcb5c.png"></p>
+<p>因此 VM 的数据整体上分成<strong>索引和数据</strong>两个部分，因此文件格式整体上会有两个部分，其中<strong>索引部分主要是用于支持按照 label 或者 tag 进行多维检索</strong>，数据存储时，先将数据按 TSID 进行分组，然后每个 TSID 包含的数据点各自使用列式压缩存储。</p>
+<h3 id="TSID"><a href="#TSID" class="headerlink" title="TSID"></a>TSID</h3><p>VictoriaMetrics 的 <code>MetricName</code><br>的结构如下所示，包含 <code>MetricGroup（指标名称 __name__）</code><br>和 Tag 数组，其中，Tags 是可选的，每个 Tag 由 Key 和 Value 等字节数组构成。<img src="/images/1722997415-c0eea49bd551237ec79f5f2d483957ae.png"></p>
+<p>为了规范，Tags 必须按标签 Key 排序，使用 sortTags 方法。<img src="/images/1722997415-c04a99857cb5b22366a774a515801ad8.png"></p>
+<p>VictoriaMetrics 的 TSID 的结构如下所示，包含 <code>MetricGroupID</code><br>、<code>JobID</code><br>、<code>InstanceID</code><br>、<code>MetricID</code><br>等几个字段，其中除了 MetricID 外，其他字段都是可选的。这个几个 ID 的生成方法如下：</p>
+<ul>
+<li><p><code>MetricGroupID</code><br>是根据 <code>MetricName</code><br>中的 <code>MetricGroup</code><br>使用 <code>xxhash</code><br>的 sum64 算法生成。</p>
+</li>
+<li><p><code>JobID</code><br>和 <code>InstanceID</code><br>分别由 <code>MetricName</code><br>中的第一个 tag 和第二个 tag 使用 <code>xxhash</code><br>的 sum64 算法生成。为什么使用第一个 tag 和第二个 tag？这是因为 VictoriaMetrics 在写入时，将写入请求中的 JobID 和 InstanceID 放在了 Tag 数组的第一个和第二个位置。</p>
+</li>
+<li><p><code>MetricID</code><br>，使用 VictoriaMetrics 进程启动时的系统纳秒时间戳自增生成。</p>
+</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/tsid.go</span><br><span class="line"></span><br><span class="line">// TSID 是一个时间序列的唯一 ID，实际上就是唯一标识一个时间序列的结构体。</span><br><span class="line">//</span><br><span class="line">// 时间序列会根据 TSID 进行排序。</span><br><span class="line">//</span><br><span class="line">// 除了 MetricID 之外其他属性都是可选的。 它们的存在仅仅是为了更好地对相关指标进行分组。</span><br><span class="line">// 如果它们的含义与它们的命名不同，那也没关系。</span><br><span class="line">type TSID struct &#123;</span><br><span class="line">    AccountID uint32</span><br><span class="line">    ProjectID uint32 // 下面分析的时候可以暂时忽略这两个属性，用于多租户标识的属性</span><br><span class="line"></span><br><span class="line">    // MetricGroupID（指标组ID）对于指定的(AccountID, ProjectID)必须是唯一的。</span><br><span class="line">    //</span><br><span class="line">    // Metric Group 包含具有相同名称的指标，例如 “memory_usage”、“http_requests”，但具有不同的标签。</span><br><span class="line">    // 例如，下面的这些指标属于 memory_usage 这个指标组:</span><br><span class="line">    //</span><br><span class="line">    //   memory_usage&#123;datacenter=&quot;foo1&quot;, job=&quot;bar1&quot;, instance=&quot;baz1:1234&quot;&#125;</span><br><span class="line">    //   memory_usage&#123;datacenter=&quot;foo1&quot;, job=&quot;bar1&quot;, instance=&quot;baz2:1234&quot;&#125;</span><br><span class="line">    //   memory_usage&#123;datacenter=&quot;foo1&quot;, job=&quot;bar2&quot;, instance=&quot;baz1:1234&quot;&#125;</span><br><span class="line">    //   memory_usage&#123;datacenter=&quot;foo2&quot;, job=&quot;bar1&quot;, instance=&quot;baz2:1234&quot;&#125;</span><br><span class="line">    MetricGroupID uint64</span><br><span class="line"></span><br><span class="line">  // JobID 是给定项目的单个作业（又名服务）的 ID。</span><br><span class="line">    //</span><br><span class="line">    // JobID 对于指定的(AccountID, ProjectID)必须是唯一的。</span><br><span class="line">    //</span><br><span class="line">    // 一个 Job 任务可能由多个实例组成。</span><br><span class="line">    // See https://prometheus.io/docs/concepts/jobs_instances/ for details.</span><br><span class="line">    JobID uint32</span><br><span class="line"></span><br><span class="line">    // InstanceID 是实例（进程）ID，对于特定的(AccountID, ProjectID)必须是唯一的。</span><br><span class="line">    InstanceID uint32</span><br><span class="line"></span><br><span class="line">    // MetricID 是指标（时间序列）的唯一ID。</span><br><span class="line">    //</span><br><span class="line">    // 其他所有的 TSID 字段都可以通过 MetricID 获取。</span><br><span class="line">    MetricID uint64</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>因为 TSID 中除了 MetricID 外，其他字段都是可选的，因此 TSID 中可以始终作为有效信息的只有 MetricID，因此 VictoriaMetrics 的在构建 tag 到 TSID 的字典过程中，是直接存储的 tag 到 MetricID 的字典。</p>
+<p>以写入 <code>http_requests_total&#123;status=&quot;200&quot;, method=&quot;GET&quot;&#125;</code><br>为例，则 MetricName 为 <code>http_requests_total&#123;status=&quot;200&quot;, method=&quot;GET&quot;&#125;</code><br>，假设生成的 TSID 为 <code>&#123;metricGroupID=0, jobID=0, instanceID=0, metricID=51106185174286&#125;</code><br>，则 VictoriaMetrics 在写入时就构建了如下几种类型的索引 item，其他类型的索引 item 是在后台或者查询时构建的。</p>
+<ul>
+<li><p><code>metricName -&gt; TSID</code><br>, 即 <code>http_requests_total&#123;status=&quot;200&quot;, method=&quot;GET&quot;&#125; -&gt; &#123;metricGroupID=0, jobID=0, instanceID=0, metricID=51106185174286&#125;</code>  </p>
+</li>
+<li><p><code>metricID -&gt; metricName</code><br>，即 <code>51106185174286 -&gt; http_requests_total&#123;status=&quot;200&quot;, method=&quot;GET&quot;&#125;</code>  </p>
+</li>
+<li><p><code>metricID -&gt; TSID</code><br>，即 <code>51106185174286 -&gt; &#123;metricGroupID=0, jobID=0, instanceID=0, metricID=51106185174286&#125;</code>  </p>
+</li>
+<li><p><code>tag -&gt; metricID</code><br>，即 <code>status=&quot;200&quot; -&gt; 51106185174286</code><br>、<code>method=&quot;GET&quot; -&gt; 51106185174286</code><br>、<code>&quot;__name__&quot; = http_requests_total -&gt; 51106185174286</code><br>（其实还有一个联合索引）</p>
+</li>
+</ul>
+<p>有了这些索引的 item 后，就可以支持基于 tag 的多维检索了，在当给定查询条件 <code>http_requests_total&#123;status=&quot;200&quot;&#125;</code><br>时，VictoriaMetrics 先根据给定的 tag 条件，找出每个 tag 的 metricID 列表，然后计算所有 tag 的 metricID 列表的交集，然后根据交集中的 metricID，再到索引文件中检索出 TSID，根据 TSID 就可以到数据文件中查询数据了，在返回结果之前，再根据 TSID 中的 metricID，到索引文件中检索出对应的写入时的原始 MetircName。</p>
+<p>但是由于 VictoriaMetrics 的 tag 到 metricID 的字典，没有将相同 tag 的所有 metricID 放在一起存储，在检索时，一个 tag 可能需要查询多次才能得到完整的 metricID 列表。另外查询出 metricID 后，还要再到索引文件中去检索 TSID 才能去数据文件查询数据，又增加了一次 IO 开销。这样来看的话，VictoriaMetrics 的索引文件在检索时，如果命中的时间线比较多的情况下，其 IO 开销会比较大，查询延迟也会比较高。</p>
+<p>这里我们了解了 <code>TSID</code><br>这个非常重要的概念，还有几个结构体需要我们了解下，比如 <code>rawRow</code><br>表示一个原始的时间序列行，<code>MetricRow</code><br>表示插入到存储中的指标数据：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/raw_row.go</span><br><span class="line"></span><br><span class="line">// rawRow 表示一个原始的时间序列行</span><br><span class="line">type rawRow struct &#123;  </span><br><span class="line">   TSID TSID  // 时间序列ID</span><br><span class="line">  </span><br><span class="line">   Timestamp int64  // 时间戳</span><br><span class="line">  </span><br><span class="line">   Value float64  // 给定时间戳的时间序列值</span><br><span class="line">  </span><br><span class="line">   // PrecisionBits是要存储的值中的有效位数，可能值为 [1..64]</span><br><span class="line">   // 1 表示最大. 50% error, 2 - 25%, 3 - 12.5%, 64 没有错误, i.e.   </span><br><span class="line">   // 存储的值不会丢失精度</span><br><span class="line">   PrecisionBits uint8  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// libe/storage/storage.go</span><br><span class="line">// MetricRow 插入到存储中的指标</span><br><span class="line">type MetricRow struct &#123;  </span><br><span class="line">   // MetricNameRaw 包含原始的指标名称，必须使用 metricne.UnmarshalRaw 对其进行解码。 </span><br><span class="line">   MetricNameRaw []byte  </span><br><span class="line">  </span><br><span class="line">   Timestamp int64  </span><br><span class="line">   Value     float64  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h3 id="插入指标"><a href="#插入指标" class="headerlink" title="插入指标"></a>插入指标</h3><p>有了上面几个概念的认识，现在我们回过头再去看下 <code>vmstorage</code><br>中对 <code>vminsert</code><br>请求的处理：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">// app/vmstorage/transport/server.go</span><br><span class="line">func (s *Server) processVMInsertConn(bc *handshake.BufferedConn) error &#123;  </span><br><span class="line">   return clusternative.ParseStream(bc, func(rows []storage.MetricRow) error &#123;  </span><br><span class="line">      vminsertMetricsRead.Add(len(rows))  </span><br><span class="line">      return s.storage.AddRows(rows, uint8(*precisionBits))  </span><br><span class="line">   &#125;, s.storage.IsReadOnly)  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>当 <code>vmstorage</code><br>节点接收到数据后，最后会通过回调执行 <code>s.storage.AddRows(rows, uint8(*precisionBits))</code><br>，该函数将数据添加到底层存储去：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/storage.go</span><br><span class="line"></span><br><span class="line">// AddRows 添加 mrs 集合到存储 s</span><br><span class="line">func (s *Storage) AddRows(mrs []MetricRow, precisionBits uint8) error &#123;  </span><br><span class="line">   if len(mrs) == 0 &#123;  </span><br><span class="line">      return nil  </span><br><span class="line">   &#125;  </span><br><span class="line">  </span><br><span class="line">   // 限制可能向存储添加行的并发 goroutine 数量  </span><br><span class="line">   // 当太多的 goroutine 调用 AddRows 时，这应该可以防止内存不足错误和 CPU 抖动。  </span><br><span class="line">   select &#123;  </span><br><span class="line">   // 如果写入 channel 成功，说明并发小于 CPU 最大核数，然后就可以走插入逻辑  </span><br><span class="line">   // 如果没写入成功（也就是满了），则执行default case  </span><br><span class="line">   case addRowsConcurrencyCh &lt;- struct&#123;&#125;&#123;&#125;:  </span><br><span class="line">   default: // 如果插入 channel 失败，说明某个 insert 操作的协程被阻塞，这时需要通知 select 协程去让出。  </span><br><span class="line">      atomic.AddUint64(&amp;s.addRowsConcurrencyLimitReached, 1)  </span><br><span class="line">      t := timerpool.Get(addRowsTimeout) // 获取一个30s超时的timer  </span><br><span class="line">  </span><br><span class="line">      // 数据摄取优先级高于并发搜索  </span><br><span class="line">  </span><br><span class="line">      // pacelimiter（步长限制器）中有个原子累加的变量，表示有多少个 insert 操作在等待  </span><br><span class="line">      // 走到这里证明有一个 insert 操作被阻塞了，调用 Inc，表示需要（Search操作）等待  </span><br><span class="line">      storagepacelimiter.Search.Inc()  </span><br><span class="line">  </span><br><span class="line">      select &#123; // 写入不成功或者还未超时就会阻塞在这里了  </span><br><span class="line">      // 在超时的30s时间内，尝试去写入 channel 队列  </span><br><span class="line">      case addRowsConcurrencyCh &lt;- struct&#123;&#125;&#123;&#125;:  </span><br><span class="line">         timerpool.Put(t) // 把 timer 放回对象池，减少 GC         </span><br><span class="line">         // 可以成功写入 channel 了，那么可以执行 insert 操作了，则执行限制器的 Dec 操作，减一  </span><br><span class="line">         storagepacelimiter.Search.Dec()  </span><br><span class="line">         // 当限制器的等待数量为0的时候，会调用 cond.Broadcast() 去通知 select 协程开始工作。  </span><br><span class="line">      case &lt;-t.C: // 到30s超时时间了  </span><br><span class="line">         // 把 timer 放回对象池，减少 GC         timerpool.Put(t)  </span><br><span class="line">         // 超时了那么当前的 insert 就报错了，等待的数量就可以减一了  </span><br><span class="line">         storagepacelimiter.Search.Dec()  </span><br><span class="line">         atomic.AddUint64(&amp;s.addRowsConcurrencyLimitTimeout, 1)               // 记录下超时次数  </span><br><span class="line">         atomic.AddUint64(&amp;s.addRowsConcurrencyDroppedRows, uint64(len(mrs))) // 记录没有被插入成功的 mr 数量  </span><br><span class="line">         // 等待了30秒仍然没有CPU资源，只能报错  </span><br><span class="line">         return fmt.Errorf(&quot;cannot add %d rows to storage in %s, since it is overloaded with %d concurrent writers; add more CPUs or reduce load&quot;,  </span><br><span class="line">            len(mrs), addRowsTimeout, cap(addRowsConcurrencyCh))  </span><br><span class="line">      &#125;  </span><br><span class="line">   &#125;  </span><br><span class="line">  </span><br><span class="line">   // 下面是插入逻辑  </span><br><span class="line">   // 一次插入不要太大  </span><br><span class="line">   var firstErr error  </span><br><span class="line">   ic := getMetricRowsInsertCtx()  </span><br><span class="line">   maxBlockLen := len(ic.rrs)  </span><br><span class="line">   for len(mrs) &gt; 0 &#123;  </span><br><span class="line">      mrsBlock := mrs  </span><br><span class="line">      // 如果要插入的 mrs 超过了最大长度  </span><br><span class="line">      if len(mrs) &gt; maxBlockLen &#123;  </span><br><span class="line">         // 则先插入最大长度的 mrs         mrsBlock = mrs[:maxBlockLen]  </span><br><span class="line">         // 剩下的 mrs 下次循环去处理  </span><br><span class="line">         mrs = mrs[maxBlockLen:]  </span><br><span class="line">      &#125; else &#123;  </span><br><span class="line">         mrs = nil  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 执行真正的 add 操作  </span><br><span class="line">      if err := s.add(ic.rrs, ic.tmpMrs, mrsBlock, precisionBits); err != nil &#123;  </span><br><span class="line">         if firstErr == nil &#123;  </span><br><span class="line">            firstErr = err  </span><br><span class="line">         &#125;  </span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 记录下插入成功的 mrs 数量  </span><br><span class="line">      atomic.AddUint64(&amp;rowsAddedTotal, uint64(len(mrsBlock)))  </span><br><span class="line">   &#125;  </span><br><span class="line">   // 放回对象池  </span><br><span class="line">   putMetricRowsInsertCtx(ic)  </span><br><span class="line">  </span><br><span class="line">   &lt;-addRowsConcurrencyCh // insert 逻辑执行完成后，出队  </span><br><span class="line">  </span><br><span class="line">   return firstErr  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该函数的实现<strong>非常经典</strong>，会限制可能向存储添加数据的并发 goroutine 数量，当太多的 goroutine 调用 AddRows 时，可以防止内存不足错误和 CPU 抖动。这里实现了插入比查询更高的优先级，当资源不足时，查询操作会挂起让出资源给到插入操作使用。</p>
+<h3 id="获取-TSID"><a href="#获取-TSID" class="headerlink" title="获取 TSID"></a>获取 TSID</h3><p>真正实现添加数据是下面的 <code>add</code><br>函数，其中 <code>rawRow</code><br>是原始的时序数据行，<code>MetricRow</code><br>是要插入到存储中的行数据，该函数的核心就是要生成指标序列的 TSID 数据，如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/storage.go</span><br><span class="line">func (s *Storage) add(rows []rawRow, dstMrs []*MetricRow, mrs []MetricRow, precisionBits uint8) error &#123;  </span><br><span class="line">   // 当前使用的索引</span><br><span class="line">   idb := s.idb()  </span><br><span class="line">   j := 0  </span><br><span class="line">   var (  </span><br><span class="line">      // 这些变量用于加速同一 metricName 的多个相邻行的批量导入。</span><br><span class="line">      prevTSID          TSID  </span><br><span class="line">      prevMetricNameRaw []byte  </span><br><span class="line">   )  </span><br><span class="line">   var pmrs *pendingMetricRows  </span><br><span class="line">   // 获取该数据块的最小时间和最大时间</span><br><span class="line">   minTimestamp, maxTimestamp := s.tb.getMinMaxTimestamps()  </span><br><span class="line"></span><br><span class="line">   // 带有第几代索引信息的 TSID 对象</span><br><span class="line">   var genTSID generationTSID  </span><br><span class="line">  </span><br><span class="line">   // 只返回第一个错误，因为它返回所有错误没有意义</span><br><span class="line">   var firstWarn error  </span><br><span class="line">   // 循环数据行，其实就是填充 rawRow 中的 TSID 数据</span><br><span class="line">   for i := range mrs &#123;  </span><br><span class="line">      mr := &amp;mrs[i]  </span><br><span class="line">      if math.IsNaN(mr.Value) &#123;  // 值为 NaN</span><br><span class="line">         if !decimal.IsStaleNaN(mr.Value) &#123;  </span><br><span class="line">            // 跳过 Prometheus staleness 标记以外的 NaN</span><br><span class="line">            // 因为底层编码不知道如何使用它们。</span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 如果指标的时间戳小于最小的时间戳</span><br><span class="line">      // 则跳过保留期外时间戳过小的行</span><br><span class="line">      if mr.Timestamp &lt; minTimestamp &#123;  </span><br><span class="line">         ......</span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 同样跳过超过最大时间戳的数据</span><br><span class="line">      if mr.Timestamp &gt; maxTimestamp &#123;  </span><br><span class="line">         ...... </span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line">      dstMrs[j] = mr  </span><br><span class="line">      r := &amp;rows[j]  </span><br><span class="line">      j++  </span><br><span class="line">      r.Timestamp = mr.Timestamp  </span><br><span class="line">      r.Value = mr.Value  </span><br><span class="line">      r.PrecisionBits = precisionBits  </span><br><span class="line">      // 快速路径 - 当前 mr 包含与前一 mr 相同的指标名称，因此它包含相同的 TSID。</span><br><span class="line">      if string(mr.MetricNameRaw) == string(prevMetricNameRaw) &#123;  </span><br><span class="line">         // 当许多行包含相同的 MetricNameRaw 时，应在批量导入时触发此路径。   </span><br><span class="line">         r.TSID = prevTSID  </span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 判断 TSID 是否在缓存中（命中缓存）</span><br><span class="line">      if s.getTSIDFromCache(&amp;genTSID, mr.MetricNameRaw) &#123;  </span><br><span class="line">         r.TSID = genTSID.TSID  </span><br><span class="line">         // 跳过该行，因为已超出唯一序列数的限制。</span><br><span class="line">         if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) &#123;  </span><br><span class="line">            j--  </span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">         // 快速路径 - 给定 MetricNameRaw 的 TSID 已在缓存中找到，并且未删除。</span><br><span class="line">         // 不需要检查 r.TSID.MetricID 是否已删除，因为 tsidCache 不包含已删除时间序列的 MetricName -&gt; TSID 条目，可以查看 Storage.DeleteMetrics 的代码       </span><br><span class="line">         prevTSID = r.TSID  // 设置前一个 TSID 的值</span><br><span class="line">         prevMetricNameRaw = mr.MetricNameRaw  // 设置前一个 MetricNameRaw 的值</span><br><span class="line"></span><br><span class="line">         // 找到的TSID不是当前代的索引（来自上一代缓存下来的索引）</span><br><span class="line">         if genTSID.generation != idb.generation &#123;  </span><br><span class="line">            // 索引需要尝试使用该 TSID 重新填充当前代的索引数据</span><br><span class="line">            // https://github.com/VictoriaMetrics/VictoriaMetrics/issues/1401            </span><br><span class="line">            created, err := idb.maybeCreateIndexes(&amp;genTSID.TSID, mr.MetricNameRaw)  </span><br><span class="line">            if err != nil &#123;  </span><br><span class="line">               return fmt.Errorf(&quot;cannot create indexes in the current indexdb: %w&quot;, err)  </span><br><span class="line">            &#125;  </span><br><span class="line">            if created &#123;  </span><br><span class="line">               // 如果填充成功，则将当前的 TSID 设置为当前代索引</span><br><span class="line">               genTSID.generation = idb.generation  </span><br><span class="line">               // 重新将该 TSID -&gt; MetricNameRaw 数据放回缓存，方便后面的序列处理</span><br><span class="line">               s.putTSIDToCache(&amp;genTSID, mr.MetricNameRaw)  </span><br><span class="line">            &#125;  </span><br><span class="line">         &#125;  </span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line"></span><br><span class="line">      // 慢速路径 - 缓存中缺少TSID</span><br><span class="line">      // 在下面的循环中推迟搜索</span><br><span class="line">      j--  </span><br><span class="line">      if pmrs == nil &#123;  </span><br><span class="line">         // 初始化 pendingMetricRows</span><br><span class="line">         pmrs = getPendingMetricRows()  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 将 mr 数据添加到 pendingMetricRows 中去待处理</span><br><span class="line">      if err := pmrs.addRow(mr); err != nil &#123; </span><br><span class="line">         // 错误时不要停止添加数据 - 只需跳过无效行即可。 </span><br><span class="line">         // 这保证了无效行不会阻止将有效行添加到存储中去。    </span><br><span class="line">         if firstWarn == nil &#123;  </span><br><span class="line">            firstWarn = err  </span><br><span class="line">         &#125;  </span><br><span class="line">         continue  </span><br><span class="line">      &#125;  </span><br><span class="line">   &#125;  </span><br><span class="line">   // 有指标的 TSID 没有在缓存中（上面的慢速路径）</span><br><span class="line">   if pmrs != nil &#123;   </span><br><span class="line">      // 按指标名称对 pendingMetricRows 进行排序，以便通过下面循环中的 “is” 加快搜索速度。</span><br><span class="line">      pendingMetricRows := pmrs.pmrs  </span><br><span class="line">      sort.Slice(pendingMetricRows, func(i, j int) bool &#123;  </span><br><span class="line">         return string(pendingMetricRows[i].MetricName) &lt; string(pendingMetricRows[j].MetricName)  </span><br><span class="line">      &#125;)  </span><br><span class="line">      // </span><br><span class="line">      is := idb.getIndexSearch(0, 0, noDeadline)  </span><br><span class="line">      prevMetricNameRaw = nil  // 接收前一个 MetricNameRaw</span><br><span class="line">      var slowInsertsCount uint64  </span><br><span class="line">      for i := range pendingMetricRows &#123;  </span><br><span class="line">         pmr := &amp;pendingMetricRows[i]  </span><br><span class="line">         mr := pmr.mr  // MetricRaw </span><br><span class="line">         dstMrs[j] = mr  </span><br><span class="line">         r := &amp;rows[j]  </span><br><span class="line">         j++  </span><br><span class="line">         r.Timestamp = mr.Timestamp  </span><br><span class="line">         r.Value = mr.Value  </span><br><span class="line">         r.PrecisionBits = precisionBits  </span><br><span class="line">         // 快速路径 - 当前 mr 包含与前一个 mr 相同的指标名称，因此它包含相同的 TSID。</span><br><span class="line">         if string(mr.MetricNameRaw) == string(prevMetricNameRaw) &#123;  </span><br><span class="line">            // 当许多行包含相同的 MetricNameRaw 时，在批量导入时会触发该路径。           </span><br><span class="line">            r.TSID = prevTSID  </span><br><span class="line">            if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) &#123;  </span><br><span class="line">               // 跳过该行，因为已超出唯一序列数的限制</span><br><span class="line">               j--  </span><br><span class="line">               continue  </span><br><span class="line">            &#125;  </span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">         // 慢速路径</span><br><span class="line">         slowInsertsCount++  // 记录慢插入次数</span><br><span class="line">         // 通过 MetricName 去获取（没有就创建）TSID 数据</span><br><span class="line">         if err := is.GetOrCreateTSIDByName(&amp;r.TSID, pmr.MetricName); err != nil &#123;</span><br><span class="line">            if firstWarn == nil &#123;  </span><br><span class="line">               firstWarn = fmt.Errorf(&quot;cannot obtain or create TSID for MetricName %q: %w&quot;, pmr.MetricName, err)  </span><br><span class="line">            &#125;  </span><br><span class="line">            j--  </span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">         // 设置 genTSID 为当前生成的 TSID</span><br><span class="line">         genTSID.generation = idb.generation  </span><br><span class="line">         genTSID.TSID = r.TSID  </span><br><span class="line">         // 返回缓存</span><br><span class="line">         s.putTSIDToCache(&amp;genTSID, mr.MetricNameRaw) </span><br><span class="line">         // 缓存当前的 TSID 和 MetricNameRaw，方便下一条序列快速处理</span><br><span class="line">         prevTSID = r.TSID  </span><br><span class="line">         prevMetricNameRaw = mr.MetricNameRaw  </span><br><span class="line">         if s.isSeriesCardinalityExceeded(r.TSID.MetricID, mr.MetricNameRaw) &#123;  </span><br><span class="line">            // 跳过该行，因为已超出唯一序列数的限制</span><br><span class="line">            j--  </span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 回收对象</span><br><span class="line">      idb.putIndexSearch(is)  </span><br><span class="line">      putPendingMetricRows(pmrs)  </span><br><span class="line">      atomic.AddUint64(&amp;s.slowRowInserts, slowInsertsCount)  </span><br><span class="line">   &#125; </span><br><span class="line">   // 提示错误信息 </span><br><span class="line">   if firstWarn != nil &#123;  </span><br><span class="line">      logger.WithThrottler(&quot;storageAddRows&quot;, 5*time.Second).Warnf(&quot;warn occurred during rows addition: %s&quot;, firstWarn)  </span><br><span class="line">   &#125;  </span><br><span class="line">   dstMrs = dstMrs[:j]  </span><br><span class="line">   rows = rows[:j]  </span><br><span class="line"></span><br><span class="line">   // TSID 填充完成，可以插入数据了</span><br><span class="line">   var firstError error  </span><br><span class="line">   if err := s.tb.AddRows(rows); err != nil &#123;  </span><br><span class="line">      firstError = fmt.Errorf(&quot;cannot add rows to table: %w&quot;, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   if err := s.updatePerDateData(rows, dstMrs); err != nil &amp;&amp; firstError == nil &#123;  </span><br><span class="line">      firstError = fmt.Errorf(&quot;cannot update per-date data: %w&quot;, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   if firstError != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;error occurred during rows addition: %w&quot;, firstError)  </span><br><span class="line">   &#125;  </span><br><span class="line">   return nil  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>首先循环数据，把时间戳过小或过大的都过滤掉，然后就是想办法尽可能快地获取到指标的 TSID：</p>
+<ul>
+<li><p><strong>快速路径</strong> - 当前 MetricRow 包含与前一 MetricRow 相同的指标名称，因此它们具有相同的 TSID，所以直接将当前对象的 TSID 设置成前一个 TSID，这是最快的方式。</p>
+</li>
+<li><p>如果和前一个指标名称不一样，则去查看 genTSID 是否在缓存中（命中缓存）</p>
+</li>
+<li><p>如果命中缓存则 genTSID 中的 TSID 就是我们需要的，同时也将其设置为前一个 prevTSID。如果该 TSID 不是当代的索引（来自上一代缓存下来的索引），则需要尝试使用该 TSID 重新填充当代的索引数据，这和索引轮换有关，后面会详细说明。</p>
+</li>
+<li><p>如果没有命中缓存，则属于慢速路径，将当前数据添加到 <code>pendingMetricRows</code><br>中去待处理</p>
+</li>
+<li><p>循环了所有指标数据后，接下来需要处理 <code>pendingMetricRows</code><br>中的数据，也就是缓存中没有对应的 TSID，此时就需要我们去生成对应的 TSID 数据。</p>
+</li>
+<li><p><strong>快速路径</strong> - 同样是当前 MetricRow 与前一个 MetricRow 的指标名称相同，因此它包含相同的 TSID，直接设置成前一个 TSID 即可。</p>
+</li>
+<li><p><strong>慢速路径</strong> - 走到这个分支则只能去创建 TSID 了，通过 MetricName 去获取（没有就创建）TSID 数据，也就是上面的 <code>GetOrCreateTSIDByName</code><br>函数。获取后记得放到缓存中去。</p>
+</li>
+</ul>
+<p>上面费了很大的功夫就是为了获取时间序列对应的 TSID 数据的，这也是插入数据过程中最可能出现<strong>慢插入</strong>的地方，因为该过程涉及到索引，比较耗时间，如果你插入的数据出现大量的高基数序列（比如包含一些随机生成的 ID 作为标签），则会大大降低 <code>vmstorage</code><br>的插入性能。</p>
+<p>我们可以去查看下 <code>GetOrCreateTSIDByName</code><br>函数的实现。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/index_db.go</span><br><span class="line"></span><br><span class="line">// GetOrCreateTSIDByName 使用指定 metricName 的 TSID 填充 dst。</span><br><span class="line">func (is *indexSearch) GetOrCreateTSIDByName(dst *TSID, metricName []byte) error &#123;  </span><br><span class="line">   // hack：在多次连续未命中后跳过 TSID 的搜索</span><br><span class="line">   // 这将提高大批量新时间序列的插入性能。</span><br><span class="line">   if is.tsidByNameMisses &lt; 100 &#123;  </span><br><span class="line">      err := is.getTSIDByMetricName(dst, metricName)  </span><br><span class="line">      if err == nil &#123;  </span><br><span class="line">         is.tsidByNameMisses = 0  </span><br><span class="line">         return nil  </span><br><span class="line">      &#125;  </span><br><span class="line">      if err != io.EOF &#123;  </span><br><span class="line">         return fmt.Errorf(&quot;cannot search TSID by MetricName %q: %w&quot;, metricName, err)  </span><br><span class="line">      &#125;  </span><br><span class="line">      is.tsidByNameMisses++  </span><br><span class="line">   &#125; else &#123;  </span><br><span class="line">      is.tsidByNameSkips++  </span><br><span class="line">      if is.tsidByNameSkips &gt; 10000 &#123;  </span><br><span class="line">         is.tsidByNameSkips = 0  </span><br><span class="line">         is.tsidByNameMisses = 0  </span><br><span class="line">      &#125;  </span><br><span class="line">   &#125;  </span><br><span class="line">  </span><br><span class="line">   // 找不到给定名称的 TSID，创建它。</span><br><span class="line">   // 如果 mn 的重复 TSID 是由并发 goroutines 创建的，那么这也是可以的。</span><br><span class="line">   // 指标结果将在表搜索 TableSearch 后由 mn 合并。</span><br><span class="line">   if err := is.db.createTSIDByName(dst, metricName); err != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;cannot create TSID by MetricName %q: %w&quot;, metricName, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   return nil  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 根据 metricName 去搜索 TSID</span><br><span class="line">func (is *indexSearch) getTSIDByMetricName(dst *TSID, metricName []byte) error &#123;  </span><br><span class="line">   dmis := is.db.s.getDeletedMetricIDs()  </span><br><span class="line">   ts := &amp;is.ts  // TableSearch</span><br><span class="line">   kb := &amp;is.kb  </span><br><span class="line">   kb.B = append(kb.B[:0], nsPrefixMetricNameToTSID)  // MetricName -&gt; TSID 的前缀</span><br><span class="line">   kb.B = append(kb.B, metricName...)  </span><br><span class="line">   kb.B = append(kb.B, kvSeparatorChar)  </span><br><span class="line">   ts.Seek(kb.B)  // Seek 查找 ts 中大于或等于 k 的第一项</span><br><span class="line">   for ts.NextItem() &#123;  // 循环查找</span><br><span class="line">      if !bytes.HasPrefix(ts.Item, kb.B) &#123;  // ts.Item 不是以 kb.B 为前缀</span><br><span class="line">         // 没找到 </span><br><span class="line">         return io.EOF  </span><br><span class="line">      &#125;  </span><br><span class="line">      v := ts.Item[len(kb.B):]  // 获得尾部的值</span><br><span class="line">      tail, err := dst.Unmarshal(v)  // 填充dst</span><br><span class="line">      if err != nil &#123;  </span><br><span class="line">         return fmt.Errorf(&quot;cannot unmarshal TSID: %w&quot;, err)  </span><br><span class="line">      &#125;  </span><br><span class="line">      if len(tail) &gt; 0 &#123;  // 尾部还有值</span><br><span class="line">         return fmt.Errorf(&quot;unexpected non-empty tail left after unmarshaling TSID: %X&quot;, tail)  </span><br><span class="line">      &#125;  </span><br><span class="line">      if dmis.Len() &gt; 0 &#123;  // 有标记删除的 MetricID 列表</span><br><span class="line">         // 验证 dst 是否标记为已删除。 </span><br><span class="line">         if dmis.Has(dst.MetricID) &#123;  </span><br><span class="line">            // dst 被删除了，继续搜索。</span><br><span class="line">            continue  </span><br><span class="line">         &#125;  </span><br><span class="line">      &#125;  </span><br><span class="line">      // 找到了有效的 dst </span><br><span class="line">      return nil  </span><br><span class="line">   &#125;  </span><br><span class="line">   if err := ts.Error(); err != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;error when searching TSID by metricName; searchPrefix %q: %w&quot;, kb.B, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   // 什么都没发现</span><br><span class="line">   return io.EOF  </span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>该函数会获取 <code>metricName</code><br>对应的 TSID，但是可能会出现多次连续未命中的情况，为了提高性能，这里做了一点 hack，如果连续未查询到 TSID 100 次则跳过搜索，就只能去创建 TSID 了，如果跳过了 10000 次则又重置可以重新去搜索。</p>
+<p>搜索 TSID 是通过下面的 <code>getTSIDByMetricName</code><br>函数来实现的，创建 TSID 是通过 <code>createTSIDByName</code><br>函数实现的。</p>
+<p>TSID 的生成方法如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/index_db.go</span><br><span class="line">// 根据指定的 metricName 创建 TSID</span><br><span class="line">func (db *indexDB) createTSIDByName(dst *TSID, metricName []byte) error &#123;  </span><br><span class="line">   mn := GetMetricName()  </span><br><span class="line">   defer PutMetricName(mn)  </span><br><span class="line">   if err := mn.Unmarshal(metricName); err != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;cannot unmarshal metricName %q: %w&quot;, metricName, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   </span><br><span class="line">   // 创建 TSID</span><br><span class="line">   created, err := db.getOrCreateTSID(dst, metricName, mn)  </span><br><span class="line">   if err != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;cannot generate TSID: %w&quot;, err)  </span><br><span class="line">   &#125;  </span><br><span class="line">   // TSID 创建后要创建索引，这一步是最耗时的</span><br><span class="line">   if err := db.createIndexes(dst, mn); err != nil &#123;  </span><br><span class="line">      return fmt.Errorf(&quot;cannot create indexes: %w&quot;, err)  </span><br><span class="line">   &#125;  </span><br><span class="line"></span><br><span class="line">   // 不需要使 tag 缓存无效，因为它在 db 上无效，tb 通过传递给 OpenTable 的invalidateTagFiltersCache flushCallback 刷新。  </span><br><span class="line">   if created &#123;  </span><br><span class="line">      // 仅当 indexDB 中未找到 tsid 时，才增加 newTimeseriesCreated 计数器</span><br><span class="line">      atomic.AddUint64(&amp;db.newTimeseriesCreated, 1)  </span><br><span class="line">      if logNewSeries &#123;  </span><br><span class="line">         logger.Infof(&quot;new series created: %s&quot;, mn.String())  </span><br><span class="line">      &#125;  </span><br><span class="line">   &#125;  </span><br><span class="line">   return nil  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// getOrCreateTSID 在 db.extDB 中查找指定 metricName 的 TSID</span><br><span class="line">// 如果找不到任何内容，则创建新的 TSID</span><br><span class="line">//  </span><br><span class="line">// 如果 TSID 已创建，则返回 true；如果 TSID 在 extDB 中，则返回 false</span><br><span class="line">func (db *indexDB) getOrCreateTSID(dst *TSID, metricName []byte, mn *MetricName) (bool, error) &#123;  </span><br><span class="line">   // 在外部存储中搜索 TSID</span><br><span class="line">   // 这个 db 通常来自上一个时期</span><br><span class="line">   var err error  </span><br><span class="line">   // 相当于去上一个索引 db 中查找 TSID</span><br><span class="line">   if db.doExtDB(func(extDB *indexDB) &#123;  </span><br><span class="line">      err = extDB.getTSIDByNameNoCreate(dst, metricName)  </span><br><span class="line">   &#125;) &#123;  </span><br><span class="line">      if err == nil &#123;  </span><br><span class="line">         // 已在外部存储中找到 TSID</span><br><span class="line">         return false, nil  </span><br><span class="line">      &#125;  </span><br><span class="line">      if err != io.EOF &#123;  </span><br><span class="line">         return false, fmt.Errorf(&quot;external search failed: %w&quot;, err)  </span><br><span class="line">      &#125;  </span><br><span class="line">   &#125;  </span><br><span class="line">   // 在外部存储中找不到 TSID，在本地生成。</span><br><span class="line">   generateTSID(dst, mn)  </span><br><span class="line">   return true, nil  </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 生成 TSID 数据</span><br><span class="line">func generateTSID(dst *TSID, mn *MetricName) &#123;</span><br><span class="line">    dst.AccountID = mn.AccountID</span><br><span class="line">    dst.ProjectID = mn.ProjectID</span><br><span class="line">    // 根据 MetricName 中的 MetricGroup 使用 xxhash 的 sum64 算法生成。</span><br><span class="line">    dst.MetricGroupID = xxhash.Sum64(mn.MetricGroup)  </span><br><span class="line">  </span><br><span class="line">    // 假设 job-like metric 放在 mn.Tags[0]，而 instance-like metric 放在 mn.Tags[1]</span><br><span class="line">    // 这个假设是正确的，因为 mn.Tags 必须在调用 generateTSID() 函数之前使用 mn.sortTags() 进行排序。</span><br><span class="line">    // 这允许对磁盘上彼此靠近的相同（job、instance）的数据块进行分组。</span><br><span class="line">  // 当从磁盘读取相同 job 和/或 instance 的数据块时，这会减少磁盘寻道和磁盘读取 IO。</span><br><span class="line">  // 例如，与 `process_resident_memory_bytes&#123;job=&quot;vmstorage&quot;&#125;` 匹配的时间序列的数据块在磁盘上是物理相邻的。</span><br><span class="line">    if len(mn.Tags) &gt; 0 &#123;</span><br><span class="line">        dst.JobID = uint32(xxhash.Sum64(mn.Tags[0].Value)) // 第一个Tag规定为 JobID</span><br><span class="line">    &#125;</span><br><span class="line">    if len(mn.Tags) &gt; 1 &#123;</span><br><span class="line">        dst.InstanceID = uint32(xxhash.Sum64(mn.Tags[1].Value)) // 第二个Tag规定为 InstanceID</span><br><span class="line">    &#125;</span><br><span class="line">    dst.MetricID = generateUniqueMetricID()  // 生成唯一的指标ID</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p><code>MetricID</code><br>通过 <code>generateUniqueMetricID()</code><br>生成, 在重启时, <code>nextUniqueMetricID</code><br>被赋值为当时的时间戳, 随后每次新的 <code>TSID</code><br>的创建都会在此基础之上+1。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/index_db.go</span><br><span class="line">// 生成唯一的 MetricID</span><br><span class="line">func generateUniqueMetricID() uint64 &#123;</span><br><span class="line">    // 期望的是从此函数返回的 metricID 必须是密集的。</span><br><span class="line">  // 如果它们是稀疏的，那么这可能会损害 metric_ids 与 uint64set.Set 的交集性能。</span><br><span class="line">    return atomic.AddUint64(&amp;nextUniqueMetricID, 1)</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">// 该数在重新启动时不能倒退，否则可能会发生 metricID 冲突。</span><br><span class="line">// 所以不要在 VictoriaMetrics 重新启动期间更改服务器上的时间。</span><br><span class="line">var nextUniqueMetricID = uint64(time.Now().UnixNano())</span><br></pre></td></tr></table></figure>
+
+<p>但是我们可能在这里看不懂 TSID 是如何去搜索或者创建的，这就需要我们去了解下 VM 中的倒排索引了。</p>
+<h3 id="倒排索引"><a href="#倒排索引" class="headerlink" title="倒排索引"></a>倒排索引</h3><p>当创建完 <code>TSID</code><br>后, 需要建立一系列的索引供查找时使用。在 VM 中不同类型的索引都是通过 <code>KV</code><br>关系来描述，在代码中称为 <code>Item</code><br>, <code>Item</code><br>的结构如下:<img src="/images/1722997415-54fbd370d490806bab94b38cf1b8382f.png"></p>
+<p>在 VM 中 Item 的整体上是一个 KV 结构的字节数组，共计有 7 种类型，每种类型的 Item 通过固定前缀来区分，前缀类型如下图所示。<img src="/images/1722997415-ff648fa55422a1f62c2653f4937c0f52.png"></p>
+<p>在 <code>storage/index_db.go: createIndexes</code><br>函数中，去分别建立了各个索引，生成 <code>Items</code><br>，代码如下所示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br></pre></td><td class="code"><pre><span class="line">// lib/storage/index_db.go</span><br><span class="line">// 创建索引</span><br><span class="line">func (db *indexDB) createIndexes(tsid *TSID, mn *MetricName) error &#123;</span><br><span class="line">    // 索引 items 的顺序很重要，它保证了索引的一致性。</span><br><span class="line">  </span><br><span class="line">    ii := getIndexItems()</span><br><span class="line">    defer putIndexItems(ii)</span><br><span class="line"></span><br><span class="line">    // 创建 MetricName -&gt; TSID 的索引。</span><br><span class="line">    ii.B = append(ii.B, nsPrefixMetricNameToTSID) // 前缀</span><br><span class="line">    ii.B = mn.Marshal(ii.B)</span><br><span class="line">    ii.B = append(ii.B, kvSeparatorChar) // 分隔符</span><br><span class="line">    ii.B = tsid.Marshal(ii.B)</span><br><span class="line">    ii.Next()</span><br><span class="line"></span><br><span class="line">    // 创建 MetricID -&gt; MetricName 索引。</span><br><span class="line">    ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToMetricName, mn.AccountID, mn.ProjectID)</span><br><span class="line">    ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)</span><br><span class="line">    ii.B = mn.Marshal(ii.B)</span><br><span class="line">    ii.Next()</span><br><span class="line"></span><br><span class="line">    // 创建 MetricID -&gt; TSID 索引</span><br><span class="line">    ii.B = marshalCommonPrefix(ii.B, nsPrefixMetricIDToTSID, mn.AccountID, mn.ProjectID)</span><br><span class="line">    ii.B = encoding.MarshalUint64(ii.B, tsid.MetricID)</span><br><span class="line">    ii.B = tsid.Marshal(ii.B)</span><br><span class="line">    ii.Next()</span><br><span class="line"></span><br><span class="line">    // 创建 Tag -&gt; MetricID 索引</span><br><span class="line">    prefix := kbPool.Get()</span><br><span class="line">    prefix.B = marshalCommonPrefix(prefix.B[:0], nsPrefixTagToMetricIDs, mn.AccountID, mn.ProjectID)</span><br><span class="line">    ii.registerTagIndexes(prefix.B, mn, tsid.MetricID)</span><br><span class="line">    kbPool.Put(prefix)</span><br><span class="line">    </span><br><span class="line">    // 将 Items 添加到 Table 中去</span><br><span class="line">    return db.tb.AddItems(ii.Items)</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>对于 <strong>ask{market&#x3D;”NYSE”,ticker&#x3D;”GOOG”} 1.23</strong> 的时序指标，对应的 <code>MetricName</code><br>为 <code>AccountID=0, ProjectID=0, ask&#123;market=&quot;NYSE&quot;,ticker=&quot;GOOG&quot;&#125;</code><br>，假设生成的 <code>TSID</code><br>为：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line">    AccountID: 0 </span><br><span class="line">    ProjectID: 0 </span><br><span class="line">    MetricGroupID: 6661248876682682060 </span><br><span class="line">    JobID: 3817370224 </span><br><span class="line">    InstanceID: 4166188337 </span><br><span class="line">    MetricID: 1654132102944898001</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>则生成的索引 Item 逻辑结构如下图所示：<img src="/images/1722997415-46f66aadcfa9b7ad56a7e11c40f5e772.png"></p>
+<p>上图为构建的 <code>MetricName -&gt; TSID</code><br>的索引，前缀为 <code>nsPrefixMetricNameToTSID=0</code><br>，整个索引项就是一个 <code>key: value</code><br>的形式，key 为 <code>MetricName</code><br>编码后的值，value 为 <code>TSID</code><br>编码后的值，中间通过一个 <code>kvSeparator</code><br>的分隔符进行连接，当然这些值真正的存储形式都是 <code>[]byte</code><br>。除了上图的这个索引之外还有几个其他的索引：<code>MetricID -&gt; MetricName</code><br>、<code>MetricID -&gt; TSID</code><br>、<code>Tag -&gt; MetricID</code><br>，方式都是一样的，只是要注意每种索引的前缀是不一样的。最后得到的索引就是上面构建的几种索引的集合数组。</p>
+<p>索引构建完成后又是如何去持久化数据的呢？保存的数据又是怎样的格式呢？未完待续吧……</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/07/VictoriaMetrics%E5%AD%98%E5%82%A8%E5%8E%9F%E7%90%86%E4%B9%8B%E7%B4%A2%E5%BC%95/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/06/%E4%BD%BF%E7%94%A8-VictoriaMetrics-Operator-%E7%AE%A1%E7%90%86VM%E9%9B%86%E7%BE%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">使用 VictoriaMetrics Operator 管理VM集群</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
