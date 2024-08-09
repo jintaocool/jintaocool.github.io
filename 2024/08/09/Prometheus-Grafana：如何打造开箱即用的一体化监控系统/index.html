@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus+Grafana：如何打造开箱即用的一体化监控系统 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus-Grafana：如何打造开箱即用的一体化监控系统"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus+Grafana：如何打造开箱即用的一体化监控系统
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/09/Prometheus-Grafana%EF%BC%9A%E5%A6%82%E4%BD%95%E6%89%93%E9%80%A0%E5%BC%80%E7%AE%B1%E5%8D%B3%E7%94%A8%E7%9A%84%E4%B8%80%E4%BD%93%E5%8C%96%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/" class="article-date">
+  <time datetime="2024-08-09T09:43:42.000Z" itemprop="datePublished">2024-08-09</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">6.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">23 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一分钟精华速览"><a href="#一分钟精华速览" class="headerlink" title="一分钟精华速览"></a>一分钟精华速览</h2><p>面对业务侧和架构侧的双重“降本+提效”需求，转转结合自家业务的特性进行二次开发，构建出一套集业务服务、架构中间件、运维资源于一体的立体式监控平台。转转借此平台实现了对于各业务线的全方位监控和报警。<br>在构建这个监控系统的过程中，转转围绕简化链路、权限与看板规划、自主研发的报警系统，以及打通内部信息系统等核心扩展点进行了深度优化。欢迎跟随文章深入理解转转如何通过一体化监控落地实践，提升业务稳定性、效率以及响应能力。<br><img src="/images/1723196504-0ffb5fe946010ff8b6eace2d403a2216.webp" alt="file" title="file"></p>
+<h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>转转，作为一家知名的二手交易平台，其技术背景复杂且多元。以监控系统为例，我们曾经使用了一系列的监控解决方案——有些是自研，有些则是开源项目，如面向业务指标上报的自研监控系统、夜鹰等面向运维机器资源的监控，以及面向运维的TiDB监控，还有数据库平台、Redis平台、云平台、服务管理平台，以及Zabbix监控、Cat监控等等。</p>
+<p>丰富多元的监控系统背后，也给我们带来了一些困扰。首先，这些分散的监控系统带来了显著的学习成本。为了排查一个问题，业务同学可能需要查阅多个监控系统才能找到所需数据——而且，由于监控系统过于复杂，他们可能会遇到错看、漏看、不知道怎么看的问题。同时，对于架构团队来说，大量的监控系统也带来了沉重的历史包袱。每一个监控系统都需要单独的人力去维护，缺乏对监控系统的统一规划。</p>
+<p>在此背景下，我们期望开发一套一体化的、功能丰富且简单易用的新监控系统，减少业务团队的操作难度，同时降低架构团队的维护成本。<br><img src="/images/1723196504-7d38e2b571f15f8acd070ebcb3c94e2f.webp" alt="file" title="file"></p>
+<p>新系统设计之前我们商讨了两种方案：一是整合现有系统，优点是不改变用户习惯，但缺点是耗费资源、人力成本高；二是从零开始，重构一套新系统，虽然需要转变用户习惯，但我们认为长期收益更高。最终，转转选择了后者。</p>
+<p>下面我将分享转转一体化监控系统的落地实践，以及我们在此过程中遇到的许多问题，和对于这些问题的思考。希望我们的实践能对你有所启发。</p>
+<h2 id="一、自研一体化监控遇到了哪些问题？"><a href="#一、自研一体化监控遇到了哪些问题？" class="headerlink" title="一、自研一体化监控遇到了哪些问题？"></a>一、自研一体化监控遇到了哪些问题？</h2><h3 id="1-1-调研选型"><a href="#1-1-调研选型" class="headerlink" title="1.1 调研选型"></a>1.1 调研选型</h3><p>在调研选型阶段，我们考察了市面上的一些监控产品，如Cat、夜莺V4、Prometheus。最终选择了Prometheus，因为它有丰富的生态，还有灵活的PromQL，接入Grafana后功能丰富。<br><img src="/images/1723196504-b6fd4063af40e83ccdb51094fc988e4f.webp" alt="file" title="file"></p>
+<p>（1.1 调研选型-Cat、夜莺V4、Prometheus对比）</p>
+<h4 id="1-1-1-Prometheus架构模型"><a href="#1-1-1-Prometheus架构模型" class="headerlink" title="1.1.1 Prometheus架构模型"></a>1.1.1 Prometheus架构模型</h4><p><img src="/images/1723196504-1c2b7287f90e8fef8fc729f4f6ac5a1b.webp" alt="file" title="file"><br>Prometheus的架构模型包括一个Prometheus Server，它自带一个单机时序数据库，可以将接收到的写入的数据转发到远端存储。它通过拉取模式来取得各个指标数据，被拉取的目标需要以HTTP的方式暴露出指标数据。这就意味着一些服务可能需要做一些改造，因为并非所有的服务都能解析HTTP。对于业务服务，需要引入注册中心，将服务注册到注册中心，然后通过服务发现来获取数据。<br>Prometheus架构有很多优点——</p>
+<ul>
+<li>生态完善，丰富的Exporter</li>
+<li>一次上报，任意聚合</li>
+<li>社区非常活跃</li>
+<li>高可扩展性</li>
+<li>一整套解决方案</li>
+</ul>
+<h4 id="1-1-2-存储选型-M3DB"><a href="#1-1-2-存储选型-M3DB" class="headerlink" title="1.1.2 存储选型-M3DB"></a>1.1.2 存储选型-M3DB</h4><p>前面提到Prometheus有一个单机的时序数据库肯定是不够的，需要借助远端存储。在存储上，我们选择了M3DB，一个Uber开源的分布式的时序数据库。<br><img src="/images/1723196504-a6cd3fabba5b9d8b1f9670ad7bf9b449.webp" alt="file" title="file"><br>M3DB包含多个组件，其中包括M3Query和M3Coordinator，这两个无状态服务分别负责处理Prometheus的读写协议并将请求转发到实际的存储节点，即M3DB节点。ETCD则被用作整个集群的元数据中心。</p>
+<p>此外，M3DB支持数据降采样。例如，如果原始数据是以15秒一个数据点的频率采集的，并且这些数据点会保留一个月，可以将这些数据降采样，以一分钟的频率保留三个月，或者以五分钟的频率保留一年。M3DB也是由滴滴的夜莺项目强烈推荐的存储解决方案，这显示了它的可靠性和效率。</p>
+<h3 id="1-2-Prometheus架构模型"><a href="#1-2-Prometheus架构模型" class="headerlink" title="1.2 Prometheus架构模型"></a>1.2 Prometheus架构模型</h3><p>基于Prometheus这套模型，构建了我们的架构模型。分为两部分：业务集群和中间件。</p>
+<p><img src="/images/1723196504-5584cc96f5b2b0cde4c5d1029348ef4e.webp" alt="file" title="file"></p>
+<p>首先，对于业务集群，我们需要对每个服务进行一些改造，让它支持Web，因为我们的服务通常只走RPC协议，基本上没有走HTTP的。每个服务将自己的IP端口注入到一个单独的注册中心，Prometheus从注册中心做服务发现，然后拉取指标。对于中间件，Prometheus通过直接写死各个IP端口的方式来采集指标。<br>不出意外的，我们遇到了一些挑战——</p>
+<p>1）架构复杂</p>
+<p>首先，架构模型太复杂，我们需要寻找方法简化架构和模型。我们考虑是否能将Prometheus的拉模型改成推模型，从服务中推送到Prometheus，这样或许可以简化注册中心。但是，Prometheus不支持推模型，我们需要找到方法来实现这一点。</p>
+<p>2）推动与成本问题</p>
+<p>其次，我们想要落地一个全新的监控系统，但这套监控系统有一定的学习成本，如PromQL和看板配置，这些学习成本会对我们未来的推动产生阻力。我们需要找到办法降低业务人员的学习和使用成本，提供一个开箱即用的一体化的监控系统。</p>
+<p>3）告警与降噪</p>
+<p>告警的设置也涉及PromQL的学习成本，而且如果业务人员想要配置一个告警，他们通常需要了解第三方指标的结构，才能配好告警。例如，如果想对服务的请求次数或者容器的CPU利用率进行告警，必须要了解这些指标的结构，这无疑增加了学习成本。</p>
+<h2 id="二、转转是如何逐一解决这些问题的？"><a href="#二、转转是如何逐一解决这些问题的？" class="headerlink" title="二、转转是如何逐一解决这些问题的？"></a>二、转转是如何逐一解决这些问题的？</h2><h3 id="2-1-架构设计（解决架构复杂问题）"><a href="#2-1-架构设计（解决架构复杂问题）" class="headerlink" title="2.1 架构设计（解决架构复杂问题）"></a>2.1 架构设计（解决架构复杂问题）</h3><p><img src="/images/1723196504-9bf9ece2ceb0c319c19fd3859de56218.webp" alt="file" title="file"><br>（2.1 架构设计-前、后变化对比）</p>
+<p>如右图所示，我们将服务的指标采集改成了推模型，从而省略了服务注册中心。我们的思路是利用Prometheus的远端存储协议，将采集到的指标推送到远端存储。这样，架构模型就变为客户端将业务服务的指标数据直接推送到远端存储，省略了注册中心和Prometheus的采集过程。这样，我们只需要维护一个数据库系统即可。</p>
+<p>另一个问题是中间件的IP配置方式。虽然中间件的IP变动不频繁，但靠IP配置的方式还是不够灵活。我们选择保留Prometheus的拉模型，因为我们不想放弃Prometheus完善的生态。</p>
+<p>为了实现自动化的采集，我们使用了CMDB资产管理系统。Prometheus会进行服务发现，发现各个服务的IP和端口，从而完成自动化的运维。后续的增减，我们只需要在CMDB中进行操作即可。</p>
+<h4 id="2-1-1-SDK设计"><a href="#2-1-1-SDK设计" class="headerlink" title="2.1.1 SDK设计"></a>2.1.1 SDK设计</h4><p>前面讲到我们将拉模型改为了推模型，这块是如何实现的？我们使用的仍然是Prometheus原生的客户端，只是改变了数据采集的方式。</p>
+<p><img src="/images/1723196504-ef4c5095e120141a652024da6381638d.webp" alt="file" title="file"></p>
+<p>客户端有一个定时单线程，它会每15秒向远端存储推送一次采集到的指标数据，这个过程是异步批量的。在推送过程中，也会携带一些公共的标签，如服务名、IP等。我们并没有修改原生客户端的数据埋点方式，只是将数据采集方式从拉模型改为了推模型。</p>
+<h4 id="2-1-2-性能测试"><a href="#2-1-2-性能测试" class="headerlink" title="2.1.2 性能测试"></a>2.1.2 性能测试</h4><p>由于Prometheus需要对客户端进行埋点做数据上报，我们也对客户端的性能进行了关注。在性能测试方面，因为我们并没有改变Prometheus客户端的数据上报方式，所以性能测试基本上就是原生客户端的性能测试。</p>
+<p><img src="/images/1723196504-c6b6c90fc576d748c3b16b851fd88ce4.webp" alt="file" title="file"></p>
+<p>测试结果显示，QPS基本都在千万级别，耗时基本都是纳秒级别。内存占用和资源消耗都相对较小，主要取决于标签的数量，标签越多，内存占用越多。</p>
+<h3 id="2-2-权限与看板规划（解决开箱即用的问题）"><a href="#2-2-权限与看板规划（解决开箱即用的问题）" class="headerlink" title="2.2 权限与看板规划（解决开箱即用的问题）"></a>2.2 权限与看板规划（解决开箱即用的问题）</h3><h4 id="2-2-1-登录认证与权限隔离"><a href="#2-2-1-登录认证与权限隔离" class="headerlink" title="2.2.1 登录认证与权限隔离"></a>2.2.1 登录认证与权限隔离</h4><p>为了给业务提供一个开箱即用的监控系统，我们首先需要给Grafana输入一些数据，比如我们内部的员工信息和服务权限信息。每个服务在Grafana上都有单独的大盘，服务权限意味着我们需要确定哪些人可以编辑，哪些人不可以编辑，哪些人可以查看，哪些人不可以查看。此外，我们还接入了我们内部的SSO登录系统，它需要企业微信扫码认证。</p>
+<p><img src="/images/1723196504-56f390e0bcb29f350338fd93981408c4.webp" alt="file" title="file"></p>
+<h4 id="2-2-2-看板规划"><a href="#2-2-2-看板规划" class="headerlink" title="2.2.2 看板规划"></a>2.2.2 看板规划</h4><p>我们的看板规划主要分为几部分。第一部分是业务看板，主要以业务为维度展示一天的订单总数量等信息。然后是前后端服务的看板，还有架构组件、运维服务等展示。每一个前后端服务都会有一个单独的Dashboard，包含三个变量，分别是环境、服务器的IP和看板的聚合方式。<br><img src="/images/1723196504-aeaa00e1bf4fcdfd66a1053de9895d3e.webp" alt="file" title="file"></p>
+<h4 id="2-2-3-指标迁移"><a href="#2-2-3-指标迁移" class="headerlink" title="2.2.3 指标迁移"></a>2.2.3 指标迁移</h4><p>然而，仅有这样的空看板显然是不够的。因为我们是从之前的多个监控系统迁移到新的监控系统，所以需要将老监控系统的指标迁移到新监控系统。首先，我们需要将现有的各个组件SDK包用新的客户端监控方式实现，然后生成一个新的版本。那么，如何让新的版本快速生效？这就涉及到我们内部的发版机制了。<br><img src="/images/1723196504-aeaa00e1bf4fcdfd66a1053de9895d3e.webp" alt="file" title="file"></p>
+<p>具体到业务服务，每一个业务服务都会依赖我们架构部门的一个Super-pom，这是一个快照版本。这个Super-pom会定义所有中间件的版本号。每一个业务服务在真正依赖各个中间件时，它不能指定版本。只要我们把最新的版本号更新到Super-pom里，然后再发布到我们的仓库里，当业务下一次编译上线的时候，就会使用最新的版本，从而达到快速生效。</p>
+<h4 id="2-2-4-看板自动化"><a href="#2-2-4-看板自动化" class="headerlink" title="2.2.4 看板自动化"></a>2.2.4 看板自动化</h4><p>指标迁移的埋点搞定后，如何能自动化地展示这些指标？</p>
+<p>1）内置看板<br><img src="/images/1723196504-73501d912cd1b830a8efd72bafe77852.webp" alt="file" title="file"></p>
+<p>首先，客户端会将服务中使用的各个指标的元数据信息发送到我们的一个管理后台，管理后台可以根据指标识别服务所使用的监控。例如，如果发现使用了日志监控，那么管理后台会使用日志监控的模板，调用Grafana API，将日志监控的模板插入到对应服务的看板里。</p>
+<p><img src="/images/1723196504-5416f413b84022ec5139c2f067def503.webp" alt="file" title="file"></p>
+<p>有了这个功能之后，我们的服务里面就会有很多非常详细的各种中间件的监控。这个功能上线之后，业务同学会发现，他们什么都没有做，只是正常的一次业务迭代，却发现服务有了很详细的监控。</p>
+<p>2）业务指标</p>
+<p>除了内置的指标，业务也有监控需求。我们也会在管理后台上自动创建一些看板来满足这些需求。原理与之前类似，管理后台识别出来它是个业务指标，然后会调用Grafana的API来创建对应的业务指标的监控看板。</p>
+<p><img src="/images/1723196504-9026522c526e89b12bdae84bac44bf97.webp" alt="file" title="file"></p>
+<p>唯一让人头疼的是，Grafana没有单独创建一个看板Panel的API，只有修改Dashboard（一个大Json）的API。这就需要我们模拟Grafana前端操作，解析Dashboard Json，将看板放在对应的位置，计算出它的坐标等等。</p>
+<p>3）自动创建看板-Counter&#x2F;Gauge&#x2F;Histogram</p>
+<p>我们分析发现同一个类型的指标，需要看的看板基本上都是类似的。例如，Counter类型的指标，基本上都只看QPS和数量；Gauge类型的指标，因为它是一个状态值，一般都只看采集的原始点；Histogram看板的数量会比较多，因为能看的东西也比较多，比如QPS、次数、分布、AVG、P99等等。这些都会在Grafana上自动创建。</p>
+<p><img src="/images/1723196504-df753cf43635dd205bfa91f337c0b0ac.webp" alt="file" title="file"><br>（2.2.4 看板自动化-Counter类指标看板）</p>
+<p><img src="/images/1723196504-7865422cd4773849575a4590917305a3.webp" alt="file" title="file"><br>（2.2.4 看板自动化-Gauge类指标看板）<br><img src="/images/1723196504-75b11c31185d9a46172672e3879a559a.webp" alt="file" title="file"></p>
+<p>（2.2.4 看板自动化-Histogram类指标看板）</p>
+<h3 id="2-3-告警系统设计（解决降噪问题）"><a href="#2-3-告警系统设计（解决降噪问题）" class="headerlink" title="2.3 告警系统设计（解决降噪问题）"></a>2.3 告警系统设计（解决降噪问题）</h3><h4 id="2-3-1-原生告警系统痛点"><a href="#2-3-1-原生告警系统痛点" class="headerlink" title="2.3.1 原生告警系统痛点"></a>2.3.1 原生告警系统痛点</h4><p>Grafana8.0之前的告警问题被诟病比较多。但在8.0之后，2021年5月官方发布了一个新的告警系统，叫做ng-alert。它的操作方式是，先指定告警名，然后需要自己写一个PromQL，这个PromQL必须是一个可执行的，不能带任何变量的PromQL。选择条件，比如指标大于3，就报警。<br><img src="/images/1723196504-abf8f94d17486078be74f0afdedcfdee.webp" alt="file" title="file"></p>
+<p>在告警系统设计方面，我们希望解决的主要痛点是降噪问题。在测试中，我们发现了告警系统的一些问题——</p>
+<p>1、需要手写告警PromQL。这无疑提高了学习成本。</p>
+<p>2、需要理解第三方指标的含义。</p>
+<p>3、发布时间短，存在性能瓶颈。我们在2021年8月份的测试中发现，如果超过大约8000个的告警规则，告警系统基本上就无法打开了。</p>
+<p>4、部分告警场景支持并不好。比如，如果想针对某一个服务的所有物理机的负载来做告警，需要获取所有的物理机负载的指标，然后找出该服务使用了哪些IP，再将物理机负载的指标与服务使用的IP指标关联起来。这种关联的成本通常会比较大，因为要关联的是所有的物理机负载的指标。另外，还存在一个可视化的问题，即如何展示一个服务使用的所有物理机的监控。尽管在可视化方面比较简单，因为所有的看板都有一个公共的变量，即服务的IP，只需要在物理监控的查询规则上写上这个变量即可。但原生的告警系统不支持这种变量的形式，这使得这种场景变得比较难以处理。</p>
+<h4 id="2-3-2-告警系统设计"><a href="#2-3-2-告警系统设计" class="headerlink" title="2.3.2 告警系统设计"></a>2.3.2 告警系统设计</h4><p>在上述背景之下，我们决定设计一套新的告警系统。整个流程大概如下：</p>
+<p><img src="/images/1723196504-2be4acee975fab72d84dedd41364304f.webp" alt="file" title="file"><br>当用户新建告警时，我们会将告警生成一个可执行的PromQL并存储到MySQL中。然后我们有一个基于定时任务平台的分片广播调度。每台机器都有自己的分片号，会去加载属于自己的告警任务。然后调度结束后，内部的调度线程会判断告警是否需要触发执行。如果需要，就会将告警交给工作线程来执行。目前转转在线上的告警执行QPS大约是1100多。</p>
+<h4 id="2-3-3-告警系统展示"><a href="#2-3-3-告警系统展示" class="headerlink" title="2.3.3 告警系统展示"></a>2.3.3 告警系统展示</h4><p>我们的告警系统主要以服务为维度，分为几个部分——业务指标、内置指标、端口探测、自定义PromQL。</p>
+<p><img src="/images/1723196504-9819f1fb57fc968f29a4e0b2ed3d6326.webp" alt="file" title="file"></p>
+<p>1）业务指标告警</p>
+<p>业务指标告警是业务自己定义的指标，比如一天的订单量监控等。用户可以创建告警规则，设置告警名称，选择对哪个指标进行告警，以及选择对指标的哪个标签进行告警。然后可以选择计算方式，以及如何进行聚合。有了这些，就可以生成一个可执行的PromQL，然后根据触发条件来执行告警。</p>
+<p><img src="/images/1723196504-b99ad3a19e9b1785ae648ead70656574.webp" alt="file" title="file"></p>
+<p>2）内置指标告警</p>
+<p><img src="/images/1723196504-4130577edaddbc21faff076ffe965073.webp" alt="file" title="file"><br><img src="/images/1723196504-4dc9ecb4ae2adac7abe8b78a2268309d.webp" alt="file" title="file"></p>
+<p>对于第三方的内置指标的告警，我们提供了很多类型，如JVM、MQ、日志、数据库连接池等。每个告警类型都有对应的多个告警项，用户只需要选择对哪个告警进行告警即可。选择完后，填写触发条件，就设置好了。</p>
+<p>3）自定义PromQL</p>
+<p>当然也可以自定义执行的PromQL，以覆盖我们没有覆盖到的情况。</p>
+<p><img src="/images/1723196504-c0474f8101c3aa13c8a099d5575fd322.webp" alt="file" title="file"></p>
+<p>每个告警都有丰富的功能，比如选择发送短信、打电话、邮件等，我们也提供了告警升级的高级功能。告警升级是指，如：持续10分钟告警没有恢复，就以打电话的方式通知；如果持续30分钟告警没有恢复，就以打电话的方式通知另一个人。此外，还有其他选项，如生效时间、恢复时间等等。</p>
+<p><img src="/images/1723196504-cb3eff32db89ee9f16f5e54bef91707d.webp" alt="file" title="file"></p>
+<h4 id="2-3-4-告警降噪设计"><a href="#2-3-4-告警降噪设计" class="headerlink" title="2.3.4 告警降噪设计"></a>2.3.4 告警降噪设计</h4><p>在使用告警系统后，我们经常遇到的一个问题：告警轰炸。实际上，Prometheus提供了一整套解决方案，在其生态中有一个专门针对告警进行降噪的组件AlertManager。各个子系统通过HTTP方式与它交互。只要有告警产生，它就会无限地发送给AlertManager，然后AlertManager对收到的告警进行分组、抑制和降噪。</p>
+<p><img src="/images/1723196504-5d859d9791159d0ce8fc8bb7553e46cc.webp" alt="file" title="file"></p>
+<p>1）分组去重</p>
+<p>首先解释一下什么叫做分组。比如说，以服务为维度，把这个服务一段时间内发生的所有告警合并到一条通知里，然后再推送给用户，这就是分组。有了分组后，同一个组内的告警应在什么时候通知给用户呢？可以看一下这张图，横轴是源源不断产生告警的时间线，纵轴是实际真正通知给用户的告警。</p>
+<p><img src="/images/1723196504-b6835a877adb176332d7fa4b2e2dd900.webp" alt="file" title="file"></p>
+<p>接着，我们来看一下告警通知的时机。它主要由以下三个参数控制。</p>
+<p>group_wait：初始等待时间。当初次收到一条告警时，它会等待“初始等待时间”后发出报警，因为它想要收集更多的告警。因为通常一个报警的产生会伴随着很多其他相关的报警，所以它会稍微等待一段时间，收集更多的报警后再通知用户。这个时间通常会配置得比较小。</p>
+<p>group_interval：变化等待时间。当组内的告警相对于前一次的通知产生了变化，比如说这个时候多了一个圆圈，或者少了一个三角，此时它会等待“变化等待时间”后再通知用户。这个时间通常也会比较小。</p>
+<p>repeat_interval：重复等待时间。当组内的告警都是同一条告警时，它会等待“重复等待时间”后再通知用户，这个时间通常会比较大。</p>
+<p>2）分级降噪</p>
+<p>有了这三个参数后，我们面临的第一个问题就是，如何评估这三个参数？我们最终想达到的效果是将重要的告警及时通知，次要的告警减少打扰用户的次数。基于此，我们就引入了告警分级降噪。</p>
+<p><img src="/images/1723196504-dbb983f8f7bba368746ea52e44f19e49.webp" alt="file" title="file"></p>
+<p>举个例子，我们的告警分为P0到P5六个等级，从上到下重要性逐渐降低。P0的等级分组会更细，对应的时间也会更小。而P5的告警分组会更粗，它会按人来分组，某人所有P5的告警都合并到一条通知里，对应的时间也会逐步增大。</p>
+<p>3）告警抑制</p>
+<p>以一个具体场景为例，假设出现一个告警名称为FGC次数，设置两个告警，P1告警阈值为20次，P2告警为10次。当某个实例的FGC次数达到20次以上时，系统不再发送P2告警，只发送P1告警。这样，P1告警就会抑制P2告警。</p>
+<p><img src="/images/1723196504-5b228154b7839bedfcb0d07d393d90ae.webp" alt="file" title="file"></p>
+<p>4）通知合并</p>
+<p>在发生告警时，系统会通知用户所有未恢复的告警。未处理的情况下，用户会收到一个包含多个重复信息的告警列表，这使得从中识别有效信息变得困难。</p>
+<p><img src="/images/1723196504-4d6e21ee43e95d388009581633588887.webp" alt="file" title="file"><br>于是我们进行了二次开发，实现了告警通知的合并。合并过程中，会提取公共标签，合并相似的告警。如：对于只有IP地址不同的告警，将这些IP地址合并展示。通过这样的处理，通知的效果更加直观。合并后的结果是，某个人的多个相关的告警被合并成一条通知。</p>
+<p>以下是三个具体的通知合并案例展示——</p>
+<p>error日志量报警，合并多个相同IP的报警通知</p>
+<p><img src="/images/1723196504-b4aa38883fd63ca30fc98a82058ddd81.webp" alt="file" title="file"></p>
+<p>error日志量报警与SQL异常报警，合并相同IP和告警值通知，快速判断问题原因是SQL执行错误。</p>
+<p><img src="/images/1723196504-1ad32b4145bbba1b62b80bbaa566bc18.webp" alt="file" title="file"><br>消费失败、消费流控、消费堆积等多种MQ告警合并</p>
+<p><img src="/images/1723196504-807fbf38b7f942c7dcdbecf030bec0e9.webp" alt="file" title="file"></p>
+<p>5）扩展<br>在处理告警“轰炸”时，我们通常有两个想法：一个是快速静默不需要关心的告警，另一个是在面对众多告警时，我们希望能实时查看所有负责的未恢复告警。</p>
+<p><img src="/images/1723196504-087315f68e2618939259766b72f7e16c.webp" alt="file" title="file"></p>
+<p>为此，我实现了一个功能，用户可以通过点击按钮，实时查看所有未恢复的告警，并可以查看静默影响的告警。同时，我们还保存了三个月的历史通知记录，并支持了多种通知机制，如企业微信、电话等。</p>
+<p><img src="/images/1723196504-5bf2b6ae51a4d7acbbd4ba060d9b8aab.webp" alt="file" title="file"><br>（2.3.4 告警降噪设计-扩展功能-未恢复告警）</p>
+<p><img src="/images/1723196504-6c68a29a469365dce463d95040059791.webp" alt="file" title="file"><br>（2.3.4 告警降噪设计-扩展功能-静默告警列表）</p>
+<p><img src="/images/1723196504-a3fb36a0c0bb53ae029fdbc5fee581d2.webp" alt="file" title="file"><br>（2.3.4 告警降噪设计-扩展功能-历史通知记录列表）</p>
+<h4 id="2-3-5-降噪效果"><a href="#2-3-5-降噪效果" class="headerlink" title="2.3.5 降噪效果"></a>2.3.5 降噪效果</h4><p>以企业微信为例，某一天内有609K条告警发送到企业微信，但是经过降噪处理后，实际只有10.8K条告警发送出去，即降低了98.21%的告警量。<br><img src="/images/1723196504-45b748c87b7cd9c27bd0793468d41727.webp" alt="file" title="file"></p>
+<h2 id="三、一体化监控落地效果如何？"><a href="#三、一体化监控落地效果如何？" class="headerlink" title="三、一体化监控落地效果如何？"></a>三、一体化监控落地效果如何？</h2><h3 id="3-1-整体落地效果"><a href="#3-1-整体落地效果" class="headerlink" title="3.1 整体落地效果"></a>3.1 整体落地效果</h3><p>我想分享一下我们一体化监控落地的效果。我为大家展示了我们的监控平台，有四种视角：业务服务视角、架构中间件视角、运维视角、业务大盘。</p>
+<p>1）业务服务视角：</p>
+<p>进入任何一个服务，可以看到所有相关的重要监控指标，如JVM、日志、容器、MQ等等。关键在于我们的系统具备可扩展性，新加入的组件可以通过在后台添加相应模板来集成进我们的监控系统。</p>
+<p>所有的监控看板都是自主研发的，没有使用开源方案，因为开源看板可能不能完全满足我们的需求，也可能存在Bug。业务指标监控是由业务自己上报的，我们的系统会自动创建监控视图。对业务开发人员来说，他们只需在代码中增加埋点，可视化相关工作都会自动化处理。<br><img src="/images/1723196504-4482d0db9d3e876c6687d75ec85cf594.webp" alt="file" title="file"><br><img src="/images/1723196504-7708f61be651d5833ebf84b7a7ecff87.webp" alt="file" title="file"><br><img src="/images/1723196504-19d9c83992af745f699e782ad5642bcc.webp" alt="file" title="file"><br><img src="/images/1723196504-8b3ffa341ec2cb336d355794b7531f87.webp" alt="file" title="file"></p>
+<p>2）架构中间件的视角：</p>
+<p>可以查看数据库连接池、日志使用等全公司范围的使用情况。<br><img src="/images/1723196504-0116e8ffa05acad8606bf9f3627d4dbc.webp" alt="file" title="file"><br><img src="/images/1723196504-8ee83a2b3df627932de2e74fcc02c600.webp" alt="file" title="file"><br><img src="/images/1723196504-8b5883d2435dc7730adcc2609f569cb9.webp" alt="file" title="file"><br><img src="/images/1723196504-4aaae0df3b246eeb3c14c45f49ef6b0a.webp" alt="file" title="file"></p>
+<p>3）运维大盘：</p>
+<p>这块监控也比较多，比如容器监控、物理机监控等等。<br><img src="/images/1723196504-6feada208876bce7138c2c1a0cc847b3.webp" alt="file" title="file"><br><img src="/images/1723196504-c7d8167b6c8b00aad012e281a7ec138b.webp" alt="file" title="file"><br><img src="/images/1723196504-259594ddc70351aa73177a977a2e16ac.webp" alt="file" title="file"><br><img src="/images/1723196504-399d734761f6869831f1d33f51089ea5.webp" alt="file" title="file"></p>
+<p>4）业务大盘：</p>
+<p>主要关注业务维度，例如客服售后相关监控、短信业务整体监控、交易中台监控等。<br><img src="/images/1723196504-cd798c84ee9bfd33d735694f055f1a30.webp" alt="file" title="file"><br><img src="/images/1723196504-8511c50189018c2c84387e126baf8f7a.webp" alt="file" title="file"></p>
+<h3 id="3-2-占用资源"><a href="#3-2-占用资源" class="headerlink" title="3.2 占用资源"></a>3.2 占用资源</h3><p>目前接入了1000+个服务，4000+个实例，1000+个物理机。监控系统的总存储量达到了13TB，批量写入的QPS是750+，samples写入QPS是580K。<br><img src="/images/1723196504-552b91a0ef423d9996e466d301b7e0ef.webp" alt="file" title="file"></p>
+<h2 id="四、总结和展望"><a href="#四、总结和展望" class="headerlink" title="四、总结和展望"></a>四、总结和展望</h2><p><img src="/images/1723196504-ef22e33a7969aeefec896ca46e191080.webp" alt="file" title="file"><br>首先，在架构方面，我们采取了服务直接使用Push模式推送数据到M3DB，而中间件则使用Pull模式，通过Prometheus HTTP服务发现机制来实现。这种设计策略有效省略了注册中心和Prometheus的需要，从而简化了整个链路并显著降低了运维成本。</p>
+<p>其次，关于Grafana看板的规划，我们设计了四个核心维度：业务大盘、业务服务、架构组件和运维服务。这不仅提高了监控的全面性，同时系统能够自动创建服务大盘和中间件的监控行（Row），并且我们还实施了登录认证与权限隔离，确保了监控平台的安全性和准确性。</p>
+<p>在成本控制和效率提升方面，我们模拟了Grafana前端，自动为业务指标创建看板，同时根据不同的指标类型创建相应的看板。这为业务团队带来了极大的便利——他们只需要在代码中加入监控点，无需深入学习PromQL或Grafana。</p>
+<p>最后，在告警管理方面，我们通过PromQL的可视化功能极大地简化了中间件告警设置的复杂性。整个监控系统的操作都被设计得简单易用，用户可以通过简单的点击来完成配置和管理任务。内置的指标和高级的告警降噪功能能够降噪98%。</p>
+<p>总之，我们提供了一个即开即用的一体化监控平台，让技术团队能够专注于创造价值，而不是花费时间在繁琐的配置和管理上。（全文完）</p>
+<h2 id="Q-A："><a href="#Q-A：" class="headerlink" title="Q&amp;A："></a>Q&amp;A：</h2><p>1、推模型自由度会不会太高了，如何保障业务指标的质量呢？</p>
+<p>2、有没有考虑pushgateway ，业务直接推送？</p>
+<p>3、推模型是不是还需要up状态的告警？</p>
+<p>4、告警事件是用prometheus原生的，还是自研服务计算的？</p>
+<p>5、针对大量三方服务对接，监控告警有没有一些经验分享一下？</p>
+<p>6、前面说的告警数据，和定位分析这块数据是怎么关联的？想了解下你们目前的实践情况，比如自动化分析这块有没有在做？</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/09/Prometheus-Grafana%EF%BC%9A%E5%A6%82%E4%BD%95%E6%89%93%E9%80%A0%E5%BC%80%E7%AE%B1%E5%8D%B3%E7%94%A8%E7%9A%84%E4%B8%80%E4%BD%93%E5%8C%96%E7%9B%91%E6%8E%A7%E7%B3%BB%E7%BB%9F/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/09/%E5%9F%BA%E4%BA%8EPrometheus%E5%92%8CGrafana%E7%9B%91%E6%8E%A7redis-Oracle-mysql-pg%E4%BB%A5%E5%8F%8Asqlserver%E7%9A%84%E6%96%B9%E6%B3%95%E6%80%BB%E7%BB%93/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">基于Prometheus和Grafana监控redis,Oracle,mysql,pg以及sqlserver的方法总结</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
