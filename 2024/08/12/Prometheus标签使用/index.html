@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">2.1k</span>
+            <span class="post-count">1.5k</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">9 分钟</span>
+            <span class="post-count">5 分钟</span>
         </span>
     </span>
 </div>
@@ -150,20 +150,8 @@
 <p><a target="_blank" rel="noopener" href="https://static.zahui.fan/images/202307311829414.png"><img src="/images/1723428657-355a7f1e1ea37e72284c4982dfa6ac37.png"></a></p>
 <p>比如上图，监控k8s的pod状态， 因为pod是动态的，所以需要pod名字和pod的namespace信息，就可以从元标签中取值。</p>
 <h2 id="自定义标签"><a href="#自定义标签" class="headerlink" title="自定义标签"></a><a href="#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%A0%87%E7%AD%BE" title="自定义标签"></a>自定义标签</h2><p>可以针对特定的标签去查询，比如根据厂商、项目等来区分。</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;Beijing Linux Server&#x27;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&#x27;192.168.179.99:9100&#x27;]</span><br><span class="line">    labels:</span><br><span class="line">      address: beijing</span><br><span class="line">      project: mysql</span><br><span class="line"> </span><br><span class="line">- job_name: &#x27;Shanghai Linux Server&#x27;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&#x27;192.168.179.99:9100&#x27;]</span><br><span class="line">    labels:</span><br><span class="line">      address: shanghai</span><br><span class="line">      project: www</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;- job_name: &#39;Beijing Linux Server&#39;&lt;br&gt;  static_configs:&lt;br&gt;  - targets: [&#39;192.168.179.99:9100&#39;]&lt;br&gt;    labels:&lt;br&gt;      address: beijing&lt;br&gt;      project: mysql&lt;br&gt;&lt;br&gt;- job_name: &#39;Shanghai Linux Server&#39;&lt;br&gt;  static_configs:&lt;br&gt;  - targets: [&#39;192.168.179.99:9100&#39;]&lt;br&gt;    labels:&lt;br&gt;      address: shanghai&lt;br&gt;      project: www&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <h2 id="重新标记标签"><a href="#重新标记标签" class="headerlink" title="重新标记标签"></a><a href="#%E9%87%8D%E6%96%B0%E6%A0%87%E8%AE%B0%E6%A0%87%E7%AD%BE" title="重新标记标签"></a>重新标记标签</h2><p>action 重新标记标签动作, 可以取的值有：</p>
 <table>
 <thead>
@@ -197,141 +185,33 @@
 <td>匹配regex所有标签名称，并将捕获的内容分组，用第一个分组内容作为新的标签名（使用正则提取出多个字段，使用匹配到的作为新标签名，但是标签的内容不会改变，相对于对原有标签换了个名字）</td>
 </tr>
 </tbody></table>
-<h2 id="举例"><a href="#举例" class="headerlink" title="举例"></a><a href="#%E4%B8%BE%E4%BE%8B" title="举例"></a>举例</h2><h3 id="动态生成添加标签（对已有的标签重新标记）"><a href="#动态生成添加标签（对已有的标签重新标记）" class="headerlink" title="动态生成添加标签（对已有的标签重新标记）"></a><a href="#%E5%8A%A8%E6%80%81%E7%94%9F%E6%88%90%E6%B7%BB%E5%8A%A0%E6%A0%87%E7%AD%BE%EF%BC%88%E5%AF%B9%E5%B7%B2%E6%9C%89%E7%9A%84%E6%A0%87%E7%AD%BE%E9%87%8D%E6%96%B0%E6%A0%87%E8%AE%B0%EF%BC%89" title="动态生成添加标签（对已有的标签重新标记）"></a>动态生成添加标签（对已有的标签重新标记）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<h2 id="举例"><a href="#举例" class="headerlink" title="举例"></a><a href="#%E4%B8%BE%E4%BE%8B" title="举例"></a>举例</h2><h3 id="动态生成添加标签（对已有的标签重新标记）"><a href="#动态生成添加标签（对已有的标签重新标记）" class="headerlink" title="动态生成添加标签（对已有的标签重新标记）"></a><a href="#%E5%8A%A8%E6%80%81%E7%94%9F%E6%88%90%E6%B7%BB%E5%8A%A0%E6%A0%87%E7%AD%BE%EF%BC%88%E5%AF%B9%E5%B7%B2%E6%9C%89%E7%9A%84%E6%A0%87%E7%AD%BE%E9%87%8D%E6%96%B0%E6%A0%87%E8%AE%B0%EF%BC%89" title="动态生成添加标签（对已有的标签重新标记）"></a>动态生成添加标签（对已有的标签重新标记）</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;Linux Server&#x27;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&#x27;192.168.179.99:9100&#x27;]</span><br><span class="line">  metric_relabel_configs:</span><br><span class="line">  - action: replace</span><br><span class="line">    source_labels: [&quot;instance&quot;]</span><br><span class="line">    regex: (.*):([0-9]+)  # 正则匹配标签值，( )分组</span><br><span class="line">    replacement: $1       # 引用分组匹配的内容</span><br><span class="line">    target_label: &quot;ip&quot;</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;- job_name: &#39;Linux Server&#39;&lt;br&gt;  static_configs:&lt;br&gt;  - targets: [&#39;192.168.179.99:9100&#39;]&lt;br&gt;  metric_relabel_configs:&lt;br&gt;  - action: replace&lt;br&gt;    source_labels: [&quot;instance&quot;]&lt;br&gt;    regex: (.*):([0-9]+)  # 正则匹配标签值，( )分组&lt;br&gt;    replacement: $1       # 引用分组匹配的内容&lt;br&gt;    target_label: &quot;ip&quot;&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <p>可以看到该标签已经进入数据库里面了，这样就根据源标签通过正则匹配动态生成了新的标签</p>
 <p><a target="_blank" rel="noopener" href="https://static.zahui.fan/images/202307311816271.png"><img src="/images/1723428657-adc42fb5c9aa1741fb7949d11f7a2ccd.png"></a></p>
-<h3 id="选择采集的目标"><a href="#选择采集的目标" class="headerlink" title="选择采集的目标"></a><a href="#%E9%80%89%E6%8B%A9%E9%87%87%E9%9B%86%E7%9A%84%E7%9B%AE%E6%A0%87" title="选择采集的目标"></a>选择采集的目标</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<h3 id="选择采集的目标"><a href="#选择采集的目标" class="headerlink" title="选择采集的目标"></a><a href="#%E9%80%89%E6%8B%A9%E9%87%87%E9%9B%86%E7%9A%84%E7%9B%AE%E6%A0%87" title="选择采集的目标"></a>选择采集的目标</h3><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;Linux Server&#x27;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&#x27;192.168.179.99:9100&#x27;]</span><br><span class="line">  relabel_configs:</span><br><span class="line">  - action: drop</span><br><span class="line">    regex: &quot;192.168.179.99:9100&quot;   # 正则匹配标签值</span><br><span class="line">    source_labels: [&quot;_address_&quot;]</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;- job_name: &#39;Linux Server&#39;&lt;br&gt;  static_configs:&lt;br&gt;  - targets: [&#39;192.168.179.99:9100&#39;]&lt;br&gt;  relabel_configs:&lt;br&gt;  - action: drop&lt;br&gt;    regex: &quot;192.168.179.99:9100&quot;   # 正则匹配标签值&lt;br&gt;    source_labels: [&quot;_address_&quot;]&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <p>在target里面就没有了，在普罗米修斯里面就看不到该台机器，同时exporter也不会被停止.</p>
 <h3 id="删除标签"><a href="#删除标签" class="headerlink" title="删除标签"></a><a href="#%E5%88%A0%E9%99%A4%E6%A0%87%E7%AD%BE" title="删除标签"></a>删除标签</h3><p>有些标签不希望被存储上，那么可以使用 labeldrop, 删除regex匹配的标签去完成不需要入库 将里面的标签删除掉，在入库之前删除</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;Linux Server&#x27;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&#x27;192.168.179.99:9100&#x27;]</span><br><span class="line">  relabel_configs:</span><br><span class="line">  - action: labeldrop</span><br><span class="line">    regex: &quot;job&quot;   #正则匹配标签名称</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;- job_name: &#39;Linux Server&#39;&lt;br&gt;  static_configs:&lt;br&gt;  - targets: [&#39;192.168.179.99:9100&#39;]&lt;br&gt;  relabel_configs:&lt;br&gt;  - action: labeldrop&lt;br&gt;    regex: &quot;job&quot;   #正则匹配标签名称&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <h3 id="keep"><a href="#keep" class="headerlink" title="keep"></a><a href="#keep" title="keep"></a>keep</h3><p>Keep只有匹配的才会去采集数据，不匹配的就不采集。下面意思就是pod当中有些注解中声明了prometheus_io_scrape这个字段，那么就会把你纳入监控，如果没有声明就不会纳入监控。也就是k8s当中部署了这么多pod，谁要监控，谁不要被监控，在部署service可以指定是否需要采集，如果需要采集需要在注解当中声明prometheus_io_scrape: true</p>
 <p>在 service 里面声明配置注解，那么就会采集注解里面含有这个值的</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">annotations:</span><br><span class="line">  prometheus.io/scrape: &#x27;true&#x27;</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;annotations:&lt;br&gt;  prometheus.io/scrape: &#39;true&#39;&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">plaintext</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">带注解  prometheus.io/scrape: <span class="literal">true</span>  的才会被采集，不然不采集，不入库</span></span><br><span class="line">- source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]</span><br><span class="line">  action: keep</span><br><span class="line">  regex: true</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;# 带注解  prometheus.io/scrape: true  的才会被采集，不然不采集，不入库&lt;br&gt;- source_labels: [__meta_kubernetes_service_annotation_prometheus_io_scrape]&lt;br&gt;  action: keep&lt;br&gt;  regex: true&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <h3 id="replace"><a href="#replace" class="headerlink" title="replace"></a><a href="#replace" title="replace"></a>replace</h3><p>处理监控pod连接的ip地址，api接口，还有协议都需要重新标记默认的字段</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重命名采集目标协议</span></span><br><span class="line">- action: replace</span><br><span class="line">  regex: (https?)</span><br><span class="line">  source_labels:</span><br><span class="line">  - __meta_kubernetes_service_annotation_prometheus_io_scheme</span><br><span class="line">  target_label: __scheme__</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重命名采集目标指标URL路径</span></span><br><span class="line">- action: replace</span><br><span class="line">  regex: (.+)</span><br><span class="line">  source_labels:</span><br><span class="line">  - __meta_kubernetes_service_annotation_prometheus_io_path</span><br><span class="line">  target_label: __metrics_path__</span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重命名采集目标地址</span></span><br><span class="line">- action: replace</span><br><span class="line">  regex: ([^:]+)(?::\d+)?;(\d+)</span><br><span class="line">  replacement: $1:$2</span><br><span class="line">  source_labels:</span><br><span class="line">  - __address__</span><br><span class="line">  - __meta_kubernetes_service_annotation_prometheus_io_port</span><br><span class="line">  target_label: __address__</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;# 重命名采集目标协议&lt;br&gt;- action: replace&lt;br&gt;  regex: (https?)&lt;br&gt;  source_labels:&lt;br&gt;  - __meta_kubernetes_service_annotation_prometheus_io_scheme&lt;br&gt;  target_label: __scheme__&lt;br&gt;# 重命名采集目标指标URL路径&lt;br&gt;- action: replace&lt;br&gt;  regex: (.+)&lt;br&gt;  source_labels:&lt;br&gt;  - __meta_kubernetes_service_annotation_prometheus_io_path&lt;br&gt;  target_label: __metrics_path__&lt;br&gt;# 重命名采集目标地址&lt;br&gt;- action: replace&lt;br&gt;  regex: ([^:]+)(?::\d+)?;(\d+)&lt;br&gt;  replacement: $1:$2&lt;br&gt;  source_labels:&lt;br&gt;  - __address__&lt;br&gt;  - __meta_kubernetes_service_annotation_prometheus_io_port&lt;br&gt;  target_label: __address__&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <p>这里就可以使用新的标签kubernetes_namespace在promql里面基于命名空间这个标签去查询了，因为 __meta_kubernetes_namespace这个标签是不会被存储的</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">生成命名空间标签</span></span><br><span class="line">- action: replace</span><br><span class="line">  source_labels:</span><br><span class="line">  - __meta_kubernetes_namespace</span><br><span class="line">  target_label: kubernetes_namespace</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;# 生成命名空间标签&lt;br&gt;- action: replace&lt;br&gt;  source_labels:&lt;br&gt;  - __meta_kubernetes_namespace&lt;br&gt;  target_label: kubernetes_namespace&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">修改NodeIP:10250为APIServerIP:6443</span></span><br><span class="line">- action: replace</span><br><span class="line">  regex: (.*)</span><br><span class="line">  source_labels: [&quot;__address__&quot;]  源标签配匹为address</span><br><span class="line">  target_label: __address__</span><br><span class="line">  replacement: 192.168.31.61:6443</span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;# 修改NodeIP:10250为APIServerIP:6443&lt;br&gt;- action: replace&lt;br&gt;  regex: (.*)&lt;br&gt;  source_labels: [&quot;__address__&quot;]  源标签配匹为address&lt;br&gt;  target_label: __address__&lt;br&gt;  replacement: 192.168.31.61:6443&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <h3 id="labelmap"><a href="#labelmap" class="headerlink" title="labelmap"></a><a href="#labelmap" title="labelmap"></a>labelmap</h3><p>做上面这些事情是有两个阶段的，一个是采集之前，一个是采集之后，如果在采集之前重新定义标签没生效，那么可以使用采集之后的标签（因为使用的是k8s的服务发现，不管用的是哪个服务发现，默认带的都是源标签__meta_kubernetes_node_label 比如consul那么就是以consul开头的，这些不同服务发现的标签就是为了新标签的生成，就是为了更加好的标识监控指标，源标签是不会入库的）</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">relabel_configs:</span><br><span class="line"><span class="meta prompt_">  # </span><span class="language-bash">将标签(.*)作为新标签名，原有值不变（新的标签名字会被入库查询）</span></span><br><span class="line">  - action: labelmap</span><br><span class="line">    regex: __meta_kubernetes_node_label_(.*) </span><br></pre></td></tr></table></figure>
 
-<table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;</code></td>
-<td><code>plain&lt;br&gt;relabel_configs:&lt;br&gt;  # 将标签(.*)作为新标签名，原有值不变（新的标签名字会被入库查询）&lt;br&gt;  - action: labelmap&lt;br&gt;    regex: __meta_kubernetes_node_label_(.*)&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
 <p>(.<em>) 以其开头所有值匹配到，用这个匹配的值作为新的标签名字，新的标签名字就可以入库，就会被查询，因为元标签以下划线开头的是不会入库的，后面是用不了的&#x2F;这样做的目的就是将后面(.</em>)匹配的值作为一个新标签，并且将原有值赋予新标签，后面可以基于这个新标签查询数据了</p>
  
       <!-- reward -->
