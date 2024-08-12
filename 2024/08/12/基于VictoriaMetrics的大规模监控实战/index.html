@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>基于VictoriaMetrics的大规模监控实战 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-基于VictoriaMetrics的大规模监控实战"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  基于VictoriaMetrics的大规模监控实战
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/12/%E5%9F%BA%E4%BA%8EVictoriaMetrics%E7%9A%84%E5%A4%A7%E8%A7%84%E6%A8%A1%E7%9B%91%E6%8E%A7%E5%AE%9E%E6%88%98/" class="article-date">
+  <time datetime="2024-08-12T03:09:24.000Z" itemprop="datePublished">2024-08-12</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>victoriametrics原生支持水平扩展，并且大部分兼容Prometheus语法，官方文档地址：<a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/">https://docs.victoriametrics.com/</a></p>
+<p>这个是victoriametrics官方的集群架构</p>
+<p><a target="_blank" rel="noopener" href="https://static.zahui.fan/images/20220617162704.png"><img src="/images/1723432070-2cd3f47bc7abd516649193038f5e651a.png" alt="victoriametrics集群架构"></a></p>
+<p>我公司用到的集群架构</p>
+<p><a target="_blank" rel="noopener" href="https://static.zahui.fan/images/202206182239511.png"><img src="/images/1723432070-b825a8c73e37b83831d313a5688f900d.png" alt="我公司用到的集群"></a></p>
+<p>目前用到3台机器</p>
+<table>
+<thead>
+<tr>
+<th>IP</th>
+<th>部署的服务</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>10.200.4.74</td>
+<td>vmauth、vmselect、vminsert、vmstorage、vmalert</td>
+</tr>
+<tr>
+<td>10.200.4.75</td>
+<td>vmselect、vminsert、vmstorage</td>
+</tr>
+<tr>
+<td>10.200.4.76</td>
+<td>vmselect、vminsert、vmstorage</td>
+</tr>
+</tbody></table>
+<h2 id="vmstorage"><a href="#vmstorage" class="headerlink" title="vmstorage"></a><a href="#vmstorage" title="vmstorage"></a>vmstorage</h2><p>首先需要把存储部署上，多个存储之间数据是不同步的，也就是说所有的storege组件之间是感知不到彼此的。通过vmselect和vminsert采用一致性hash算法来确定读取&#x2F;写入哪台节点。</p>
+<p>vmstorage启动命令</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;./vmstorage-prod -httpListenAddr &quot;0.0.0.0:8482&quot; \   # vmstorage监听端口&lt;br&gt;    -storageDataPath ./data \                       # 数据存储位置&lt;br&gt;    -retentionPeriod 60d \                          # 数据保留多久&lt;br&gt;    -vminsertAddr &quot;0.0.0.0:8400&quot; \                  # insert服务连接的端口&lt;br&gt;    -vmselectAddr &quot;0.0.0.0:8401&quot; \                  # select服务连接的端口&lt;br&gt;    -dedup.minScrapeInterval=30s \                  # 和vmselect保持一致&lt;br&gt;    -loggerTimezone &quot;Asia/Shanghai&quot; \&lt;br&gt;    -loggerLevel INFO&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="vminsert"><a href="#vminsert" class="headerlink" title="vminsert"></a><a href="#vminsert" title="vminsert"></a>vminsert</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;./vminsert-prod -httpListenAddr &quot;0.0.0.0:8480&quot; \&lt;br&gt;    -storageNode 10.200.4.74:8400,10.200.4.75:8400,10.200.4.76:8400 \       # 指定所有storege节点&lt;br&gt;    -replicationFactor 2 \                                                  # 副本数2&lt;br&gt;    -loggerTimezone&quot;Asia/Shanghai&quot; \&lt;br&gt;    -loggerLevel INFO&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="vmselect"><a href="#vmselect" class="headerlink" title="vmselect"></a><a href="#vmselect" title="vmselect"></a>vmselect</h2><p>vmselect启动命令</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;./vmselect-prod -httpListenAddr &quot;0.0.0.0:8481&quot; \&lt;br&gt;    -selectNode 10.200.4.74:8481,10.200.4.75:8481,10.200.4.76:8481 \    # select的所有节点&lt;br&gt;    -storageNode 10.200.4.74:8401,10.200.4.75:8401,10.200.4.76:8401 \   # 指定所有storage节点&lt;br&gt;    -dedup.minScrapeInterval=30s \                                      # 重复数据删除，如果是从Prometheus写入的话，必须和Prometheus的scrape_interval保持一致。&lt;br&gt;    -loggerTimezone &quot;Asia/Shanghai&quot; \&lt;br&gt;    -loggerLevel INFO&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="vmalert"><a href="#vmalert" class="headerlink" title="vmalert"></a><a href="#vmalert" title="vmalert"></a>vmalert</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;./vmalert-prod -rule=./rules/* \                            # 告警规则目录&lt;br&gt;    -datasource.url=http://10.200.4.74:8427 \               # vmselect的url,一般都是负载均衡地址&lt;br&gt;    -datasource.basicAuth.username admin \                  # vmselect的url认证用户名&lt;br&gt;    -datasource.basicAuth.password 123456 \                # vmselect的url认证密码&lt;br&gt;    -notifier.url=http://10.200.4.63:9093 \                 # alertmanager地址&lt;br&gt;    -remoteWrite.url=http://10.200.4.74:8427 \              # vminsert的url,一般都是负载均衡地址&lt;br&gt;    -remoteWrite.basicAuth.username admin \                 # vminsert的url认证用户名&lt;br&gt;    -remoteWrite.basicAuth.password 123456 \               # vminsert的url认证密码&lt;br&gt;    -evaluationInterval=15s \&lt;br&gt;    -httpListenAddr=0.0.0.0:8080&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h2 id="负载均衡配置"><a href="#负载均衡配置" class="headerlink" title="负载均衡配置"></a><a href="#%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E9%85%8D%E7%BD%AE" title="负载均衡配置"></a>负载均衡配置</h2><h3 id="vmauth负载均衡配置"><a href="#vmauth负载均衡配置" class="headerlink" title="vmauth负载均衡配置"></a><a href="#vmauth%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E9%85%8D%E7%BD%AE" title="vmauth负载均衡配置"></a>vmauth负载均衡配置</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">bash</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;./vmauth-prod -auth.config=./vmauth.yml&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>其中vmauth.yml的配置</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;users:&lt;br&gt;- username: &quot;admin&quot;&lt;br&gt;  password: &quot;123456&quot;&lt;br&gt;  url_map:&lt;br&gt;  - src_paths:&lt;br&gt;    - &quot;/api/v1/query&quot;&lt;br&gt;    - &quot;/api/v1/query_range&quot;&lt;br&gt;    - &quot;/api/v1/label/[^/]+/values&quot;&lt;br&gt;    url_prefix:&lt;br&gt;    - &quot;http://10.200.4.74:8481/select/0/prometheus&quot;&lt;br&gt;    - &quot;http://10.200.4.75:8481/select/0/prometheus&quot;&lt;br&gt;    - &quot;http://10.200.4.76:8481/select/0/prometheus&quot;&lt;br&gt;  - src_paths: [&quot;/api/v1/write&quot;]&lt;br&gt;    url_prefix:&lt;br&gt;    - &quot;http://10.200.4.74:8480/insert/0/prometheus&quot;&lt;br&gt;    - &quot;http://10.200.4.75:8480/insert/0/prometheus&quot;&lt;br&gt;    - &quot;http://10.200.4.76:8480/insert/0/prometheus&quot;&lt;br&gt;#    headers:&lt;br&gt;#    - &quot;X-Scope-OrgID: abc&quot;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<h3 id="nginx负载均衡配置"><a href="#nginx负载均衡配置" class="headerlink" title="nginx负载均衡配置"></a><a href="#nginx%E8%B4%9F%E8%BD%BD%E5%9D%87%E8%A1%A1%E9%85%8D%E7%BD%AE" title="nginx负载均衡配置"></a>nginx负载均衡配置</h3><p>如果你不想用vmauth，nginx功能可以完全覆盖vmauth</p>
+<p>nginx配置示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">text</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;18&lt;br&gt;19&lt;br&gt;20&lt;br&gt;21&lt;br&gt;22&lt;br&gt;23&lt;br&gt;24&lt;br&gt;25&lt;br&gt;26&lt;br&gt;27&lt;br&gt;28&lt;br&gt;29&lt;br&gt;30&lt;br&gt;31&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;upstream  vmselect &#123;&lt;br&gt;    server  10.200.4.74:8481 weight=5 ;&lt;br&gt;    server  10.200.4.75:8481 weight=5 ;&lt;br&gt;    server  10.200.4.76:8481 weight=5 ;&lt;br&gt;&#125;&lt;br&gt;&lt;br&gt;server &#123;&lt;br&gt;    listen 8000;&lt;br&gt;    server_name _;&lt;br&gt;    auth_basic &quot;authentication&quot;;                # 开启基本认证&lt;br&gt;    auth_basic_user_file conf.d/.htpasswd;      # 密码文件&lt;br&gt;    location / &#123;&lt;br&gt;        proxy_pass http://vmselect/select/0/prometheus/;&lt;br&gt;    &#125;&lt;br&gt;&#125;&lt;br&gt;&lt;br&gt;upstream vminsert &#123;&lt;br&gt;    server  10.200.4.74:8480 weight=5 ;&lt;br&gt;    server  10.200.4.75:8480 weight=5 ;&lt;br&gt;    server  10.200.4.76:8480 weight=5 ;&lt;br&gt;&#125;&lt;br&gt;&lt;br&gt;server &#123;&lt;br&gt;    listen 8001;&lt;br&gt;    server_name _;&lt;br&gt;    auth_basic &quot;authentication&quot;;                # 开启基本认证&lt;br&gt;    auth_basic_user_file conf.d/.htpasswd;      # 密码文件&lt;br&gt;    location / &#123;&lt;br&gt;        proxy_pass http://vminsert/insert/0/prometheus/;&lt;br&gt;    &#125;&lt;br&gt;&#125;&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>.htpasswd文件格式：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">text</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;admin:$1$QYnl4A1Q$I8Q712.eKtG9m7sAb9oeM1&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<blockquote>
+<p>admin是用户名, :后面的是密码， 密码可以使用<code>openssl passwd -1 123456</code> 来生成（假设原始密码是123456）</p>
+</blockquote>
+<h2 id="常用的配置"><a href="#常用的配置" class="headerlink" title="常用的配置"></a><a href="#%E5%B8%B8%E7%94%A8%E7%9A%84%E9%85%8D%E7%BD%AE" title="常用的配置"></a>常用的配置</h2><h3 id="Prometheus通过remote-write写入vm集群"><a href="#Prometheus通过remote-write写入vm集群" class="headerlink" title="Prometheus通过remote_write写入vm集群"></a><a href="#Prometheus%E9%80%9A%E8%BF%87remote-write%E5%86%99%E5%85%A5vm%E9%9B%86%E7%BE%A4" title="Prometheus通过remote_write写入vm集群"></a>Prometheus通过remote_write写入vm集群</h3><blockquote>
+<p>官方文档：<a target="_blank" rel="noopener" href="https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write">https://prometheus.io/docs/prometheus/latest/configuration/configuration/#remote_write</a></p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yml</span><br></pre></td></tr></table></figure>
+
+<table>
+<thead>
+<tr>
+<th></th>
+<th></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;9&lt;br&gt;10&lt;br&gt;11&lt;br&gt;12&lt;br&gt;13&lt;br&gt;14&lt;br&gt;15&lt;br&gt;16&lt;br&gt;17&lt;br&gt;</code></td>
+<td><code>plain&lt;br&gt;remote_write:&lt;br&gt;- url: &quot;http://10.200.4.74:8001/api/v1/write&quot;                           # 通过负载均衡地址&lt;br&gt;# - url: &quot;http://10.200.4.74:8480/insert/0/prometheus/api/v1/write&quot;     # 直接连接vminsert组件&lt;br&gt;  basic_auth:&lt;br&gt;    username: admin&lt;br&gt;    password: 123456&lt;br&gt;  remote_timeout: 30s&lt;br&gt;  tls_config:&lt;br&gt;    insecure_skip_verify: true&lt;br&gt;  queue_config:&lt;br&gt;    capacity: 2500&lt;br&gt;    max_shards: 200&lt;br&gt;    min_shards: 1&lt;br&gt;    max_samples_per_send: 500&lt;br&gt;    batch_send_deadline: 5s&lt;br&gt;    min_backoff: 30ms&lt;br&gt;    max_backoff: 5s&lt;br&gt;</code></td>
+</tr>
+</tbody></table>
+<p>参数说明：</p>
+<blockquote>
+<p>官方地址：<a target="_blank" rel="noopener" href="https://prometheus.io/docs/practices/remote_write/">https://prometheus.io/docs/practices/remote_write&#x2F;</a></p>
+</blockquote>
+<ul>
+<li><p>capacity</p>
+<p>定义：每个内存队列（shard：分片）的容量。</p>
+<p>一旦WAL被阻塞，就无法将样本附加到任何分片，并且所有吞吐量都将停止。所以在大多数情况下，单个队列容量应足够打以避免阻塞其他分片，但是太大的容量可能会导致过多的内存消耗，并导致重新分片期间清除队列的时间更长。</p>
+<p>容量建议：将容量设置为3-10倍<code>max_samples_per_send</code></p>
+</li>
+<li><p>max_shards</p>
+<p>顾名思义，最大的分片数（即队列数），也可以理解为远程写的并行度。peometheus远程写的时候会使用所有的分片，只有在写队列落后于远程写的速度，使用的队列数会达到max_shards,目的在于提高远程写的吞吐量。</p>
+<p>PS：在操作过程中，Prometheus将根据传入的采样率，未发送的未处理样本数以及发送每个样本所花费的时间，连续计算要使用的最佳分片数。（实际的分片数是动态调整的）</p>
+</li>
+<li><p>min_shards</p>
+<p>最小分片配置Prometheus使用的最小分片数量，并且是远程写入开始时使用的分片数量。如果远程写入落后，Prometheus将自动扩大分片的数量，因此大多数用户不必调整此参数。但是，增加最小分片数将使Prometheus在计算所需分片数时避免在一开始就落后。</p>
+</li>
+<li><p>max_samples_per_send</p>
+<p>定义：每次远程写发送的最大指标数量，即批处理；</p>
+<p>这个值依赖于远程存储系统，对于一些系统而言，在没有显著增加延迟的情况下发送更多指标数据而运行良好，然而，对于另外一些系统而言，每次请求中发送大量指标数据可能导致其出现故障，使用的默认值是适用于绝大多数系统的。</p>
+</li>
+<li><p>batch_send_deadline</p>
+<p>定义：单一分片批量发送指标数据的最大等待时间；</p>
+<p>即使排队的分片尚未达到max_samples_per_send，也会发送请求。 对于对延迟不敏感的小批量系统，可以增加批量发送的截止时间，以提高请求效率。</p>
+</li>
+<li><p>min_backoff</p>
+<p>定义：远程写失败的最小等待时间；</p>
+<p>min_backoff是第一次的重试等待时间，第二次等待时间是其2倍，以此类推，直到max_backoff的值；</p>
+</li>
+<li><p>max_backoff</p>
+<p>定义：远程写失败的最大等待时间；</p>
+</li>
+</ul>
+<h3 id="Grafana直接查询VM集群"><a href="#Grafana直接查询VM集群" class="headerlink" title="Grafana直接查询VM集群"></a><a href="#Grafana%E7%9B%B4%E6%8E%A5%E6%9F%A5%E8%AF%A2VM%E9%9B%86%E7%BE%A4" title="Grafana直接查询VM集群"></a>Grafana直接查询VM集群</h3><p>Grafana配置地址：</p>
+<table>
+<thead>
+<tr>
+<th>说明</th>
+<th>地址</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>负载均衡地址</td>
+<td><code>http://10.200.4.74:8000</code></td>
+</tr>
+<tr>
+<td>vmselect地址</td>
+<td><code>http://10.200.4.74:8481/select/0/prometheus</code></td>
+</tr>
+</tbody></table>
+<h3 id="其他API地址"><a href="#其他API地址" class="headerlink" title="其他API地址"></a><a href="#%E5%85%B6%E4%BB%96API%E5%9C%B0%E5%9D%80" title="其他API地址"></a>其他API地址</h3><p>目录：<a target="_blank" rel="noopener" href="http://10.200.4.74:8481/select/0/">http://10.200.4.74:8481/select/0/</a></p>
+<p>vmui：<a target="_blank" rel="noopener" href="http://10.200.4.74:8481/select/0/vmui/">http://10.200.4.74:8481/select/0/vmui/</a></p>
+<p>每个组件都有<code>/metrics</code>，可以接入监控</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/12/%E5%9F%BA%E4%BA%8EVictoriaMetrics%E7%9A%84%E5%A4%A7%E8%A7%84%E6%A8%A1%E7%9B%91%E6%8E%A7%E5%AE%9E%E6%88%98/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/12/Prometheus%E6%A0%87%E7%AD%BE%E4%BD%BF%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus标签使用</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2049529248&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
