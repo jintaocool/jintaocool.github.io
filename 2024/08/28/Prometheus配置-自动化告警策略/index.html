@@ -1,0 +1,742 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus配置:自动化告警策略 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus配置-自动化告警策略"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus配置:自动化告警策略
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/08/28/Prometheus%E9%85%8D%E7%BD%AE-%E8%87%AA%E5%8A%A8%E5%8C%96%E5%91%8A%E8%AD%A6%E7%AD%96%E7%95%A5/" class="article-date">
+  <time datetime="2024-08-28T03:17:21.000Z" itemprop="datePublished">2024-08-28</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h1><p>Prometheus作为一款开源的监控系统，广泛应用于云原生和微服务架构中。</p>
+<p>然而，管理其<strong>配置文件</strong>及<strong>告警策略</strong>常常是运维工作中的一大挑战。</p>
+<p>本文将介绍如何利用自动化技术解决Prometheus配置管理的问题，重点讨论告警策略的<strong>自动生成</strong>和<strong>配置重载</strong>的方法。</p>
+<h1 id="01"><a href="#01" class="headerlink" title="01."></a>01.</h1><h1 id="自动化管理告警策略"><a href="#自动化管理告警策略" class="headerlink" title="自动化管理告警策略"></a>自动化管理告警策略</h1><p>在实际运维中，Prometheus的告警策略配置文件起着至关重要的作用。它定义了监控数据的阈值和告警规则，直接影响到系统监控的有效性和响应能力。在做平台化管理之前，我们首先要知道Prometheus的告警策略长什么样？</p>
+<p> 01  告警配置文件  </p>
+<p>Prometheus使用YAML格式的告警规则文件（alerting rules），其中包含了告警规则的名称、表达式和触发条件等。</p>
+<p>以下是一个简单的示例：</p>
+<p><strong>prometheus.yml</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">rule_files:</span><br><span class="line">  - &quot;rules/rules.yml&quot;</span><br></pre></td></tr></table></figure>
+
+<p><strong>rules.yml</strong>  </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">groups:</span><br><span class="line">- name: example</span><br><span class="line">  rules:</span><br><span class="line">  - alert: HighRequestRate</span><br><span class="line">    expr: sum(rate(http_requests_total&#123;job=&quot;api-server&quot;&#125;[5m])) &gt; 100</span><br><span class="line">    for: 10m</span><br><span class="line">    labels:</span><br><span class="line">      severity: critical</span><br><span class="line">    annotations:</span><br><span class="line">      summary: High request rate detected</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><strong>groups</strong> 在Prometheus配置中，可以定义多个告警规则组，每个组都包含一组相关的告警规则。</p>
+</li>
+<li><p><strong>name</strong> 告警规则组的名称。这个名称用于标识和组织一组相关的告警规则。</p>
+</li>
+<li><p><strong>rules</strong> 这是一个包含具体告警规则的列表，属于指定名称的告警规则组。</p>
+</li>
+<li><p><strong>alert</strong> 告警规则的名称或标识符，每个告警规则需要一个唯一的名称</p>
+</li>
+<li><p><strong>expr</strong> 这是告警规则的表达式，定义了触发告警的条件。表达式通常使用PromQL（Prometheus查询语言）编写，该表达式的含义是计算过去5分钟内每秒的平均HTTP请求数量，如果超过100，则触发告警。</p>
+</li>
+<li><p><strong>for</strong> 表示在表达式条件满足后，持续触发告警的时间长度</p>
+</li>
+<li><p><strong>labels</strong> 用于标记告警规则的元数据信息。建议加上cmdb_id之类的标识，用于告警回调后与cmdb的资源产生联动，进而执行自愈等操作</p>
+</li>
+<li><p><strong>annotations</strong> 用于提供有关告警的描述性信息。</p>
+</li>
+</ul>
+<h2 id=""><a href="#" class="headerlink" title=""></a></h2><h2 id="02-自动生成-alert-rules"><a href="#02-自动生成-alert-rules" class="headerlink" title="02  自动生成 alert rules"></a>02  自动生成 alert rules</h2><p>为了简化和自动化告警策略的管理，我们可以采用Python编写脚本来生成配置文件。这里介绍两种常见的实现方式：</p>
+<p><strong>方式一：定时调用API获取配置数据并生成文件</strong></p>
+<p>以下是一个存放告警策略数据的MySQL数据库表示例：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">CREATE TABLE alert_rules (</span><br><span class="line">    id INT AUTO_INCREMENT PRIMARY KEY,</span><br><span class="line">    group_name VARCHAR(50) NOT NULL,</span><br><span class="line">    alert_name VARCHAR(50) NOT NULL,</span><br><span class="line">    expr VARCHAR(255) NOT NULL,</span><br><span class="line">    duration VARCHAR(10) NOT NULL,</span><br><span class="line">    severity VARCHAR(20) NOT NULL,</span><br><span class="line">    summary VARCHAR(255) NOT NULL</span><br><span class="line">);</span><br></pre></td></tr></table></figure>
+
+<p><strong>Step1</strong> <strong>用Flask实现一个API接口</strong></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br></pre></td><td class="code"><pre><span class="line">from flask import Flask, jsonify</span><br><span class="line">import mysql.connector</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line"># MySQL数据库连接信息</span><br><span class="line">db_config = &#123;</span><br><span class="line">    &#x27;host&#x27;: &#x27;localhost&#x27;,</span><br><span class="line">    &#x27;user&#x27;: &#x27;your_username&#x27;,</span><br><span class="line">    &#x27;password&#x27;: &#x27;your_password&#x27;,</span><br><span class="line">    &#x27;database&#x27;: &#x27;your_database&#x27;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">@app.route(&#x27;/get_alert_rules&#x27;, methods=[&#x27;GET&#x27;])</span><br><span class="line">def get_alert_rules():</span><br><span class="line">    try:</span><br><span class="line">        # 连接到MySQL数据库</span><br><span class="line">        conn = mysql.connector.connect(**db_config)</span><br><span class="line">        cursor = conn.cursor(dictionary=True)</span><br><span class="line"></span><br><span class="line">        # 查询所有的告警规则</span><br><span class="line">        cursor.execute(&quot;SELECT * FROM alert_rules&quot;)</span><br><span class="line">        rules = cursor.fetchall()</span><br><span class="line"></span><br><span class="line">        # 格式化成符合要求的YAML格式</span><br><span class="line">        alert_rules = &#123;</span><br><span class="line">            &quot;groups&quot;: []</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        current_group = None</span><br><span class="line">        for rule in rules:</span><br><span class="line">            if not current_group or current_group[&quot;name&quot;] != rule[&quot;group_name&quot;]:</span><br><span class="line">                current_group = &#123;</span><br><span class="line">                    &quot;name&quot;: rule[&quot;group_name&quot;],</span><br><span class="line">                    &quot;rules&quot;: []</span><br><span class="line">                &#125;</span><br><span class="line">                alert_rules[&quot;groups&quot;].append(current_group)</span><br><span class="line"></span><br><span class="line">            current_group[&quot;rules&quot;].append(&#123;</span><br><span class="line">                &quot;alert&quot;: rule[&quot;alert_name&quot;],</span><br><span class="line">                &quot;expr&quot;: rule[&quot;expr&quot;],</span><br><span class="line">                &quot;for&quot;: rule[&quot;duration&quot;],</span><br><span class="line">                &quot;labels&quot;: &#123;&quot;severity&quot;: rule[&quot;severity&quot;]&#125;,</span><br><span class="line">                &quot;annotations&quot;: &#123;&quot;summary&quot;: rule[&quot;summary&quot;]&#125;</span><br><span class="line">            &#125;)</span><br><span class="line"></span><br><span class="line">        return jsonify(alert_rules)</span><br><span class="line"></span><br><span class="line">    except mysql.connector.Error as e:</span><br><span class="line">        print(f&quot;Error retrieving data from MySQL: &#123;e&#125;&quot;)</span><br><span class="line">        return jsonify(&#123;&quot;error&quot;: &quot;Database error&quot;&#125;), 500</span><br><span class="line"></span><br><span class="line">    finally:</span><br><span class="line">        if &#x27;conn&#x27; in locals():</span><br><span class="line">            conn.close()</span><br><span class="line"></span><br><span class="line">if __name__ == &#x27;__main__&#x27;:</span><br><span class="line">    app.run(debug=True)</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li><p><strong>数据库连接与查询</strong>  在 <code>get_alert_rules</code> 函数中，首先连接到MySQL数据库，执行查询来获取所有的告警规则数据。</p>
+</li>
+<li><p><strong>数据格式化</strong> 遍历查询结果，将每条告警规则转换成符合要求的格式，并将其添加到 <code>alert_rules</code> 字典中。</p>
+</li>
+<li><p><strong>异常处理</strong> 使用 <code>try-``except-finally</code> 结构来处理数据库连接和查询中的错误，并确保在最终关闭数据库连接。</p>
+</li>
+</ul>
+<p><strong>Step2</strong> <strong>定时更新配置文件</strong></p>
+<p>准备好服务端的API接口，接下就可以在Prometheus所在服务器用一个python脚本定时调用上面的API接口，并生成yml文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">import requests</span><br><span class="line">import yaml</span><br><span class="line">from datetime import datetime</span><br><span class="line">from crontab import CronTab</span><br><span class="line"></span><br><span class="line"># 定义API接口地址</span><br><span class="line">API_URL = &#x27;http://your_flask_app_host:get_alert_rules&#x27;</span><br><span class="line"></span><br><span class="line"># 定义Prometheus配置文件路径</span><br><span class="line">PROMETHEUS_CONFIG_FILE = &#x27;/etc/prometheus/prometheus.yml&#x27;</span><br><span class="line"></span><br><span class="line">def fetch_alert_rules():</span><br><span class="line">    try:</span><br><span class="line">        # 发起GET请求获取告警策略数据</span><br><span class="line">        response = requests.get(API_URL)</span><br><span class="line">        response.raise_for_status()</span><br><span class="line">        alert_rules = response.json()</span><br><span class="line">        return alert_rules</span><br><span class="line">    except requests.exceptions.RequestException as e:</span><br><span class="line">        print(f&quot;Error fetching alert rules from API: &#123;e&#125;&quot;)</span><br><span class="line">        return None</span><br><span class="line"></span><br><span class="line">def generate_prometheus_config(alert_rules):</span><br><span class="line">    if alert_rules is None:</span><br><span class="line">        return</span><br><span class="line"></span><br><span class="line">    # 构建Prometheus配置文件内容</span><br><span class="line">    prometheus_config = &#123;</span><br><span class="line">        &#x27;global&#x27;: &#123;</span><br><span class="line">            &#x27;scrape_interval&#x27;: &#x27;15s&#x27;,</span><br><span class="line">            # 其他全局配置...</span><br><span class="line">        &#125;,</span><br><span class="line">        &#x27;rule_files&#x27;: [</span><br><span class="line">            &#x27;/etc/prometheus/rules/*.rules.yml&#x27;,</span><br><span class="line">            # 其他规则文件路径...</span><br><span class="line">        ],</span><br><span class="line">        &#x27;alerting&#x27;: &#123;</span><br><span class="line">            &#x27;alertmanagers&#x27;: [</span><br><span class="line">                &#123;&#x27;static_configs&#x27;: [&#123;&#x27;targets&#x27;: [&#x27;localhost:9093&#x27;]&#125;]&#125;</span><br><span class="line">            ]</span><br><span class="line">        &#125;,</span><br><span class="line">        &#x27;scrape_configs&#x27;: [</span><br><span class="line">            # 其他scrape配置...</span><br><span class="line">        ]</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    # 添加从API获取的告警策略数据</span><br><span class="line">    for group in alert_rules.get(&#x27;groups&#x27;, []):</span><br><span class="line">        rules = group.get(&#x27;rules&#x27;, [])</span><br><span class="line">        for rule in rules:</span><br><span class="line">            prometheus_config.setdefault(&#x27;rule_files&#x27;, []).append(&#123;</span><br><span class="line">                &#x27;groups&#x27;: group[&#x27;name&#x27;],</span><br><span class="line">                &#x27;rules&#x27;: rule[&#x27;expr&#x27;],</span><br><span class="line">                &#x27;for&#x27;: rule[&#x27;for&#x27;],</span><br><span class="line">                &#x27;labels&#x27;: rule[&#x27;labels&#x27;],</span><br><span class="line">                &#x27;annotations&#x27;: rule[&#x27;annotations&#x27;],</span><br><span class="line">            &#125;)</span><br><span class="line"></span><br><span class="line">    return prometheus_config</span><br><span class="line"></span><br><span class="line">def write_prometheus_config(config):</span><br><span class="line">    # 写入Prometheus配置文件</span><br><span class="line">    with open(PROMETHEUS_CONFIG_FILE, &#x27;w&#x27;) as file:</span><br><span class="line">        yaml.dump(config, file, default_flow_style=False)</span><br><span class="line">    print(f&quot;Prometheus config updated at &#123;datetime.now()&#125;&quot;)</span><br><span class="line"></span><br><span class="line">def main():</span><br><span class="line">    # 获取告警策略数据</span><br><span class="line">    alert_rules = fetch_alert_rules()</span><br><span class="line">    if alert_rules:</span><br><span class="line">        # 生成Prometheus配置</span><br><span class="line">        prometheus_config = generate_prometheus_config(alert_rules)</span><br><span class="line">        if prometheus_config:</span><br><span class="line">            # 写入Prometheus配置文件</span><br><span class="line">            write_prometheus_config(prometheus_config)</span><br><span class="line"></span><br><span class="line">if __name__ == &#x27;__main__&#x27;:</span><br><span class="line">    main()</span><br></pre></td></tr></table></figure>
+
+<p><strong>Step3</strong> <strong>添加Crontab</strong></p>
+<p>使用 crontab 定时调度这个脚本，例如每小时执行一次。打开终端并编辑crontab：  </p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">crontab -e</span><br></pre></td></tr></table></figure>
+
+<p>在编辑器中添加以下行来设置每小时执行一次脚本的任务：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">* * * * * python /path/to/update_prometheus_config.py &gt;/dev/null 2&gt;&amp;1</span><br></pre></td></tr></table></figure>
+
+<p>这将使脚本每分钟执行一次，并将输出重定向到 &#x2F;dev&#x2F;null，以避免输出邮件通知。</p>
+<p><strong>方式二：运维平台推送配置文件到Prometheus</strong></p>
+<p>这种方法与第1种方法类似，主要是在Prometheus所在的服务器上部署一个基于Flask的API接口。这个接口的主要功能是接收来自运维平台传递过来的告警策略数据，然后将这些数据转换成YAML格式的文件，示例代码可以参考第1种方式的代码改造</p>
+<p>02. </p>
+<p>重新加载Prometheus配置</p>
+<h2 id="经过前面的步骤后，Prometheus的告警配置已经实现自动更新，但还缺少最关键的一步，就是触发Prometheus重新加载配置文件。"><a href="#经过前面的步骤后，Prometheus的告警配置已经实现自动更新，但还缺少最关键的一步，就是触发Prometheus重新加载配置文件。" class="headerlink" title="经过前面的步骤后，Prometheus的告警配置已经实现自动更新，但还缺少最关键的一步，就是触发Prometheus重新加载配置文件。"></a>经过前面的步骤后，Prometheus的告警配置已经实现自动更新，但还缺少最关键的一步，就是触发Prometheus重新加载配置文件。</h2><p>Prometheus重新加载配置文件的两种形式：</p>
+<p><strong>方式一：Prometheus API接口</strong></p>
+<p>Prometheus提供了API接口，可以通过发送POST请求来触发配置的重新加载：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X POST http://localhost:9090/-/reload</span><br></pre></td></tr></table></figure>
+
+<p><strong>方式二：使****用进程信号-HUP</strong></p>
+<p>另一种常见的方法是通过发送HUP信号给Prometheus进程，让其重新加载配置文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kill -HUP &lt;prometheus_pid&gt;</span><br></pre></td></tr></table></figure>
+
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>本文详细讨论了如何解决Prometheus配置管理中的难题，包括自动化生成告警策略文件和配置的重新加载。接下来如何管理发送告警呢？</p>
+<p>你是否曾想过：</p>
+<ul>
+<li><p>如何配置Prometheus来捕获各种系统和应用程序的性能指标？</p>
+</li>
+<li><p>Alertmanager如何与Prometheus集成，以便在发生故障或异常时及时通知运维团队？</p>
+</li>
+<li><p>我们如何利用Alertmanager的路由和接收器功能，将告警信息有效地回调到运维平台，实现自动化的故障响应和自愈操作？</p>
+</li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/08/28/Prometheus%E9%85%8D%E7%BD%AE-%E8%87%AA%E5%8A%A8%E5%8C%96%E5%91%8A%E8%AD%A6%E7%AD%96%E7%95%A5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/08/26/grafana%E6%A0%A1%E9%AA%8C%E7%99%BB%E5%BD%95%E8%BA%AB%E4%BB%BD%E6%8E%88%E6%9D%83S%E7%A0%81%E6%9D%83%E9%99%90SQL/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">grafana校验登录身份授权S码权限SQL</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
