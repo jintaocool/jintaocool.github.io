@@ -1,0 +1,754 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>基于Grafana+Flowcharting的基础设施监控可视化实践 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Grafana-基于Grafana-Flowcharting的基础设施监控可视化实践"
+  class="article article-type-Grafana"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  基于Grafana+Flowcharting的基础设施监控可视化实践
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/04/%E5%9F%BA%E4%BA%8EGrafana-Flowcharting%E7%9A%84%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E7%9B%91%E6%8E%A7%E5%8F%AF%E8%A7%86%E5%8C%96%E5%AE%9E%E8%B7%B5/" class="article-date">
+  <time datetime="2024-09-04T05:55:45.000Z" itemprop="datePublished">2024-09-04</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Grafana/">Grafana</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一-概述"><a href="#一-概述" class="headerlink" title="一 概述"></a>一 概述</h2><p>基础设施监控对于确保系统的稳定性和性能至关重要。而要有效地监控和管理基础设施，可视化是一种强大的工具。本文将介绍如何使用Grafana和Flowcharting来实现基础设施监控的可视化，包括监控指标的收集、数据展示和报警通知等方面。通过合理的设计和配置，我们可以快速建立起一个直观、实时、可操作的监控系统，提高基础设施的可靠性和响应能力。</p>
+<h2 id="二-背景"><a href="#二-背景" class="headerlink" title="二 背景"></a>二 背景</h2><p>flowcharting是grafana社区提供的一款插件，其借助开源绘图工具drawio可以实现定制化的的业务链路动态监控，将各项监控指标以更加面向业务的图表形式进行展示，可以实现网络拓扑图、流程图、架构图等等各种图形，将比较分散的指标统一成可视化的监控图形。</p>
+<h2 id="三-特点"><a href="#三-特点" class="headerlink" title="三 特点"></a>三 特点</h2><p>Grafana结婚Flowcharting可以实现可视化架构图，集成数据指标和流程的特点：</p>
+<ol>
+<li>数据可视化: Grafana提供了丰富的图表和仪表盘，可以将数据以图形化的方式展示出来，而Flowcharting则可以用来描述数据处理和流程中的步骤和关系，通过两者的结合，可以更全面地展示和理解数据流程。</li>
+<li>数据监控和警报: Grafana作为一个监控平台，可以实时监控数据指标并生成警报。结合Flowcharting，可以通过流程图形式展示监控流程和警报触发条件，使得监控和警报的流程更加清晰和可视化。</li>
+<li>故障排查和优化: 当系统出现故障或性能问题时，结合Grafana和Flowcharting可以帮助进行故障排查和性能优化。Grafana提供了实时的性能指标和日志数据，而Flowcharting可以用来描述系统流程和各个组件之间的关系，通过结合两者，可以更准确地定位问题所在并进行优化。</li>
+<li>可视化工作流程: Flowcharting可以用来表示工作流程和业务流程，而Grafana可以将与工作流程相关的数据可视化展示出来。通过结合两者，可以更好地理解和分析工作流程，并做出相应的调整和优化。</li>
+<li>辅助决策和沟通: Grafana和Flowcharting的结合可以帮助决策者更好地理解数据和流程，从而做出更准确的决策。同时，将数据和流程可视化也有助于与团队成员或利益相关者进行沟通和交流，促进共识和合作。</li>
+</ol>
+<h2 id="四-实战"><a href="#四-实战" class="headerlink" title="四 实战"></a>四 实战</h2><h3 id="4-1-Flowcharting部署"><a href="#4-1-Flowcharting部署" class="headerlink" title="4.1 Flowcharting部署"></a>4.1 Flowcharting部署</h3><p>在Grafana插件中寻查询Flowcharting插件，并进行部署</p>
+<p><img src="/images/1725429250-4631811aed967b8a75411d3aba713eec.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端"></p>
+<h3 id="4-2-利用Drawio-io-绘制业务架构图"><a href="#4-2-利用Drawio-io-绘制业务架构图" class="headerlink" title="4.2 利用Drawio.io 绘制业务架构图"></a>4.2 利用Drawio.io 绘制业务架构图</h3><p>draw.io 是一款免费的在线图表编辑工具, 可以用来编辑工作流, BPM, org charts, UML, ER图, 网络拓朴图等 ,开源免费，并且支持多平台，图形可以多种形式导出，并且可以复制图形的XML导入到flowcharting中。</p>
+<p>draw.io的在线地址为: <a target="_blank" rel="noopener" href="http://www.draw.io/index.html">www.draw.io/index.html</a></p>
+<p>也可以私有化部署draw.io，再次使用K8s部署draw.io，进行架构图绘制</p>
+<p><img src="/images/1725429250-ee63d940c5a13421a661f2780f9b01ba.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_02"></p>
+<p><img src="/images/1725429250-2206d6e34df2464ef6ec2c423aac45e8.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_监控_03"></p>
+<p>使用draw.io画好了图形以后，使用Extras-&gt;Edit Diagram，复制XML。</p>
+<p><img src="/images/1725429250-f2b5ea54de62c330ffd766cd7730d767.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_04"></p>
+<p><img src="/images/1725429250-f7c2a2d629ad22fdee3b1a1972ce38d2.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_监控_05"></p>
+<h3 id="4-2-架构图绘制"><a href="#4-2-架构图绘制" class="headerlink" title="4.2 架构图绘制"></a>4.2 架构图绘制</h3><p>点击+-&gt;Create，创建DashBoard，点击”Add new panel”,在Visualization中选择FlowCharting选项，panel中会出现如下自带默认案例图：</p>
+<p>选择FlowCharting类型</p>
+<p><img src="/images/1725429250-d7848465df8da034287a309fcf2826ba.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_监控_06"></p>
+<p>一共包含四个指标</p>
+<p><img src="/images/1725429250-be47e8807358aa93879bfaee08cf60b6.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_基础设施_07"></p>
+<h4 id="4-2-1-Panel-options"><a href="#4-2-1-Panel-options" class="headerlink" title="4.2.1 Panel options"></a>4.2.1 Panel options</h4><p><img src="/images/1725429250-25bcbe1e762b3730e847abd2d8b2847c.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_08"></p>
+<h4 id="4-2-2-Flowchart"><a href="#4-2-2-Flowchart" class="headerlink" title="4.2.2 Flowchart"></a>4.2.2 Flowchart</h4><p>Flowchart Flowchart小节重要的内容是Definition，其中的”source type”代表导入的图形数据的类型，支持XML和CSV，一般使用draw.io画的图形导入使用XML类型</p>
+<p>注意：直接利用Edit Draw绘制的图形无法显示，需先在drawio.io中绘制然后复制xml，之后可以利用grafana中的edit draw进行编辑修改。</p>
+<p>“source content”就是draw.io图形导出的XML黏贴的地方。 还有Advanced小节的内容，主要配置项如下：</p>
+<p><img src="/images/1725429250-b068949e4413e7a7327f6052f1dfeb8a.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_Grafana_09"></p>
+<p>其他属性：</p>
+<ul>
+<li>Scale 对图形进行缩放。</li>
+<li>Center 图形居中进行显示。</li>
+<li>Grid 背景显示网格。</li>
+<li>Bg Color 用于配置图形的背景色。</li>
+<li>Lock 对图形上的元素对象进行锁定，不允许拖动修改。</li>
+<li>Allow draw.io.source 允许从draw.io下载图形。</li>
+<li>Enable animation 启用动画效果。</li>
+<li>Tooltip 允许提示信息，当鼠标经过时提示相应的信息。</li>
+</ul>
+<h4 id="4-2-3-Mapping"><a href="#4-2-3-Mapping" class="headerlink" title="4.2.3 Mapping"></a>4.2.3 Mapping</h4><p>Mapping顾名思义，是将图形中的元素和Grafana中的查询指标进行映射关联，并有多种展现形式及根据指标显示的交互状态。</p>
+<p><img src="/images/1725429250-a6d2fa20ca77094fe6eba6c80f7f88aa.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_10"></p>
+<p>Rule name：为规则名称</p>
+<p>Apply to metrics：为利用grafana查询出来的结果，也是规则与查询匹配的关联条目</p>
+<p>Aggregation：查询结果的呈现方式</p>
+<p>Type：为查询结果的显示类型，可以为数字、字符串、日期等。</p>
+<p>Unit：为查询结果的显示单位；</p>
+<p>Decimals：结果为数字，小数点保留位数；</p>
+<p><img src="/images/1725429250-f1058289b4949034e20f5b972a11e945.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_数据_11"></p>
+<p>Thresholds为定义数据显示的状态，可以为基础正常，警告、紧急等，可以根据指标定制多个等级。</p>
+<p><img src="/images/1725429250-02918fd3e162a4bd41a1062bb364d82e.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_Grafana_12"></p>
+<p>Tooltips为显示标签内容</p>
+<p>label：需要自定义显示内容；</p>
+<p>When state is：为显示条件</p>
+<p>Direction：为显示方式，垂直或水平</p>
+<p><img src="/images/1725429250-b419d4d1557540fa3de1663ac8ff4000.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_Grafana_13"></p>
+<p>Graph Tooltips为鼠标移动到对应图形上有图形展示</p>
+<p>Graph type：可以图标展示形式为线形，或直方图；</p>
+<p>Graph Size：图表显示大小，可以自适应，或者大中小等；</p>
+<p>Y-Min&#x2F;Y-Max：自定义x、y轴</p>
+<p>Scale type：显示为你的数据可视化选择合适的刻度类型</p>
+<p><img src="/images/1725429250-20b5372de049b8d8286a09def1be95c4.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_数据_14"></p>
+<p>Color&#x2F;Tooltip Mappings，颜色和提升工具的映射</p>
+<p>identify by：通过图形的label或者id来执行映射，</p>
+<p>之后是映射条件，what为那个图形，when为什么条件执行，how执行什么动作。</p>
+<p><img src="/images/1725429250-a5256629af6a272abf306e5a57d41723.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_基础设施_15"></p>
+<p>Label&#x2F;Text Mappings展示图形关联文本</p>
+<p><img src="/images/1725429250-810b1d848791f40fcb78c6b07fc42de7.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_基础设施_16"></p>
+<p>链接映射，点击图形可以跳转到对应链接地址</p>
+<p><img src="/images/1725429250-886d4ceefebc0a75a70738925e3b992b.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_17"></p>
+<p>事件动画映射。</p>
+<p>可以Copy Rule快速创建第二条规则。</p>
+<h4 id="4-2-4-Inspect"><a href="#4-2-4-Inspect" class="headerlink" title="4.2.4 Inspect"></a>4.2.4 Inspect</h4><p>Inspect可以帮助用户查看图像ID，实现ID与查询结果的映射。</p>
+<p><img src="/images/1725429250-fa3b1702100ec75e529d6de288115712.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_18"></p>
+<h2 id="五-展示"><a href="#五-展示" class="headerlink" title="五 展示"></a>五 展示</h2><p>再次仅简单展示部分图表，可根据自身业务架构绘制对应架构图，同时可根据不同场景绘制不同应用架构。</p>
+<p><img src="/images/1725429250-23f6281c437364970db795e9e592bd9d.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_监控_19" title="image.png"></p>
+<p>查看LB的入口流量  </p>
+<p><img src="/images/1725429250-d4591a547b56054cfdd061f91e5d40d6.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_20"></p>
+<p>查看到Node11的流量</p>
+<p><img src="/images/1725429250-ded8046da037362c7b2e08613466a40c.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_21"></p>
+<p>查看node11的资源情况</p>
+<p><img src="/images/1725429250-12072b5edd3bce41ee0bff4dd2dee267.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_基础设施_22"></p>
+<p>查看负载均衡信息</p>
+<p><img src="/images/1725429250-0176af63d896d490fcd979864b1f1677.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_后端_23"></p>
+<p>点击具体资，可调整到详细资源图表查看</p>
+<p><img src="/images/1725429250-cf07869b01af70eeb16f58d745f09047.webp" alt="基于Grafana+Flowcharting的基础设施监控可视化实践_Grafana_24"></p>
+<h2 id="六-其他"><a href="#六-其他" class="headerlink" title="六 其他"></a>六 其他</h2><ul>
+<li>需要提前在drawio中绘制好图形，在复制到grafana中，直接使用Flowcharting中的编辑，导致图形丢失bug。</li>
+<li>如果图形复杂，需要有较多的query和rule，配置起来较麻烦。</li>
+<li>如果架构图中元素更改了，需要更新其中配置，因此适用于变化较少的架构，弹性架构不合适。</li>
+<li>如果不生效需要先保存然后F5强刷下！有时还会应为网络原因部分数据无法加载。</li>
+</ul>
+<h2 id="七-总结"><a href="#七-总结" class="headerlink" title="七 总结"></a>七 总结</h2><p>结合Grafana和Flowcharting可以实现数据可视化、流程描述、故障排查、优化和决策辅助等功能，提高工作效率和结果的准确性。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/04/%E5%9F%BA%E4%BA%8EGrafana-Flowcharting%E7%9A%84%E5%9F%BA%E7%A1%80%E8%AE%BE%E6%96%BD%E7%9B%91%E6%8E%A7%E5%8F%AF%E8%A7%86%E5%8C%96%E5%AE%9E%E8%B7%B5/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Grafana/" rel="tag">Grafana</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/04/KubeSphere%E4%B8%AD%E7%9A%84Alertmanager/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">KubeSphere中的Alertmanager</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
