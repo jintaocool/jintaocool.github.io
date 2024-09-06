@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus服务发现之kubernetes_sd_config |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus服务发现之kubernetes-sd-config"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus服务发现之kubernetes_sd_config
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/06/Prometheus%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0%E4%B9%8Bkubernetes-sd-config/" class="article-date">
+  <time datetime="2024-09-06T03:44:43.000Z" itemprop="datePublished">2024-09-06</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="一、为什么要使用Prometheus服务发现"><a href="#一、为什么要使用Prometheus服务发现" class="headerlink" title="一、为什么要使用Prometheus服务发现"></a>一、为什么要使用Prometheus服务发现</h3><p>之前我们讲过通过配置prometheus-operator的CRD ServiceMonitor来达到K8S集群相关组件和微服务的监控的目的，可以在ServiceMonitor的配置文件中以手动方式通过match lable和想要监控的Service进行匹配（<strong>这里相当于是手动进行服务注册和服务发现的作用，也可以将这种模式称为静态服务发现</strong>），以此来完成对想要监控的服务和组件进行监控，但这种方式进行监控配置，只能手工一个一个的增加，如果在k8s集群规模较大的情况下，或者是集群后面又增加了节点或者组件信息，这种方式就会很麻烦也不现实，于是引出了今天的主题-Prometheus动态服务发现机制，下面来让我们了解一下Prometheus是如何动态实现服务发现的。</p>
+<h3 id="二、什么是Prometheus服务发现"><a href="#二、什么是Prometheus服务发现" class="headerlink" title="二、什么是Prometheus服务发现"></a>二、什么是Prometheus服务发现</h3><p>从上面的介绍大家已经知道，prometheus获取数据源target的方式主要有两种模式，一种是静态配置，一种是动态服务发现配置，promethues的静态服务发现static_configs或者是ServiceMonitor 通过标签匹配Service：每当有一个新的目标实例需要监控，都需要手动修改[配置文件]配置目标target或者修改ServiceMonitor CRD配置文件.<br>那么面对现如今动不动就成百上千台节点的集群来说，静态服务发现这种纯手动配置很显然是不切实际的，然而现在的集群往往都有一个很重要的功能叫做服务发现，例如在现在常用的[微服务]SpringCloud架构的中，Eureka组件作为服务注册和发现的中心，在Kubernetes这类容器管理平台中，Kubernetes也具有服务发现的功能，它们都掌握并管理着所有的容器或者是服务的相关信息，于是Prometheus通过这个中间的代理人（服务发现和注册中心）来获取集群当中监控目标的信息，从而巧妙地实现了prometheus的动态服务发现。</p>
+<h3 id="三、Prometheus常用的集几种动态服务发现"><a href="#三、Prometheus常用的集几种动态服务发现" class="headerlink" title="三、Prometheus常用的集几种动态服务发现"></a>三、Prometheus常用的集几种动态服务发现</h3><p>prometheus目前支持的动态服务发现有很多种，常用的主要分为以下几种：<br><strong>1. promethues基于k8s的服务发现kubernetes_sd_configs</strong><br><strong>2. promethues基于consul的服务发现consul_sd_config</strong><br><strong>3. promethues基于Eureka的服务发现eureka_sd_config</strong><br>还有基于DNS等等的就不一一列举。<br>下面主要讲解promethues基于的k8s服务发现kubernetes_sd_configs</p>
+<h3 id="四、详解Prometheus服务发现之kubernetes-sd-configs"><a href="#四、详解Prometheus服务发现之kubernetes-sd-configs" class="headerlink" title="四、详解Prometheus服务发现之kubernetes_sd_configs"></a>四、详解Prometheus服务发现之kubernetes_sd_configs</h3><p>目前，在Kubernetes下，Prometheus 通过与 Kubernetes API 集成主要支持5种服务发现模式又叫角色role：<strong>Node、Service、Pod、Endpoints、Ingress。</strong>不同的服务发现模式适用于不同的场景，例如：<strong>node适用于与主机相关的监控资源，如节点中运行的Kubernetes 组件状态、节点上运行的容器状态等；service 和 ingress 适用于通过黑盒监控的场景，如对服务的可用性以及服务质量的监控；endpoints 和 pod 均可用于获取 Pod 实例的监控数据，如监控用户或者管理员部署的支持 Prometheus 的应用。</strong></p>
+<h4 id="下面贴出在Prometheus官网对这五种role的详细说明："><a href="#下面贴出在Prometheus官网对这五种role的详细说明：" class="headerlink" title="下面贴出在Prometheus官网对这五种role的详细说明："></a>下面贴出在Prometheus官网对这五种role的详细说明：</h4><p><strong>1. node</strong><br>node角色可以发现集群中每个node节点的地址端口，默认为Kubelet的HTTP端口。目标地址默认为Kubernetes节点对象的第一个现有地址，地址类型顺序为NodeInternalIP、NodeExternalIP、NodeLegacyHostIP和NodeHostName。</p>
+<p>作用：监控K8S的node节点的服务器相关的指标数据。</p>
+<p><img src="/images/1725594212-b26fb6b8e966bb753b367459cb8ae415.png" alt="image"></p>
+<p><strong>2. service</strong><br>service角色可以发现每个service的ip和port,将其作为target。这对于黑盒监控(blackbox)很有用。</p>
+<p><img src="/images/1725594212-a0b5c2dc33e99b6f6999cf26e5c2af9c.png" alt="image"></p>
+<p><strong>3. pod</strong><br>pod角色可以发现所有pod并将其中的pod ip作为target。如果有多个端口或者多个容器，将生成多个target(例如:80,443这两个端口,pod ip为10.0.244.22,则将10.0.244.22:80,10.0.244.22:443分别作为抓取的target)。<br>如果容器没有指定的端口，则会为每个容器创建一个无端口target，以便通过relabel手动添加端口。</p>
+<p><img src="/images/1725594212-a95560342e57590df0debbfc5b66a552.png" alt="image"></p>
+<p><strong>4. endpoints</strong><br>endpoints角色可以从ep（endpoints）列表中发现所有targets。</p>
+<p><img src="/images/1725594212-6df6bf9a36aee7c4d6585cd0e0cecce0.png" alt="image"></p>
+<p><strong>- 如果ep是属于service的话,则会附加service角色的所有标签</strong><br><strong>- 对于ep的后端节点是pod，则会附加pod角色的所有标签(即上边介绍的pod角色可用标签)</strong><br><strong>比如我么手动创建一个ep，这个ep关联到一个pod，则prometheus的标签中会包含这个pod角色的所有标签</strong></p>
+<p><strong>5. ingress</strong><br>ingress角色发现ingress的每个路径的target。这通常对黑盒监控很有用。该地址将设置为ingress中指定的host。</p>
+<p><img src="/images/1725594212-7d32353cff5e084611c586984f81aafa.png" alt="image"></p>
+<h4 id="Prometheus-additional-yaml配置文件规则详解"><a href="#Prometheus-additional-yaml配置文件规则详解" class="headerlink" title="Prometheus-additional.yaml配置文件规则详解"></a>Prometheus-additional.yaml配置文件规则详解</h4><p>为解决服务发现的问题，kube-prometheus 为我们提供了一个额外的抓取配置来解决这个问题，我们可以通过添加额外的配置来进行服务发现进行自动监控。我们可以在 kube-prometheus 当中去自动发现并监控具有 prometheus.io&#x2F;scrape&#x3D;true 这个 annotations 的 Service。<br>其中通过 kubernetes_sd_configs 支持监控其各种资源。kubernetes SD 配置允许从 kubernetes REST API 接受搜集指标，且总是和集群保持同步状态，任何一种 role 类型都能够配置来发现我们想要的对象。</p>
+<p>规则配置使用 yaml 格式，下面是文件中一级配置项。自动发现 k8s Metrics 接口是通过 scrape_configs 来实现的:</p>
+<figure class="highlight vbnet"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">＃全局配置</span><br><span class="line"><span class="symbol">global:</span></span><br><span class="line"></span><br><span class="line">＃规则配置主要是配置报警规则</span><br><span class="line"><span class="symbol">rule_files:</span></span><br><span class="line"></span><br><span class="line">＃抓取配置，主要配置抓取客户端相关</span><br><span class="line"><span class="symbol">scrape_configs:</span></span><br><span class="line"></span><br><span class="line">＃报警配置</span><br><span class="line"><span class="symbol">alerting:</span></span><br><span class="line"></span><br><span class="line">＃用于远程存储写配置</span><br><span class="line"><span class="symbol">remote_write:</span></span><br><span class="line"></span><br><span class="line">＃用于远程读配置</span><br><span class="line"><span class="symbol">remote_read:</span></span><br></pre></td></tr></table></figure>
+
+<p>举例说明：</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Kubernetes的API SERVER会暴露API服务，Promethues集成了对Kubernetes的自动发现，它有5种模式：Node、Service</span></span><br><span class="line"><span class="comment"># 、Pod、Endpoints、ingress，下面是Prometheus官方给出的对Kubernetes服务发现的实例。这里你会看到大量的relabel_configs，</span></span><br><span class="line"><span class="comment"># 其实你就是把所有的relabel_configs去掉一样可以对kubernetes做服务发现。relabel_configs仅仅是对采集过来的指标做二次处理，比如</span></span><br><span class="line"><span class="comment"># 要什么不要什么以及替换什么等等。而以__meta_开头的这些元数据标签都是实例中包含的，而relabel则是动态的修改、覆盖、添加删除这些标签</span></span><br><span class="line"><span class="comment"># 或者这些标签对应的值。而且以__开头的标签通常是系统内部使用的，因此这些标签不会被写入样本数据中，如果我们要收集这些东西那么则要进行</span></span><br><span class="line"><span class="comment"># relabel操作。当然reabel操作也不仅限于操作__开头的标签。</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line"><span class="comment"># action的行为：</span></span><br><span class="line"><span class="comment"># replace：默认行为，不配置action的话就采用这种行为，它会根据regex来去匹配source_labels标签上的值，并将并将匹配到的值写入target_label中</span></span><br><span class="line"><span class="comment"># labelmap：它会根据regex去匹配标签名称，并将匹配到的内容作为新标签的名称，其值作为新标签的值</span></span><br><span class="line"><span class="comment"># keep：仅收集匹配到regex的源标签，而会丢弃没有匹配到的所有标签，用于选择</span></span><br><span class="line"><span class="comment"># drop：丢弃匹配到regex的源标签，而会收集没有匹配到的所有标签，用于排除</span></span><br><span class="line"><span class="comment"># labeldrop：使用regex匹配标签，符合regex规则的标签将从target实例中移除，其实也就是不收集不保存</span></span><br><span class="line"><span class="comment"># labelkeep：使用regex匹配标签，仅收集符合regex规则的标签，不符合的不收集</span></span><br><span class="line"></span><br><span class="line"><span class="symbol">global:</span></span><br><span class="line">  <span class="comment"># 间隔时间</span></span><br><span class="line">  <span class="symbol">scrape_interval:</span> 30s</span><br><span class="line">  <span class="comment"># 超时时间</span></span><br><span class="line">  <span class="symbol">scrape_timeout:</span> 10s</span><br><span class="line">  <span class="comment"># 另一个独立的规则周期，对告警规则做定期计算</span></span><br><span class="line">  <span class="symbol">evaluation_interval:</span> 30s</span><br><span class="line">  <span class="comment"># 外部系统标签</span></span><br><span class="line">  <span class="symbol">external_labels:</span></span><br><span class="line">	<span class="symbol">prometheus:</span> monitoring/k8s</span><br><span class="line">	<span class="symbol">prometheus_replica:</span> prometheus-k8s-<span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 抓取服务端点，整个这个任务都是用来发现node-exporter和kube-state-metrics-service的，这里用的是endpoints角色，这是通过这两者的service来发现</span></span><br><span class="line"><span class="comment"># 的后端endpoints。另外需要说明的是如果满足采集条件，那么在service、POD中定义的labels也会被采集进去</span></span><br><span class="line"><span class="symbol">scrape_configs:</span></span><br><span class="line">  <span class="comment"># 定义job名称，是一个拉取单元</span></span><br><span class="line">- <span class="symbol">job_name:</span> <span class="string">&quot;kubernetes-endpoints&quot;</span></span><br><span class="line">  <span class="comment"># 发现endpoints，它是从列出的服务端点发现目标，这个endpoints来自于Kubernetes中的service，每一个service都有对应的endpoints，这里是一个列表</span></span><br><span class="line">  <span class="comment"># 可以是一个IP:PORT也可以是多个，这些IP:PORT就是service通过标签选择器选择的POD的IP和端口。所以endpoints角色就是用来发现server对应的pod的IP的</span></span><br><span class="line">  <span class="comment"># kubernetes会有一个默认的service，通过找到这个service的endpoints就找到了api server的IP:PORT，那endpoints有很多，我怎么知道哪个是api server呢</span></span><br><span class="line">  <span class="comment"># 这个就靠source_labels指定的标签名称了。</span></span><br><span class="line">  <span class="symbol">kubernetes_sd_configs:</span></span><br><span class="line">	<span class="comment"># 角色为 endpoints</span></span><br><span class="line">	- <span class="symbol">role:</span> endpoints</span><br><span class="line"></span><br><span class="line">  <span class="symbol">relabel_configs:</span></span><br><span class="line">	<span class="comment"># 重新打标仅抓取到的具有 &quot;prometheus.io/scrape: true&quot; 的annotation的端点，意思是说如果某个service具有prometheus.io/scrape = true annotation声明则抓取</span></span><br><span class="line"> <span class="comment"># annotation本身也是键值结构，所以这里的源标签设置为键，而regex设置值，当值匹配到regex设定的内容时则执行keep动作也就是保留，其余则丢弃.</span></span><br><span class="line"> <span class="comment"># node-exporter这个POD的service里面就有一个叫做prometheus.io/scrape = true的annotations所以就找到了node-exporter这个POD</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_service_annotation_prometheus_io_scrape]</span><br><span class="line">	  <span class="comment"># 动作 删除 regex 与串联不匹配的目标 source_labels</span></span><br><span class="line">	  <span class="symbol">action:</span> keep</span><br><span class="line">	  <span class="comment"># 通过正式表达式匹配 true</span></span><br><span class="line">	  <span class="symbol">regex:</span> <span class="literal">true</span></span><br><span class="line">	<span class="comment"># 重新设置scheme</span></span><br><span class="line"> <span class="comment"># 匹配源标签__meta_kubernetes_service_annotation_prometheus_io_scheme也就是prometheus.io/scheme annotation</span></span><br><span class="line"> <span class="comment"># 如果源标签的值匹配到regex则把值替换为__scheme__对应的值</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_service_annotation_prometheus_io_scheme]</span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="symbol">target_label:</span> __scheme__</span><br><span class="line">	  <span class="symbol">regex:</span> (https?)</span><br><span class="line">	<span class="comment"># 匹配来自 pod annotationname prometheus.io/path 字段</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_service_annotation_prometheus_io_path]</span><br><span class="line">	  <span class="comment"># 获取POD的 annotation 中定义的&quot;prometheus.io/path: XXX&quot;定义的值，这个值就是你的程序暴露符合prometheus规范的metrics的地址</span></span><br><span class="line">   <span class="comment"># 如果你的metrics的地址不是 /metrics 的话，通过这个标签说，那么这里就会把这个值赋值给 __metrics_path__这个变量，因为prometheus</span></span><br><span class="line">	  <span class="comment"># 是通过这个变量获取路径然后进行拼接出来一个完整的URL，并通过这个URL来获取metrics值的，因为prometheus默认使用的就是 http(s)://X.X.X.X/metrics</span></span><br><span class="line">	  <span class="comment"># 这样一个路径来获取的。</span></span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="comment"># 匹配目标指标路径</span></span><br><span class="line">	  <span class="symbol">target_label:</span> __metrics_path__</span><br><span class="line">	  <span class="comment"># 匹配全路径</span></span><br><span class="line">	  <span class="symbol">regex:</span> (.+)</span><br><span class="line">	<span class="comment"># 匹配出 Pod ip地址和 Port</span></span><br><span class="line">	- <span class="symbol">source_labels:</span></span><br><span class="line">		[__address__, __meta_kubernetes_service_annotation_prometheus_io_port]</span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="symbol">target_label:</span> __address__</span><br><span class="line">	  <span class="symbol">regex:</span> ([^<span class="symbol">:</span>]+)(<span class="string">?:</span><span class="symbol">:d+</span>)<span class="string">?;</span>(d+)</span><br><span class="line">	  <span class="symbol">replacement:</span> <span class="variable">$1</span><span class="symbol">:</span><span class="variable">$2</span></span><br><span class="line">	<span class="comment"># 下面主要是为了给样本添加额外信息</span></span><br><span class="line">	- <span class="symbol">action:</span> labelmap</span><br><span class="line">	  <span class="symbol">regex:</span> __meta_kubernetes_service_label_(.+)</span><br><span class="line">	<span class="comment"># 元标签 服务对象的名称空间</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_namespace]</span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="symbol">target_label:</span> kubernetes_namespace</span><br><span class="line">	<span class="comment"># service 对象的名称</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_service_name]</span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="symbol">target_label:</span> kubernetes_name</span><br><span class="line">	<span class="comment"># pod对象的名称</span></span><br><span class="line">	- <span class="symbol">source_labels:</span> [__meta_kubernetes_pod_name]</span><br><span class="line">	  <span class="symbol">action:</span> replace</span><br><span class="line">	  <span class="symbol">target_label:</span> kubernetes_pod_name</span><br></pre></td></tr></table></figure>
+
+<h5 id="1、创建prometheus-additional-yaml配置文件"><a href="#1、创建prometheus-additional-yaml配置文件" class="headerlink" title="1、创建prometheus-additional.yaml配置文件"></a>1、创建prometheus-additional.yaml配置文件</h5><p>新增 prometheus 在 Kubernetes 下的自动服务发现 prometheus-additional.yaml</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &#x27;dev-kubernetes-endpoints&#x27;</span><br><span class="line">  scrape_interval: 10s</span><br><span class="line">  scrape_timeout: 10s</span><br><span class="line">  metrics_path: (.*)/actuator/prometheus</span><br><span class="line">  scheme: http</span><br><span class="line">  relabel_configs:</span><br><span class="line">  - action: keep</span><br><span class="line">	regex: true</span><br><span class="line">	source_labels:</span><br><span class="line">	- __meta_kubernetes_pod_annotation_prometheus_io_scrape</span><br><span class="line">  - action: replace</span><br><span class="line">	regex: (.+)</span><br><span class="line">	source_labels:</span><br><span class="line">	- __meta_kubernetes_pod_annotation_prometheus_io_path</span><br><span class="line">	target_label: __metrics_path__</span><br><span class="line">  - action: replace</span><br><span class="line">	regex: ([^:]+)(?::\d+)?;(\d+)</span><br><span class="line">	replacement: $1:$2</span><br><span class="line">	source_labels:</span><br><span class="line">	- __address__</span><br><span class="line">	- __meta_kubernetes_pod_annotation_prometheus_io_port</span><br><span class="line">	target_label: __address__</span><br><span class="line">  - action: labelmap</span><br><span class="line">	regex: __meta_kubernetes_pod_label_(.+)</span><br><span class="line">  - action: replace</span><br><span class="line">	source_labels:</span><br><span class="line">	- __meta_kubernetes_namespace</span><br><span class="line">	target_label: kubernetes_namespace</span><br><span class="line">  - action: replace</span><br><span class="line">	source_labels:</span><br><span class="line">	- __meta_kubernetes_pod_name</span><br><span class="line">	target_label: kubernetes_pod_name</span><br><span class="line">  kubernetes_sd_configs:</span><br><span class="line">  - role: pod</span><br><span class="line">	kubeconfig_file: &quot;&quot;</span><br><span class="line">	follow_redirects: true</span><br><span class="line">	namespaces:</span><br><span class="line">	names: []</span><br></pre></td></tr></table></figure>
+
+<h5 id="2、创建Secret-对象"><a href="#2、创建Secret-对象" class="headerlink" title="2、创建Secret 对象"></a>2、创建Secret 对象</h5><p>将上面文件直接保存为 prometheus-additional.yaml，然后通过这个文件创建一个对应的 Secret 对象：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ kubectl <span class="keyword">create</span> secret generic additional<span class="operator">-</span>configs <span class="comment">--from-file=prometheus-additional.yaml -n monitoring</span></span><br><span class="line">secret &quot;additional-configs&quot; created</span><br></pre></td></tr></table></figure>
+
+<h5 id="3、创建资源对象"><a href="#3、创建资源对象" class="headerlink" title="3、创建资源对象"></a>3、创建资源对象</h5><p>然后我们需要在声明 prometheus 的资源对象文件中通过 additionalScrapeConfigs 属性添加上这个额外的配置：<br>「prometheus-prometheus.yaml」：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br></pre></td><td class="code"><pre><span class="line">apiVersion: monitoring.coreos.com/v1</span><br><span class="line">kind: Prometheus</span><br><span class="line">metadata:</span><br><span class="line">  labels:</span><br><span class="line">	app.kubernetes.io/component: prometheus</span><br><span class="line">	app.kubernetes.io/name: prometheus</span><br><span class="line">	app.kubernetes.io/part-of: kube-prometheus</span><br><span class="line">	app.kubernetes.io/version: 2.29.1</span><br><span class="line">	prometheus: k8s</span><br><span class="line">  name: k8s</span><br><span class="line">  namespace: monitoring</span><br><span class="line">spec:</span><br><span class="line">  retention: 7d</span><br><span class="line">  alerting:</span><br><span class="line">	alertmanagers:</span><br><span class="line">	- apiVersion: v2</span><br><span class="line">	  name: alertmanager-main</span><br><span class="line">	  namespace: monitoring</span><br><span class="line">	  port: web</span><br><span class="line">  enableFeatures: []</span><br><span class="line">  externalLabels: &#123;&#125;</span><br><span class="line">  image: quay.io/prometheus/prometheus:v2.29.1</span><br><span class="line">  nodeSelector:</span><br><span class="line">	kubernetes.io/os: linux</span><br><span class="line">  podMetadata:</span><br><span class="line">	labels:</span><br><span class="line">	  app.kubernetes.io/component: prometheus</span><br><span class="line">	  app.kubernetes.io/name: prometheus</span><br><span class="line">	  app.kubernetes.io/part-of: kube-prometheus</span><br><span class="line">	  app.kubernetes.io/version: 2.29.1</span><br><span class="line">  podMonitorNamespaceSelector: &#123;&#125;</span><br><span class="line">  podMonitorSelector: &#123;&#125;</span><br><span class="line">  probeNamespaceSelector: &#123;&#125;</span><br><span class="line">  probeSelector: &#123;&#125;</span><br><span class="line">  replicas: 2</span><br><span class="line">  resources:</span><br><span class="line">	requests:</span><br><span class="line">	  memory: 400Mi</span><br><span class="line">  ruleNamespaceSelector: &#123;&#125;</span><br><span class="line">  ruleSelector: &#123;&#125;</span><br><span class="line">  securityContext:</span><br><span class="line">	fsGroup: 2000</span><br><span class="line">	runAsNonRoot: true</span><br><span class="line">	runAsUser: 1000</span><br><span class="line">  serviceAccountName: prometheus-k8s</span><br><span class="line">  serviceMonitorNamespaceSelector: &#123;&#125;</span><br><span class="line">  serviceMonitorSelector: &#123;&#125;</span><br><span class="line">  version: 2.29.1</span><br><span class="line">  additionalScrapeConfigs:                 #以下为新增的配置项</span><br><span class="line">	name: prometheus-additional-configs</span><br><span class="line">	key: prometheus-additional-config.yaml</span><br></pre></td></tr></table></figure>
+
+<p>添加完成后，直接更新 prometheus 这个 CRD 资源对象即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -f prometheus-prometheus.yaml</span><br></pre></td></tr></table></figure>
+
+<p>过一段时间，刷新 promethues 上的 config，将会查看配置已经生效。</p>
+<p>自动发现规则配置好后如何让prometheus抓取pod内的metrics指标呢，抓取的路径端口等信息如何指定呢，这就要在應用deployments中的spec.template.metadata.annotations中指定了。配置如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">annotations:</span><br><span class="line">	prometheus.io/path: /actuator/prometheus</span><br><span class="line">	prometheus.io/port: &quot;7070&quot;</span><br><span class="line">	prometheus.io/scheme: http</span><br><span class="line">	prometheus.io/scrape: &quot;true&quot;</span><br></pre></td></tr></table></figure>
+
+<p>定义好后prometheus即可抓取pod内的metrics指标数据了，在prometheus的targets页面即可看到job名称为 dev-kubernetes-endpoints 的target。</p>
+<h5 id="4、创建-RBAC-权限"><a href="#4、创建-RBAC-权限" class="headerlink" title="4、创建 RBAC 权限"></a>4、创建 RBAC 权限</h5><p>我们切换到 targets 页面下面却并没有发现对应的监控任务，查看 Prometheus 的 Pod 日志，发现很多错误日志出现，都是 xxx is forbidden，这说明是 RBAC 权限的问题。</p>
+<p>通过 prometheus 资源对象的配置可以知道 Prometheus 绑定了一个名为 prometheus-k8s 的 ServiceAccount 对象，而这个对象绑定的是一个名为 prometheus-k8s 的 ClusterRole：</p>
+<p>创建 prometheus-clusterRole.yaml:</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">apiVersion: rbac.authorization.k8s.io/v1</span><br><span class="line">kind: ClusterRole</span><br><span class="line">metadata:</span><br><span class="line">  name: prometheus-k8s</span><br><span class="line">rules:</span><br><span class="line">- apiGroups:</span><br><span class="line">  - &quot;&quot;</span><br><span class="line">  resources:</span><br><span class="line">  - nodes/metrics</span><br><span class="line">  verbs:</span><br><span class="line">  - get</span><br><span class="line">- nonResourceURLs:</span><br><span class="line">  - /metrics</span><br><span class="line">  verbs:</span><br><span class="line">  - get</span><br></pre></td></tr></table></figure>
+
+<p>上面的权限规则中我们可以看到明显没有对 Service 或者 Pod 的 list 权限，所以报错了，要解决这个问题，我们只需要添加上需要的权限即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line">apiVersion: rbac.authorization.k8s.io/v1</span><br><span class="line">kind: ClusterRole</span><br><span class="line">metadata:</span><br><span class="line">  labels:</span><br><span class="line">	app.kubernetes.io/component: prometheus</span><br><span class="line">	app.kubernetes.io/name: prometheus</span><br><span class="line">	app.kubernetes.io/part-of: kube-prometheus</span><br><span class="line">	app.kubernetes.io/version: 2.29.1</span><br><span class="line">  name: prometheus-k8s</span><br><span class="line">rules:</span><br><span class="line">- apiGroups:</span><br><span class="line">  - &quot;&quot;</span><br><span class="line">  resources:</span><br><span class="line">  - nodes</span><br><span class="line">  - services</span><br><span class="line">  - endpoints</span><br><span class="line">  - pods</span><br><span class="line">  - nodes/proxy</span><br><span class="line">  verbs:</span><br><span class="line">  - get</span><br><span class="line">  - list</span><br><span class="line">  - watch</span><br><span class="line">- apiGroups:</span><br><span class="line">  - &quot;&quot;</span><br><span class="line">  resources:</span><br><span class="line">  - nodes/metrics</span><br><span class="line">  verbs:</span><br><span class="line">  - get</span><br><span class="line">- nonResourceURLs:</span><br><span class="line">  - /metrics</span><br><span class="line">  - /actuator/prometheus</span><br><span class="line">  verbs:</span><br><span class="line">  - get</span><br></pre></td></tr></table></figure>
+
+<p>更新上面的 ClusterRole 这个资源对象，然后重建下 Prometheus 的所有 Pod，正常就可以看到 targets 页面下面有 dev-kubernetes-endpoints 这个监控任务了。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/06/Prometheus%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0%E4%B9%8Bkubernetes-sd-config/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/06/Prometheus%E7%9B%91%E6%8E%A7k8s%E4%B8%ADpod%E7%9A%84JVM%E4%B8%8E%E6%9C%8D%E5%8A%A1%E7%9A%84%E8%87%AA%E5%8A%A8%E5%8F%91%E7%8E%B0/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus监控k8s中pod的JVM与服务的自动发现</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
