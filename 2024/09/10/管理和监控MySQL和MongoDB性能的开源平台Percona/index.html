@@ -1,0 +1,862 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>管理和监控MySQL和MongoDB性能的开源平台Percona |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="PMM-管理和监控MySQL和MongoDB性能的开源平台Percona"
+  class="article article-type-PMM"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  管理和监控MySQL和MongoDB性能的开源平台Percona
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/10/%E7%AE%A1%E7%90%86%E5%92%8C%E7%9B%91%E6%8E%A7MySQL%E5%92%8CMongoDB%E6%80%A7%E8%83%BD%E7%9A%84%E5%BC%80%E6%BA%90%E5%B9%B3%E5%8F%B0Percona/" class="article-date">
+  <time datetime="2024-09-10T02:59:15.000Z" itemprop="datePublished">2024-09-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/PMM/">PMM</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">10 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="Percona监控和管理概述"><a href="#Percona监控和管理概述" class="headerlink" title="Percona监控和管理概述"></a>Percona监控和管理概述</h2><blockquote>
+<p>Percona监控和管理（PMM）是一个用于管理和监控MySQL和MongoDB性能的开源平台。 它由Percona与托管数据库服务，支持和咨询领域的专家合作开发。 PMM是一个免费的开源解决方案，您可以在自己的环境中运行，以实现最大的安全性和可靠性。 它为MySQL和MongoDB服务器提供全面的基于时间的分析，以确保您的数据尽可能高效地工作。</p>
+</blockquote>
+<h3 id="Percona监控和管理架构"><a href="#Percona监控和管理架构" class="headerlink" title="Percona监控和管理架构"></a>Percona监控和管理架构</h3><blockquote>
+<p>PMM平台基于简单的客户端 - 服务器模型，可实现高效的可扩展性。它包括以下模块：</p>
+</blockquote>
+<ul>
+<li>PMM Client安装在您要监视的每个数据库主机上。它收集服务器指标，一般系统指标和查询分析数据，以获得完整的性能概述。收集的数据发送到PMM服务器。</li>
+<li>PMM Server是PMM的核心部分，它聚合收集的数据，并以Web界面的表格，仪表板和图形的形式呈现。</li>
+</ul>
+<blockquote>
+<p>PMM是旨在无缝协同工作的工具集合。一些是由Percona开发的，一些是第三方开源工具。</p>
+</blockquote>
+<ul>
+<li>下图说明了PMM当前的结构：</li>
+</ul>
+<p><img src="/images/1725937031-efaa2913abc39207a4a6a5b5095796cf.html" alt="这里写图片描述" title="这里写图片描述"></p>
+<h3 id="PMM-Client"><a href="#PMM-Client" class="headerlink" title="PMM Client"></a>PMM Client</h3><blockquote>
+<p>PMM客户端软件包适用于大多数流行的Linux发行版：</p>
+</blockquote>
+<ul>
+<li>Red Hat Enterprise Linux衍生产品的RPM（包括CentOS，Oracle Linux，Amazon Linux等）</li>
+<li>DEB用于基于Debian的发行版（包括Ubuntu等）</li>
+</ul>
+<blockquote>
+<p>PMM客户端软件包包含以下内容：</p>
+</blockquote>
+<ul>
+<li>pmm-admin是用于管理PMM客户端的命令行工具，例如，添加和删除要监视的数据库实例。</li>
+<li>percona-qan-agent是一种在收集查询性能数据时管理查询分析（QAN）代理的服务。它还与PMM服务器中的QAN API连接，并发送收集的数据。</li>
+<li>node_exporter是收集一般系统指标的Prometheus exporter。有关详细信息，请参阅<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=OtNmk9rLZLMshKZUR4PEbw==.gBy6S5WV3HUed0+oW2O4lr4sKD2M7bJyjdYMgFTMjXyBZAIcTor3AjXsetexa/zj">https://github.com/prometheus...</a>。</li>
+<li>mysqld_exporter是收集MySQL服务器指标的Prometheus exporter。有关详细信息，请参阅<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=Z7FC4n0MPF05ow0JJoOBig==.O4dI6bO6LY2NsErrRP7fcqxjiyXoolqqaVyWSKxb1jcJjS9QxWRUxAvlC0rARmdU">https://github.com/percona/my...</a>。</li>
+<li>mongodb_exporter是收集MongoDB服务器指标的Prometheus exporter。有关详细信息，请参阅<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=w/6eSf5sNQ/UUVUPcX6tOQ==.FxiqHdYmhkXEvII8JGbnfHR5NnUpgL4wNvSyPPcf7au3gTDDHR+4Qo8Vr3D6rLBu">https://github.com/percona/mo...</a>。</li>
+<li>proxysql_exporter是收集ProxySQL性能指标的Prometheus exporter。有关详细信息，请参阅<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=SaCpQTWe75py7ihE72P1aA==./ddbqpv/aYabJGvVeQKE1E2degALDSDgP2QOn8+3IiuraZe2Dm93nyxT5Aup7XpW">https://github.com/percona/pr...</a>。</li>
+</ul>
+<h3 id="PMM-Server"><a href="#PMM-Server" class="headerlink" title="PMM Server"></a>PMM Server</h3><blockquote>
+<p>　PMM服务器将作为您的中央监控主机的机器运行。它通过以下方式作为设备分发：</p>
+</blockquote>
+<ul>
+<li>可以用于运行容器的Docker映像</li>
+<li>可以在VirtualBox或其他管理程序中运行</li>
+<li>可以通过Amazon Web Services（AWS）运行的Amazon Machine Image（AMI）</li>
+</ul>
+<blockquote>
+<p>PMM服务器由以下工具组成：</p>
+</blockquote>
+<ul>
+<li><p>查询分析（QAN）使您能够在一段时间内分析MySQL查询性能。除客户端QAN代理外，还包括以下内容：</p>
+<ul>
+<li>QAN API是用于存储和访问在PMM客户端上运行的percona-qan-agent收集的查询数据的后端</li>
+<li>QAN Web App是用于可视化收集的Query Analytics数据的Web应用程序。</li>
+</ul>
+</li>
+<li><p>度量监视器（MM）提供对MySQL或MongoDB服务器实例至关重要的度量的历史视图。它包括以下内容：</p>
+<ul>
+<li>Prometheus是一个第三方时间序列数据库，连接到在PMM客户端上运行的出口商，并汇总了收集的指标.</li>
+<li>Consul提供一个PMM客户端可以远程列出，添加和删除Prometheus主机的API。</li>
+<li>Grafana是一个第三方仪表板和图形构建器，用于在直观的Web界面中可视化由Prometheus汇总的数据.</li>
+<li>Percona仪表板是由Percona开发的Grafana仪表板</li>
+</ul>
+</li>
+<li><p>Orchestrator是MySQL复制拓扑管理和可视化工具。</p>
+</li>
+</ul>
+<blockquote>
+<p>部署方案(<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=61i7edxQWvjRFG5D/WyP/g==.iBSjhBDjG70Qs2kDYP3DZ/abBPNp7A+ceo9glptJhaPaALwyIA/Jk4mbre/GcQgoZ0W9zWjIJHQ7mVPzF/xX5MI26AJZip7Ioago+YPMTJ2DVzBDtOn9cnbxX+HVzJAf">https://www.percona.com/doc/p...</a></p>
+<p>参考：</p>
+</blockquote>
+<p>[1] <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=azfmVXwaCUlSeXDt06GuRQ==.mfHhgvGhQtgMYY1QFeywqQrYVsfMOSvGTebyu2bmdBtrfqeL5NLBsxfg9MvLXRfDUO9heT7FwBzwPp7ozBVr0w==">https://prometheus.io/docs/in...</a></p>
+<p>[2] <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=c+btwVgTQtCXUceaXg5VSw==.ObIymBTy+SuWj9ZJy3zu9jYt1apyAqQoKR8qobrOQjo=">https://www.consul.io/docs/</a></p>
+<p>[3] <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=87HWJHc35DgU5419/VSdyg==.zUqtFVzwPR8Fesz2hkxe+4gaLcBUj+pSPo8t1YOjbdE=">https://www.consul.io/docs/</a></p>
+<p>[4] <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=WA+6igMd5zhwPfbbU2DjsA==.HHLcK5s+HTuCGKnMWf+Cjc3G0Q3psY2lSed+QlSWI7RtD/JcufTdw34/n9Z1ep9x1h5m96rw8jydDwDyS6ZS54nCfKqx7PD4PqMdC3cGGjg=">https://github.com/outbrain/o...</a></p>
+<h3 id="部署Percona监控和管理"><a href="#部署Percona监控和管理" class="headerlink" title="部署Percona监控和管理"></a>部署Percona监控和管理</h3><blockquote>
+<p>以下过程介绍如何正确部署PMM：</p>
+</blockquote>
+<ul>
+<li>在主机上运行PMM Server，用于访问收集的数据，查看基于时间的图表，并执行性能分析。</li>
+</ul>
+<p>以下选项可用：</p>
+<ul>
+<li>使用Docker运行PMM服务器</li>
+<li>使用VirtualBox运行PMM服务器</li>
+<li>使用Amazon Machine Image（AMI）运行PMM服务器</li>
+</ul>
+<h4 id="安装运行PMM-Server（使用Docker运行PMM服务器）"><a href="#安装运行PMM-Server（使用Docker运行PMM服务器）" class="headerlink" title="安装运行PMM Server（使用Docker运行PMM服务器）"></a>安装运行PMM Server（使用Docker运行PMM服务器）</h4><ul>
+<li>使用docker运行PMM Server</li>
+</ul>
+<blockquote>
+<p>PMM服务器的Docker映像公开托管在<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=eOQs5BxzWFB+ba+MKsmMbQ==.rpMNNxGC1wm1qoxWP/+/MXfa8yY+vXTZLRyMtc+WEROr762KntJoRbaA9Q2LBSre">https://hub.docker.com/r/perc...</a>。 如果要从Docker映像运行PMM Server，则主机必须能够运行Docker 1.13或更高版本，并具有网络访问权限。 有关使用Docker的更多信息，请参阅Docker文档(<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=zMPwsPT94aFmeLTsosdDmw==.4ZuBIJNXUxzXB7RbIf38WTaMPOz/Wkj+BSSiKReDpm8=">https://docs.docker.com/)</a>。</p>
+</blockquote>
+<ul>
+<li>CentOS 6 安装Docker</li>
+</ul>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">yum --enablerepo=epel -y install docker-io</span><br><span class="line"><span class="regexp">/etc/</span>rc.d<span class="regexp">/init.d/</span>docker start</span><br><span class="line">chkconfig docker on</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注：使用pmm-server映像时，请使用特定的版本标签，而不是最新的标签。目前的稳定版本是1.1.3。</p>
+</blockquote>
+<h5 id="第一步-创建一个PMM数据容器"><a href="#第一步-创建一个PMM数据容器" class="headerlink" title="第一步. 创建一个PMM数据容器"></a>第一步. 创建一个PMM数据容器</h5><ul>
+<li>要创建持久PMM数据的容器，请运行以下命令：</li>
+</ul>
+<figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">docker create \</span><br><span class="line">   -v <span class="regexp">/opt/</span>prometheus/data \</span><br><span class="line">   -v <span class="regexp">/opt/</span>consul-data \</span><br><span class="line">   -v <span class="regexp">/var/</span>lib/mysql \</span><br><span class="line">   -v <span class="regexp">/var/</span>lib/grafana \</span><br><span class="line">   --name pmm-data \</span><br><span class="line">   percona<span class="regexp">/pmm-server:1.1.3 /</span>bin/<span class="keyword">true</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>此容器不运行，只需升级到较新的pmm服务器映像时，确保您保留所有PMM数据。不要删除或重新创建此容器，除非您打算清除所有PMM数据并重新开始。</li>
+</ul>
+<h5 id="第二步、创建并运行PMM服务器容器"><a href="#第二步、创建并运行PMM服务器容器" class="headerlink" title="第二步、创建并运行PMM服务器容器"></a>第二步、创建并运行PMM服务器容器</h5><ul>
+<li>要运行PMM服务器，请使用以下命令：</li>
+</ul>
+<figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">docker run -d <span class="string">\</span></span><br><span class="line">   -p <span class="number">666</span>:<span class="number">80</span> <span class="string">\</span></span><br><span class="line">   --volumes-<span class="keyword">from</span> pmm-data <span class="string">\</span></span><br><span class="line">   --name pmm-server <span class="string">\</span></span><br><span class="line">   --restart always <span class="string">\</span></span><br><span class="line">   percona/pmm-server:<span class="number">1.1</span>.<span class="number">3</span></span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意：这里666端口是自定义的，因为笔者实验机80已被占用</p>
+</blockquote>
+<h5 id="确认PMM-安装运行是否正确"><a href="#确认PMM-安装运行是否正确" class="headerlink" title="确认PMM 安装运行是否正确"></a>确认PMM 安装运行是否正确</h5><blockquote>
+<p>通过使用运行容器的主机的IP地址连接到PMM Web界面来验证PMM服务器是否正在运行，然后在要监视的所有数据库主机上安装PMM Client</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>URL</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>PMM landing page</td>
+<td><a href="http://192.168.0.99:port">http://192.168.0.99:port</a></td>
+</tr>
+<tr>
+<td>Query Analytics (QAN web app)</td>
+<td><a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=RDNRLBnxtSJXXYb7LzWDCw==.RXnTV+UMuDJSDweopalGNXYVApq3rKHPQnF5MhpIFcA=">http://192.168.0.99/qan/</a></td>
+</tr>
+<tr>
+<td>Metrics Monitor (Grafana)</td>
+<td><a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=wSepKEQ14kiroWuzNZHmTQ==.9IW9ho3DqM29FKZHvro5Y4bIPagVcBWIDjssYCSv2Ag=">http://192.168.0.99/graph/User</a> name: admin Password: admin</td>
+</tr>
+<tr>
+<td>Orchestrator</td>
+<td><a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=YkG/adCchHNafGcZ4UcjBA==.5arJKy3SPqBe3hlPKz56IbIloKo0ZgTFy6s766UBCb1c1DhaXzCC5AxcBTdYWaB0">http://192.168.0.99/orchestrator</a></td>
+</tr>
+</tbody></table>
+<h4 id="删除PMM服务器"><a href="#删除PMM服务器" class="headerlink" title="删除PMM服务器"></a>删除PMM服务器</h4><blockquote>
+<p>在停止和删除PMM服务器之前，请确保相关的PMM客户端不通过删除所有监视的实例来收集任何数据，如删除监控服务中所述。</p>
+</blockquote>
+<figure class="highlight axapta"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker stop pmm-<span class="keyword">server</span> &amp;&amp; docker rm pmm-<span class="keyword">server</span></span><br><span class="line">docker rm pmm-data <span class="meta"># 删除pmm数据容器</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="升级PMM服务器"><a href="#升级PMM服务器" class="headerlink" title="升级PMM服务器"></a>升级PMM服务器</h4><figure class="highlight livescript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">docker stop pmm-server  <span class="comment"># 先停</span></span><br><span class="line">docker rm pmm-server    <span class="comment"># 再删，如果如要保留收集数据，不要执行此操作</span></span><br><span class="line">docker run -d <span class="string">\</span></span><br><span class="line">   -p <span class="number">999</span>:<span class="number">80</span> <span class="string">\</span></span><br><span class="line">   --volumes-<span class="keyword">from</span> pmm-data <span class="string">\</span></span><br><span class="line">   --name pmm-server <span class="string">\</span></span><br><span class="line">   --restart always <span class="string">\</span></span><br><span class="line">   --init <span class="string">\</span></span><br><span class="line">   percona/pmm-server:<span class="number">1.1</span>.<span class="number">3</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="在Red-Hat和CentOS上安装PMM客户端"><a href="#在Red-Hat和CentOS上安装PMM客户端" class="headerlink" title="在Red Hat和CentOS上安装PMM客户端"></a>在Red Hat和CentOS上安装PMM客户端</h2><blockquote>
+<p>PMM客户端是安装在您要监视的MySQL或MongoDB主机上的一组代理和出口商。 组件收集关于一般系统和数据库性能的各种数据，并将该数据发送到相应的PMM服务器组件。<br>注：不应该在具有相同主机名的数据库服务器上安装代理，因为PMM服务器使用主机名来标识收集的数据。</p>
+</blockquote>
+<h3 id="安装PMM客户端"><a href="#安装PMM客户端" class="headerlink" title="安装PMM客户端"></a>安装PMM客户端</h3><blockquote>
+<p>PMM客户端应该运行在任何现代的Linux发行版上，但是Percona提供的PMM客户端软件包只能从最受欢迎的Linux发行版的软件仓库进行自动安装：</p>
+</blockquote>
+<ul>
+<li>系统事先无percona的yum源，需要新增</li>
+</ul>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install https:<span class="regexp">//</span>www.percona.com<span class="regexp">/redir/</span>downloads<span class="regexp">/percona-release/</span>redhat<span class="regexp">/latest/</span>percona-release-<span class="number">0.1</span>-<span class="number">4</span>.noarch.rpm</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>安装pmm-client软件包</li>
+</ul>
+<figure class="highlight axapta"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo yum install pmm-<span class="keyword">client</span> -y</span><br></pre></td></tr></table></figure>
+
+<h5 id="将PMM客户端连接到PMM服务器"><a href="#将PMM客户端连接到PMM服务器" class="headerlink" title="将PMM客户端连接到PMM服务器"></a>将PMM客户端连接到PMM服务器</h5><blockquote>
+<p>使用pmm-admin config –help，查看帮助</p>
+</blockquote>
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root@backup-<span class="keyword">server</span> ~]# sudo pmm-<span class="keyword">admin</span> config <span class="comment">--server 192.168.0.99:666</span></span><br><span class="line">OK, PMM <span class="keyword">server</span> <span class="keyword">is</span> alive.</span><br><span class="line"></span><br><span class="line">PMM <span class="keyword">Server</span>      | <span class="number">192.168</span><span class="number">.0</span><span class="number">.99</span>:<span class="number">666</span></span><br><span class="line">Client <span class="type">Name</span>     | backup-<span class="keyword">server</span></span><br><span class="line">Client Address  | <span class="number">192.168</span><span class="number">.0</span><span class="number">.47</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="开始数据收集"><a href="#开始数据收集" class="headerlink" title="开始数据收集"></a>开始数据收集</h5><blockquote>
+<p>将客户端连接到PMM服务器后，通过添加监控服务，从数据库实例启用数据收集。</p>
+</blockquote>
+<p>要启用一般系统度量，MySQL指标和查询分析，请运行：</p>
+<h5 id="管理PMM客户端"><a href="#管理PMM客户端" class="headerlink" title="管理PMM客户端"></a>管理PMM客户端</h5><figure class="highlight nsis"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 添加监控服务</span></span><br><span class="line">pmm-<span class="literal">admin</span> add</span><br><span class="line"><span class="comment"># 检查PMM客户端和PMM服务器之间的网络连接。</span></span><br><span class="line">pmm-<span class="literal">admin</span> check-network</span><br><span class="line"><span class="comment"># 配置PMM Client如何与PMM服务器通信。</span></span><br><span class="line">pmm-<span class="literal">admin</span> config</span><br><span class="line"><span class="comment"># 打印任何命令和退出的帮助</span></span><br><span class="line">pmm-<span class="literal">admin</span> help</span><br><span class="line"><span class="comment"># 打印有关PMM客户端的信息</span></span><br><span class="line">pmm-<span class="literal">admin</span> info</span><br><span class="line"><span class="comment"># 出为此PMM客户端添加的所有监控服务</span></span><br><span class="line">pmm-<span class="literal">admin</span> list</span><br><span class="line"><span class="comment"># 检查PMM服务器是否存活</span></span><br><span class="line">pmm-<span class="literal">admin</span> ping</span><br><span class="line"><span class="comment"># 检查PMM服务器是否存活。</span></span><br><span class="line">pmm-<span class="literal">admin</span> purge</span><br><span class="line"><span class="comment"># 清除PMM服务器上的度量数据</span></span><br><span class="line">pmm-<span class="literal">admin</span> remove, pmm-<span class="literal">admin</span> rm</span><br><span class="line"><span class="comment"># 删除监控服务</span></span><br><span class="line">pmm-<span class="literal">admin</span> repair</span><br><span class="line"><span class="comment"># 重启pmm</span></span><br><span class="line">pmm-<span class="literal">admin</span> restart</span><br><span class="line"><span class="comment"># 打印PMM Client使用的密码</span></span><br><span class="line">pmm-<span class="literal">admin</span> <span class="literal">show</span>-passwords</span><br><span class="line"><span class="comment"># 开启监控服务</span></span><br><span class="line">pmm-<span class="literal">admin</span> start</span><br><span class="line"><span class="comment"># 停止监控服务</span></span><br><span class="line">pmm-<span class="literal">admin</span> stop</span><br><span class="line"><span class="comment"># 在卸载之前清理PMM Client</span></span><br><span class="line">pmm-<span class="literal">admin</span> uninstall</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>添加MySQL查询分析服务</li>
+</ul>
+<blockquote>
+<p>默认情况下不存在初始的被pmm-client使用的mysql用户，需要自己创建，笔者是登录到mysql中创建的用户，感兴趣的同学可以使用pmm-admin提供的参数创建默认用户</p>
+</blockquote>
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">GRANT</span> <span class="keyword">ALL</span> <span class="keyword">PRIVILEGES</span> <span class="keyword">ON</span> *.* <span class="keyword">TO</span> <span class="string">&#x27;pmm&#x27;</span>@<span class="string">&#x27;192.168.0.47&#x27;</span> IDENTIFIED <span class="keyword">BY</span> <span class="string">&#x27;pmmpassword&#x27;</span>;</span><br><span class="line"># 创建用户成功</span><br><span class="line">[root@backup-<span class="keyword">server</span> ~]# sudo pmm-<span class="keyword">admin</span> <span class="keyword">add</span> mysql:metrics <span class="comment">--user pmm --password pmmpassword --host 192.168.0.47</span></span><br><span class="line"># 使用创建的用户添加监控mysql服务</span><br><span class="line">OK, now monitoring MySQL metrics <span class="keyword">using</span> DSN pmm:***@tcp(<span class="number">192.168</span><span class="number">.0</span><span class="number">.47</span>:<span class="number">3306</span>)</span><br><span class="line">[root@backup-<span class="keyword">server</span> ~]# sudo pmm-<span class="keyword">admin</span> <span class="keyword">add</span> mysql:queries <span class="comment">--user pmm --password pmmpassword --host 192.168.0.47</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>查看当前服务器监控的服务</li>
+</ul>
+<figure class="highlight pgsql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">[root@backup-<span class="keyword">server</span> ~]# pmm-<span class="keyword">admin</span> list</span><br><span class="line">pmm-<span class="keyword">admin</span> <span class="number">1.1</span><span class="number">.3</span></span><br><span class="line"></span><br><span class="line">PMM <span class="keyword">Server</span>      | <span class="number">192.168</span><span class="number">.0</span><span class="number">.99</span>:<span class="number">666</span></span><br><span class="line">Client <span class="type">Name</span>     | backup-<span class="keyword">server</span></span><br><span class="line">Client Address  | <span class="number">192.168</span><span class="number">.0</span><span class="number">.47</span></span><br><span class="line">Service Manager | unix-systemv</span><br><span class="line"></span><br><span class="line"><span class="comment">-------------- -------------- ----------- -------- ------------------------------- ------------------------------------------</span></span><br><span class="line">SERVICE <span class="keyword">TYPE</span>   <span class="type">NAME</span>           <span class="keyword">LOCAL</span> PORT  RUNNING  DATA SOURCE                     <span class="keyword">OPTIONS</span></span><br><span class="line"><span class="comment">-------------- -------------- ----------- -------- ------------------------------- ------------------------------------------</span></span><br><span class="line">mysql:queries  backup-<span class="keyword">server</span>  -           YES      pmm:***@tcp(<span class="number">192.168</span><span class="number">.0</span><span class="number">.47</span>:<span class="number">3306</span>)  query_source=slowlog, query_examples=<span class="keyword">true</span></span><br><span class="line">linux:metrics  backup-<span class="keyword">server</span>  <span class="number">42000</span>       YES      -</span><br><span class="line">mysql:metrics  backup-<span class="keyword">server</span>  <span class="number">42002</span>       YES      pmm:***@tcp(<span class="number">192.168</span><span class="number">.0</span><span class="number">.47</span>:<span class="number">3306</span>)  tablestats=<span class="keyword">OFF</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="报错排查"><a href="#报错排查" class="headerlink" title="报错排查"></a>报错排查</h5><blockquote>
+<p>QAN API error: “qh.Profile: No query classes for selected instance and time range. Please check whether your MySQL settings match the recommended.”.Check the &#x2F;var&#x2F;log&#x2F;qan-api.log file in docker container for more information</p>
+</blockquote>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># mysql 开启慢日志查询</span></span><br><span class="line">yum install percona-toolkit -y  <span class="comment"># 建议安装</span></span><br><span class="line"><span class="comment">#</span></span><br><span class="line">slow_query_log = <span class="number">1</span></span><br><span class="line">long_query_time = <span class="number">2</span></span><br><span class="line"><span class="comment"># 重启mysql(mysql5.6)</span></span><br><span class="line"><span class="regexp">/etc/i</span>nit.d/mysql restart</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>继续访问<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=Ov5MntoSGou5mh1IF/Esew==.rJ6DELsUqicO0MN6N/RadxiUL1rftnkFa1HM9HiYSfg=">http://192.168.0.99:666</a>，查看监控mysql的状态</p>
+</blockquote>
+<p><img src="/images/1725937031-cc4c42270442e8edeb29db4ae286948c" alt="这里写图片描述" title="这里写图片描述"></p>
+<p><img src="/images/1725937031-881e1ea686521b75063fb927ab85aaba" alt="这里写图片描述" title="这里写图片描述"></p>
+<p><img src="/images/1725937031-01f44de2b5baf7620d07e5e337fe52e2" alt="这里写图片描述" title="这里写图片描述"></p>
+<ul>
+<li>参考链接：<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=6BxhKFC2hcJFQdLOFdZ5eg==.SpsM1AH7HPPGb2p7jw7wviO2i/JWOF+KnTAXWh34J9XDp/um1ew/9+EJ6ZTG9qjS7T2JuAasS5CjuFzfTIcXdmtRAbvvrBxoaP7V/+rEpW2G8NEZS5j9d1KkMeU3E2Ai">https://www.percona.com/softw...</a></li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/10/%E7%AE%A1%E7%90%86%E5%92%8C%E7%9B%91%E6%8E%A7MySQL%E5%92%8CMongoDB%E6%80%A7%E8%83%BD%E7%9A%84%E5%BC%80%E6%BA%90%E5%B9%B3%E5%8F%B0Percona/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/PMM/" rel="tag">PMM</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/06/Prometheus%E6%9C%8D%E5%8A%A1%E5%8F%91%E7%8E%B0%E4%B9%8Bkubernetes-sd-config/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus服务发现之kubernetes_sd_config</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
