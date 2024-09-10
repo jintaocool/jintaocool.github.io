@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>FTP一键部署配置脚本 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Scripts-FTP一键部署配置脚本"
+  class="article article-type-Scripts"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  FTP一键部署配置脚本
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/10/FTP%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2%E9%85%8D%E7%BD%AE%E8%84%9A%E6%9C%AC/" class="article-date">
+  <time datetime="2024-09-10T09:59:38.000Z" itemprop="datePublished">2024-09-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Scripts/">Scripts</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.9k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">10 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash">!/bin/bash</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">作者 lijintao</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">功能 自动创建sftp账号或ftp账号</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">支持 centos6 and centos7 and centos8</span></span><br><span class="line"></span><br><span class="line">time=$(date &quot;+%Y%m%d%H%M%S&quot;)</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">定义颜色变量</span></span><br><span class="line">GREEN_COLOR=&#x27;\E[0;32m&#x27; #绿</span><br><span class="line">YELOW_COLOR=&#x27;\E[0;33m&#x27; #黄</span><br><span class="line">PINK=&#x27;\E[0;35m&#x27; #粉红</span><br><span class="line">RES=&#x27;\E[0m&#x27;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">初始化环境</span></span><br><span class="line">chattr -i /etc/passwd /etc/shadow /etc/group /etc/gshadow /etc/inittab</span><br><span class="line">setenforce 0 &gt;/dev/null 2&gt;&amp;1</span><br><span class="line">sed -i &#x27;s/SELINUX=enforcing/SELINUX=disabled/g&#x27; /etc/selinux/config</span><br><span class="line"></span><br><span class="line">check_os=`cat /etc/redhat-release|sed -r &#x27;s/.* ([0-9]+)\..*/\1/&#x27; |grep -iv base`</span><br><span class="line">[[ $UID -ne 0 ]] &amp;&amp; echo -e  &quot;$&#123;PINK&#125;---------请用root用户执行该脚本---------$&#123;RES&#125;&quot; &amp;&amp; exit 1</span><br><span class="line"></span><br><span class="line">echo -e  &quot;$&#123;YELOW_COLOR&#125;---------正在关闭iptables或firewalld---------$&#123;RES&#125;&quot;</span><br><span class="line">if [[ $check_os == 6 ]];then</span><br><span class="line">    service iptables stop</span><br><span class="line">    chkconfig iptables off</span><br><span class="line">else</span><br><span class="line">    systemctl stop firewalld.service</span><br><span class="line">    systemctl disable firewalld.service</span><br><span class="line">fi</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">安装vsftpd包</span></span><br><span class="line">wget http://mirror.centos.org/centos/7/os/x86_64/Packages/vsftpd-3.0.2-28.el7.x86_64.rpm</span><br><span class="line">rpm -ivh vsftpd-3.0.2-28.el7.x86_64.rpm</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">安装ftpd包</span></span><br><span class="line">wget http://mirror.centos.org/centos/7/os/x86_64/Packages/ftp-0.17-67.el7.x86_64.rpm</span><br><span class="line">rpm -ivh ftp-0.17-67.el7.x86_64.rpm</span><br><span class="line"></span><br><span class="line">check_pkg() &#123;</span><br><span class="line">    rpm -qa | grep -i vsftpd &gt; /dev/null 2&gt;&amp;1</span><br><span class="line">        if [[ $? -ne 0 ]];then</span><br><span class="line">            echo -e  &quot;$&#123;PINK&#125;---------请先安装vsftpd包---------$&#123;RES&#125;&quot;</span><br><span class="line">            exit 1</span><br><span class="line">        fi</span><br><span class="line"></span><br><span class="line">    rpm -qa | grep -w ftp  &gt; /dev/null 2&gt;&amp;1</span><br><span class="line">    if [[ $? -ne 0 ]];then</span><br><span class="line">        echo -e  &quot;$&#123;PINK&#125;---------请先安装ftp包---------$&#123;RES&#125;&quot;</span><br><span class="line">        exit 1</span><br><span class="line">    fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">check_sshversion() &#123;</span><br><span class="line">    rpm -qa | grep -w bc-* &gt; /dev/null 2&gt;&amp;1</span><br><span class="line"></span><br><span class="line">    if [[ $? -eq 0 ]];then</span><br><span class="line">            ssh_version=$(ssh -V 2&gt;&amp;1 | awk -F \_ &#x27;&#123;print $2&#125;&#x27;|awk -F p &#x27;&#123;print $1&#125;&#x27;)</span><br><span class="line"></span><br><span class="line">            if [ `echo &quot;$ssh_version &lt; 4.8&quot;|bc` -eq 1 ];then</span><br><span class="line">                    echo -e  &quot;$&#123;PINK&#125;---------请先升级ssh版本大于4.8---------$&#123;RES&#125;&quot;</span><br><span class="line">                    exit 1</span><br><span class="line">            fi</span><br><span class="line">    else</span><br><span class="line">            ssh_version=$(ssh -V 2&gt;&amp;1 | awk -F \_ &#x27;&#123;print $2&#125;&#x27;|awk -F p &#x27;&#123;print $1&#125;&#x27;|awk -F \. &#x27;&#123;print $1&#125;&#x27;)</span><br><span class="line">            if [ $ssh_version -lt 5 ];then</span><br><span class="line">                    echo -e  &quot;$&#123;PINK&#125;---------请先升级ssh版本大于4.8---------$&#123;RES&#125;&quot;</span><br><span class="line">                    exit 1</span><br><span class="line">            fi</span><br><span class="line"></span><br><span class="line">    fi</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_user() &#123;</span><br><span class="line">                if cat /etc/passwd | awk -F&#x27;:&#x27; &#x27;&#123;print$1&#125;&#x27;  | grep -w $user &gt;/dev/null</span><br><span class="line">                then</span><br><span class="line">                    echo -e  &quot;$&#123;PINK&#125;---------系统中已经存在此账号，请重新设置---------$&#123;RES&#125;&quot;</span><br><span class="line">                    exit 1</span><br><span class="line">                fi</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">配置ftp</span></span><br><span class="line">creat_ftp() &#123;</span><br><span class="line">    useradd -d $home_dir/$dir -s /sbin/nologin $user</span><br><span class="line">    chmod 755 -R $home_dir/$dir</span><br><span class="line">    echo $pass | passwd $user --stdin &gt; /dev/null 2&gt;&amp;1</span><br><span class="line">    touch /etc/vsftpd/chroot_list</span><br><span class="line">    cat /dev/null &gt; /etc/vsftpd/chroot_list</span><br><span class="line">    sed -i &#x27;s/^[^#].*pam_shells.so*/#&amp;/g&#x27;   /etc/pam.d/vsftpd</span><br><span class="line">    yes | cp -p /etc/vsftpd/vsftpd.conf  /tmp/vsftpd.conf_$&#123;time&#125;</span><br><span class="line">    bak_name=`ls -lt /tmp/ |grep -iv total |grep -v 总|grep vsftp| head -n 1 |awk &#x27;&#123;print $9&#125;&#x27;`</span><br><span class="line">    echo -e  &quot;$&#123;GREEN_COLOR&#125;---------旧的vsftpd配置文件已经备份,备份路径为 /tmp/$bak_name---------$&#123;RES&#125;&quot;</span><br><span class="line"></span><br><span class="line">cat &gt; /etc/vsftpd/vsftpd.conf &lt;&lt;EOF</span><br><span class="line">anonymous_enable=NO</span><br><span class="line">local_enable=YES</span><br><span class="line">write_enable=YES</span><br><span class="line">local_umask=022</span><br><span class="line">dirmessage_enable=YES</span><br><span class="line">xferlog_enable=YES</span><br><span class="line">connect_from_port_20=YES</span><br><span class="line">xferlog_std_format=YES</span><br><span class="line">chroot_local_user=YES</span><br><span class="line">chroot_list_enable=YES</span><br><span class="line">chroot_list_file=/etc/vsftpd/chroot_list</span><br><span class="line">allow_writeable_chroot=YES</span><br><span class="line">anon_world_readable_only=NO</span><br><span class="line">anon_other_write_enable=YES</span><br><span class="line">anon_upload_enable=YES</span><br><span class="line">anon_mkdir_write_enable=YES</span><br><span class="line">chown_uploads=YES</span><br><span class="line">pasv_enable=YES</span><br><span class="line">pasv_min_port=50000</span><br><span class="line">pasv_max_port=60000</span><br><span class="line">pasv_promiscuous=YES</span><br><span class="line">listen=YES</span><br><span class="line">listen_ipv6=NO</span><br><span class="line">pam_service_name=vsftpd</span><br><span class="line">userlist_enable=YES</span><br><span class="line">pasv_promiscuous=no</span><br><span class="line">max_clients=10000</span><br><span class="line">max_per_ip=10000</span><br><span class="line">reverse_lookup_enable=NO</span><br><span class="line">EOF</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">start_ftp() &#123;</span><br><span class="line">if [[ $check_os == 6 ]];then</span><br><span class="line">    chkconfig vsftpd on</span><br><span class="line">    service vsftpd restart</span><br><span class="line">        if [[ $? -eq 0 ]];then</span><br><span class="line">            echo -e  &quot;$&#123;GREEN_COLOR&#125;---------vsftpd服务启动成功---------$&#123;RES&#125;&quot;</span><br><span class="line">        else</span><br><span class="line">            echo -e  &quot;$&#123;PINK&#125;---------vsftpd服务启动失败---------$&#123;RES&#125;&quot;</span><br><span class="line">            exit 1</span><br><span class="line">        fi</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">else</span><br><span class="line">    systemctl enable vsftpd.service</span><br><span class="line">    systemctl restart vsftpd.service</span><br><span class="line">                if [[ $? -eq 0 ]];then</span><br><span class="line">                        echo -e  &quot;$&#123;GREEN_COLOR&#125;---------vsftpd服务启动成功---------$&#123;RES&#125;&quot;</span><br><span class="line">                else</span><br><span class="line">                        echo -e  &quot;$&#123;PINK&#125;---------vsftpd服务启动失败---------$&#123;RES&#125;&quot;</span><br><span class="line">                        exit 1</span><br><span class="line">                fi</span><br><span class="line">fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">start_sftp() &#123;</span><br><span class="line"></span><br><span class="line">    sshd -t</span><br><span class="line">    if [[ $? -ne 0 ]];then</span><br><span class="line">        echo -e  &quot;$&#123;PINK&#125;---------ssh配置文件有问题，请检查---------$&#123;RES&#125;&quot;</span><br><span class="line">        exit 1</span><br><span class="line">    fi</span><br><span class="line"></span><br><span class="line">    if [[ $check_os == 6 ]];then</span><br><span class="line">            service sshd restart</span><br><span class="line">    else</span><br><span class="line">        /bin/systemctl restart sshd.service</span><br><span class="line">        sleep 2</span><br><span class="line">        /bin/systemctl restart sshd.service</span><br><span class="line">    fi</span><br><span class="line">    </span><br><span class="line">    echo -e  &quot;$&#123;GREEN_COLOR&#125;---------sftp账号创建成功---------$&#123;RES&#125;&quot;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">check_home_dir() &#123;</span><br><span class="line">                test -d $home_dir</span><br><span class="line">                if [[ $? -ne 0 ]];then</span><br><span class="line">                            echo -e  &quot;$&#123;PINK&#125;---------目录设置错误，本机没有此目录---------$&#123;RES&#125;&quot;</span><br><span class="line">                            exit 1</span><br><span class="line">                fi</span><br><span class="line">    </span><br><span class="line">                dir_num=`echo $dir |grep -o &quot;/&quot; |wc -l`</span><br><span class="line">                if [[ $dir_num -gt 1 ]];then</span><br><span class="line">                            echo -e  &quot;$&#123;PINK&#125;---------目录设置错误，请重新设置,目录末尾请不要带 / 如：upload ---------$&#123;RES&#125;&quot;</span><br><span class="line">                            exit 1</span><br><span class="line">                fi  </span><br><span class="line">                </span><br><span class="line">                </span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">check_dir() &#123;</span><br><span class="line">                dir_num=`echo $dir |grep -o &quot;/&quot; |wc -l`</span><br><span class="line">                if [[ $dir_num -ge 1 ]];then</span><br><span class="line">                            echo -e  &quot;$&#123;PINK&#125;---------目录设置错误，请重新设置,请设置目录名称而不是路径 如：upload ---------$&#123;RES&#125;&quot;</span><br><span class="line">                            exit 1</span><br><span class="line">                fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"></span><br><span class="line">check_old_dir() &#123;</span><br><span class="line">            if [ -d &quot;$home_dir/$&#123;dir&#125;&quot; ];then</span><br><span class="line">                echo -e  &quot;$&#123;PINK&#125;---------$home_dir 下已有此目录，请重新设置---------$&#123;RES&#125;&quot;</span><br><span class="line">                exit</span><br><span class="line">            fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_user_null() &#123;</span><br><span class="line">    if [ ! $user ]; then</span><br><span class="line">        echo -e  &quot;$&#123;PINK&#125;---------账号未指定，请重新开始---------$&#123;RES&#125;&quot;</span><br><span class="line">        exit</span><br><span class="line">    fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_pass_null() &#123;</span><br><span class="line">    if [ ! $pass ]; then</span><br><span class="line">        echo -e  &quot;$&#123;PINK&#125;---------密码未指定，请重新开始---------$&#123;RES&#125;&quot;</span><br><span class="line">        exit</span><br><span class="line">    fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_dir_null() &#123;</span><br><span class="line">        if [ ! $dir ]; then</span><br><span class="line">                echo -e  &quot;$&#123;PINK&#125;---------目录未指定，请重新开始---------$&#123;RES&#125;&quot;</span><br><span class="line">                exit</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">check_home_dir_null() &#123;</span><br><span class="line">        if [ ! $home_dir ]; then</span><br><span class="line">                echo -e  &quot;$&#123;PINK&#125;---------数据存储目录未指定，请重新开始---------$&#123;RES&#125;&quot;</span><br><span class="line">                                exit</span><br><span class="line">        fi</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">配置sftp</span></span><br><span class="line">creat_sftp() &#123;</span><br><span class="line">yes|cp -p /etc/ssh/sshd_config /tmp/sshd.conf_$&#123;time&#125;</span><br><span class="line">bak_name=`ls -lt /tmp/|grep -iv total|grep -v 总|grep ssh|head -n 1|awk &#x27;&#123;print $9&#125;&#x27;`</span><br><span class="line">echo -e  &quot;$&#123;GREEN_COLOR&#125;---------旧的ssh配置文件已经备份,备份路径为 /tmp/$bak_name---------$&#123;RES&#125;&quot;</span><br><span class="line">cat /etc/group|awk -F \: &#x27;&#123;print $1&#125;&#x27;| grep -w &quot;sftp&quot; &gt; /dev/null 2&gt;&amp;1 || groupadd sftp</span><br><span class="line">useradd -g sftp -s /bin/false $user</span><br><span class="line">echo $pass | passwd $user --stdin &gt; /dev/null 2&gt;&amp;1</span><br><span class="line"></span><br><span class="line">mkdir -p $home_dir/sftp/$user</span><br><span class="line">usermod -d $home_dir/sftp/$user $user</span><br><span class="line">sed -i &#x27;s/^[^#].*sftp-server*/#&amp;/g&#x27; /etc/ssh/sshd_config</span><br><span class="line"></span><br><span class="line">sed -i &#x27;/Subsystem/d&#x27; /etc/ssh/sshd_config</span><br><span class="line">sed -i &#x27;/Match/d&#x27; /etc/ssh/sshd_config</span><br><span class="line">sed -i &#x27;/ChrootDirectory/d&#x27; /etc/ssh/sshd_config</span><br><span class="line">sed -i &#x27;/ForceCommand/d&#x27; /etc/ssh/sshd_config</span><br><span class="line"></span><br><span class="line">echo &quot;Subsystem sftp internal-sftp&quot; &gt;&gt; /etc/ssh/sshd_config</span><br><span class="line">echo &quot;Match Group sftp&quot; &gt;&gt; /etc/ssh/sshd_config</span><br><span class="line">echo &quot;ChrootDirectory $home_dir/sftp/%u&quot; &gt;&gt; /etc/ssh/sshd_config</span><br><span class="line">echo &quot;ForceCommand internal-sftp&quot; &gt;&gt; /etc/ssh/sshd_config</span><br><span class="line"></span><br><span class="line">chown root:sftp $home_dir/sftp/$user</span><br><span class="line">chmod 755 $home_dir/sftp/$user</span><br><span class="line">mkdir $home_dir/sftp/$user/upload</span><br><span class="line">chown $user:sftp $home_dir/sftp/$user/upload</span><br><span class="line">chmod 755 $home_dir/sftp/$user/upload</span><br><span class="line">&#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash">菜单</span></span><br><span class="line">menu()&#123;</span><br><span class="line">cat &lt;&lt;END</span><br><span class="line">-----------------------------------------</span><br><span class="line">支持：centos6、centos7、centos8         -</span><br><span class="line">功能：自动创建FTP或SFTP                 -</span><br><span class="line">作者：lijintao  version 1.0      -</span><br><span class="line">注意：1 脚本会自动备份配置文件          -</span><br><span class="line">      2 脚本会自动关闭防火墙,selinux    -</span><br><span class="line">-----------------------------------------</span><br><span class="line">菜单编号                                -</span><br><span class="line">                                        -</span><br><span class="line">-   1.新建FTP                       -</span><br><span class="line">-   2.新建SFTP                      -</span><br><span class="line">-   3.退出脚本                      -</span><br><span class="line">-                                       -</span><br><span class="line">-----------------------------------------</span><br><span class="line">END</span><br><span class="line">&#125;</span><br><span class="line">clear</span><br><span class="line">menu</span><br><span class="line">        read -p &quot;请选择菜单编号 1 或 2 或 3 : &quot; -t 20 num</span><br><span class="line">if [[ $num == 1 ]];</span><br><span class="line">then</span><br><span class="line">        echo -e  &quot;$&#123;GREEN_COLOR&#125;---------您选择了 1 ，正在新建ftp...---------$&#123;RES&#125;&quot;</span><br><span class="line">    check_pkg</span><br><span class="line">            read -p &quot;请指定FTP数据存储一级目录 例如 /home 或 /data 或 /data1: &quot; -t 30 home_dir</span><br><span class="line">    check_home_dir</span><br><span class="line">    check_home_dir_null</span><br><span class="line">        read -p &quot;请配置要创建的FTP账号: &quot; -t 30 user</span><br><span class="line">    check_user_null</span><br><span class="line">    check_user</span><br><span class="line">        read -p &quot;请配置FTP账号的密码: &quot; -t 30 pass</span><br><span class="line">    check_pass_null</span><br><span class="line">        read -p &quot;请配置FTP在 $home_dir 下的目录名 例如 ftp_upload: &quot; -t 30 dir</span><br><span class="line">    check_dir_null</span><br><span class="line">    check_dir</span><br><span class="line">    check_old_dir</span><br><span class="line">    creat_ftp</span><br><span class="line">    start_ftp</span><br><span class="line">        echo &quot;FTP账号： $user&quot;</span><br><span class="line">        echo &quot;FTP密码： $pass&quot;</span><br><span class="line">        echo &quot;FTP本机目录 $home_dir/$dir&quot;</span><br><span class="line">        echo &quot;FTP家目录： /&quot;</span><br><span class="line">        echo &quot;&quot;</span><br><span class="line">        echo &quot;如果你想开启本机防火墙，请放开 21端口和 50000-60000 连续端口&quot;</span><br><span class="line">        echo &quot;如果你不想锁定 $user 的FTP家目录，请将 $user 添加到 /etc/vsftpd/chroot_list 文件中并重启ftp服务&quot;</span><br><span class="line">        echo &quot;&quot;</span><br><span class="line"></span><br><span class="line">elif [[ $num == 2 ]];then</span><br><span class="line">        echo -e  &quot;$&#123;GREEN_COLOR&#125;---------您选择了 2 ，正在新建sftp...---------$&#123;RES&#125;&quot;</span><br><span class="line">    check_sshversion</span><br><span class="line">                read -p &quot;请配置SFTP数据存储一级目录 例如 /home 或 /data 或 /data1: &quot; -t 30 home_dir</span><br><span class="line">    check_home_dir_null</span><br><span class="line">        check_home_dir</span><br><span class="line">        read -p &quot;请配置要创建的SFTP账号: &quot; -t 30 user</span><br><span class="line">    check_user_null</span><br><span class="line">    check_user</span><br><span class="line"></span><br><span class="line">        if [ $user == &quot;sftp&quot; ];then</span><br><span class="line">        echo -e  &quot;$&#123;PINK&#125;----------用户名请不要设置为sftp,脚本退出,请重新设置----------$&#123;RES&#125;&quot;</span><br><span class="line">        exit  1</span><br><span class="line">    fi</span><br><span class="line">    </span><br><span class="line">        read -p &quot;请配置SFTP账号密码: &quot; -t 30 pass</span><br><span class="line">    check_pass_null</span><br><span class="line">    </span><br><span class="line">    creat_sftp</span><br><span class="line">    start_sftp</span><br><span class="line">        echo &quot;SFTP账号： $user&quot;</span><br><span class="line">        echo &quot;SFTP密码： $pass&quot;</span><br><span class="line">        echo &quot;SFTP本机目录： $home_dir/sftp/$user/upload&quot;</span><br><span class="line">    echo &quot;SFTP默认家目录：/upload&quot;</span><br><span class="line"></span><br><span class="line">elif [[ $num == 3 ]];then</span><br><span class="line">    echo -e  &quot;$&#123;GREEN_COLOR&#125;---------您选择了 3 ，脚本退出---------$&#123;RES&#125;&quot;</span><br><span class="line">    exit;</span><br><span class="line"></span><br><span class="line">else</span><br><span class="line">    echo -e  &quot;$&#123;PINK&#125;---------输入错误或超时，脚本退出---------$&#123;RES&#125;&quot;</span><br><span class="line">    exit;</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/10/FTP%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2%E9%85%8D%E7%BD%AE%E8%84%9A%E6%9C%AC/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Scripts/" rel="tag">Scripts</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/10/%E7%AE%A1%E7%90%86%E5%92%8C%E7%9B%91%E6%8E%A7MySQL%E5%92%8CMongoDB%E6%80%A7%E8%83%BD%E7%9A%84%E5%BC%80%E6%BA%90%E5%B9%B3%E5%8F%B0Percona/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">管理和监控MySQL和MongoDB性能的开源平台Percona</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
