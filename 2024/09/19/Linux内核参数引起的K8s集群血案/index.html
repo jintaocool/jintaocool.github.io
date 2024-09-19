@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Linux内核参数引起的K8s集群血案 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-Linux内核参数引起的K8s集群血案"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Linux内核参数引起的K8s集群血案
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/19/Linux%E5%86%85%E6%A0%B8%E5%8F%82%E6%95%B0%E5%BC%95%E8%B5%B7%E7%9A%84K8s%E9%9B%86%E7%BE%A4%E8%A1%80%E6%A1%88/" class="article-date">
+  <time datetime="2024-09-19T05:51:01.000Z" itemprop="datePublished">2024-09-19</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">5.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">24 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="一、背景说明"><a href="#一、背景说明" class="headerlink" title="一、背景说明"></a><strong>一、背景说明</strong></h3><p>运行环境信息：Kubernetes + docker，应用程序：Java</p>
+<h4 id=""><a href="#" class="headerlink" title=""></a></h4><h4 id="问题描述"><a href="#问题描述" class="headerlink" title="问题描述"></a><strong>问题描述</strong></h4><p>1、首先从 Kubernetes 事件中心告警信息如下，<strong>该告警集群常规告警事件</strong>（其实从下面这些常规告警信息是无法判断是什么故障问题）</p>
+<p><img src="/images/1726724954-80418cb42ff48920ac5ecc10b58de7a7.png"></p>
+<p>2、最初怀疑是 docker 服务有问题，切换至节点上查看 docker &amp; kubelet 日志，如下：</p>
+<blockquote>
+<p>kubelet 无法初始化线程，需要增加所处运行用户的进程限制，大致意思就是需要调整 ulimit -u（具体分析如下先描述问题）</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br></pre></td><td class="code"><pre><span class="line">$ journalctl -u &quot;kubelet&quot; --no-pager --follow</span><br><span class="line">-- Logs begin at Wed 2019-12-25 11:30:13 CST. --</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: encoding/js(*decodeState).unmarshal(0xc000204580, 0xcafe00, 0xc00048f440, 0xc0002045a8, 0x0)</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/encoding/json/decode.go:180 +0x1ea</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: encodijson.Unmarshal(0xc00025e000, 0x9d38, 0xfe00, 0xcafe00, 0xc00048f440, 0x0, 0x0)</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/encoding/json/decode.go:107 +0x112</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: github.com/go-openaspec.Swagger20Schema(0xc000439680, 0x0, 0x0)</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.com/openapi/spec/spec.go:82 +0xb8</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: github.com/go-openapi/spec.MustLoadSwagger20Schema(...)</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.com/openapi/spec/spec.go:66</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: github.com/go-openapi/spec.init.4()</span><br><span class="line">Dec 22 14:21:51 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.com/openapi/spec/spec.go:38 +0x57</span><br><span class="line">Dec 22 14:22:06 PROD-BE-KWN8 kubelet[3124]: runtime: failed to create new OS thread (have 15 already; errno=11)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime: may need to increase max user processes (ulimiu)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: fatal error: newosproc</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 1 [running, locked to thread]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.throw(0xcbf07e, 0x9)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtipanic.go:1116 +0x72 fp=0xc00099fe20 sp=0xc00099fdf0 pc=0x4376d2</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.newosproc(0xc000600800)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtios_linux.go:161 +0x1c5 fp=0xc00099fe80 sp=0xc00099fe20 pc=0x433be5</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.newm1(0xc000600800)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:1843 +0xdd fp=0xc00099fec0 sp=0xc00099fe80 pc=0x43dcbd</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.newm(0xcf1010, 0x0, 0xffffffffffffffff)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:1822 +0x9b fp=0xc00099fef8 sp=0xc00099fec0 pc=0x43db3b</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.startTemplateThread()</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:1863 +0xb2 fp=0xc00099ff28 sp=0xc00099fef8 pc=0x43ddb2</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.LockOSThread()</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:3845 +0x6b fp=0xc00099ff48 sp=0xc00099ff28 pc=0x44300b</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: main.init.0()</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/plugins/cilium-ccilium-cni.go:66 +0x30 fp=0xc00099ff58 sp=0xc00099ff48 pc=0xb2fa50</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.doInit(0x11c73a0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:5652 +0x8a fp=0xc00099ff88 sp=0xc00099ff58 pc=0x44720a</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.main()</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiproc.go:191 +0x1c5 fp=0xc00099ffe0 sp=0xc00099ff88 pc=0x439e85</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: runtime.goexit()</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/runtiasm_amd64.s:1374 +0x1 fp=0xc00099ffe8 sp=0xc00099ffe0 pc=0x46fc81</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 11 [chan receive]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: k8s.io/klog/v2.(*loggingT).flushDaemon(0x121fc40)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/k8s.io/klog/klog.go:1131 +0x8b</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: created by k8s.io/klog/v2.init.0</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/k8s.io/klog/klog.go:416 +0xd8</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 12 [select]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*pipe).Read(0xc000422780, 0xc00034b000, 0x1000, 0x1000, 0xba4480, 0x1, 0xc00034b000)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:57 +0xe7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*PipeReader).Read(0xc00000e380, 0xc00034b000, 0x1000, 0x1000, 0x0, 0x0, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:134 +0x4c</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: bufio.(*Scanner).Scan(0xc00052ef38, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/bufio/scan.go:214 +0xa9</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: github.com/sirupsen/logr(*Entry).writerScanner(0xc00016e1c0, 0xc00000e380, 0xc000516300)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:59 +0xb4</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: created by github.com/sirupsen/logrus.(*Entry).WriterLevel</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:51 +0x1b7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 13 [select]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*pipe).Read(0xc0004227e0, 0xc000180000, 0x1000, 0x1000, 0xba4480, 0x1, 0xc000180000)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:57 +0xe7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*PipeReader).Read(0xc00000e390, 0xc000180000, 0x1000, 0x1000, 0x0, 0x0, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:134 +0x4c</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: bufio.(*Scanner).Scan(0xc00020af38, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/bufio/scan.go:214 +0xa9</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: github.com/sirupsen/logr(*Entry).writerScanner(0xc00016e1c0, 0xc00000e390, 0xc000516320)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:59 +0xb4</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: created by github.com/sirupsen/logrus.(*Entry).WriterLevel</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:51 +0x1b7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 14 [select]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*pipe).Read(0xc000422840, 0xc0004c2000, 0x1000, 0x1000, 0xba4480, 0x1, 0xc0004c2000)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:57 +0xe7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*PipeReader).Read(0xc00000e3a0, 0xc0004c2000, 0x1000, 0x1000, 0x0, 0x0, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:134 +0x4c</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: bufio.(*Scanner).Scan(0xc00052af38, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/bufio/scan.go:214 +0xa9</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: github.com/sirupsen/logr(*Entry).writerScanner(0xc00016e1c0, 0xc00000e3a0, 0xc000516340)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:59 +0xb4</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: created by github.com/sirupsen/logrus.(*Entry).WriterLevel</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:51 +0x1b7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: goroutine 15 [select]:</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*pipe).Read(0xc0004228a0, 0xc000532000, 0x1000, 0x1000, 0xba4480, 0x1, 0xc000532000)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:57 +0xe7</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: (*PipeReader).Read(0xc00000e3b0, 0xc000532000, 0x1000, 0x1000, 0x0, 0x0, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/io/pipe.go:134 +0x4c</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: bufio.(*Scanner).Scan(0xc00052ff38, 0x0)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /usr/local/go/src/bufio/scan.go:214 +0xa9</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: github.com/sirupsen/logr(*Entry).writerScanner(0xc00016e1c0, 0xc00000e3b0, 0xc000516360)</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:59 +0xb4</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: created by github.com/sirupsen/logrus.(*Entry).WriterLevel</span><br><span class="line">Dec 22 14:22:06 PROD-BE-K8S-WN8 kubelet[3124]: /go/src/github.com/cilium/cilium/vendor/github.csirupsen/logrus/writer.go:51 +0x1b7</span><br></pre></td></tr></table></figure>
+
+<p>3、于是查看系统日志，如下（本来想追踪当前时间的系统日志，但当时系统反应超级慢，但是当时的系统 load 是很低并没有很高，而且 CPU &amp; MEM 利用率也不高，具体在此是系统为什么反应慢，后面再分析 “问题一”）：</p>
+<blockquote>
+<p>再执行查看系统命令，提示无法创建进程</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">$ dmesg -TL</span><br><span class="line">-bash: fork: retry: No child processes</span><br><span class="line">[Fri Sep 17 18:25:53 2021] Linux version 5.11.1-1.el7.elrepo.x86_64 (mockbuild@Build64R7) (gcc (GC9.3.1 20200408 (Red Hat 9.3.1-2), GNU ld version 2.32-16.el7) #1 SMP Mon Feb 22 17:30:33 EST 2021</span><br><span class="line">[Fri Sep 17 18:25:53 2021] Command line: BOOT_IMAGE=/boot/vmlinuz-5.11.1-1.el7.elrepo.x86_root=UUID=8770013a-4455-4a77-b023-04d04fa388c8 ro crashkernel=auto spectre_v2=retpoline net.ifnamesconsole=tty0 console=ttyS0,115200n8 noibrs</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x001: &#x27;x87 floating point registers&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x002: &#x27;SSE registers&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x004: &#x27;AVX registers&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x008: &#x27;MPX bounds registers&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x010: &#x27;MPX CSR&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x020: &#x27;AVX-512 opmask&#x27;</span><br><span class="line">[Fri Sep 17 18:25:53 2021] x86/fpu: Supporting XSAVE feature 0x040: &#x27;AVX-512 Hi256&#x27;</span><br></pre></td></tr></table></figure>
+
+<p>4、尝试在该节点新建 Container，如下：</p>
+<blockquote>
+<p>提示初始化线程失败，资源不够</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">$ docker run -it --rm tomcat bash</span><br><span class="line">runtime/cgo: runtime/cgo: pthread_create failed: Resource temporarily unavailable</span><br><span class="line">pthread_create failed: Resource temporarily unavailable</span><br><span class="line">SIGABRT: abort</span><br><span class="line">PC=0x7f34d16023d7 m=3 sigcode=18446744073709551610</span><br><span class="line"></span><br><span class="line">goroutine 0 [idle]:</span><br><span class="line">runtime: unknown pc 0x7f34d16023d7</span><br><span class="line">stack: frame=&#123;sp:0x7f34cebb8988, fp:0x0&#125; stack=[0x7f34ce3b92a8,0x7f34cebb8ea8)</span><br><span class="line">00007f34cebb8888:  000055f2b345a7bf &lt;runtime.(*mheap).scavengeLocked+559&gt;  00007f34cebb88c0</span><br><span class="line">00007f34cebb8898:  000055f2b3450e0e &lt;runtime.(*mTreap).end+78&gt;  0000000000000000</span><br></pre></td></tr></table></figure>
+
+<h4 id="-1"><a href="#-1" class="headerlink" title=""></a></h4><h3 id="二、故障分析"><a href="#二、故障分析" class="headerlink" title="二、故障分析"></a><strong>二、故障分析</strong></h3><p>根据以上的故障问题初步分析，第一反应是 ulimi -u 值太小，已经被 hit（触及到，突破该参数的上限），于是查看各用户的 ulimi  -u，官方描述就是 max user  processes（该参数的值上限应该小于 user.max_pid_namespace 的值，该参数是内核初始化分配的）。</p>
+<h4 id="-2"><a href="#-2" class="headerlink" title=""></a></h4><h4 id="监控信息"><a href="#监控信息" class="headerlink" title="监控信息"></a><strong>监控信息</strong></h4><p>查看用户的 max processes 的上限，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">$ ulimit -a</span><br><span class="line">core file size          (blocks, -c) 0</span><br><span class="line">data seg size           (kbytes, -d) unlimited</span><br><span class="line">scheduling priority             (-e) 0</span><br><span class="line">file size               (blocks, -f) unlimited</span><br><span class="line">pending signals                 (-i) 249047</span><br><span class="line">max locked memory       (kbytes, -l) 64</span><br><span class="line">max memory size         (kbytes, -m) unlimited</span><br><span class="line">open files                      (-n) 65535</span><br><span class="line">pipe size            (512 bytes, -p) 8</span><br><span class="line">POSIX message queues     (bytes, -q) 819200</span><br><span class="line">real-time priority              (-r) 0</span><br><span class="line">stack size              (kbytes, -s) 8192</span><br><span class="line">cpu time               (seconds, -t) unlimited</span><br><span class="line">max user processes              (-u) 249047</span><br><span class="line">virtual memory          (kbytes, -v) unlimited</span><br><span class="line">file locks                      (-x) unlimited</span><br></pre></td></tr></table></figure>
+
+<p>因为 [ulimit] 是针对于每用户而言的，具体还要验证每个用户的 limit 的配置，如下：</p>
+<blockquote>
+<p>根据以下配置判断，并没有超出设定的范围。</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"># 默认limits.conf的配置</span><br><span class="line"># End of file</span><br><span class="line">root soft nofile 65535</span><br><span class="line">root hard nofile 65535</span><br><span class="line">* soft nofile 65535</span><br><span class="line">* hard nofile 65535</span><br><span class="line"></span><br><span class="line"># limits.d/20.nproc.conf的配置，如下</span><br><span class="line"># Default limit for number of user&#x27;s processes to prevent</span><br><span class="line"># accidental fork bombs.</span><br><span class="line"># See rhbz #432903 for reasoning.</span><br><span class="line"></span><br><span class="line">*          soft    nproc     65536</span><br><span class="line">root       soft    nproc     unlimited</span><br></pre></td></tr></table></figure>
+
+<p>查看节点运行的进程：</p>
+<blockquote>
+<p>从监控信息可以看到在故障最高使用 457 个进程。</p>
+</blockquote>
+<p><img src="/images/1726724954-463abf1da95e3e66b0620e0af60c33ce.png"></p>
+<p>查看系统中的[进程状态]，如下：</p>
+<blockquote>
+<p>虽然说有个 Z 状的进程，但是也不影响当前系统运行。</p>
+</blockquote>
+<p><img src="/images/1726724954-1b45b12e66f1481f3ed753bcaddb64f7.png"></p>
+<p>查看系统 create 的线程数，如下：</p>
+<blockquote>
+<p>从下监控图表，当时最大线程数是 32616。</p>
+</blockquote>
+<p><img src="/images/1726724954-b0a5d7c4b66d04dd5053dc39dc8d66d1.png"></p>
+<h4 id="-3"><a href="#-3" class="headerlink" title=""></a></h4><h4 id="分析过程"><a href="#分析过程" class="headerlink" title="分析过程"></a><strong>分析过程</strong></h4><p>1、从以上监控信息分析，故障时间区间，系统运行的线程略高 31616，但是该值却没有超过当前用户的 ulimit -u 的值，初步排除该线索。</p>
+<p>2、根据系统抛出的错误提示，Google 一把 <code>fork: Resource temporarily unavailable</code>，找到了一个贴子：<a target="_blank" rel="noopener" href="https://github.com/awslabs/amazon-eks-ami/issues/239">https://github.com/awslabs/amazon-eks-ami/issues/239</a> [1]，在整个帖子看到一条这样的提示：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">One</span> possible cause <span class="keyword">is</span> <span class="keyword">running</span> <span class="keyword">out</span> <span class="keyword">of</span> process IDs. <span class="keyword">Check</span> you don<span class="string">&#x27;t  have 40.000 defunct processes or similar on nodes with problems</span></span><br></pre></td></tr></table></figure>
+
+<p>3、于是根据该线索，翻阅 linux 内核文档，搜索 PID 相关字段，其中找到如下相关的 PID 参数：</p>
+<ul>
+<li><p>kernel.core_uses_pid &#x3D; 1</p>
+<blockquote>
+<p> </p>
+<p>引用官方文档 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#core-uses-pid">https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#core-uses-pid</a></p>
+<p>参数大致意思是为系统 coredump 文件命名，实际生成的名字为 “core.PID”，则排除该参数引起的问题。</p>
+</blockquote>
+</li>
+<li><p>kernel.ns_last_pid &#x3D; 23068</p>
+<blockquote>
+<p>引用官方文档 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#ns-last-pid">https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#ns-last-pid</a></p>
+<p>参数大致意思是，记录当前系统最后分配的 PID identifiy，当 kernel fork 执行下一个 task 时，kernel 将从此 pid 分配 identify。</p>
+</blockquote>
+</li>
+<li><p>kernel.pid_max &#x3D; 32768</p>
+<blockquote>
+<p>引用官方文档 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#pid-max">https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#pid-max</a></p>
+<p>参数大致意思是，kernel 允许当前系统分配的最大 PID identify，如果 kernel  在 fork 时 hit 到这个值时，kernel 会 wrap back 到内核定义的 minimum PID  identify，意思就是不能分配大于该参数设定的值+1，该参数边界范围是全局的，属于系统全局边界。</p>
+<p>通过该参数的阐述，大致问题定位到了，在 linux 中其实 thread &amp; process 的创建都会被该参数束缚，因为无论是线程还是进程结构体基本上一样的，都需要 PID 来标识。</p>
+</blockquote>
+</li>
+<li><p>user.max_pid_namespaces &#x3D; 253093</p>
+<blockquote>
+<p> </p>
+<p>引用官方文档 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/sysctl/user.html#max-pid-namespaces">https://www.kernel.org/doc/html/latest/admin-guide/sysctl/user.html#max-pid-namespaces</a></p>
+<p>参数大致意思是，在当前所属用户 namespace 下允许该用户创建的最大的 PID，意思应该是最大进程吧，等同于参数 ulimit  -u 的值，由内核初始化而定义的，具体算法应该是（init_task.signal-&gt;rlim[RLIMIT_NPROC].rlim_max &#x3D; max_threads&#x2F;2）。</p>
+</blockquote>
+</li>
+<li><p>kernel.cad_pid &#x3D; 1</p>
+<blockquote>
+<p> </p>
+<p>引用官方文档 <a target="_blank" rel="noopener" href="https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#cad-pid">https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#cad-pid</a></p>
+<p>参数大致意思是，向系统发送 reboot 信号，特别针对于 ctrl+alt+del，对于该参数不需要理解太多，用不到。</p>
+</blockquote>
+</li>
+</ul>
+<p>4、查看系统内核参数 kernel.pid_max，如下：</p>
+<blockquote>
+<p> </p>
+<p>关于该参数的初始值是如何计算的，下面会分析的。</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ sysctl -a | grep pid_max</span><br><span class="line">kernel.pid_max = 32768</span><br></pre></td></tr></table></figure>
+
+<p>5、返回系统中，需要定位是哪个应用系统 create 如此之多的线程，如下（推荐安装监控系统，用于记录监控数据信息）：</p>
+<p><img src="/images/1726724954-89789e020a2e502b59e769ecee758ada.png"></p>
+<p>通常网上的教程都是盲目的调整对应的内核参数值，个人认为运维所有操作都是被动的，不具备根治问题，需要从源头解决问题，最好是抛给研发，在应用系统初始化，create 适当的线程量。</p>
+<p>具体如何优化内核参数，下面来分析。</p>
+<h4 id="-4"><a href="#-4" class="headerlink" title=""></a></h4><h4 id="-5"><a href="#-5" class="headerlink" title=""></a></h4><h3 id="参数分析"><a href="#参数分析" class="headerlink" title="参数分析"></a><strong>参数分析</strong></h3><p>相关内核参数详细说明，及如何调整，及相互关系，及计算方式，参数边界，如下说明：</p>
+<h4 id="-6"><a href="#-6" class="headerlink" title=""></a></h4><h4 id="kernel-pid-max"><a href="#kernel-pid-max" class="headerlink" title="kernel.pid_max"></a><strong>kernel.pid_max</strong></h4><p>概念就不详述了，参考上文（大致意思就是，系统最大可分配的 PID identify，理解有点抽象，严格意义是最大标识，每个进程的标识符，当然也代表最大进程吧）。</p>
+<p>话不多说，分析源代码，如有误，请指出。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">int pid_max = PID_MAX_DEFAULT;</span><br><span class="line"></span><br><span class="line">#define RESERVED_PIDS        300</span><br><span class="line"></span><br><span class="line">int pid_max_min = RESERVED_PIDS + 1;</span><br><span class="line">int pid_max_max = PID_MAX_LIMIT;</span><br></pre></td></tr></table></figure>
+
+<p>代码地址：<a target="_blank" rel="noopener" href="https://github.com/torvalds/linux/blob/v5.11-rc1/kernel/pid.c">https://github.com/torvalds/linux/blob/v5.11-rc1/kernel/pid.c</a></p>
+<p>上面代码表示，pid_max 默认赋值等于 PID_MAX_DEFAULT 的值，但是初始创建的 PID identify 是 RESERVD_PIDS + 1，也就是等于 301，小于等于 300 是系统内核保留值（可能是特殊使用吧）</p>
+<p>那么 PID_MAX_DEFAULT 的值是如何计算的及初始化时是如何定义的及默认值、最大值，及 LIMIT 的值的呢？具体 PID_MAX_DEFAULT 代码如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">/*</span><br><span class="line"> * This controls the default maximum pid allocated to a process</span><br><span class="line"> * 大致意思就是，如果在编译内核时指定或者为CONFIG_BASE_SMALl赋值了，那么默认值就是4096，反而就是32768</span><br><span class="line"> */</span><br><span class="line">#define PID_MAX_DEFAULT (CONFIG_BASE_SMALL ? 0x1000 : 0x8000)</span><br><span class="line"></span><br><span class="line">/*</span><br><span class="line"> * A maximum of 4 million PIDs should be enough for a while.</span><br><span class="line"> * [NOTE: PID/TIDs are limited to 2^30 ~= 1 billion, see FUTEX_TID_MASK.]</span><br><span class="line"> * 如果CONFIG_BASE_SMALL被赋值了，则最大值就是32768，如果条件不成立，则判断long的类型通常应该是操作系统版本，如果大于4字节，取值范围大约就是4 million，精确计算就是4,194,304，如果条件还不成立则只能取值最被设置的PID_MAX_DEFAULT的值</span><br><span class="line"> */</span><br><span class="line"></span><br><span class="line">#define PID_MAX_LIMIT (CONFIG_BASE_SMALL ? PAGE_SIZE * 8 : \</span><br><span class="line">    (sizeof(long) &gt; 4 ? 4 * 1024 * 1024 : PID_MAX_DEFAULT))</span><br></pre></td></tr></table></figure>
+
+<p>代码地址：linux&#x2F;threads.h at v5.11-rc1 · torvalds&#x2F;linux · GitHub[2]</p>
+<p>但是翻阅 man proc 的官方文档，明确说明：如果 OS 为 64 位系统 PID_MAX_LIMIT 的边界值为 2 的 22 次方，精确计算就是 2_1024_1024*1024 等于 1,073,741,824，10 亿多。而 32BIT 的操作系统默认就是 32768</p>
+<p>如何查看 CONFIG_BASE_SMALL 的值，如下：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">$ cat /boot/config-5.11.1-1.el7.elrepo.x86_64 | grep CONFIG_BASE_SMALL</span><br><span class="line">CONFIG_BASE_SMALL=0</span><br></pre></td></tr></table></figure>
+
+<p>0 代表未被赋值。</p>
+<h4 id="-7"><a href="#-7" class="headerlink" title=""></a></h4><h4 id="kernel-threads-max"><a href="#kernel-threads-max" class="headerlink" title="kernel.threads-max"></a><strong>kernel.threads-max</strong></h4><p>参考文档：Documentation for &#x2F;proc&#x2F;sys&#x2F;kernel&#x2F; — The Linux Kernel documentation[3]</p>
+<p>该参数大致意思是，系统内核 fork() 允许创建的最大线程数，在内核初始化时已经设定了此值，但是即使设定了该值，但是线程结构只能占用可用 RAM page 的一部分，约 1&#x2F;8（注意是可用内存，即 Available memory  page）, 如果超出此值 1&#x2F;8 则 threads-max 的值会减少</p>
+<p>内核初始化时，默认指定最小值为 MIN_THREADS &#x3D; 20，MAX_THREADS 的最大边界值是由 FUTEX_TID_MASK 值而约束，但是在内核初始化时，kernel.threads-max 的值是根据系统实际的物理内存计算出来的，如下代码：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">/*</span><br><span class="line"> * set_max_threads</span><br><span class="line"> */</span><br><span class="line">static void set_max_threads(unsigned int max_threads_suggested)</span><br><span class="line">&#123;</span><br><span class="line">    u64 threads;</span><br><span class="line">    unsigned long nr_pages = totalram_pages();</span><br><span class="line"></span><br><span class="line">    /*</span><br><span class="line">     * The number of threads shall be limited such that the thread</span><br><span class="line">     * structures may only consume a small part of the available memory.</span><br><span class="line">     */</span><br><span class="line">    if (fls64(nr_pages) + fls64(PAGE_SIZE) &gt; 64)</span><br><span class="line">        threads = MAX_THREADS;</span><br><span class="line">    else</span><br><span class="line">        threads = div64_u64((u64) nr_pages * (u64) PAGE_SIZE,</span><br><span class="line">                    (u64) THREAD_SIZE * 8UL);</span><br><span class="line"></span><br><span class="line">    if (threads &gt; max_threads_suggested)</span><br><span class="line">        threads = max_threads_suggested;</span><br><span class="line"></span><br><span class="line">    max_threads = clamp_t(u64, threads, MIN_THREADS, MAX_THREADS);</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>代码地址：linux&#x2F;fork.c at v5.16-rc1 · torvalds&#x2F;linux · GitHub[4]</p>
+<p>kernel.threads-max 该参数一般不需要手动更改，因为在内核根据现在有的内存已经算好了，不建议修改</p>
+<p>那么 kernel.threads-max 由 FUTEX_TID_MASK 常量所约束，那它的具体值是多少呢，代码如下：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#<span class="keyword">define</span> FUTEX_TID_MASK        0x3fffffff</span></span><br></pre></td></tr></table></figure>
+
+<p>代码地址：linux&#x2F;futex.h at v5.16-rc1 · torvalds&#x2F;linux · GitHub[5]</p>
+<h4 id="-8"><a href="#-8" class="headerlink" title=""></a></h4><h4 id="vm-max-map-count"><a href="#vm-max-map-count" class="headerlink" title="vm.max_map_count"></a><strong>vm.max_map_count</strong></h4><p>参考文档：Documentation for &#x2F;proc&#x2F;sys&#x2F;vm&#x2F; — The Linux Kernel documentation[6]</p>
+<p>这个参数大致意思是，允许系统进程最大分配的内存 MAP 区域，一般应用程序占用少于 1000 个 map，但是个别程序，特别针对于被 malloc 分配，可能会大量消耗，每个 allocation 会占用一到二个 map，默认值为 65530。</p>
+<p>通过设定此值可以限制进程使用 VMA(虚拟内存区域) 的数量。虚拟内存区域是一个连续的虚拟地址空间区域。在进程的生命周期中，每当程序尝试在内存中映射文件，链接到共享内存段，或者分配堆空间的时候，这些区域将被创建。调优这个值将限制进程可拥有 VMA 的数量。限制一个进程拥有 VMA 的总数可能导致应用程序出错，因为当进程达到了 VMA 上线但又只能释放少量的内存给其他的内核进程使用时，操作系统会抛出内存不足的错误。如果你的操作系统在 NORMAL 区域仅占用少量的内存，那么调低这个值可以帮助释放内存给内核用参数大致作用就是这样的。</p>
+<p>可以总结一下什么情况下，适当的增加：</p>
+<ul>
+<li><p>压力测试，压测应用程序最大 create 的线程数量；</p>
+</li>
+<li><p>高并发的应用系统，单进程并发非常高。</p>
+</li>
+</ul>
+<p>参考文档：</p>
+<ul>
+<li><p><strong><a target="_blank" rel="noopener" href="http://www.kegel.com/c10k.html#limits.threads">http://www.kegel.com/c10k.html#limits.threads</a></strong></p>
+</li>
+<li><p><strong><a target="_blank" rel="noopener" href="https://listman.redhat.com/archives/phil-list/2003-August/msg00005.html">https://listman.redhat.com/archives/phil-list/2003-August/msg00005.html</a></strong></p>
+</li>
+<li><p><strong><a target="_blank" rel="noopener" href="https://bugzilla.redhat.com/show/_bug.cgi?id=1459891">https://bugzilla.redhat.com/show\_bug.cgi?id=1459891</a></strong></p>
+</li>
+</ul>
+<h4 id="-9"><a href="#-9" class="headerlink" title=""></a></h4><h4 id="-10"><a href="#-10" class="headerlink" title=""></a></h4><h3 id="配置建议"><a href="#配置建议" class="headerlink" title="配置建议"></a>配置建议</h3><h4 id="-11"><a href="#-11" class="headerlink" title=""></a></h4><h4 id="参数边界"><a href="#参数边界" class="headerlink" title="参数边界"></a><strong>参数边界</strong></h4><table>
+<thead>
+<tr>
+<th><strong>参数名称</strong></th>
+<th><strong>范围边界</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td>kernel.pid_max</td>
+<td>系统全局限制</td>
+</tr>
+<tr>
+<td>kernel.threads-max</td>
+<td>系统全局限制</td>
+</tr>
+<tr>
+<td>vm.max_map_count</td>
+<td>进程级别限制</td>
+</tr>
+<tr>
+<td>&#x2F;etc&#x2F;security&#x2F;limits.conf</td>
+<td>用户级别限制</td>
+</tr>
+</tbody></table>
+<h4 id="-12"><a href="#-12" class="headerlink" title=""></a></h4><h4 id="总结建议"><a href="#总结建议" class="headerlink" title="总结建议"></a><strong>总结建议</strong></h4><ol>
+<li><p>kernel.pid_max 约束整个系统最大 create 的线程与进程数量，无论是线程还是进程，都不能 hit 到此设定的值，错误有二种（**create 接近抛出 Resource temporarily unavailable，create 大于抛出 No more processes…**）；可以根据实际应用场景及应用平台修改此值，比如 Kubernetes 平台，一个节点可能运行上百 Container instance，或者是高并发，多线程的应用。</p>
+</li>
+<li><p>kernel.threads-max 只针对事个系统所有用户的最大他 create 的线程数量，就大于系统所有用户设定的 ulimit  -u 的值，最好 ulimit -u  精确的计算一下（不推荐手动修改该参数，该参数是由在内核初始化系统算出来的结果，如果将其放大可以会造成内存溢出，一般系统默认值不会被 hit 到）。</p>
+</li>
+<li><p>vm.max_map_count 是针对系统单个进程允许被分配的 VMA 区域，如果在压测时，会有二种情况抛出（线程不够 11&#x3D;no more threads allowed，资源不够 12 &#x3D; out of  mem.）但是此值了不能设置的太大，会造成内存开销，回收慢；此值的调整，需要根据实际压测结果而定（常指可以被 create 多少个线程达到饱和）。</p>
+</li>
+<li><p>limits.conf 针对用户级别的，在设置此值时，需要考虑到上面二个全局参数的值，用户的 total 值（不管是 nproc  还是 nofile）不能大于与之对应的 kernel.pid_max &amp; kernel.threads-max &amp;  fs.file-max。</p>
+</li>
+<li><p>Linux 通常不会对单个 CPU 的 create 线程数做上限，过于复杂，个人认为内存不好精确计算吧。</p>
+</li>
+</ol>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/19/Linux%E5%86%85%E6%A0%B8%E5%8F%82%E6%95%B0%E5%BC%95%E8%B5%B7%E7%9A%84K8s%E9%9B%86%E7%BE%A4%E8%A1%80%E6%A1%88/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/19/%E5%9C%A8%E8%A3%B8%E6%9C%BA%E4%B8%8A%E5%AE%89%E8%A3%85-KubeSphere/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">在裸机上安装 KubeSphere</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
