@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>无法拉取Docker镜像的解决办法 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Docker-无法拉取Docker镜像的解决办法"
+  class="article article-type-Docker"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  无法拉取Docker镜像的解决办法
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/09/23/%E6%97%A0%E6%B3%95%E6%8B%89%E5%8F%96Docker%E9%95%9C%E5%83%8F%E7%9A%84%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/" class="article-date">
+  <time datetime="2024-09-23T09:28:58.000Z" itemprop="datePublished">2024-09-23</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Docker/">Docker</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>各大高校以及容器技术社区，由于众所周不知的原因， 纷纷关闭多个镜像加速站点。</p>
+<p>这极大地影响了工作效率和开发进度。面对这一困境，本文将为你介绍几种有效的解决方案，帮助你顺利拉取Docker镜像，继续你的开发工作。</p>
+<p><img src="/images/1727083479-4a5bb42126f7facb348de2f42db5b011.webp" alt="图片" title="null"></p>
+<p>今天就介绍几个方法让拯救你的Docker</p>
+<p>方法1: 某些云镜像加速</p>
+<p>方法2: 使用Docker Hub并将镜像推送到阿里云自有仓库</p>
+<p>方法3:使用Github Action 构建docker镜像</p>
+<p>方法4: 部署DockerHub的代理</p>
+<p>方法5: 镜像仓库前缀替换</p>
+<p><img src="/images/1727083479-bae3317c6b178ea8666c2682643d10fa.webp" alt="图片" title="null"></p>
+<h1 id="一、某些云镜像加速"><a href="#一、某些云镜像加速" class="headerlink" title="一、某些云镜像加速"></a>一、某些云镜像加速</h1><p>这里某些云包括但不限于国内的几大云，阿里云、腾讯云、华为云，使用的方法都大同小异，这里介绍华为云的用户</p>
+<h2 id="镜像加速不可用"><a href="#镜像加速不可用" class="headerlink" title="镜像加速不可用"></a>镜像加速不可用</h2><p>腾讯云镜像加速器地址：<a target="_blank" rel="noopener" href="https://mirror.ccs.tencentyun.com/">https://mirror.ccs.tencentyun.com</a></p>
+<p>中国科学技术大学：<a target="_blank" rel="noopener" href="https://docker.mirrors.ustc.edu.cn/">https://docker.mirrors.ustc.edu.cn</a></p>
+<p>Docker官方镜像（中国区）镜像加速：<a target="_blank" rel="noopener" href="https://registry.docker-cn.com/">https://registry.docker-cn.com</a></p>
+<p>网易云镜像加速器地址：<a target="_blank" rel="noopener" href="http://hub-mirror.c.163.com/">http://hub-mirror.c.163.com</a></p>
+<p>南京大学镜像加速器地址：<a target="_blank" rel="noopener" href="https://docker.nju.edu.cn/">https://docker.nju.edu.cn</a></p>
+<h2 id="镜像加速可用镜像源"><a href="#镜像加速可用镜像源" class="headerlink" title="镜像加速可用镜像源"></a>镜像加速可用镜像源</h2><p>阿里云镜像加速器地址：<a target="_blank" rel="noopener" href="https://xxxxx.mirror.aliyuncs.com/">https://XXXXX.mirror.aliyuncs.com</a></p>
+<p>华为云的镜像加速地址：XXX.mirror.swr.myhuaweicloud.com</p>
+<p>Daocloud 镜像加速器地址：<a target="_blank" rel="noopener" href="https://docker.m.daocloud.io/">https://docker.m.daocloud.io</a></p>
+<h2 id="华为云镜像加速"><a href="#华为云镜像加速" class="headerlink" title="华为云镜像加速"></a>华为云镜像加速</h2><p>进入华为云搜索“容器镜像服务”或者 “SWR” ，进入控制台</p>
+<p>点击 “镜像资源”—&gt; “镜像中心”—&gt; “镜像加速器”</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>操作说明</p>
+<h3 id="安装-升级容器引擎客户端"><a href="#安装-升级容器引擎客户端" class="headerlink" title="安装&#x2F;升级容器引擎客户端"></a>安装&#x2F;升级容器引擎客户端</h3><p>推荐安装1.11.2以上版本的容器引擎客户端</p>
+<h3 id="配置镜像加速器"><a href="#配置镜像加速器" class="headerlink" title="配置镜像加速器"></a>配置镜像加速器</h3><p>针对容器引擎客户端版本大于 1.11.2 的用户 以root用户登录容器引擎所在的虚拟机</p>
+<p>修改“&#x2F;etc&#x2F;docker&#x2F;daemon.json”文件（如果没有，可以手动创建），在该文件内添加如下内容：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">vi /etc/docker/daemon.json</span><br><span class="line"></span><br><span class="line">&#123;</span><br><span class="line">    &quot;registry-mirrors&quot;: [ &quot;https://你的地址.mirror.swr.myhuaweicloud.com&quot; ]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">按“Esc”，输入:wq保存并退出。</span><br></pre></td></tr></table></figure>
+
+<h3 id="重启容器引擎"><a href="#重启容器引擎" class="headerlink" title="重启容器引擎"></a>重启容器引擎</h3><p>配置完成后，执行systemctl restart docker重启容器引擎。 如果重启失败，则检查操作系统其他位置</p>
+<p>（如：&#x2F;etc&#x2F;sysconfig&#x2F;docker、&#x2F;etc&#x2F;default&#x2F;docker）是否配置了registry-mirrors参数，删除此参数并重启容器引擎即可。</p>
+<h3 id="确认配置结果"><a href="#确认配置结果" class="headerlink" title="确认配置结果"></a>确认配置结果</h3><p>执行docker info，当Registry Mirrors字段的地址为加速器的地址时，说明加速器已经配置成功。</p>
+<h2 id="阿里云镜像加速"><a href="#阿里云镜像加速" class="headerlink" title="阿里云镜像加速"></a>阿里云镜像加速</h2><p><a target="_blank" rel="noopener" href="https://cr.console.aliyun.com/">https://cr.console.aliyun.com/</a></p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h3 id="镜像加速器"><a href="#镜像加速器" class="headerlink" title="镜像加速器"></a>镜像加速器</h3><p>点击”镜像工具”—&gt;镜像加速器</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h1 id="二、使用Docker-Hub并将镜像推送到自有仓库"><a href="#二、使用Docker-Hub并将镜像推送到自有仓库" class="headerlink" title="二、使用Docker Hub并将镜像推送到自有仓库"></a>二、使用Docker Hub并将镜像推送到自有仓库</h1><p>之前写过一篇文章： <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzU0NDc0MTAyMg==&mid=2247484743&idx=1&sn=9eec132af7dfe06f4b4aea2221a1dc80&scene=21#wechat_redirect" title="https://mp.weixin.qq.com/s?__biz=MzU0NDc0MTAyMg==&amp;mid=2247484743&amp;idx=1&amp;sn=9eec132af7dfe06f4b4aea2221a1dc80&amp;scene=21#wechat_redirect">https://mp.weixin.qq.com/s/OrcBrtrZRwie3Q8eYVfl-A</a></p>
+<p>画个图说明：</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>当然也可以打包下载到本地</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker save busybox &gt; busybox.tar</span><br><span class="line">docker load &lt; busybox.tar</span><br></pre></td></tr></table></figure>
+
+<h1 id="三、使用Github-Action-构建docker镜像"><a href="#三、使用Github-Action-构建docker镜像" class="headerlink" title="三、使用Github Action 构建docker镜像"></a>三、使用Github Action 构建docker镜像</h1><h2 id="前置条件"><a href="#前置条件" class="headerlink" title="前置条件"></a>前置条件</h2><p>1.可以访问Github，国内环境github时而抽风体质，如果没有科学环境也可以使用 <a target="_blank" rel="noopener" href="https://github.com/521xueweihan/GitHub520">https://github.com/521xueweihan/GitHub520</a> +SwitchHosts 基本还是可以使用的（有的话就当我没说）。</p>
+<p>2.有个github账号</p>
+<p>3.免费版Action 每天能使用1小时，每个月33小时（基本上够用）。</p>
+<p>参考博主悟空的日常：使用Github Action 构建docker镜像 <a target="_blank" rel="noopener" href="http://wkdaily.cpolar.cn/archives/gc">http://wkdaily.cpolar.cn/archives/gc</a></p>
+<h2 id="1-要有一个github账号"><a href="#1-要有一个github账号" class="headerlink" title="1.要有一个github账号"></a>1.要有一个github账号</h2><p>没有账号就需要注册一个。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/">https://github.com</a></p>
+<h2 id="2-fork项目DockerTarBuilder"><a href="#2-fork项目DockerTarBuilder" class="headerlink" title="2.fork项目DockerTarBuilder"></a>2.fork项目DockerTarBuilder</h2><p>fork 叉子叉到自己的仓库中： <a target="_blank" rel="noopener" href="https://github.com/wukongdaily/DockerTarBuilder">https://github.com/wukongdaily/DockerTarBuilder</a></p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h2 id="3-点击-Actions"><a href="#3-点击-Actions" class="headerlink" title="3.点击 Actions"></a>3.点击 Actions</h2><p>点击Actions选项卡，再点击同意</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>选择平台，再填入镜像名</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h2 id="4-下载镜像"><a href="#4-下载镜像" class="headerlink" title="4.下载镜像"></a>4.下载镜像</h2><p>点击 All workflows</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h2 id="5-解压恢复镜像"><a href="#5-解压恢复镜像" class="headerlink" title="5.解压恢复镜像"></a>5.解压恢复镜像</h2><p>将下载好的压缩包上传到docker宿主机上。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">解压</span><br><span class="line"># unzip docker-images-tar.zip</span><br><span class="line">Archive:  docker-images-tar.zip</span><br><span class="line">  inflating: x86-64-images.tar.gz    </span><br><span class="line">再解压：</span><br><span class="line">#tar -zxvf x86-64-images.tar.gz</span><br><span class="line"># ls -lh alpine:latest-amd64.tar</span><br><span class="line">-rw------- 1 mysql 127 7.8M 7月   4 16:57 alpine:latest-amd64.tar</span><br><span class="line"></span><br><span class="line">导入</span><br><span class="line"># docker load &lt; alpine:latest-amd64.tar</span><br><span class="line"></span><br><span class="line">导入成功。</span><br><span class="line"># docker images</span><br><span class="line">REPOSITORY                                         TAG                 IMAGE ID            CREATED             SIZE</span><br><span class="line">alpine                                             latest              a606584aa9aa        13 days ago         7.8 MB</span><br></pre></td></tr></table></figure>
+
+<h1 id="四、部署DockerHub的代理"><a href="#四、部署DockerHub的代理" class="headerlink" title="四、部署DockerHub的代理"></a>四、部署DockerHub的代理</h1><h2 id="1-前置条件"><a href="#1-前置条件" class="headerlink" title="1.前置条件"></a>1.前置条件</h2><p>有个github账号</p>
+<p>有个cloudflare账号</p>
+<h2 id="2-访问并fork如下项目到自己的仓库"><a href="#2-访问并fork如下项目到自己的仓库" class="headerlink" title="2.访问并fork如下项目到自己的仓库"></a>2.访问并fork如下项目到自己的仓库</h2><p><a target="_blank" rel="noopener" href="https://github.com/cmliu/CF-Workers-docker.io">https://github.com/cmliu/CF-Workers-docker.io</a></p>
+<h2 id="3-部署到cf的pages服务中"><a href="#3-部署到cf的pages服务中" class="headerlink" title="3.部署到cf的pages服务中"></a>3.部署到cf的pages服务中</h2><h3 id="3-1登录cloudflare并点击Worker和Pages"><a href="#3-1登录cloudflare并点击Worker和Pages" class="headerlink" title="3.1登录cloudflare并点击Worker和Pages"></a>3.1登录cloudflare并点击Worker和Pages</h3><p>点击 “Worker和Pages”再点 概述</p>
+<p>点击 “点击pages”再点 “连接到Git”</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h3 id="3-2-点击pages"><a href="#3-2-点击pages" class="headerlink" title="3.2 点击pages"></a>3.2 点击pages</h3><p>连接GitHub</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>容易登录之后</p>
+<h3 id="3-3-选择刚才fork的仓库"><a href="#3-3-选择刚才fork的仓库" class="headerlink" title="3.3 选择刚才fork的仓库"></a>3.3 选择刚才fork的仓库</h3><p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>点击 保存并部署</p>
+<p>构建和部署</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p>继续处理项目</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h2 id="4-访问并记录刚才部署的代理网站"><a href="#4-访问并记录刚才部署的代理网站" class="headerlink" title="4.访问并记录刚才部署的代理网站"></a>4.访问并记录刚才部署的代理网站</h2><p>部署成功，点击访问站点。</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h2 id="5-自定义域名"><a href="#5-自定义域名" class="headerlink" title="5.自定义域名"></a>5.自定义域名</h2><p>这步不是必须</p>
+<p>因为cloudflare提供的域名太长不利于记忆，可以使用自有的域名，解析</p>
+<p>我这里配置的域名 <code>dockerhub.xgss.net</code> 再域名解析过来</p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># ping dockerhub.xgss.net</span><br><span class="line">PING cf-workers-docker-io-1wu.pages.dev (172.66.47.123) 56(84) bytes of data.</span><br><span class="line">64 bytes from 172.66.47.123 (172.66.47.123): icmp_seq=1 ttl=53 time=988 ms</span><br><span class="line">64 bytes from 172.66.47.123 (172.66.47.123): icmp_seq=2 ttl=53 time=996 ms</span><br></pre></td></tr></table></figure>
+
+<h2 id="6-修改配置文件"><a href="#6-修改配置文件" class="headerlink" title="6.修改配置文件"></a>6.修改配置文件</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo mkdir -p /etc/docker</span><br><span class="line">sudo tee /etc/docker/daemon.json &lt;&lt;-&#x27;EOF&#x27;</span><br><span class="line">&#123;</span><br><span class="line">  &quot;registry-mirrors&quot;: [&quot;https://docker.fxxk.dedyn.io&quot;]  # 请替换为您自己的Worker自定义域名</span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br><span class="line">sudo systemctl daemon-reload</span><br><span class="line">sudo systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<h1 id="五、镜像仓库前缀替换"><a href="#五、镜像仓库前缀替换" class="headerlink" title="五、镜像仓库前缀替换"></a>五、镜像仓库前缀替换</h1><p>如果由于网络限制，你无法直接访问某些镜像仓库，还可以尝试通过修改镜像仓库前缀来拉取镜像。一些国内的服务商提供了镜像仓库的镜像服务，你可以将原有的仓库前缀替换为对应的国内服务商的前缀。</p>
+<p>例如，将docker.io替换为docker.m.daocloud.io等。这种方法虽然可能不是所有镜像都适用，但能解决一部分镜像拉取问题。</p>
+<p><a target="_blank" rel="noopener" href="https://github.com/DaoCloud/public-image-mirror?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">https://github.com/DaoCloud/public-image-mirror?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/09/23/%E6%97%A0%E6%B3%95%E6%8B%89%E5%8F%96Docker%E9%95%9C%E5%83%8F%E7%9A%84%E8%A7%A3%E5%86%B3%E5%8A%9E%E6%B3%95/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Docker/" rel="tag">Docker</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/09/19/Python%E8%84%9A%E6%9C%AC%E5%AE%9E%E7%8E%B0%E5%8F%91%E9%80%81%E9%A3%9E%E4%B9%A6%E5%8A%A0%E6%80%A5%E6%B6%88%E6%81%AF/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Python脚本实现发送飞书加急消息</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
