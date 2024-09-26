@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">1.4k</span>
+            <span class="post-count">1.6k</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">5 分钟</span>
+            <span class="post-count">6 分钟</span>
         </span>
     </span>
 </div>
@@ -126,6 +126,14 @@
        
   <p>各大高校以及容器技术社区，由于众所周不知的原因， 纷纷关闭多个镜像加速站点。</p>
 <p>这极大地影响了工作效率和开发进度。面对这一困境，本文将为你介绍几种有效的解决方案，帮助你顺利拉取Docker镜像，继续你的开发工作。</p>
+<p><img src="/images/1727316742-4a5bb42126f7facb348de2f42db5b011.webp" alt="图片" title="null"></p>
+<p>今天就介绍几个方法让拯救你的Docker</p>
+<p>方法1: 某些云镜像加速</p>
+<p>方法2: 使用Docker Hub并将镜像推送到阿里云自有仓库</p>
+<p>方法3:使用Github Action 构建docker镜像</p>
+<p>方法4: 部署DockerHub的代理</p>
+<p>方法5: 镜像仓库前缀替换</p>
+<p><img src="/images/1727316742-bae3317c6b178ea8666c2682643d10fa.webp" alt="图片" title="null"></p>
 <h1 id="一、某些云镜像加速"><a href="#一、某些云镜像加速" class="headerlink" title="一、某些云镜像加速"></a>一、某些云镜像加速</h1><p>这里某些云包括但不限于国内的几大云，阿里云、腾讯云、华为云，使用的方法都大同小异，这里介绍华为云的用户</p>
 <h2 id="镜像加速不可用"><a href="#镜像加速不可用" class="headerlink" title="镜像加速不可用"></a>镜像加速不可用</h2><p>腾讯云镜像加速器地址：<a target="_blank" rel="noopener" href="https://mirror.ccs.tencentyun.com/">https://mirror.ccs.tencentyun.com</a></p>
 <p>中国科学技术大学：<a target="_blank" rel="noopener" href="https://docker.mirrors.ustc.edu.cn/">https://docker.mirrors.ustc.edu.cn</a></p>
@@ -137,7 +145,7 @@
 <p>Daocloud 镜像加速器地址：<a target="_blank" rel="noopener" href="https://docker.m.daocloud.io/">https://docker.m.daocloud.io</a></p>
 <h2 id="华为云镜像加速"><a href="#华为云镜像加速" class="headerlink" title="华为云镜像加速"></a>华为云镜像加速</h2><p>进入华为云搜索“容器镜像服务”或者 “SWR” ，进入控制台</p>
 <p>点击 “镜像资源”—&gt; “镜像中心”—&gt; “镜像加速器”</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-084dcd5acdde07bb0ef886e4ae2469ef.webp" alt="图片" title="null"></p>
 <p>操作说明</p>
 <h3 id="安装-升级容器引擎客户端"><a href="#安装-升级容器引擎客户端" class="headerlink" title="安装&#x2F;升级容器引擎客户端"></a>安装&#x2F;升级容器引擎客户端</h3><p>推荐安装1.11.2以上版本的容器引擎客户端</p>
 <h3 id="配置镜像加速器"><a href="#配置镜像加速器" class="headerlink" title="配置镜像加速器"></a>配置镜像加速器</h3><p>针对容器引擎客户端版本大于 1.11.2 的用户 以root用户登录容器引擎所在的虚拟机</p>
@@ -148,12 +156,12 @@
 <p>（如：&#x2F;etc&#x2F;sysconfig&#x2F;docker、&#x2F;etc&#x2F;default&#x2F;docker）是否配置了registry-mirrors参数，删除此参数并重启容器引擎即可。</p>
 <h3 id="确认配置结果"><a href="#确认配置结果" class="headerlink" title="确认配置结果"></a>确认配置结果</h3><p>执行docker info，当Registry Mirrors字段的地址为加速器的地址时，说明加速器已经配置成功。</p>
 <h2 id="阿里云镜像加速"><a href="#阿里云镜像加速" class="headerlink" title="阿里云镜像加速"></a>阿里云镜像加速</h2><p><a target="_blank" rel="noopener" href="https://cr.console.aliyun.com/">https://cr.console.aliyun.com/</a></p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-1a2c05b8d72357984d9e56c6b8fc7b26.webp" alt="图片" title="null"></p>
 <h3 id="镜像加速器"><a href="#镜像加速器" class="headerlink" title="镜像加速器"></a>镜像加速器</h3><p>点击”镜像工具”—&gt;镜像加速器</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-a80e26026df10abe5c1a24b5b045f1e2.webp" alt="图片" title="null"></p>
 <h1 id="二、使用Docker-Hub并将镜像推送到自有仓库"><a href="#二、使用Docker-Hub并将镜像推送到自有仓库" class="headerlink" title="二、使用Docker Hub并将镜像推送到自有仓库"></a>二、使用Docker Hub并将镜像推送到自有仓库</h1><p>之前写过一篇文章： <a target="_blank" rel="noopener" href="https://mp.weixin.qq.com/s?__biz=MzU0NDc0MTAyMg==&mid=2247484743&idx=1&sn=9eec132af7dfe06f4b4aea2221a1dc80&scene=21#wechat_redirect" title="https://mp.weixin.qq.com/s?__biz=MzU0NDc0MTAyMg==&amp;mid=2247484743&amp;idx=1&amp;sn=9eec132af7dfe06f4b4aea2221a1dc80&amp;scene=21#wechat_redirect">https://mp.weixin.qq.com/s/OrcBrtrZRwie3Q8eYVfl-A</a></p>
 <p>画个图说明：</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-6ea9539983c7f13ba147a0da23e0930f.webp" alt="图片" title="null"></p>
 <p>当然也可以打包下载到本地</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker save busybox &gt; busybox.tar</span><br><span class="line">docker load &lt; busybox.tar</span><br></pre></td></tr></table></figure>
 
@@ -164,14 +172,14 @@
 <h2 id="1-要有一个github账号"><a href="#1-要有一个github账号" class="headerlink" title="1.要有一个github账号"></a>1.要有一个github账号</h2><p>没有账号就需要注册一个。</p>
 <p><a target="_blank" rel="noopener" href="https://github.com/">https://github.com</a></p>
 <h2 id="2-fork项目DockerTarBuilder"><a href="#2-fork项目DockerTarBuilder" class="headerlink" title="2.fork项目DockerTarBuilder"></a>2.fork项目DockerTarBuilder</h2><p>fork 叉子叉到自己的仓库中： <a target="_blank" rel="noopener" href="https://github.com/wukongdaily/DockerTarBuilder">https://github.com/wukongdaily/DockerTarBuilder</a></p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-83187d3963e4d781e77d80d3d2dc4cf7.webp" alt="图片" title="null"></p>
 <h2 id="3-点击-Actions"><a href="#3-点击-Actions" class="headerlink" title="3.点击 Actions"></a>3.点击 Actions</h2><p>点击Actions选项卡，再点击同意</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-6d28ada314f31f16ee8d0936c4a2ae0c.webp" alt="图片" title="null"></p>
 <p>选择平台，再填入镜像名</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-8e6f0c58477cf48df074afeb2e71f558.webp" alt="图片" title="null"></p>
 <h2 id="4-下载镜像"><a href="#4-下载镜像" class="headerlink" title="4.下载镜像"></a>4.下载镜像</h2><p>点击 All workflows</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-bb68bbefb75ade35e889295beedbefd6.webp" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-57f56604981b71a66f8de83b5c0381ea.webp" alt="图片" title="null"></p>
 <h2 id="5-解压恢复镜像"><a href="#5-解压恢复镜像" class="headerlink" title="5.解压恢复镜像"></a>5.解压恢复镜像</h2><p>将下载好的压缩包上传到docker宿主机上。</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">解压</span><br><span class="line"># unzip docker-images-tar.zip</span><br><span class="line">Archive:  docker-images-tar.zip</span><br><span class="line">  inflating: x86-64-images.tar.gz    </span><br><span class="line">再解压：</span><br><span class="line">#tar -zxvf x86-64-images.tar.gz</span><br><span class="line"># ls -lh alpine:latest-amd64.tar</span><br><span class="line">-rw------- 1 mysql 127 7.8M 7月   4 16:57 alpine:latest-amd64.tar</span><br><span class="line"></span><br><span class="line">导入</span><br><span class="line"># docker load &lt; alpine:latest-amd64.tar</span><br><span class="line"></span><br><span class="line">导入成功。</span><br><span class="line"># docker images</span><br><span class="line">REPOSITORY                                         TAG                 IMAGE ID            CREATED             SIZE</span><br><span class="line">alpine                                             latest              a606584aa9aa        13 days ago         7.8 MB</span><br></pre></td></tr></table></figure>
 
@@ -180,23 +188,23 @@
 <h2 id="2-访问并fork如下项目到自己的仓库"><a href="#2-访问并fork如下项目到自己的仓库" class="headerlink" title="2.访问并fork如下项目到自己的仓库"></a>2.访问并fork如下项目到自己的仓库</h2><p><a target="_blank" rel="noopener" href="https://github.com/cmliu/CF-Workers-docker.io">https://github.com/cmliu/CF-Workers-docker.io</a></p>
 <h2 id="3-部署到cf的pages服务中"><a href="#3-部署到cf的pages服务中" class="headerlink" title="3.部署到cf的pages服务中"></a>3.部署到cf的pages服务中</h2><h3 id="3-1登录cloudflare并点击Worker和Pages"><a href="#3-1登录cloudflare并点击Worker和Pages" class="headerlink" title="3.1登录cloudflare并点击Worker和Pages"></a>3.1登录cloudflare并点击Worker和Pages</h3><p>点击 “Worker和Pages”再点 概述</p>
 <p>点击 “点击pages”再点 “连接到Git”</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-faf42e633b49be2f1f04a3e2e0b9c93c.webp" alt="图片" title="null"></p>
 <h3 id="3-2-点击pages"><a href="#3-2-点击pages" class="headerlink" title="3.2 点击pages"></a>3.2 点击pages</h3><p>连接GitHub</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-7747884fa8627a61f083666f521908dc.webp" alt="图片" title="null"></p>
 <p>容易登录之后</p>
-<h3 id="3-3-选择刚才fork的仓库"><a href="#3-3-选择刚才fork的仓库" class="headerlink" title="3.3 选择刚才fork的仓库"></a>3.3 选择刚才fork的仓库</h3><p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<h3 id="3-3-选择刚才fork的仓库"><a href="#3-3-选择刚才fork的仓库" class="headerlink" title="3.3 选择刚才fork的仓库"></a>3.3 选择刚才fork的仓库</h3><p><img src="/images/1727316742-3697936b0982054ec34f9c487c1cab32.webp" alt="图片" title="null"></p>
 <p>点击 保存并部署</p>
 <p>构建和部署</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
 <p>继续处理项目</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
 <h2 id="4-访问并记录刚才部署的代理网站"><a href="#4-访问并记录刚才部署的代理网站" class="headerlink" title="4.访问并记录刚才部署的代理网站"></a>4.访问并记录刚才部署的代理网站</h2><p>部署成功，点击访问站点。</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
 <h2 id="5-自定义域名"><a href="#5-自定义域名" class="headerlink" title="5.自定义域名"></a>5.自定义域名</h2><p>这步不是必须</p>
 <p>因为cloudflare提供的域名太长不利于记忆，可以使用自有的域名，解析</p>
 <p>我这里配置的域名 <code>dockerhub.xgss.net</code> 再域名解析过来</p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
-<p><img src="/images/1727083479-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
+<p><img src="/images/1727316742-37d80127b73f829661c0d17b431e0b18.svg" alt="图片" title="null"></p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"># ping dockerhub.xgss.net</span><br><span class="line">PING cf-workers-docker-io-1wu.pages.dev (172.66.47.123) 56(84) bytes of data.</span><br><span class="line">64 bytes from 172.66.47.123 (172.66.47.123): icmp_seq=1 ttl=53 time=988 ms</span><br><span class="line">64 bytes from 172.66.47.123 (172.66.47.123): icmp_seq=2 ttl=53 time=996 ms</span><br></pre></td></tr></table></figure>
 
 <h2 id="6-修改配置文件"><a href="#6-修改配置文件" class="headerlink" title="6.修改配置文件"></a>6.修改配置文件</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo mkdir -p /etc/docker</span><br><span class="line">sudo tee /etc/docker/daemon.json &lt;&lt;-&#x27;EOF&#x27;</span><br><span class="line">&#123;</span><br><span class="line">  &quot;registry-mirrors&quot;: [&quot;https://docker.fxxk.dedyn.io&quot;]  # 请替换为您自己的Worker自定义域名</span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br><span class="line">sudo systemctl daemon-reload</span><br><span class="line">sudo systemctl restart docker</span><br></pre></td></tr></table></figure>
@@ -204,6 +212,7 @@
 <h1 id="五、镜像仓库前缀替换"><a href="#五、镜像仓库前缀替换" class="headerlink" title="五、镜像仓库前缀替换"></a>五、镜像仓库前缀替换</h1><p>如果由于网络限制，你无法直接访问某些镜像仓库，还可以尝试通过修改镜像仓库前缀来拉取镜像。一些国内的服务商提供了镜像仓库的镜像服务，你可以将原有的仓库前缀替换为对应的国内服务商的前缀。</p>
 <p>例如，将docker.io替换为docker.m.daocloud.io等。这种方法虽然可能不是所有镜像都适用，但能解决一部分镜像拉取问题。</p>
 <p><a target="_blank" rel="noopener" href="https://github.com/DaoCloud/public-image-mirror?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95">https://github.com/DaoCloud/public-image-mirror?tab=readme-ov-file#%E4%BD%BF%E7%94%A8%E6%96%B9%E6%B3%95</a></p>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>以上就是拯救你的Docker 几种方法，希望本文介绍的这些方法能够帮助到你，让你的Docker之旅更加顺畅无阻。</p>
  
       <!-- reward -->
       
