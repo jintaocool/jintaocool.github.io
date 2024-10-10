@@ -124,7 +124,7 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h3 id="一：配置-yum源"><a href="#一：配置-yum源" class="headerlink" title="一：配置[yum源]"></a>一：配置[yum源]</h3><p>1：备份现有的yum源（更改名称就行）</p>
+  <h3 id="一：配置yum源"><a href="#一：配置yum源" class="headerlink" title="一：配置yum源"></a>一：配置yum源</h3><p>1：备份现有的yum源（更改名称就行）</p>
 <p>2：创建阿里云yum源</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">wget -O /etc/yum.repos.d/aliyun.repo http://mirrors.aliyun.com/repo/Centos-7.repo</span><br></pre></td></tr></table></figure>
 
@@ -133,11 +133,11 @@
 
 <h3 id="二：关闭防火墙和selinux"><a href="#二：关闭防火墙和selinux" class="headerlink" title="二：关闭防火墙和selinux"></a>二：关闭防火墙和selinux</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">systemctl disable --now firewalld</span><br><span class="line">sed -i &#x27;s/SELINUX=enforcing/SELINUX=disabled/&#x27; /etc/selinux/config </span><br></pre></td></tr></table></figure>
 
-<h3 id="三：-安装php"><a href="#三：-安装php" class="headerlink" title="三：[安装php]"></a>三：[安装php]</h3><p>1：安装PHP</p>
+<h3 id="三：安装php"><a href="#三：安装php" class="headerlink" title="三：安装php"></a>三：安装php</h3><p>1：安装PHP</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">#centos7</span><br><span class="line">yum -y install https://rpms.remirepo.net/enterprise/remi-release-7.rpm</span><br><span class="line">yum -y install yum-utils</span><br><span class="line"></span><br><span class="line">yum -y install php  php-cli php-fpm php-mysqlnd php-zip php-devel php-gd php-mcrypt php-mbstring php-curl php-xml php-pear php-bcmath php-json php-redis</span><br><span class="line"></span><br><span class="line">yum-config-manager --enable remi-php74</span><br><span class="line">yum list php</span><br><span class="line">yum -y install php</span><br><span class="line">#查看版本</span><br><span class="line">php -v</span><br><span class="line">#查看启动模块</span><br><span class="line">php --modules</span><br><span class="line">#查看安装路径</span><br><span class="line">whereis php</span><br></pre></td></tr></table></figure>
 
 <p>2：启动，自启，查看运行状态</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">service php-fpm start </span><br><span class="line"></span><br><span class="line">service php-fpm enable </span><br><span class="line"></span><br><span class="line">service php-fpm status</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">systemctl start php-fpm </span><br><span class="line"></span><br><span class="line">systemctl enable php-fpm </span><br><span class="line"></span><br><span class="line">systemctl status php-fpm</span><br></pre></td></tr></table></figure>
 
 <h3 id="四：安装apache"><a href="#四：安装apache" class="headerlink" title="四：安装apache"></a>四：安装apache</h3><p>1：安装[httpd]</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">yum install httpd -y</span><br><span class="line">systemctl restart httpd</span><br><span class="line">systemctl enable httpd</span><br><span class="line">#配置文件位置</span><br><span class="line">/etc/httpd/conf/httpd.conf</span><br><span class="line">/var/www/html</span><br></pre></td></tr></table></figure>
@@ -159,10 +159,10 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum install mysql-community-server</span><br></pre></td></tr></table></figure>
 
 <p>5：启动mysql服务</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service mysqld start</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl start mysqld</span><br></pre></td></tr></table></figure>
 
 <p>6：查看服务状态</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">service mysqld status</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl status mysqld</span><br></pre></td></tr></table></figure>
 
 <p>7：查看初始密码</p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">grep <span class="string">&#x27;temporary password&#x27;</span> /var/log/mysqld.log</span><br></pre></td></tr></table></figure>
@@ -210,7 +210,7 @@
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">#创建用户组等，授权</span><br><span class="line">groupadd --system zabbix</span><br><span class="line"></span><br><span class="line">useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c &quot;Zabbix Monitoring System&quot; zabbix</span><br><span class="line"></span><br><span class="line">mkdir -m u=rwx,g=rwx,o= -p /usr/lib/zabbix</span><br><span class="line">chown zabbix:zabbix /usr/lib/zabbix</span><br><span class="line">cd zabbix-6.0.0</span><br><span class="line">#同步时钟，设置系统时间与网络时间同步</span><br><span class="line">yum -y install ntpdate</span><br><span class="line">ntpdate ntp1.aliyun.com</span><br></pre></td></tr></table></figure>
 
 <p>4：编译安装</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./configure --enable-server --enable-agent --with-mysql --enable-ipv6 --with-net-snmp --with-libcurl --with-libxml2 --with-unixodbc</span><br></pre></td></tr></table></figure>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./configure --prefix=/usr/local/zabbix --enable-server --enable-agent --with-mysql --enable-ipv6 --with-net-snmp --with-libcurl --with-libxml2 --with-unixodbc</span><br></pre></td></tr></table></figure>
 
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">make install</span><br></pre></td></tr></table></figure>
 
