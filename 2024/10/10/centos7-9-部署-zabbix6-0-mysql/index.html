@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>centos7.9 部署 zabbix6.0 + mysql |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-centos7-9-部署-zabbix6-0-mysql"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  centos7.9 部署 zabbix6.0 + mysql
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/10/10/centos7-9-%E9%83%A8%E7%BD%B2-zabbix6-0-mysql/" class="article-date">
+  <time datetime="2024-10-10T09:42:56.000Z" itemprop="datePublished">2024-10-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">9 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>借鉴博客：</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">https:<span class="regexp">//</span>www.cnblogs.com<span class="regexp">/ivictor/</span>p/<span class="number">16025786</span>.html</span><br></pre></td></tr></table></figure>
+
+<h4 id="一-部署mysql"><a href="#一-部署mysql" class="headerlink" title="一.部署mysql"></a><a href="https://link.csdn.net/?target="></a>一.部署mysql</h4><h5 id="依赖docker-docker-compose"><a href="#依赖docker-docker-compose" class="headerlink" title="依赖docker + docker-compose"></a><a href="https://link.csdn.net/?target="></a>依赖<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fmarketplace.huaweicloud.com%252Fcontents%252F7cefd060-8ede-4185-97a8-9f6d8677403f%2523productid%253D00301-366006-0--0%253Futm_source%253Dhwc-csdn%2526utm_medium%253Dshare-op%2526utm_campaign%253D%2526utm_content%253D%2526utm_term%253D%2526utm_adplace%253DAdPlace070851">docker</a> + <a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fmarketplace.huaweicloud.com%252Fcontents%252F7cefd060-8ede-4185-97a8-9f6d8677403f%2523productid%253D00301-366006-0--0%253Futm_source%253Dhwc-csdn%2526utm_medium%253Dshare-op%2526utm_campaign%253D%2526utm_content%253D%2526utm_term%253D%2526utm_adplace%253DAdPlace070851">docker</a>-compose</h5><figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">##官网安装docker </span></span><br><span class="line">https:<span class="regexp">//</span>docs.docker.com<span class="regexp">/engine/i</span>nstall<span class="regexp">/centos/</span>   </span><br><span class="line"></span><br><span class="line"><span class="comment">##Github安装docker-compose</span></span><br><span class="line">sudo curl -L https:<span class="regexp">//gi</span>thub.com<span class="regexp">/docker/</span>compose<span class="regexp">/releases/</span>download<span class="regexp">/1.16.1/</span>docker-compose-`uname -s`-`uname -m` -o <span class="regexp">/usr/</span>local<span class="regexp">/bin/</span>docker-compose</span><br><span class="line"><span class="comment">##若是github访问太慢，可以用daocloud下载</span></span><br><span class="line">sudo curl -L https:<span class="regexp">//g</span>et.daocloud.io<span class="regexp">/docker/</span>compose<span class="regexp">/releases/</span>download<span class="regexp">/1.25.1/</span>docker-compose-`uname -s`-`uname -m` -o <span class="regexp">/usr/</span>local<span class="regexp">/bin/</span>docker-compose</span><br><span class="line"><span class="comment">##添加执行权限</span></span><br><span class="line">sudo chmod +x <span class="regexp">/usr/</span>local<span class="regexp">/bin/</span>docker-compose</span><br></pre></td></tr></table></figure>
+
+<h5 id="1-准备基础文件"><a href="#1-准备基础文件" class="headerlink" title="1.准备基础文件"></a><a href="https://link.csdn.net/?target="></a>1.准备基础文件</h5><figure class="highlight clean"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"># tree /data/ </span><br><span class="line">/data/</span><br><span class="line">└── mysql </span><br><span class="line">    ├── conf  ##自定义my.cnf 无特殊配置则不添加</span><br><span class="line">    ├── db    ##持久化数据目录</span><br><span class="line">    └── docker-compose.yml ##启动文件</span><br><span class="line">[root@zabbix /]# tree /data/</span><br><span class="line">/data/</span><br><span class="line">└── mysql</span><br><span class="line">    ├── conf  ##自定义my.cnf 无特殊配置则不添加</span><br><span class="line">    ├── db    ##持久化数据目录</span><br><span class="line">    ├── docker-compose.yml  ##启动文件</span><br><span class="line">    └── init  ##容器初始化时的执行文件 *.sh or *.sql</span><br><span class="line">        └── init.sql</span><br><span class="line"></span><br><span class="line">##初始化sql</span><br><span class="line">[root@zabbix mysql]# cat init/init.sql  </span><br><span class="line">create database zabbix character set utf8 collate utf8_bin;</span><br><span class="line">#create user <span class="string">&#x27;zabbix_admin&#x27;</span>@<span class="string">&#x27;%&#x27;</span> identified <span class="keyword">with</span> mysql_native_password by <span class="string">&#x27;zabbix_pass&#x27;</span>;</span><br><span class="line">grant all privileges on zabbix.* to <span class="string">&#x27;zabbix_admin&#x27;</span>@<span class="string">&#x27;%&#x27;</span>;</span><br><span class="line">flush privileges;</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-启动docker-compose"><a href="#2-启动docker-compose" class="headerlink" title="2.启动docker-compose"></a><a href="https://link.csdn.net/?target="></a>2.启动<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fmarketplace.huaweicloud.com%252Fcontents%252F7cefd060-8ede-4185-97a8-9f6d8677403f%2523productid%253D00301-366006-0--0%253Futm_source%253Dhwc-csdn%2526utm_medium%253Dshare-op%2526utm_campaign%253D%2526utm_content%253D%2526utm_term%253D%2526utm_adplace%253DAdPlace070851">docker</a>-compose</h5><figure class="highlight elixir"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@zabbix</span> mysql]<span class="comment"># cat docker-compose.yml </span></span><br><span class="line"><span class="symbol">version:</span> <span class="string">&#x27;3&#x27;</span></span><br><span class="line"> </span><br><span class="line"><span class="symbol">services:</span></span><br><span class="line">  <span class="symbol">mysql8.0:</span></span><br><span class="line">    <span class="comment"># 镜像名</span></span><br><span class="line">    <span class="symbol">image:</span> <span class="symbol">mysql:</span><span class="number">8.0</span>.<span class="number">21</span></span><br><span class="line">    <span class="comment"># 容器名(以后的控制都通过这个)</span></span><br><span class="line">    <span class="symbol">container_name:</span> mysql8.<span class="number">0</span></span><br><span class="line">    <span class="comment"># 重启策略</span></span><br><span class="line">    <span class="symbol">restart:</span> always</span><br><span class="line">    <span class="symbol">environment:</span></span><br><span class="line">      <span class="comment"># 时区上海</span></span><br><span class="line">      <span class="symbol">TZ:</span> <span class="title class_">Asia</span>/<span class="title class_">Shanghai</span></span><br><span class="line">      <span class="comment"># root 密码</span></span><br><span class="line">      <span class="symbol">MYSQL_ROOT_PASSWORD:</span> root</span><br><span class="line">      <span class="comment"># 初始化数据库(后续的初始化sql会在这个库执行)</span></span><br><span class="line">      <span class="symbol">MYSQL_DATABASE:</span> nacos_config</span><br><span class="line">      <span class="comment"># 初始化用户(不能是root 会报错, 后续需要给新用户赋予权限)</span></span><br><span class="line">      <span class="symbol">MYSQL_USER:</span> zabbix_admin</span><br><span class="line">      <span class="comment"># 用户密码</span></span><br><span class="line">      <span class="symbol">MYSQL_PASSWORD:</span> zabbix_pass</span><br><span class="line">      <span class="comment"># 映射端口</span></span><br><span class="line">    <span class="symbol">ports:</span></span><br><span class="line">      - <span class="number">3306</span><span class="symbol">:</span><span class="number">3306</span></span><br><span class="line">    <span class="symbol">volumes:</span></span><br><span class="line">      <span class="comment"># 数据挂载</span></span><br><span class="line">      - ./db/<span class="symbol">:/var/lib/mysql/</span></span><br><span class="line">      <span class="comment"># 配置挂载</span></span><br><span class="line">      - ./conf/<span class="symbol">:/etc/mysql/conf</span>.d/</span><br><span class="line">      <span class="comment"># 初始化目录挂载</span></span><br><span class="line">      - ./init/<span class="symbol">:/docker-entrypoint-initdb</span>.d/</span><br><span class="line">    <span class="symbol">command:</span></span><br><span class="line">      <span class="comment"># 将mysql8.0默认密码策略 修改为 原先 策略 (mysql8.0对其默认策略做了更改 会导致密码无法匹配)</span></span><br><span class="line">      --default-authentication-plugin=mysql_native_password</span><br><span class="line">      --character-set-server=utf8mb4</span><br><span class="line">      --collation-server=utf8mb4_general_ci</span><br><span class="line">      --explicit_defaults_for_timestamp=<span class="literal">true</span></span><br><span class="line">      --lower_case_table_names=<span class="number">1</span></span><br><span class="line"> </span><br><span class="line"><span class="comment">##启动</span></span><br><span class="line">[root<span class="variable">@zabbix</span> mysql]<span class="comment"># docker-compose up -d </span></span><br><span class="line"><span class="title class_">Creating</span> network <span class="string">&quot;mysql_default&quot;</span> <span class="keyword">with</span> the default driver</span><br><span class="line"><span class="title class_">Creating</span> mysql8.<span class="number">0</span> ... </span><br><span class="line"><span class="title class_">Creating</span> mysql8.<span class="number">0</span> ... done</span><br><span class="line"></span><br><span class="line"><span class="comment">##查看日志</span></span><br><span class="line">[root<span class="variable">@zabbix</span> mysql]<span class="comment"># docker-compose logs -f mysql8.0</span></span><br><span class="line">......</span><br><span class="line">mysql8.<span class="number">0</span>    | <span class="number">2022</span><span class="number">-06</span><span class="number">-07</span> <span class="number">16</span><span class="symbol">:</span><span class="number">15</span><span class="symbol">:</span><span class="number">50</span>+<span class="number">08</span><span class="symbol">:</span><span class="number">00</span> [<span class="title class_">Note</span>] [<span class="title class_">Entrypoint</span>]: /usr/local/bin/docker-<span class="symbol">entrypoint.sh:</span> running /docker-entrypoint-initdb.d/init.sql </span><br><span class="line">......</span><br><span class="line">mysql8.<span class="number">0</span>    | <span class="number">2022</span><span class="number">-06</span><span class="number">-07</span><span class="symbol">T08:</span><span class="number">15</span><span class="symbol">:</span><span class="number">53.632740</span>Z <span class="number">0</span> [<span class="title class_">System</span>] [<span class="title class_">MY</span><span class="number">-010931</span>] [<span class="title class_">Server</span>] /usr/sbin/<span class="symbol">mysqld:</span> ready <span class="keyword">for</span> connections. <span class="symbol">Version:</span> <span class="string">&#x27;8.0.21&#x27;</span>  <span class="symbol">socket:</span> <span class="string">&#x27;/var/run/mysqld/mysqld.sock&#x27;</span>  <span class="symbol">port:</span> <span class="number">3306</span>  <span class="title class_">MySQL</span> <span class="title class_">Community</span> <span class="title class_">Server</span> - <span class="title class_">GPL</span>.</span><br><span class="line"><span class="comment">##启动日志 看到这两行 说明初始化完成</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="3-宿主机安装mysql客户端-测试连接"><a href="#3-宿主机安装mysql客户端-测试连接" class="headerlink" title="3.宿主机安装mysql客户端 测试连接"></a><a href="https://link.csdn.net/?target="></a>3.宿<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>安装mysql客户端 测试连接</h5><figure class="highlight autoit"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">##安装客户端</span></span><br><span class="line">[root<span class="symbol">@zabbix</span> mysql]<span class="meta"># yum -y install mysql</span></span><br><span class="line"><span class="meta">##测试连接</span></span><br><span class="line">[root<span class="symbol">@zabbix</span> mysql]<span class="meta"># mysql -h127.0.0.1 -uzabbix_admin -pzabbix_pass</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="二-源码安装zabbix6-0"><a href="#二-源码安装zabbix6-0" class="headerlink" title="二.源码安装zabbix6.0"></a><a href="https://link.csdn.net/?target="></a>二.源码安装zabbix6.0</h4><h5 id="1-下载源码"><a href="#1-下载源码" class="headerlink" title="1.下载源码"></a><a href="https://link.csdn.net/?target="></a>1.下载源码</h5><figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">cd</span> /usr/src/</span><br><span class="line"><span class="attribute">wget</span> https://cdn.zabbix.com/zabbix/sources/stable/<span class="number">6</span>.<span class="number">0</span>/zabbix-<span class="number">6</span>.<span class="number">0</span>.<span class="number">2</span>.tar.gz</span><br><span class="line"><span class="attribute">tar</span> xvf zabbix-<span class="number">6</span>.<span class="number">0</span>.<span class="number">2</span>.tar.gz</span><br><span class="line"><span class="attribute">ln</span> -s zabbix-<span class="number">6</span>.<span class="number">0</span>.<span class="number">2</span> zabbix</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建 zabbix 用户：</span></span><br><span class="line"><span class="attribute">groupadd</span> --system zabbix</span><br><span class="line"><span class="attribute">useradd</span> --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c <span class="string">&quot;Zabbix Monitoring System&quot;</span> zabbix</span><br></pre></td></tr></table></figure>
+
+<h5 id="2-mysql导入数据"><a href="#2-mysql导入数据" class="headerlink" title="2.mysql导入数据"></a><a href="https://link.csdn.net/?target="></a>2.mysql导入数据</h5><figure class="highlight clean"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">[root@zabbix src]# docker cp zabbix/database/mysql mysql8<span class="number">.0</span>:/sql</span><br><span class="line">##进入容器</span><br><span class="line">[root@zabbix src]# docker exec -it mysql8<span class="number">.0</span> bash</span><br><span class="line">##导入数据</span><br><span class="line">mysql -h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> -uzabbix_admin -pzabbix_pass zabbix &lt; schema.sql</span><br><span class="line">mysql -h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> -uzabbix_admin -pzabbix_pass zabbix &lt; images.sql </span><br><span class="line">mysql -h127<span class="number">.0</span><span class="number">.0</span><span class="number">.1</span> -uzabbix_admin -pzabbix_pass zabbix &lt; data.sql</span><br><span class="line">##退出容器</span><br><span class="line"># ctrl+d</span><br></pre></td></tr></table></figure>
+
+<h5 id="3-编译安装zabbix"><a href="#3-编译安装zabbix" class="headerlink" title="3.编译安装zabbix"></a><a href="https://link.csdn.net/?target="></a>3.编译安装zabbix</h5><figure class="highlight jboss-cli"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">##安装依赖</span></span><br><span class="line">yum install gcc mysql-devel libevent-devel libcurl-devel libxml2-devel net-snmp-devel -y</span><br><span class="line"><span class="comment">##编译安装</span></span><br><span class="line"><span class="keyword">cd</span> <span class="string">/usr/src/zabbix</span></span><br><span class="line"><span class="string">./configure</span> <span class="params">--prefix=/usr/local/zabbix</span> <span class="params">--enable-server</span> <span class="params">--enable-agent</span> <span class="params">--with-mysql</span> <span class="params">--enable-ipv6</span> <span class="params">--with-net-snmp</span> <span class="params">--with-libcurl</span> <span class="params">--with-libxml2</span></span><br><span class="line">make install</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tree /usr/local/zabbix</span></span><br><span class="line"> /usr/local/zabbix</span><br><span class="line">├── bin</span><br><span class="line">│   ├── zabbix_get</span><br><span class="line">│   ├── zabbix_js</span><br><span class="line">│   └── zabbix_sender</span><br><span class="line">├── etc</span><br><span class="line">│   ├── zabbix_agentd.conf</span><br><span class="line">│   ├── zabbix_agentd.conf.d</span><br><span class="line">│   ├── zabbix_server.conf</span><br><span class="line">│   └── zabbix_server.conf.d</span><br><span class="line">├── lib</span><br><span class="line">│   └── modules</span><br><span class="line">├── sbin</span><br><span class="line">│   ├── zabbix_agentd</span><br><span class="line">│   └── zabbix_server</span><br><span class="line">└── share</span><br><span class="line">    ├── man</span><br><span class="line">    │   ├── man1</span><br><span class="line">    │   │   ├── zabbix_get.1</span><br><span class="line">    │   │   └── zabbix_sender.1</span><br><span class="line">    │   └── man8</span><br><span class="line">    │       ├── zabbix_agentd.8</span><br><span class="line">    │       └── zabbix_server.8</span><br><span class="line">    └── zabbix</span><br><span class="line">        ├── alertscripts</span><br><span class="line">        └── externalscripts</span><br><span class="line">        </span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># 其中etc 是配置文件目录。</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># alertscripts 是告警脚本目录。</span></span></span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># externalscripts 是外部脚本目录。</span></span></span><br></pre></td></tr></table></figure>
+
+<h5 id="4-修改配置文件"><a href="#4-修改配置文件" class="headerlink" title="4.修改配置文件"></a><a href="https://link.csdn.net/?target="></a>4.修改配置文件</h5><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## server.conf</span></span><br><span class="line"><span class="comment"># grep -Ev &#x27;^$|^#&#x27; /usr/local/zabbix/etc/zabbix_server.conf</span></span><br><span class="line"><span class="attr">LogFile</span>=/tmp/zabbix_server.log</span><br><span class="line"><span class="attr">DBHost</span>=<span class="number">127.0</span>.<span class="number">0.1</span></span><br><span class="line"><span class="attr">DBName</span>=zabbix</span><br><span class="line"><span class="attr">DBUser</span>=zabbix_admin</span><br><span class="line"><span class="attr">DBPassword</span>=zabbix_pass</span><br><span class="line"><span class="attr">DBPort</span>=<span class="number">3306</span></span><br><span class="line"><span class="attr">Timeout</span>=<span class="number">4</span></span><br><span class="line"><span class="attr">LogSlowQueries</span>=<span class="number">3000</span></span><br><span class="line"><span class="attr">StatsAllowedIP</span>=<span class="number">127.0</span>.<span class="number">0.1</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight routeros"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">## agent.conf</span></span><br><span class="line"><span class="comment"># grep -Ev &#x27;^$|^#&#x27; /usr/local/zabbix/etc/zabbix_agentd.conf</span></span><br><span class="line"><span class="attribute">LogFile</span>=/tmp/zabbix_agentd.log</span><br><span class="line"><span class="attribute">Server</span>=127.0.0.1</span><br><span class="line"><span class="attribute">ServerActive</span>=127.0.0.1</span><br><span class="line"><span class="attribute">Hostname</span>=Zabbix server</span><br></pre></td></tr></table></figure>
+
+<h5 id="5-配置服务管理脚本"><a href="#5-配置服务管理脚本" class="headerlink" title="5.配置服务管理脚本"></a><a href="https://link.csdn.net/?target="></a>5.配置服务管理脚本</h5><figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"># vim <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_server</span><br><span class="line"><span class="operator">...</span></span><br><span class="line"><span class="type">ZABBIX_BIN</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/sbin/zabbix_server&quot;</span></span><br><span class="line"><span class="type">CONFIG_FILE</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/etc/zabbix_server.conf&quot;</span></span><br><span class="line"><span class="operator">...</span></span><br><span class="line">start() &#123;</span><br><span class="line">        echo <span class="operator">-</span>n $<span class="string">&quot;Starting $prog: &quot;</span></span><br><span class="line">        daemon <span class="variable">$ZABBIX_BIN</span> <span class="operator">-</span>c <span class="variable">$CONFIG_FILE</span></span><br><span class="line">        </span><br><span class="line"># cp <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_server <span class="regexp">/etc/</span><span class="keyword">init</span>.d<span class="operator">/</span></span><br></pre></td></tr></table></figure>
+
+<figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">## 针对 <span class="type">Zabbix</span> <span class="type">Agent，同样也是调整这三处的内容</span><span class="operator">。</span></span><br><span class="line"># vim <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_agentd</span><br><span class="line"><span class="operator">...</span></span><br><span class="line"><span class="type">ZABBIX_BIN</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/sbin/zabbix_agentd&quot;</span></span><br><span class="line"><span class="type">CONGIG_FILE</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/etc/zabbix_agentd.conf&quot;</span></span><br><span class="line"><span class="operator">...</span></span><br><span class="line">start() &#123;</span><br><span class="line">        echo <span class="operator">-</span>n $<span class="string">&quot;Starting $prog: &quot;</span></span><br><span class="line">        daemon <span class="variable">$ZABBIX_BIN</span> <span class="operator">-</span>c <span class="variable">$CONGIG_FILE</span></span><br><span class="line"><span class="operator">...</span></span><br><span class="line"># cp <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_agentd <span class="regexp">/etc/</span><span class="keyword">init</span>.d<span class="operator">/</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="6-启动服务"><a href="#6-启动服务" class="headerlink" title="6.启动服务"></a><a href="https://link.csdn.net/?target="></a>6.启动服务</h5><figure class="highlight clean"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># service zabbix_server start</span><br><span class="line"># service zabbix_agentd start</span><br><span class="line">## 加入开机自启</span><br><span class="line"># chkconfig zabbix_server on</span><br><span class="line"># chkconfig zabbix_agentd on</span><br></pre></td></tr></table></figure>
+
+<h4 id="三-安装-Web-组件"><a href="#三-安装-Web-组件" class="headerlink" title="三.安装 Web 组件"></a><a href="https://link.csdn.net/?target="></a>三.安装 Web 组件</h4><p>（1）安装 httpd 和 PHP。</p>
+<p>方便起见，这里直接通过 yum 安装 httpd 和 PHP。Zabbix 从 5.0 开始，要求 PHP 的版本不低于 7.2。但在 CentOS 7 中，yum 源中默认的是 PHP 5.4.16。所以，这里需要安装额外的 epel 和 webtatic 源。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment">#同步时间 （云服务器可跳过）</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">yum -y install ntpdate</span> </span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">ntpdate -u time.nist.gov</span></span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment">#配置额外yum源</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">rpm -Uvh https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">rpm -Uvh https://mirror.webtatic.com/yum/el7/webtatic-release.rpm</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">yum install httpd php72w-cli php72w-common php72w-gd php72w-ldap php72w-mbstring php72w-mysqlnd php72w-xml php72w-bcmath mod_php72w -y</span> </span><br><span class="line"><span class="meta prompt_">#</span><span class="language-bash"><span class="comment"># 如遇报错即执行</span></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">yum clean all</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">yum makecache</span></span><br></pre></td></tr></table></figure>
+
+<p>（2）将 Zabbix 源码包中的 PHP 文件复制到 httpd 的根目录下。</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">mkdir</span> -p /var/www/html/zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cp</span> -r /usr/src/zabbix/ui/* /var/www/html/zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">chown</span> -R apache.apache /var/www/html/</span></span><br></pre></td></tr></table></figure>
+
+<p>（3）修改 php 的配置文件。</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># vim /etc/php.ini</span></span><br><span class="line"><span class="attr">max_execution_time</span> = <span class="number">300</span></span><br><span class="line"><span class="attr">max_input_time</span> = <span class="number">300</span></span><br><span class="line"><span class="attr">memory_limit</span> = <span class="number">128</span>M</span><br><span class="line"><span class="attr">post_max_size</span> = <span class="number">16</span>M</span><br><span class="line"><span class="attr">upload_max_filesize</span> = <span class="number">2</span>M</span><br><span class="line"><span class="attr">date.timezone</span> = Asia/Shanghai</span><br></pre></td></tr></table></figure>
+
+<p>注意，这里给出的只是最小需求值，可根据实际需要调大。</p>
+<p>（4）启动 httpd 服务</p>
+<figure class="highlight 1c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># service httpd start</span></span><br></pre></td></tr></table></figure>
+
+<p>（5）将 httpd 服务设置为开机自启动</p>
+<figure class="highlight 1c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># chkconfig httpd on</span></span><br></pre></td></tr></table></figure>
+
+<h4 id="四-配置-Zabbix-Web-页面"><a href="#四-配置-Zabbix-Web-页面" class="headerlink" title="四.配置 Zabbix Web 页面"></a><a href="https://link.csdn.net/?target="></a>四.配置 Zabbix Web 页面</h4><p>安装完 Web 组件，最后我们开始配置 Zabbix Web 页面。</p>
+<p>（1）登录 Zabbix Server Web 首页。</p>
+<p>浏览器中输入 <a target="_blank" rel="noopener" href="http://server/_ip/zabbix">http://server\_ip/zabbix</a> ，其中，server_ip 是 Zabbix Server 的地址</p>
+<p><img src="/images/1728553276-46aa5895653217c785c12c1f9f85a7bc.png" alt="img"></p>
+<p>将默认的语言调整为 Chinese(zh_CN) ，点击下一步。</p>
+<p>（2）依赖性检查。</p>
+<p>主要是检查 php 的插件、配置是否满足要求。如果不满足，最右边的 OK 将显示为 Fail。</p>
+<p><img src="/images/1728553276-02ee27f25da86b3dbdc23327ab825fd6.png" alt="img"></p>
+<p>（3）配置数据库连接信息。</p>
+<p><img src="/images/1728553276-cf7317ef8fd1f63f2402f3a6b848042e.png" alt="img"></p>
+<p>因为我们的演示环境 Zabbix Server 和数据库是在一台<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>上部署，所以，这里 Database host 设置的是 127.0.0.1。生成环境建议分开部署。</p>
+<p>（4）设置 Zabbix Server 信息</p>
+<p><img src="/images/1728553276-c329d161dcd360034ff5b602a152619d.png" alt="img"></p>
+<p>（5）检查配置是否正确。</p>
+<p><img src="/images/1728553276-473331b5988ce30bcba68dbe19613db9.png" alt="img"></p>
+<p>（6）安装页面</p>
+<p><img src="/images/1728553276-be661fd2233a0d8c1c57b4c5978c5253.png" alt="img"></p>
+<p>进入Zabbix的登录界面，默认的用户名为Admin，密码为zabbix，管理员权限。</p>
+<p><img src="/images/1728553276-923f27866a8f425ba86b4baa6e4efe89.png" alt="img"></p>
+<p>登录成功后的页面如下所示：</p>
+<p><img src="/images/1728553276-f984cd93ffe158562e39b580eade8a06.png" alt="img"></p>
+<h5 id="修改字体乱码"><a href="#修改字体乱码" class="headerlink" title="修改字体乱码"></a><a href="https://link.csdn.net/?target="></a>修改字体乱码</h5><figure class="highlight clean"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">## windows C:\Windows\Fonts 目录下拷贝一个字体</span><br><span class="line"></span><br><span class="line">## 拷贝到服务器/var/www/html/zabbix/images/fonts 中 </span><br><span class="line">## 找不到时目录时</span><br><span class="line">find / -iname <span class="string">&quot;fonts&quot;</span></span><br><span class="line"></span><br><span class="line">## 这里我偷波鸡直接替换默认字体</span><br><span class="line">mv DejaVuSans.ttf DejaVuSans.ttf-bak</span><br><span class="line">mv simfang.ttf DejaVuSans.ttf</span><br></pre></td></tr></table></figure>
+
+<h4 id="五-安装-Zabbix-Agent"><a href="#五-安装-Zabbix-Agent" class="headerlink" title="五.安装 Zabbix Agent"></a><a href="https://link.csdn.net/?target="></a>五.安装 Zabbix Agent</h4><p>同样的源码包，在被监控<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>上部署。</p>
+<h5 id="1-编译安装-Zabbix-Agent"><a href="#1-编译安装-Zabbix-Agent" class="headerlink" title="1.编译安装 Zabbix Agent"></a><a href="https://link.csdn.net/?target="></a>1.编译安装 Zabbix Agent</h5><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">groupadd --system zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">useradd --system -g zabbix -d /usr/lib/zabbix -s /sbin/nologin -c <span class="string">&quot;Zabbix Monitoring System&quot;</span> zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> /usr/src/</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">tar xvf zabbix-6.0.2.tar.gz</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">ln</span> -s zabbix-6.0.2 zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">yum install gcc pcre-devel -y</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">cd</span> zabbix</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">./configure --prefix=/usr/local/zabbix --enable-agent</span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">make install</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="2-修改配置文件"><a href="#2-修改配置文件" class="headerlink" title="2.修改配置文件"></a><a href="https://link.csdn.net/?target="></a>2.修改配置文件</h5><figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># grep -Ev &#x27;^$|^#&#x27; /usr/local/zabbix/etc/zabbix_agentd.conf</span></span><br><span class="line"><span class="attr">LogFile</span>=/tmp/zabbix_agentd.log</span><br><span class="line"><span class="attr">Server</span>=<span class="number">10.0</span>.<span class="number">0.228</span></span><br><span class="line"><span class="attr">ServerActive</span>=<span class="number">127.0</span>.<span class="number">0.1</span></span><br><span class="line"><span class="attr">Hostname</span>=node1</span><br></pre></td></tr></table></figure>
+
+<p>其中，</p>
+<ul>
+<li>Server：被动模式下 Zabbix Server 的地址，在这种模式下，Zabbix Server 发送请求，Agent 才会响应数据。被动模式是 Zabbix Agent 默认的工作模式。</li>
+<li>ServerActive：主动模式下 Zabbix Server 的地址，在这种模式下，Agent 会将采集到的数据主动发送给 Zabbix Server。</li>
+<li>Hostname：<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>名。注意，这里的<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>名并不一定要是<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>的 hostname，也可以是 IP 或其它有标识性的字符串，只要保证这个配置在 Zabbix Server 监控的<a href="https://link.csdn.net/?target=https://auth.huaweicloud.com/authui/saml/login?xAccountType=csdndev_IDP&isFirstLogin=false&service=https%253A%252F%252Fdeveloper.huaweicloud.com%252Fspace%252Fdevportal%252Fdesktop%253Futm_source%253Dcsdndspace%2526utm_adplace%253Dcsdndevepressad">主机</a>内全局唯一即可。Hostname 只适用于主动模式，被动模式下无需设置。</li>
+</ul>
+<h5 id="3-配置服务管理脚本"><a href="#3-配置服务管理脚本" class="headerlink" title="3.配置服务管理脚本"></a><a href="https://link.csdn.net/?target="></a>3.配置服务管理脚本</h5><figure class="highlight swift"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"># vim <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_agentd</span><br><span class="line"><span class="operator">...</span></span><br><span class="line"><span class="type">ZABBIX_BIN</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/sbin/zabbix_agentd&quot;</span></span><br><span class="line"><span class="type">CONGIG_FILE</span><span class="operator">=</span><span class="string">&quot;/usr/local/zabbix/etc/zabbix_agentd.conf&quot;</span></span><br><span class="line"><span class="operator">...</span></span><br><span class="line">start() &#123;</span><br><span class="line">        echo <span class="operator">-</span>n $<span class="string">&quot;Starting $prog: &quot;</span></span><br><span class="line">        daemon <span class="variable">$ZABBIX_BIN</span> <span class="operator">-</span>c <span class="variable">$CONGIG_FILE</span></span><br><span class="line"><span class="operator">...</span></span><br><span class="line"></span><br><span class="line"># cp <span class="regexp">/usr/</span>src<span class="regexp">/zabbix/</span>misc<span class="regexp">/init.d/</span>fedora<span class="regexp">/core5/</span>zabbix_agentd <span class="regexp">/etc/</span><span class="keyword">init</span>.d<span class="operator">/</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="4-启动-Zabbix-Agent"><a href="#4-启动-Zabbix-Agent" class="headerlink" title="4.启动 Zabbix Agent"></a><a href="https://link.csdn.net/?target="></a>4.启动 Zabbix Agent</h5><figure class="highlight 1c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># service zabbix_agentd start</span></span><br></pre></td></tr></table></figure>
+
+<h5 id="5-设置开机自启动"><a href="#5-设置开机自启动" class="headerlink" title="5.设置开机自启动"></a><a href="https://link.csdn.net/?target="></a>5.设置开机自启动</h5><figure class="highlight 1c"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># chkconfig zabbix_agentd on</span></span><br></pre></td></tr></table></figure> 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/10/10/centos7-9-%E9%83%A8%E7%BD%B2-zabbix6-0-mysql/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/10/10/Centos7-9%E5%AE%89%E8%A3%85%E9%85%8D%E7%BD%AEZabbix6-0%E8%AF%A6%E7%BB%86%E6%AD%A5%E9%AA%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Centos7.9安装配置Zabbix6.0详细步骤</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
