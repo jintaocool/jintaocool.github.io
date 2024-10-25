@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>CMDB开发 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="CMDB-CMDB开发"
+  class="article article-type-CMDB"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  CMDB开发
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/10/25/CMDB%E5%BC%80%E5%8F%91/" class="article-date">
+  <time datetime="2024-10-25T01:55:02.000Z" itemprop="datePublished">2024-10-25</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/CMDB/">CMDB</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="浅谈ITIL"><a href="#浅谈ITIL" class="headerlink" title="浅谈ITIL"></a>浅谈ITIL</h3><p>TIL即IT基础架构库(Information Technology Infrastructure Library, ITIL，信息技术基础架构库)由英国政府部门CCTA(Central Computing and Telecommunications Agency)在20世纪80年代末制订，现由英国商务部OGC(Office of Government Commerce)负责管理，主要适用于IT服务管理（ITSM）。ITIL为企业的IT服务管理实践提供了一个客观、严谨、可量化的标准和规范。</p>
+<p>1、事件管理（Incident Management）</p>
+<p>事故管理负责记录、归类和安排专家处理事故并监督整个处理过程直至事故得到解决和终止。事故管理的目的是在尽可能最小地影响客户和用户业务的情况下使IT系统恢复到<a target="_blank" rel="noopener" href="http://baike.baidu.com/view/3458408.htm">服务级别协议</a>所定义的服务级别。</p>
+<p>目标是：在不影响业务的情况下，尽可能快速的恢复服务，从而保证最佳的效率和服务的可持续性。事件管理流程的建立包括事件分类，确定事件的优先级和建立事件的升级机制。</p>
+<p>2、问题管理（Problem Management）</p>
+<p>问题管理是指通过调查和分析IT基础架构的薄弱环节、查明事故产生的潜在原因，并制定解决事故的方案和防止事故再次发生的措施，将由于问题和事故对业务产生的负面影响减小到最低的服务管理流程。与事故管理强调事故恢复的速度不同，问题管理强调的是找出事故产生的根源，从而制定恰当的解决方案或防止其再次发生的预防措施。</p>
+<p>目标是：调查基础设施和所有可用信息，包括事件数据库，来确定引起事件发生的真正潜在原因，一起提供的服务中可能存在的故障。</p>
+<p>3、配置管理（Configuration Management）</p>
+<p>配置管理是识别和确认系统的配置项，记录和报告配置项状态和变更请求，检验配置项的正确性和完整性等活动构成的过程，其目的是提供IT基础架构的逻辑模型，支持其它服务管理流程特别是变更管理和发布管理的运作。</p>
+<p>目标是：定义和控制服务与基础设施的部件，并保持准确的配置信息。</p>
+<p>4、变更管理（Change Management）</p>
+<p>变更管理是指为在最短的中断时间内完成基础架构或服务的任一方面的变更而对其进行控制的服务管理流程。变更管理的目标是确保在变更实施过程中使用标准的方法和步骤，尽快地实施变更，以将由变更所导致的业务中断对业务的影响减小到最低。</p>
+<p>目标是：以受控的方式，确保所有变更得到评估、批准、实施和评审。</p>
+<p>5、发布管理（Release Management）</p>
+<p> 发布管理是指对经过测试后导入实际应用的新增或修改后的配置项进行分发和宣传的管理流程。发布管理以前又称为软件控制与分发。</p>
+<p>目标是：在实际运行环境的发布中，交付、分发并跟踪一个或多个变更。</p>
+<p>实际工作场景中自动化工具举例：</p>
+<p><img src="/images/1729821163-741d500b9bc5804e705c5c451f0ce4ed.png"></p>
+<h3 id="CMDB"><a href="#CMDB" class="headerlink" title="CMDB"></a>CMDB</h3><p>CMDB –Configuration Management Database 配置管理数据库, CMDB存储与管理企业IT架构中设备的各种配置信息，它与所有服务支持和服务交付流程都紧密相联，支持这些流程的运转、发挥配置信息的价值，同时依赖于相关流程保证数据的准确性。</p>
+<p><strong>在实际的项目中，CMDB常常被认为是构建其它ITIL流程的基础而优先考虑，ITIL项目的成败与是否成功建立CMDB有非常大的关系。</strong></p>
+<p>70%～80%的IT相关问题与环境的变更有着直接的关系。实施变更管理的难点和重点并不是工具，而是流程。即通过一个自动化的、可重复的流程管理变更，使得当变更发生的时候，有一个标准化的流程去执行，能够预测到这个变更对整个系统管理产生的影响，并对这些影响进行评估和控制。而变更管理流程自动化的实现关键就是CMDB。</p>
+<p>CMDB工具中至少包含这几种关键的功能：整合、调和、同步、映射和可视化。</p>
+<ul>
+<li>整合是指能够充分利用来自其他数据源的信息，对CMDB中包含的记录源属性进行存取，将多个数据源合并至一个视图中，生成连同来自CMDB和其他数据源信息在内的报告；</li>
+<li>调和能力是指通过对来自每个数据源的匹配字段进行对比，保证CMDB中的记录在多个数据源中没有重复现象，维持CMDB中每个配置项目数据源的完整性；自动调整流程使得初始实施、<a target="_blank" rel="noopener" href="http://baike.baidu.com/view/67185.htm">数据库管理员</a>的手动运作和现场维护支持工作降至最低；</li>
+<li>同步指确保CMDB中的信息能够反映联合数据源的更新情况，在联合数据源更新频率的基础上确定CMDB更新日程，按照经过批准的变更来更新 CMDB，找出未被批准的变更；</li>
+<li>应用映射与可视化，说明应用间的关系并反应应用和其他组件之间的依存关系，了解变更造成的影响并帮助诊断问题。</li>
+</ul>
+<hr>
+<p>  　 CMDB是运维自动化项目，它可以减少人工干预，降低人员成本。</p>
+<p>　　功能：自动装机、实时监控、自动化部署软件，建立在它们的基础上是资产信息变更记录（资产管控自动进行汇报）</p>
+<p>一、在对获取资产信息时，简述有四种方案。</p>
+<p>1、Agent  （基于shell命令实现）</p>
+<p> <img src="/images/1729821163-afac3d6c6f71ac9942729f671150ea2c.png"></p>
+<p>　　　　　　　　　　　　　　　　　　原理图</p>
+<p>Agent方式，可以将服务器上面的Agent程序作定时任务，定时将资产信息提交到指定API录入数据库</p>
+<p>优点：速度快 缺点：需要为每台服务器部署一个Agent程序</p>
+<p>2、Paramiko类 （SSH形式，基于Paramiko模块）</p>
+<p><img src="/images/1729821163-56338b0d407a9b3f8a27a422cd5d456a.png"></p>
+<p>中控机在获取未采集资产信息的服务器（服务器主机名，密码），依赖于Paramiko（py模块）通过SSH方式去获取</p>
+<p>优点：无Agent  缺点：速度慢</p>
+<p>如果在服务器较少的情况下，可应用此方法</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> paramiko</span><br><span class="line"></span><br><span class="line"><span class="comment"># 创建SSH对象</span></span><br><span class="line">ssh = paramiko.SSHClient()</span><br><span class="line"><span class="comment"># 允许连接不在know_hosts文件中的主机</span></span><br><span class="line">ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())</span><br><span class="line"><span class="comment"># 连接服务器</span></span><br><span class="line">ssh.connect(hostname=<span class="string">&#x27;c1.salt.com&#x27;</span>, port=<span class="number">22</span>, username=<span class="string">&#x27;wupeiqi&#x27;</span>, password=<span class="string">&#x27;123&#x27;</span>)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 执行命令</span></span><br><span class="line">stdin, stdout, stderr = ssh.exec_command(<span class="string">&#x27;df&#x27;</span>)</span><br><span class="line"><span class="comment"># 获取命令结果</span></span><br><span class="line">result = stdout.read()</span><br><span class="line"></span><br><span class="line"><span class="comment"># 关闭连接</span></span><br><span class="line">ssh.close()</span><br></pre></td></tr></table></figure>
+
+<p>3、SaltStack</p>
+<p><img src="/images/1729821163-efdeff5445a98bd2552219baa1fb10cf.png"></p>
+<p>　　此方案本质上和第二种方案大致是差不多的流程，中控机在获取到未采集资产信息的服务器（主机名），再而将命令放入一个队列中，服务器来获取。服务器将结果放入另一个队列中，中控机获取将服务信息发送到API进而录入数据库。</p>
+<p>基于SaltStack的master上的pillar以及远程执行命令实现</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">import</span> salt.client</span><br><span class="line">local = salt.client.LocalClient()</span><br><span class="line">local.cmd(<span class="string">&#x27;*&#x27;</span>, <span class="string">&#x27;cmd.run&#x27;</span>, [<span class="string">&#x27;whoami&#x27;</span>])</span><br></pre></td></tr></table></figure>
+
+<p>优点：快，开发成本低  缺点：依赖于第三方工具</p>
+<p>4、Puppet（ruby语言开发）<br>基于Puppet的factor和report功能实现</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">puppet中默认自带了<span class="number">5</span>个report，放置在【/usr/lib/ruby/site_ruby/<span class="number">1.8</span>/puppet/reports/】路径下。如果需要执行某个report，那么就在puppet的master的配置文件中做如下配置：</span><br><span class="line"></span><br><span class="line"><span class="comment">######################## on master ###################</span></span><br><span class="line">/etc/puppet/puppet.conf</span><br><span class="line">[main]</span><br><span class="line">reports = store <span class="comment">#默认</span></span><br><span class="line"><span class="comment">#report = true #默认</span></span><br><span class="line"><span class="comment">#pluginsync ＝ true #默认</span></span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="comment">####################### on client #####################</span></span><br><span class="line"></span><br><span class="line">/etc/puppet/puppet.conf</span><br><span class="line">[main]</span><br><span class="line"><span class="comment">#report = true #默认</span></span><br><span class="line"></span><br><span class="line">[agent]</span><br><span class="line">runinterval = <span class="number">10</span></span><br><span class="line">server = master.puppet.com</span><br><span class="line">certname = c1.puppet.com</span><br><span class="line"></span><br><span class="line">如上述设置之后，每次执行client和master同步，就会在master服务器的 【/var/lib/puppet/reports】路径下创建一个文件，主动执行：puppet agent  --test</span><br></pre></td></tr></table></figure>
+
+<p>1、自定义factor示例</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br></pre></td><td class="code"><pre><span class="line">在 /etc/puppet/modules 目录下创建如下文件结构：</span><br><span class="line"></span><br><span class="line">modules</span><br><span class="line">└── cmdb</span><br><span class="line">    ├── lib</span><br><span class="line">    │   └── puppet</span><br><span class="line">    │       └── reports</span><br><span class="line">    │           └── cmdb.rb</span><br><span class="line">    └── manifests</span><br><span class="line">        └── init.pp</span><br><span class="line"></span><br><span class="line">################ cmdb.rb ################</span><br><span class="line"># cmdb.rb</span><br><span class="line">require &#x27;puppet&#x27;</span><br><span class="line">require &#x27;fileutils&#x27;</span><br><span class="line">require &#x27;puppet/util&#x27;</span><br><span class="line"></span><br><span class="line">SEPARATOR = [Regexp.escape(File::SEPARATOR.to_s), Regexp.escape(File::ALT_SEPARATOR.to_s)].join</span><br><span class="line"></span><br><span class="line">Puppet::Reports.register_report(:cmdb) do</span><br><span class="line">  desc &quot;Store server info</span><br><span class="line">    These files collect quickly -- one every half hour -- so it is a good idea</span><br><span class="line">    to perform some maintenance on them if you use this report (it&#x27;s the only</span><br><span class="line">    default report).&quot;</span><br><span class="line"></span><br><span class="line">  def process</span><br><span class="line">    certname = self.name</span><br><span class="line">    now = Time.now.gmtime</span><br><span class="line">    File.open(&quot;/tmp/cmdb.json&quot;,&#x27;a&#x27;) do |f|</span><br><span class="line">      f.write(certname)</span><br><span class="line">      f.write(&#x27; | &#x27;)</span><br><span class="line">      f.write(now)</span><br><span class="line">      f.write(&quot;\r\n&quot;)</span><br><span class="line">    end</span><br><span class="line"></span><br><span class="line">  end</span><br><span class="line">end</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">################ 配置 ################</span><br><span class="line">/etc/puppet/puppet.conf</span><br><span class="line">[main]</span><br><span class="line">reports = cmdb</span><br><span class="line">#report = true #默认</span><br><span class="line">#pluginsync ＝ true #默认</span><br></pre></td></tr></table></figure>
+
+<p>小结：</p>
+<ul>
+<li>采集资产信息有四种不同的形式（但puppet是具于ruby开发的）</li>
+<li>API提供相关处理的接口</li>
+<li>管理平台为用户提供可视化操作</li>
+</ul>
+<p>二、开发cmdb程序</p>
+<p>开发程序设计为可插拔机制。（好处：扩展性强）</p>
+<p>开发一套程序时，要使其有充分的扩展性。接下来可以写一些伪代码…</p>
+<p>1、假设项目名为AutoClient, 目录结构如下：</p>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">AutoClient/</span><br><span class="line">|<span class="comment">-- bin/</span></span><br><span class="line">|   |<span class="comment">-- auto_client.py</span></span><br><span class="line">|<span class="comment">-- config/</span></span><br><span class="line">|   |<span class="comment">-- settings.py</span></span><br><span class="line">|<span class="comment">-- lib/</span></span><br><span class="line">|   |<span class="comment">--</span></span><br><span class="line">|<span class="comment">-- log/</span></span><br><span class="line">|   |<span class="comment">-- error.log</span></span><br><span class="line">|   |<span class="comment">-- run.log</span></span><br><span class="line">|<span class="comment">-- src/</span></span><br><span class="line">|   |<span class="comment">-- plugins/</span></span><br><span class="line">|       |<span class="comment">-- __init__.py</span></span><br><span class="line">|       |<span class="comment">-- base.py</span></span><br><span class="line">|       |<span class="comment">-- cpu.py</span></span><br><span class="line">|       |<span class="comment">-- ...</span></span><br><span class="line">|   |<span class="comment">-- scripts.py </span></span><br><span class="line">|<span class="comment">-- README</span></span><br></pre></td></tr></table></figure>
+
+<p>例如，采集资产信息有三种形式，而将要做的一件事就是要让程序兼容这三种形式</p>
+<p>2、获取内存信息</p>
+<figure class="highlight html"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br></pre></td><td class="code"><pre><span class="line">$LOAD_PATH.unshift(File.dirname(__FILE__)) unless $LOAD_PATH.include?(File.dirname(__FILE__))</span><br><span class="line">require &quot;rubygems&quot;</span><br><span class="line">require &#x27;pp&#x27;</span><br><span class="line">require &#x27;json&#x27;</span><br><span class="line">require &#x27;utils&#x27;</span><br><span class="line"></span><br><span class="line">def dmi_get_ram(cmd)</span><br><span class="line"></span><br><span class="line">    ram_slot = []</span><br><span class="line"></span><br><span class="line">    key_map = &#123;</span><br><span class="line">        &#x27;Size&#x27; =&gt; &#x27;capacity&#x27;,</span><br><span class="line">        &#x27;Serial Number&#x27; =&gt; &#x27;sn&#x27;,</span><br><span class="line">        &#x27;Type&#x27; =&gt; &#x27;model&#x27;,</span><br><span class="line">        &#x27;Manufacturer&#x27; =&gt; &#x27;manufactory&#x27;,</span><br><span class="line">        &#x27;Locator&#x27; =&gt; &#x27;slot&#x27;,</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    output = Utils.facter_exec(cmd)</span><br><span class="line">    devices = output.split(&#x27;Memory Device&#x27;)</span><br><span class="line"></span><br><span class="line">    devices.each do |d|</span><br><span class="line">      next if d.strip.empty?</span><br><span class="line">      segment = &#123;&#125;</span><br><span class="line">      d.strip.split(&quot;\n\t&quot;).each do |line|</span><br><span class="line">        key, value = line.strip.split(&quot;:&quot;)</span><br><span class="line">        if key_map.has_key?(key.strip)</span><br><span class="line">          if key.strip == &#x27;Size&#x27;</span><br><span class="line">            segment[key_map[&#x27;Size&#x27;]] = value.chomp(&quot;MB&quot;).strip.to_i / 1024.0 # unit GB</span><br><span class="line">          else</span><br><span class="line">            segment[key_map[key.strip]] =  value ? value.strip : &#x27;&#x27;</span><br><span class="line">          end</span><br><span class="line">        end</span><br><span class="line">      end</span><br><span class="line"></span><br><span class="line">      ram_slot.push(segment) unless segment.empty?</span><br><span class="line">    end</span><br><span class="line"></span><br><span class="line">    return ram_slot</span><br><span class="line"></span><br><span class="line">end</span><br><span class="line"></span><br><span class="line">Facter.add(&quot;ram&quot;) do</span><br><span class="line">  confine :kernel =&gt; &quot;Linux&quot;</span><br><span class="line">  setcode do</span><br><span class="line"></span><br><span class="line">    ram_slot = []</span><br><span class="line">    cmd = &quot;dmidecode -q -t 17 2&gt;/dev/null&quot;</span><br><span class="line">    ram_slot = dmi_get_ram(cmd)</span><br><span class="line"></span><br><span class="line">    JSON.dump(ram_slot)</span><br><span class="line"></span><br><span class="line">  end</span><br><span class="line">end</span><br><span class="line"></span><br><span class="line"></span><br><span class="line">Facter.add(&quot;ram&quot;) do</span><br><span class="line">  confine :kernel =&gt; &#x27;windows&#x27;</span><br><span class="line">  setcode do</span><br><span class="line"></span><br><span class="line">    ram_slot = []</span><br><span class="line"></span><br><span class="line">    if Facter.value(:manufacturer)  =~ /.*HP.*/i</span><br><span class="line">      cli = &#x27;C:\cmdb_report\dmidecode.exe&#x27;</span><br><span class="line">      cmd = &quot;#&#123;cli&#125; -q -t 17&quot;</span><br><span class="line">      ram_slot = dmi_get_ram(cmd) if File.exist?(cli)</span><br><span class="line"></span><br><span class="line">    else</span><br><span class="line"></span><br><span class="line">      require &#x27;facter/util/wmi&#x27;</span><br><span class="line">      Facter::Util::WMI.execquery(&quot;select * from Win32_PhysicalMemory&quot;).each do | item |</span><br><span class="line"></span><br><span class="line">        if item.DeviceLocator</span><br><span class="line">          slot = item.DeviceLocator.strip</span><br><span class="line">        else</span><br><span class="line">          slot = &#x27;&#x27;</span><br><span class="line">        end</span><br><span class="line"></span><br><span class="line">        if item.PartNumber</span><br><span class="line">          model = item.PartNumber.strip</span><br><span class="line">        else</span><br><span class="line">          model = &#x27;&#x27;</span><br><span class="line">        end</span><br><span class="line"></span><br><span class="line">        if item.SerialNumber</span><br><span class="line">          sn = item.SerialNumber.strip</span><br><span class="line">        else</span><br><span class="line">          sn = &#x27;&#x27;</span><br><span class="line">        end</span><br><span class="line"></span><br><span class="line">        if item.Manufacturer</span><br><span class="line">          manufactory = item.Manufacturer.strip</span><br><span class="line">        else</span><br><span class="line">          manufactory = &#x27;&#x27;</span><br><span class="line">        end</span><br><span class="line"></span><br><span class="line">        ram_slot.push(&#123;</span><br><span class="line">         &#x27;capacity&#x27; =&gt; item.Capacity.to_i / (1024**3), # unit GB</span><br><span class="line">         &#x27;slot&#x27; =&gt; slot,</span><br><span class="line">         &#x27;model&#x27; =&gt; model,</span><br><span class="line">         &#x27;sn&#x27; =&gt; sn,</span><br><span class="line">         &#x27;manufactory&#x27; =&gt; manufactory,</span><br><span class="line">       &#125;)</span><br><span class="line"></span><br><span class="line">      end</span><br><span class="line">    end</span><br><span class="line"></span><br><span class="line">    JSON.dump(ram_slot)</span><br><span class="line"></span><br><span class="line">  end</span><br><span class="line">end</span><br></pre></td></tr></table></figure>
+
+<h3 id="三、CMDB数据库设计"><a href="#三、CMDB数据库设计" class="headerlink" title="三、CMDB数据库设计"></a>三、CMDB数据库设计</h3><p><img src="/images/1729821163-5272f8ab4467f5e93f2e4d0a8ef45837.png"></p>
+<h3 id="四、CMDB总结"><a href="#四、CMDB总结" class="headerlink" title="四、CMDB总结"></a>四、CMDB总结</h3><p>1. 三种采集资产方式<br>唯一标识  </p>
+<p>2. API<br>API验证（tornado源码，加密cookie+时间限制+访问记录）<br>数据库表结构  </p>
+<p>3. 后台管理<br>告别CURD，公共组件（前端+后端配置）  </p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/10/25/CMDB%E5%BC%80%E5%8F%91/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/CMDB/" rel="tag">CMDB</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/10/25/snmpwalk%E5%91%BD%E4%BB%A4%E8%AF%A6%E8%A7%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">snmpwalk命令详解</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
