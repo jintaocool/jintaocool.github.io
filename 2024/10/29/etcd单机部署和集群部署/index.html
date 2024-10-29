@@ -1,0 +1,874 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>etcd单机部署和集群部署 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-etcd单机部署和集群部署"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  etcd单机部署和集群部署
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/10/29/etcd%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2%E5%92%8C%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2/" class="article-date">
+  <time datetime="2024-10-29T10:01:22.000Z" itemprop="datePublished">2024-10-29</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">14 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="1、etcd单实例部署"><a href="#1、etcd单实例部署" class="headerlink" title="1、etcd单实例部署"></a>1、etcd单实例部署</h3><p>对于平常的学习，其实搭建一个单机节点是够了的。接下来就讲讲怎么搭建单机节点。</p>
+<blockquote>
+<p>本次部署是在 centos7 系统，cpu 为amd64 上面进行的。</p>
+</blockquote>
+<p>部署是直接使用官方编译好的二进制文件，大家也可以直接看 <a target="_blank" rel="noopener" href="https://github.com/etcd-io/etcd/releases">ectd-releases</a> 界面选择需要的版本，进行部署。</p>
+<p>部署步骤如下：</p>
+<p>1、下载官方编译好的 二进制文件。大家可以根据自己的系统和cpu架构进行选择。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> /opt</span><br><span class="line"></span><br><span class="line">wget https://github.com/etcd-io/etcd/releases/download/v3.5.8/etcd-v3.5.8-linux-amd64.tar.gz</span><br></pre></td></tr></table></figure>
+
+<p>2、解压下载好的文件</p>
+<figure class="highlight armasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="symbol">tar</span> -zxvf etcd-<span class="built_in">v3</span>.<span class="number">5</span>.<span class="number">8</span>-linux-amd64.tar.gz</span><br></pre></td></tr></table></figure>
+
+<p>3、启动 etcd 服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cd</span> etcd-v3.5.8-linux-amd64</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动方式一：前台启动</span></span><br><span class="line">./etcd</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动方式二：后台启动,日志文件位置可随意选择，有权限读写就可以了</span></span><br><span class="line"><span class="built_in">nohup</span> ./etcd &gt; /root/etcd.log 2&gt;&amp;1 &amp;</span><br></pre></td></tr></table></figure>
+
+<p>启动的 etcd 进程默认监听的是 <code>2379</code>端口。我们可以使用 etcdctl 来与 etcd server进行交互。下面展示一个简单的使用案例：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">./etcdctl --endpoints=localhost:2379 put foo bar</span><br><span class="line">./etcdctl --endpoints=localhost:2379 get foo</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>我们也可以将 etcdctl 拷贝到 &#x2F;usr&#x2F;local&#x2F;bin 下面，这样使用 etcdctl 时，就不用想上面这样，必须指定 etcdctl 的位置了。</p>
+</blockquote>
+<p>上面启动 etcd 进程的方式比较简单，大家也可以使用 systemd 来进行管理，这样可以实现开启自启了。</p>
+<p>编写 etcd.service 文件：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">cat</span> &gt; /usr/lib/systemd/system/etcd.service &lt;&lt; <span class="string">EOF</span></span><br><span class="line"><span class="string">[Unit]</span></span><br><span class="line"><span class="string">Description=Etcd Server</span></span><br><span class="line"><span class="string">After=network.target network-online.target</span></span><br><span class="line"><span class="string">Wants=network-online.target</span></span><br><span class="line"><span class="string"> </span></span><br><span class="line"><span class="string">[Service]</span></span><br><span class="line"><span class="string">Type=notify</span></span><br><span class="line"><span class="string">ExecStart=/opt/etcd-v3.5.8-linux-amd64/etcd </span></span><br><span class="line"><span class="string">Restart=on-failure</span></span><br><span class="line"><span class="string">RestartSec=5</span></span><br><span class="line"><span class="string">LimitNOFILE=65536</span></span><br><span class="line"><span class="string"> </span></span><br><span class="line"><span class="string">[Install]</span></span><br><span class="line"><span class="string">WantedBy=multi-user.target</span></span><br><span class="line"><span class="string">EOF</span></span><br></pre></td></tr></table></figure>
+
+<p>启动 etcd 服务以及设置为开机自启</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 重载脚本文件</span></span><br><span class="line">systemctl daemon-reload</span><br><span class="line"></span><br><span class="line"><span class="comment"># 启动 etcd 服务</span></span><br><span class="line">systemctl start etcd.service</span><br><span class="line"></span><br><span class="line"><span class="comment"># 设置 etcd 服务为开机自启</span></span><br><span class="line">systemctl <span class="built_in">enable</span> etcd.service</span><br><span class="line"></span><br><span class="line"><span class="comment"># 停止 etcd 服务</span></span><br><span class="line">systemctl stop etcd.service</span><br></pre></td></tr></table></figure>
+
+<p>上面就是 etcd 的单实例部署方式了。</p>
+<h3 id="2、etcd集群部署"><a href="#2、etcd集群部署" class="headerlink" title="2、etcd集群部署"></a>2、etcd集群部署</h3><p>在生产环境中，为了整个集群的高可用，etcd 正常都会集群部署，避免单点故障。接下来我们一起学习如何进行 etcd 集群部署。引导 etcd 集群的启动有以下三种机制：</p>
+<ul>
+<li>静态启动</li>
+</ul>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">预先已知etcd集群中有哪些节点，在启动时通过<span class="attr">--initial-cluster</span>参数直接指定好etcd的各个节点地址</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>etcd 动态发现</li>
+</ul>
+<figure class="highlight lua"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">静态配置前提是在搭建集群之前已经提前知道各节点的信息，而实际应用中可能存在预 先并不知道各节点ip的情况，这时可通过已经搭建的etcd来辅助搭建新的etcd集群。通过 已有的etcd集群作为数据交互点，然后在扩展新的集群时，实现通过已有集群进行服务发 现的机制。比如官方提供的:discovery.etcd.<span class="built_in">io</span></span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>DNS 发现</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">通过DNS查询方式获取其他节点地址信息</span><br></pre></td></tr></table></figure>
+
+<p>静态启动 etcd 集群要求每个成员都知道集群中的另一个成员，也就是在配置文件中写死每个集群成员的地址。 在实际情况下，群集成员的 IP 可能会提前未知。在这种情况下，我们可以使用 etcd 官方提供的动态发现功能来帮助引导 etcd 群集。</p>
+<p>接下来我们看一看<code>静态启动、etcd 动态发现</code>是如何部署的，<code>DNS 发现</code>的部署方式，大家可以看看文章最后的参考连接，讲解得比较详细。</p>
+<p>哈哈，因为 etcd 的部署方式，相对来说还是比较容易的，所以这里偷个懒，大家想看怎么集群部署的话，看文章最后的参考连接。</p>
+<h4 id="2-1-单机多实例部署"><a href="#2-1-单机多实例部署" class="headerlink" title="2.1 单机多实例部署"></a>2.1 单机多实例部署</h4><p>平常大家自己搭建着玩的话，可以使用此方式来部署一个单机多实例的 etcd 集群，这样管理维护都比较方便。</p>
+<p>想要在一台机器上部署 etcd 集群，我们可以借助 <code>goreman</code> 这个工具，goreman 是一个 Go 语言编写的<code>多进程管理工具</code>，是对 Ruby 下广泛使用的 foreman 的重写（foreman 原作者也实现了一个 Go 版本：forego，不过没有 goreman 好用）。</p>
+<p>使用<code>goreman</code> 部署集群，需要我们先按照 go的环境，按照好 go 的环境后，执行下面的命令：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">go install github.com/mattn/goreman@latest</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>注意，上面执行的命令，会将 goreman 按照在 $GOPATH 下面，GOPATH 可以通过 go env 查看。如果执行上面命令后，使用 goreman 命令提示找不到命令，多半是没有将 GOPATH 加入到环境变量中去。</p>
+<p>简单的方式 vi &#x2F;etc&#x2F;profile。加入下面两句话，然后报错即可。</p>
+<p>export GOPATH&#x3D; 自己的实际路径</p>
+<p>export PATH&#x3D;$PATH:$GOPATH&#x2F;bin</p>
+</blockquote>
+<table>
+<thead>
+<tr>
+<th>HostName</th>
+<th>ip</th>
+<th>客户端交互端口</th>
+<th>peer 通信端口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>infra1</td>
+<td>127.0.0.1</td>
+<td>12379</td>
+<td>12380</td>
+</tr>
+<tr>
+<td>infra2</td>
+<td>127.0.0.1</td>
+<td>22379</td>
+<td>22380</td>
+</tr>
+<tr>
+<td>infra3</td>
+<td>127.0.0.1</td>
+<td>32379</td>
+<td>32380</td>
+</tr>
+</tbody></table>
+<p>执行下面步骤之前，需要先将 官方文档 编译好的 etcd 二进制文件下载解压到本机，然后将<code>etcd、etcdctl</code>这两个可执行文件拷贝到 <code>/usr/local/bin/</code>下面去。</p>
+<p>etcd_cluster_procfile 脚本如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">etcd1: etcd --name infra1 --listen-client-urls http://127.0.0.1:12379 --advertise-client-urls http://127.0.0.1:12379 --listen-peer-urls http://127.0.0.1:12380 --initial-advertise-peer-urls http://127.0.0.1:12380 --initial-cluster-token etcd-cluster-1 --initial-cluster <span class="string">&#x27;infra1=http://127.0.0.1:12380,infra2=http://127.0.0.1:22380,infra3=http://127.0.0.1:32380&#x27;</span> --initial-cluster-state new --enable-pprof --logger=zap --log-outputs=stderr</span><br><span class="line"></span><br><span class="line">etcd2: etcd --name infra2 --listen-client-urls http://127.0.0.1:22379 --advertise-client-urls http://127.0.0.1:22379 --listen-peer-urls http://127.0.0.1:22380 --initial-advertise-peer-urls http://127.0.0.1:22380 --initial-cluster-token etcd-cluster-1 --initial-cluster <span class="string">&#x27;infra1=http://127.0.0.1:12380,infra2=http://127.0.0.1:22380,infra3=http://127.0.0.1:32380&#x27;</span> --initial-cluster-state new --enable-pprof --logger=zap --log-outputs=stderr</span><br><span class="line"></span><br><span class="line">etcd3: etcd --name infra3 --listen-client-urls http://127.0.0.1:32379 --advertise-client-urls http://127.0.0.1:32379 --listen-peer-urls http://127.0.0.1:32380 --initial-advertise-peer-urls http://127.0.0.1:32380 --initial-cluster-token etcd-cluster-1 --initial-cluster <span class="string">&#x27;infra1=http://127.0.0.1:12380,infra2=http://127.0.0.1:22380,infra3=http://127.0.0.1:32380&#x27;</span> --initial-cluster-state new --enable-pprof --logger=zap --log-outputs=stderr</span><br></pre></td></tr></table></figure>
+
+<p>配置项说明：</p>
+<table>
+<thead>
+<tr>
+<th>参数</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>--name</td>
+<td>etcd集群中的节点名，这里可以随意，可区分且不重复就行</td>
+</tr>
+<tr>
+<td>--initial-advertise-peer-urls</td>
+<td>建议用于节点之间通信的url，节点间将以该值进行通信。</td>
+</tr>
+<tr>
+<td>--initial-cluster</td>
+<td>也就是集群中所有的 initial-advertise-peer-urls 的合集。etcd启动的时候，通过这个配置找到其他etcd节点的列表。</td>
+</tr>
+<tr>
+<td>--listen-peer-urls</td>
+<td>监听的用于节点之间通信的url，可监听多个，集群内部将通过这些url进行数据交互(如选举，数据同步等)</td>
+</tr>
+<tr>
+<td>--listen-client-urls</td>
+<td>监听客户端请求的地址列表url，可以监听多个，多个用逗号分割。</td>
+</tr>
+<tr>
+<td>--advertise-client-urls</td>
+<td>建议使用的客户端通信 url，该值用于 etcd 代理或 etcd 成员与 etcd 节点通信。</td>
+</tr>
+<tr>
+<td>--initial-cluster-token</td>
+<td>etcd-cluster-1，节点的 token 值，设置该值后集群将生成唯一 id，并为每个节点也生成唯一 id，当使用相同配置文件再启动一个集群时，只要该 token 值不一样，etcd 集群就不会相互影响。</td>
+</tr>
+<tr>
+<td>--initial-cluster-state</td>
+<td>初始化的时候，集群的状态：new 和 existing 两种状态。new代表新建的集群，existing 代表加入已经存在的集群</td>
+</tr>
+</tbody></table>
+<p>注意上面的脚本，etcd 命令执行时需要根据本地实际的安装地址进行配置。使用下面的命令启动 etcd 集群。</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">goreman <span class="operator">-f</span> /opt/etcd_cluster_procfile  <span class="built_in">start</span></span><br></pre></td></tr></table></figure>
+
+<p>使用如上的命令启动启动 etcd 集群，启动完成之后查看集群内的成员。</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ etcdctl --endpoints=http:<span class="regexp">//l</span>ocalhost:<span class="number">22379</span>  member list</span><br><span class="line"></span><br><span class="line"><span class="number">8211</span>f1d0f64f3269, started, infra1, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">12380</span>, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">12379</span>, false</span><br><span class="line"><span class="number">91</span>bc3c398fb3c146, started, infra2, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">22380</span>, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">22379</span>, false</span><br><span class="line">fd422379fda50e48, started, infra3, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">32380</span>, http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">32379</span>, false</span><br></pre></td></tr></table></figure>
+
+<p>上面我们使用单机部署了多个etcd实例，模拟一个etcd集群。我们在启动集群的时候，已经知道了各个实例的地址，但是在实际环境中，集群成员的 ip 可能不会提前知道。这时候就需要采用动态发现的机制。</p>
+<h4 id="2-2-动态发现启动-etcd-集群"><a href="#2-2-动态发现启动-etcd-集群" class="headerlink" title="2.2 动态发现启动 etcd 集群"></a>2.2 动态发现启动 etcd 集群</h4><blockquote>
+<p>下面的内容全部来自 文章最后的参考连接，如有侵权，请联系删除，谢谢。</p>
+<p>参考连接还有 docker 部署以及 dns 部署，大家感兴趣可以去看看。</p>
+</blockquote>
+<p>如前面所述，在实际环境中，集群成员的 ip 可能不会提前知道。在这种情况下，需要使用自动发现来引导 etcd 集群，而不是指定静态配置，这个过程被称为<strong>发现</strong>。我们启动三个 etcd，具体对应如下：</p>
+<table>
+<thead>
+<tr>
+<th>HostName</th>
+<th>ip</th>
+<th>客户端交互端口</th>
+<th>peer 通信端口</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>etcd1</td>
+<td>192.168.202.128</td>
+<td>2379</td>
+<td>2380</td>
+</tr>
+<tr>
+<td>etcd2</td>
+<td>192.168.202.129</td>
+<td>2379</td>
+<td>2380</td>
+</tr>
+<tr>
+<td>etcd3</td>
+<td>192.168.202.130</td>
+<td>2379</td>
+<td>2380</td>
+</tr>
+</tbody></table>
+<h5 id="2-2-1-协议的原理"><a href="#2-2-1-协议的原理" class="headerlink" title="2.2.1 协议的原理"></a>2.2.1 协议的原理</h5><p><code>Discovery service protocol</code> 帮助新的 etcd 成员使用共享 URL 在集群引导阶段发现所有其他成员。</p>
+<p>该协议使用新的发现令牌来引导一个唯一的 etcd 集群。一个发现令牌只能代表一个 etcd 集群。只要此令牌上的发现协议启动，即使它中途失败，也不能用于引导另一个 etcd 集群。</p>
+<h5 id="2-2-2-协议的工作流程"><a href="#2-2-2-协议的工作流程" class="headerlink" title="2.2.2 协议的工作流程"></a>2.2.2 协议的工作流程</h5><p>Discovery protocol 使用内部 etcd 集群来协调新集群的引导程序。首先，所有新成员都与发现服务交互，并帮助生成预期的成员列表。之后，每个新成员使用此列表引导其服务器，该列表执行与 <code>--initial-cluster</code> 标志相同的功能，即设置所有集群的成员信息。</p>
+<p><strong>注意:</strong></p>
+<blockquote>
+<p>Discovery service protocol仅用于集群引导阶段，不能用于运行时重新配置或集群 监视。</p>
+</blockquote>
+<h5 id="2-2-3-使用公共发现服务部署集群"><a href="#2-2-3-使用公共发现服务部署集群" class="headerlink" title="2.2.3 使用公共发现服务部署集群"></a>2.2.3 使用公共发现服务部署集群</h5><p>当我们本地没有可用的 etcd 集群，etcd 官网提供了一个可以公网访问的 etcd 存储地址。我们可以通过如下命令得到 etcd 服务的目录，并把它作为 <code>--discovery</code> 参数使用。</p>
+<p>公共发现服务 <code>discovery.etcd.io</code> 以相同的方式工作，并提供针对过多请求的保护。公共发现服务在其上仍然使用 etcd 群集作为数据存储。</p>
+<p>1、创建集群发现</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用公共etcd发现服务</span></span><br><span class="line"><span class="variable">$ </span>curl -w <span class="string">&quot;\n&quot;</span> <span class="string">&#x27;https://discovery.etcd.io/new?size=3&#x27;</span></span><br><span class="line"><span class="comment"># 生成的url</span></span><br><span class="line"><span class="symbol">http:</span>/<span class="regexp">/discovery.etcd.io/</span>3e86b59982e49066c5d813af1c2e2579cbf573de</span><br></pre></td></tr></table></figure>
+
+<p>2、部署前准备工作</p>
+<p>所有节点均需要安装etcd。以及创建需要的目录。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">#创建单独的etcd数据目录</span></span><br><span class="line"><span class="built_in">mkdir</span> ‐p /opt/etcd/data</span><br></pre></td></tr></table></figure>
+
+<p>3、以动态发现方式启动集群</p>
+<p>每个成员必须指定不同的名称标志，否则发现将因重复的名称而失败</p>
+<p>etcd 发现模式下，启动 etcd 的命令如下：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># etcd1 启动</span></span><br><span class="line">$ /opt/etcd/bin/etcd  --name etcd1 --initial-advertise-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2380</span> \</span><br><span class="line">  --<span class="keyword">listen</span>-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2380</span> \</span><br><span class="line">  --data-dir /opt/etcd/data \</span><br><span class="line">  --<span class="keyword">listen</span>-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2379</span>,http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">2379</span> \</span><br><span class="line">  --advertise-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2379</span> \</span><br><span class="line">  --discovery https:<span class="regexp">//dis</span>covery.etcd.io/<span class="number">3</span>e86b59982e49066c5d813af1c2e2579cbf573de</span><br><span class="line"></span><br><span class="line"><span class="comment"># etcd2 启动</span></span><br><span class="line"> /opt/etcd/bin/etcd  --name etcd2 --initial-advertise-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2380</span> \</span><br><span class="line">  --<span class="keyword">listen</span>-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2380</span> \</span><br><span class="line">  --data-dir /opt/etcd/data \</span><br><span class="line">  --<span class="keyword">listen</span>-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2379</span>,http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">2379</span> \</span><br><span class="line">  --advertise-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2379</span> \</span><br><span class="line">  --discovery https:<span class="regexp">//dis</span>covery.etcd.io/<span class="number">3</span>e86b59982e49066c5d813af1c2e2579cbf573de</span><br><span class="line"></span><br><span class="line"><span class="comment"># etcd3 启动</span></span><br><span class="line"> /opt/etcd/bin/etcd  --name etcd3 --initial-advertise-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2380</span> \</span><br><span class="line">    --<span class="keyword">listen</span>-peer-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2380</span> \</span><br><span class="line">    --data-dir /opt/etcd/data \</span><br><span class="line">    --<span class="keyword">listen</span>-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2379</span>,http:<span class="regexp">//</span><span class="number">127.0</span>.<span class="number">0</span>.<span class="number">1</span>:<span class="number">2379</span> \</span><br><span class="line">    --advertise-client-urls http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2379</span> \</span><br><span class="line">    --discovery https:<span class="regexp">//dis</span>covery.etcd.io/<span class="number">3</span>e86b59982e49066c5d813af1c2e2579cbf573de</span><br></pre></td></tr></table></figure>
+
+<p>需要注意的是，在我们完成了集群的初始化后，这些信息就失去了作用。当需要增加节点时，需要使用 etcdctl 进行操作。为了安全，每次启动新 etcd 集群时，都使用新的 discovery token 进行注册。另外，如果初始化时启动的节点超过了指定的数量，多余的节点会自动转化为 Proxy 模式的 etcd。</p>
+<p>4、结果验证</p>
+<p>集群启动好之后，进行验证，我们看一下集群的成员：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">$ /opt/etcd/bin/etcdctl member list</span><br><span class="line"></span><br><span class="line"><span class="number">40</span>e2ac06ca1674a7, started, etcd3, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2380</span>, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.130</span>:<span class="number">2379</span>, false</span><br><span class="line">c532c5cedfe84d3c, started, etcd1, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2380</span>, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.128</span>:<span class="number">2379</span>, false</span><br><span class="line">db75d3022049742a, started, etcd2, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2380</span>, http:<span class="regexp">//</span><span class="number">192.168</span>.<span class="number">202.129</span>:<span class="number">2379</span>, false</span><br></pre></td></tr></table></figure>
+
+<p>结果符合预期，再看下节点的健康状态：</p>
+<figure class="highlight csharp"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">$ /opt/etcd/bin/etcdctl  --endpoints=<span class="string">&quot;http://192.168.202.128:2379,http://192.168.202.129:2379,http://192.168.202.130:2379&quot;</span>  endpoint  health</span><br><span class="line">  </span><br><span class="line"><span class="meta"># 结果如下</span></span><br><span class="line">http:<span class="comment">//192.168.202.128:2379 is healthy: successfully committed proposal: took = 3.157068ms</span></span><br><span class="line">http:<span class="comment">//192.168.202.130:2379 is healthy: successfully committed proposal: took = 3.300984ms</span></span><br><span class="line">http:<span class="comment">//192.168.202.129:2379 is healthy: successfully committed proposal: took = 3.263923ms</span></span><br></pre></td></tr></table></figure>
+
+<p>可以看到，集群中的三个节点都是健康的正常状态。以动态发现方式启动集群成功。</p>
+<hr>
+<p>上面是使用公共服务来做服务发现的，如果我们有自己搭建好的etcd，可以使用自建的etcd作为服务发现，搭建集群：</p>
+<p>获取令牌时，必须指定群集大小。 发现服务使用该大小来了解何时发现了最初将组成集群的所有成员。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">curl -X PUT http://10.0.10.10:2379/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83/_config/size -d value=3</span><br></pre></td></tr></table></figure>
+
+<p>我们需要把该 url 地址 <a target="_blank" rel="noopener" href="http://10.0.10.10:2379/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83">http://10.0.10.10:2379/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83</a> 作为 <code>--discovery</code> 参数来启动 etcd。</p>
+<p>节点会自动使用 <a target="_blank" rel="noopener" href="http://10.0.10.10:2379/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83">http://10.0.10.10:2379/v2/keys/discovery/6c007a14875d53d9bf0ef5a6fc0257c817f0fb83</a> 目录进行 etcd 的注册和发现服务。</p>
+<p>参考链接：<br><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1844y1Q7Me/?vd_source=d6fbf2817eed61d57a40c31407294250">bilibili视频教程</a></p>
+<p><a target="_blank" rel="noopener" href="https://developer.aliyun.com/article/765312">彻底搞懂 etcd 系列文章（三）：etcd 集群运维部署</a></p>
+<p><a target="_blank" rel="noopener" href="https://doczhcn.gitbook.io/etcd/index/index-1/clustering">搭建 etcd 集群–使用到了 tls</a></p>
+<p><a target="_blank" rel="noopener" href="https://cloud.tencent.com/developer/article/1755142">使用 StatefulSet 部署 etcd 集群</a></p>
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/linuxws/p/11194403.html">etcd配置文件详解</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/10/29/etcd%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2%E5%92%8C%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/10/29/etcd%E5%9F%BA%E7%A1%80%E4%BB%8B%E7%BB%8D/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">etcd基础介绍</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>

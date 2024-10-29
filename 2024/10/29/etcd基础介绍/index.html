@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>etcd基础介绍 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-etcd基础介绍"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  etcd基础介绍
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/10/29/etcd%E5%9F%BA%E7%A1%80%E4%BB%8B%E7%BB%8D/" class="article-date">
+  <time datetime="2024-10-29T09:56:30.000Z" itemprop="datePublished">2024-10-29</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">5 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>互联网技术发展真的快，层出不穷的新技术。最近项目使用到了<code>etcd</code>，自己之前在部署k8s集群的时候玩过，但是并没有系统的学习。正好趁这个机会，系统性的学习下。文章中的内容有些是来自官方文档，有些是来自网上的资料，有些是自己的思考。</p>
+<p>这一系列文章是etcd的入门教程，并不是深入的教程，适合像我这种对 etcd 了解不深入或者完全不了解的同学，大牛请绕道。</p>
+<h3 id="1、什么是etcd"><a href="#1、什么是etcd" class="headerlink" title="1、什么是etcd"></a>1、什么是etcd</h3><p><a target="_blank" rel="noopener" href="https://etcd.io/">etcd官网</a></p>
+<p><a target="_blank" rel="noopener" href="https://github.com/etcd-io/etcd">etcd-github地址</a></p>
+<p>对于 etcd 的定义，我们来看一看官方是如何描述的。描述如下：<code>A distributed, reliable key-value store for the most critical data of a distributed system</code>。翻译过来就是：<strong>一个分布式、可靠的键值存储系统，用于存储分布式系统中最关键的数据。</strong></p>
+<p>对于上面这句话，我们可以提取出来几个关键词，<strong>分布式、可靠的、键值存储系统、最关键的数据</strong>。对于在互联网行业待过一段时间的同学，应该对前面三个词比较熟悉，最后一个<code>最关键的数据</code>如何理解呢？我说说自己的理解。</p>
+<blockquote>
+<p>etcd 中存储的是这个分布式系统中最重要的数据，例如配置信息、元数据等，这些数据对于整个分布式系统而言是至关重要的，一旦出现问题，就可能导致系统出现故障或者问题。</p>
+</blockquote>
+<p>通过上面，我们知道了 etcd 是分布式系统中的基础设施，为分布式系统提供了可靠的数据存储和管理能力。它是由CoreOS开发的，k8s 中的信息就是存储在 etcd 中，是 k8s 集群管理工具的核心组件之一。</p>
+<p>etcd采用 <code>Raft</code>一致性算法来保证数据的一致性和可靠性，支持多节点部署，可以容忍节点故障和网络分区等故障情况。etcd的使用非常广泛，除了作为 k8s 的核心组件之一，还可以用于<code>服务发现、配置管理、分布式锁</code>等场景。etcd提供了简单易用的API，支持多种语言的客户端，可以方便地集成到各种应用中。</p>
+<h3 id="2、etcd的应用场景"><a href="#2、etcd的应用场景" class="headerlink" title="2、etcd的应用场景"></a>2、etcd的应用场景</h3><p>通过上面的了解，感觉 etcd 还是挺牛逼的，那 etcd的应用场景一般在那些地方呢？</p>
+<ul>
+<li><p><strong>服务发现</strong>：etcd可以存储服务的地址和端口信息，例如Web服务、数据库服务等。客户端可以通过etcd API查询服务的地址和端口信息，从而实现服务发现和负载均衡。</p>
+</li>
+<li><p><strong>分布式锁</strong>：etcd可以实现分布式锁，多个进程可以通过etcd API竞争锁资源，从而实现分布式同步和协调。</p>
+</li>
+<li><p><strong>集群管理</strong>：etcd可以存储集群的状态信息，例如节点状态、领导者选举结果等。应用程序可以通过etcd API查询集群状态信息，从而实现集群管理和监控。</p>
+</li>
+<li><p><strong>分布式任务调度</strong>：etcd可以存储任务的状态信息，例如任务的执行状态、执行结果等。应用程序可以通过etcd API查询任务状态信息，从而实现分布式任务调度和监控。</p>
+</li>
+<li><p><strong>配置管理</strong>：etcd可以存储应用程序的配置信息，例如数据库连接信息、日志级别、缓存大小等。应用程序可以通过etcd API读取这些配置信息，从而实现动态配置管理。</p>
+</li>
+<li><p><strong>容器编排</strong>：k8s中集群管理的核心组件之一就是etcd。</p>
+</li>
+</ul>
+<p>上面是 etcd 的一些常用的场景，等大家熟悉 etcd 后，可以根据自己的实际需求，来选择是否需要使用到 etcd 这个组件。</p>
+<h3 id="3、为什么使用etcd"><a href="#3、为什么使用etcd" class="headerlink" title="3、为什么使用etcd"></a>3、为什么使用etcd</h3><p>下面再来说说 etcd 的优点，这样跟同事吹牛的时候或者面试的时候，可以吹一吹，哈哈！</p>
+<ul>
+<li><strong>可靠性</strong>：etcd采用<code>Raft算法</code>实现分布式一致性，保证数据的可靠性和一致性。</li>
+<li><strong>高可用性</strong>：etcd支持多节点部署，节点之间通过<code>Raft协议</code>进行数据同步和选举，保证系统的高可用性。</li>
+<li><strong>灵活性</strong>：etcd提供了RESTful API和gRPC API，可以方便地与各种编程语言进行交互。</li>
+<li><strong>安全性</strong>：etcd支持TLS加密和访问控制，可以保证数据的安全性。</li>
+<li><strong>可扩展性</strong>：etcd支持水平扩展，可以通过添加更多的节点来提高系统的性能和容量。</li>
+</ul>
+<h3 id="4、etcd架构图"><a href="#4、etcd架构图" class="headerlink" title="4、etcd架构图"></a>4、etcd架构图</h3><p><a target="_blank" rel="noopener" href="https://img2023.cnblogs.com/blog/2280011/202305/2280011-20230503172234687-565835483.png"><img src="/images/1730195724-76fe20f6ff0ab17b00622f79ada5c66e.png"></a></p>
+<p>上图是 etcd 基础架构图，按照分层模型，<code>etcd可分为Client层、API网络层、Raft算法层、逻辑层和存储层</code>。这些层的功能如下：</p>
+<ul>
+<li><p><strong>Client层：</strong>Client层包括client v2 和v3两个大版本API客户端，提供了简介易用的API，同时支持负载均衡、节点间故障自动转移，可极大降低业务使用etcd复杂度，提升开发效率、增强服务的可用性。</p>
+</li>
+<li><p><strong>API网络层：</strong><code>API网络层主要包括client访问server和server节点之间的通信协议</code>。一方面，client访问etcd server 的API分为V2和V3两大版本。V2 API使用http&#x2F;1.x协议，v3 API使用gRPC协议。同时v3通过etcd grpc-gateway 组件也支持 http&#x2F;1.x 协议，便于各种语言的服务调用。另一方面，server之间通信协议，是指节点间通过Raft算法实现数据复制和Leader选举等功能时使用的HTTP协议。</p>
+</li>
+<li><p><strong>Raft算法层:</strong><code>Raft算法层实现了Leader选举、日志复制、ReadIndex等核心算法特性，用于保障etcd多个节点间的数据一致性，提升服务可用性等</code>，是etcd的基石。</p>
+</li>
+<li><p>**逻辑层:**etcd核心特性实现层，如典型的KVserver模块、MVCC模块、Auth鉴权模块、Lease租约模块、Compactor压缩模块等，其中MVCC模块主要由treeIndex模块和boltdb模块组成。</p>
+</li>
+<li><p>**存储层:**存储层包含预习日志（WAL）模块、快照（Snapshot）模块、boltdb模块。其中WAL可保障etcd crash后数据不丢失，boltdb则保存了集群元数据和用户写入数据。</p>
+</li>
+</ul>
+<p>参考资料:</p>
+<p><a target="_blank" rel="noopener" href="https://www.bilibili.com/video/BV1844y1Q7Me/?vd_source=d6fbf2817eed61d57a40c31407294250">bilibili视频教程</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/10/29/etcd%E5%9F%BA%E7%A1%80%E4%BB%8B%E7%BB%8D/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2024/10/29/etcd%E5%8D%95%E6%9C%BA%E9%83%A8%E7%BD%B2%E5%92%8C%E9%9B%86%E7%BE%A4%E9%83%A8%E7%BD%B2/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            etcd单机部署和集群部署
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2024/10/29/Linux%E5%91%BD%E4%BB%A4%E4%B8%80%E9%94%AE%E9%83%A8%E7%BD%B2Docker/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Linux命令一键部署Docker</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
