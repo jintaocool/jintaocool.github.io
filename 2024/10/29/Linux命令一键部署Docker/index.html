@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">1k</span>
+            <span class="post-count">969</span>
         </span>
     </span>
 
@@ -142,17 +142,9 @@
 
 <h2 id="1-4-docker启动服务"><a href="#1-4-docker启动服务" class="headerlink" title="1.4 docker启动服务"></a>1.4 docker启动服务</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">systemctl start docker</span><br><span class="line"></span><br><span class="line">systemctl <span class="built_in">enable</span> docker</span><br></pre></td></tr></table></figure>
 
-<h2 id="1-5-镜像加速"><a href="#1-5-镜像加速" class="headerlink" title="1.5 镜像加速"></a>1.5 镜像加速</h2><ul>
-<li>科大镜像：**<a href="https://links.jianshu.com/go?to=https://link.juejin.cn/?target=https%253A%252F%252Fdocker.mirrors.ustc.edu.cn%252F">docker.mirrors.ustc.edu.cn&#x2F;</a>**</li>
-<li>网易：**<a href="https://links.jianshu.com/go?to=https://link.juejin.cn/?target=https%253A%252F%252Fhub-mirror.c.163.com%252F">hub-mirror.c.163.com&#x2F;</a>**</li>
-<li>阿里云：<strong>https:&#x2F;&#x2F;&lt;你的ID&gt;<a target="_blank" rel="noopener" href="https://links.jianshu.com/go?to=http://.mirror.aliyuncs.com">.mirror.aliyuncs.com</a></strong></li>
-<li>七牛云加速器：**<a href="https://links.jianshu.com/go?to=https://link.juejin.cn/?target=https%253A%252F%252Freg-mirror.qiniu.com">reg-mirror.qiniu.com</a>**</li>
-</ul>
-<p>以阿里云为例：  </p>
-<p><a target="_blank" rel="noopener" href="https://links.jianshu.com/go?to=https://help.aliyun.com/zh/acr/user-guide/accelerate-the-pulls-of-docker-official-images">↓↓↓</a>  </p>
-<p>官方镜像加速  </p>
-<p><a target="_blank" rel="noopener" href="https://links.jianshu.com/go?to=https://help.aliyun.com/zh/acr/user-guide/accelerate-the-pulls-of-docker-official-images">↑↑↑</a></p>
-<p><a target="_blank" rel="noopener" href="https://links.jianshu.com/go?to=https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors">阿里个人镜像加速器</a></p>
+<h2 id="1-5-镜像加速"><a href="#1-5-镜像加速" class="headerlink" title="1.5 镜像加速"></a>1.5 镜像加速</h2><p>以阿里云为例：  </p>
+<p><a target="_blank" rel="noopener" href="https://help.aliyun.com/zh/acr/user-guide/accelerate-the-pulls-of-docker-official-images">官方镜像加速</a>  </p>
+<p><a target="_blank" rel="noopener" href="https://cr.console.aliyun.com/cn-hangzhou/instances/mirrors">阿里个人镜像加速器</a></p>
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">mkdir</span> -p /etc/docker</span><br><span class="line">sudo <span class="built_in">tee</span> /etc/docker/daemon.json &lt;&lt;-<span class="string">&#x27;EOF&#x27;</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">&quot;registry-mirrors&quot;</span>: [<span class="string">&quot;https://bbq6yc2w.mirror.aliyuncs.com&quot;</span>]</span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br><span class="line">sudo systemctl daemon-reload</span><br><span class="line">sudo systemctl restart docker</span><br></pre></td></tr></table></figure>
  
       <!-- reward -->
