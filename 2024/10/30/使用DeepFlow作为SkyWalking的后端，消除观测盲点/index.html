@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>使用DeepFlow作为SkyWalking的后端，消除观测盲点 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="DeepFlow-使用DeepFlow作为SkyWalking的后端，消除观测盲点"
+  class="article article-type-DeepFlow"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  使用DeepFlow作为SkyWalking的后端，消除观测盲点
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/10/30/%E4%BD%BF%E7%94%A8DeepFlow%E4%BD%9C%E4%B8%BASkyWalking%E7%9A%84%E5%90%8E%E7%AB%AF%EF%BC%8C%E6%B6%88%E9%99%A4%E8%A7%82%E6%B5%8B%E7%9B%B2%E7%82%B9/" class="article-date">
+  <time datetime="2024-10-30T09:15:23.000Z" itemprop="datePublished">2024-10-30</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/DeepFlow/">DeepFlow</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.4k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>DeepFlow 作为一个可观测性协作平台，可作为 SkyWalking 的后端快速接入 SkyWalking Agent 及 Instrument SDK 的数据，并利用基于 eBPF 的 AutoTracing 补齐网络和系统 Span 来<strong>消除分布式链路追踪中的盲点</strong>，真正让业务开发团队、框架开发团队、服务网格运维团队、容器运维团队、DBA 团队、云运维团队<strong>多部门在一个平台协作起来</strong>。同时，结合 DeepFlow 自动生成的应用黄金指标数据（AutoMetrics）、调用日志和流日志（AutoLogging），以及集成并标准化的 Prometheus&#x2F;Telegraf 指标数据（AutoTagging），可快速建设一个统一的可观测性平台。</p>
+<p>本篇文章是 DeepFlow + SkyWalking 系列的第三篇，简单回顾下前两篇的内容：</p>
+<ul>
+<li>第一篇<a target="_blank" rel="noopener" href="https://deepflow.io/blog/003-use-otel-to-receive-skywalking-agent-trace-data/">《使用 OpenTelemetry 零代码修改接收 SkyWalking 追踪数据》</a>分析了 SkyWalking 协议与 OpenTelemetry Tracing 协议的差异，并向 OpenTelemetry 社区贡献了 skywalking-receiver，使得 SkyWalking 的数据可以接入到 OpenTelemetry。</li>
+<li>第二篇<a target="_blank" rel="noopener" href="https://deepflow.io/blog/007-skywalking-distributed-tracing-without-blind-spots/">《DeepFlow 让 SkyWalking 分布式追踪无盲点》</a>介绍了 SkyWalking 如何集成 DeepFlow 的 eBPF AutoTracing 生成的网络和系统 Span 来消除分布式链路追踪的盲点。通过对 SkyWalking 进行简单的二次开发，在展示 Span 详情信息时调用 DeepFlow 的 SQL API 即可获取到与之对应的网络和系统 Span，整个数据流见下图中的<strong>方式一</strong>。</li>
+</ul>
+<p><img src="/images/1730279643-8fff4f4c4e8726ccb7ea660efcd61e84.jpg" alt="DeepFlow 与 SkyWalking 的数据集成方式对比" title="DeepFlow 与 SkyWalking 的数据集成方式对比">DeepFlow 与 SkyWalking 的数据集成方式对比</p>
+<p>本文介绍的内容见上图中的<strong>方式二</strong>。从图中我们也能看到，两种方式均能消除观测盲点，但相比<strong>独立部署、局部改造</strong>的方式一，<strong>整体替代、统一平台</strong>的方式二主要优点为：</p>
+<ul>
+<li>Span 数据存储于更高性能的 ClickHouse 中</li>
+<li>所有数据均可利用到 DeepFlow 的 AutoTagging 能力进行标准化、并利用 SmartEncoding 降低资源消耗</li>
+<li>不需要同时维护 SkyWalking 和 DeepFlow 两个后端，也无需修改 SkyWalking 代码</li>
+</ul>
+<p>本文将从以下四个方面展开，说明如何利用 DeepFlow 快速集成 SkyWalking，打造一个<strong>让多部门协作的统一可观测性平台</strong>：</p>
+<ul>
+<li><strong>快速集成 SkyWalking</strong>：利用 ote-collector 转化为标准的 Tracing 数据，无需修改任何代码</li>
+<li><strong>无盲点 - 分布式链路追踪</strong>：关联应用、系统、网络 Span，消除分布式追踪盲点，满满的协作感</li>
+<li><strong>全景 - 微服务调用拓扑</strong>：自动展现微服务调用拓扑，轻松知晓服务访问了谁、被谁访问</li>
+<li><strong>全栈 - 应用性能分析</strong>：自动化指标&#x2F;日志，结合自动化标签能力，打破数据孤岛</li>
+</ul>
+<h2 id="0x0-快速集成-SkyWalking"><a href="#0x0-快速集成-SkyWalking" class="headerlink" title="0x0: 快速集成 SkyWalking"></a><a href="#0x0-%E5%BF%AB%E9%80%9F%E9%9B%86%E6%88%90-SkyWalking" title="0x0: 快速集成 SkyWalking"></a>0x0: 快速集成 SkyWalking</h2><p>不管是 K8s 环境还是非容器环境，SkyWalking 追踪相关的数据都可通过 OpenTelemetry otel-collector 接入到 DeepFlow 中。详细原理参考<a target="_blank" rel="noopener" href="https://deepflow.io/blog/003-use-otel-to-receive-skywalking-agent-trace-data/">《使用 OpenTelemetry 零代码修改接收 SkyWalking 追踪数据》</a>。采用这种方式我们可以快速完成 DeepFlow 对 SkyWalking 数据的集成，下图是对数据流的总结：</p>
+<p><img src="/images/1730279643-1d199bd1007265bb541dbfff7a28c025.png" alt="DeepFlow 集成 SkyWalking 的数据流" title="DeepFlow 集成 SkyWalking 的数据流">DeepFlow 集成 SkyWalking 的数据流</p>
+<p>接下来基于一个具体的 <a target="_blank" rel="noopener" href="https://github.com/liuzhibin-cn/my-demo">Demo (github.com&#x2F;liuzhibin-cn&#x2F;my-demo)</a> 应用来展示数据接入的实际效果。此 Demo 是部署在 K8s 中的一个 WebShop 应用，包含 5 个微服务，使用了 Dubbo 作为微服务框架、Nacos 作为服务注册中心、Seata 提供了分布式事务服务、数据存储层使用的 MySQL，架构如下：</p>
+<p><img src="/images/1730279643-3f62bf0acd343ed05107c7aec34d3b5b.png" alt="SkyWalking WebShop Demo" title="SkyWalking WebShop Demo">SkyWalking WebShop Demo</p>
+<p><strong>第一步：SkyWalking 数据发送给 otel-collector</strong>。在 skyWalking-javaagent&#x2F;skywalking-sdk 中将对接的 SkyWalking OAP Service（如：oap:11800）的地址修改为 OpenTelemetry Agent Service 即可，详细配置参考此前文章<a target="_blank" rel="noopener" href="https://deepflow.io/blog/003-use-otel-to-receive-skywalking-agent-trace-data/">《使用 OpenTelemetry 零代码修改接收 SkyWalking 追踪数据》</a>。需要确保当前环境有 <a target="_blank" rel="noopener" href="https://opentelemetry.io/docs/">OpenTelemetry</a> 组件，如果还没有，可以使用如下命令在 open-telemetry 命名空间中快速部署一个 otel-collector DaesmonSet：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -n open-telemetry -f https://raw.githubusercontent.com/deepflowys/deepflow-demo/main/open-telemetry/open-telemetry.yaml</span><br></pre></td></tr></table></figure>
+
+<p><strong>第二步：otel-collector 将数据发送给 deepflow-agent</strong>。需要配置 otel-agent ConfigMap 中的 <code>otel-agent-config.exporters.otlphttp</code>：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">otlphttp:</span></span><br><span class="line">  <span class="attr">traces_endpoint:</span> <span class="string">&quot;http://$&#123;HOST_IP&#125;:38086/api/v1/otel/trace&quot;</span></span><br><span class="line">  <span class="attr">tls:</span></span><br><span class="line">    <span class="attr">insecure:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">retry_on_failure:</span></span><br><span class="line">    <span class="attr">enabled:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
+
+<p>同时，需要确保 deepflow-agent 需要的数据端口打开（默认关闭，减少监听端口），详细配置命令请参考我们的<a target="_blank" rel="noopener" href="https://deepflow.io/docs/zh/integration/input/tracing/opentelemetry/#%E9%85%8D%E7%BD%AE-deepflow">在线文档</a>：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">vtap_group_id:</span> <span class="string">&lt;your-agent-group-id&gt;</span></span><br><span class="line"><span class="attr">external_agent_http_proxy_enabled:</span> <span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>到此，仅通过修改配置已经完成了 DeepFlow 集成 SkyWalking 的追踪数据。接下来基于 Demo 看看 DeepFlow 都能带来哪些价值。</p>
+<h2 id="0x1-无盲点：分布式链路追踪"><a href="#0x1-无盲点：分布式链路追踪" class="headerlink" title="0x1: 无盲点：分布式链路追踪"></a><a href="#0x1-%E6%97%A0%E7%9B%B2%E7%82%B9%EF%BC%9A%E5%88%86%E5%B8%83%E5%BC%8F%E9%93%BE%E8%B7%AF%E8%BF%BD%E8%B8%AA" title="0x1: 无盲点：分布式链路追踪"></a>0x1: 无盲点：分布式链路追踪</h2><p>SkyWalking 的追踪数据接入 DeepFlow 后，系统和网络 Span 将穿插在 SkyWalking Span 之间，让追踪无盲点，满满的协作感。下面的火焰图，一共包含96个 Span，其中有46个 Span 是 SkyWalking 生成的，50个 Span 是 DeepFlow 增强的，20个通过 eBPF 采集的系统 Span，30个 BPF 采集的网络 Span。<strong>补齐 Span 后可让业务开发团队、框架开发团队、服务网格运维团队、容器运维团队、DBA 团队、云运维团队完全基于一个火焰图沟通，不再吵吵吵</strong>：</p>
+<p><img src="/images/1730279643-cedbb941177bb9146dd7b287349521d6.jpg" alt="消除分布式链路追踪的盲点" title="消除分布式链路追踪的盲点">消除分布式链路追踪的盲点</p>
+<p>图中标注了一些序号，根据序号顺序来深度解读下火焰图：</p>
+<ul>
+<li>1：对 SkyWalking 未插码的未知服务（loadgenerator），通过 eBPF 自动追踪补齐的系统 Span</li>
+<li>2：对 SkyWalking 无法追踪的服务（MySQL 服务端），通过 eBPF 自动追踪补齐的系统 Span</li>
+<li>3：对跨 K8s Node 上两个 Pod 之间的网络路径（隧道&#x2F;NAT），通过 BPF 自动追踪补齐网络 Span</li>
+<li>4：对同 K8s Node 上两个 Pod 之间的网络路径（NAT），通过 BPF 自动追踪补齐网络 Span</li>
+</ul>
+<h2 id="0x2-全景：微服务调用拓扑"><a href="#0x2-全景：微服务调用拓扑" class="headerlink" title="0x2: 全景：微服务调用拓扑"></a><a href="#0x2-%E5%85%A8%E6%99%AF%EF%BC%9A%E5%BE%AE%E6%9C%8D%E5%8A%A1%E8%B0%83%E7%94%A8%E6%8B%93%E6%89%91" title="0x2: 全景：微服务调用拓扑"></a>0x2: 全景：微服务调用拓扑</h2><p>常使用 SkyWalking 的用户，应该经常会借助拓扑来查看服务调用关系，快速了解整个服务的依赖快递，数据接入 DeepFlow 后，可能会担心无法查看拓扑，请完全放心！！！</p>
+<p>DeepFlow AutoMetrics 将提供远比 SkyWalking 丰富的拓扑能力，不仅可查看微服务的调用关系，还支持区域、K8s 集群、命名空间、工作负载、POD、K8s 自定义 Label、端口等各种维度的拓扑图：</p>
+<p><img src="/images/1730279643-876429c96f5ad7a32c1fc24011a19321.png" alt="微服务全景拓扑" title="微服务全景拓扑">微服务全景拓扑</p>
+<p>上图分别展示了 Demo 在不同分组下的拓扑。图中间基于微服务分组的拓扑，不仅能展示微服务之间的调用关系，也能展示客户端的访问，以及与 DNS、服务注册中心、数据库、监控组件等中间件之间的访问。右边拓扑是更细粒度对微服务 POD 的访问关系的展开。</p>
+<p>利用拓扑也可快速切换查看某个服务调用关系，不仅直观看到我在访问谁，也能<strong>快速回答谁在访问我</strong>：</p>
+<p><img src="/images/1730279643-e963058ac8f3f359969e18de1e315a55.jpg" alt="微服务全景调用关系" title="微服务全景调用关系">微服务全景调用关系</p>
+<h2 id="0x3-全栈：应用性能分析"><a href="#0x3-全栈：应用性能分析" class="headerlink" title="0x3: 全栈：应用性能分析"></a><a href="#0x3-%E5%85%A8%E6%A0%88%EF%BC%9A%E5%BA%94%E7%94%A8%E6%80%A7%E8%83%BD%E5%88%86%E6%9E%90" title="0x3: 全栈：应用性能分析"></a>0x3: 全栈：应用性能分析</h2><p>应用问题定位时，查看服务指标数据通常是第一步，SkyWalking 提供了查看指标数据的仪表盘。DeepFlow 指标数据则更加丰富，除自身 AutoMetrics 自动生成微服务的黄金指标，也可通过 Prometheus 接入各种丰富的指标数据，构建从基础设施到中间件到微服务应用全栈的性能分析指标体系，例如虚拟机&#x2F;K8s 等基础设施的 CPU&#x2F;IO&#x2F;NET、中间件数据库 QPS&#x2F;接口时延&#x2F;慢查询，同时利用 AutoTagging 打通指标数据的孤岛，构建可协作的观测平台。这部分也可参考我们之前的文章<a target="_blank" rel="noopener" href="https://deepflow.io/blog/008-standardizing-prometheus-telegraf-labels-to-break-data-silos/">《告别数据孤岛：DeepFlow AutoTagging 之 Prometheus 标签标准化》</a>。</p>
+<p><img src="/images/1730279643-aa60106ccdb4034c0a364a468bb3beca.jpg" alt="微服务黄金指标总览 Dashboard" title="微服务黄金指标总览 Dashboard">微服务黄金指标总览 Dashboard</p>
+<p>查找问题根因时，基本都需要借助日志来完成，DeepFlow AutoLogging 的能力自动采集多种应用协议的调用日志和网络流日志。对于日志详细的介绍，可参考前述文章<a target="_blank" rel="noopener" href="https://deepflow.io/blog/005-autologging-for-request-log-and-flow-log/">《DeepFlow AutoLogging：自动采集应用调用日志和流日志》</a>。</p>
+<p><img src="/images/1730279643-c25cf6ad344e149e86e0eddcdd70d9ed.png" alt="DeepFlow AutoLogging" title="DeepFlow AutoLogging">DeepFlow AutoLogging</p>
+<h2 id="0x4-后续迭代计划"><a href="#0x4-后续迭代计划" class="headerlink" title="0x4: 后续迭代计划"></a><a href="#0x4-%E5%90%8E%E7%BB%AD%E8%BF%AD%E4%BB%A3%E8%AE%A1%E5%88%92" title="0x4: 后续迭代计划"></a>0x4: 后续迭代计划</h2><p>DeepFlow 目前保持每两周一个版本，与本文相关的后续迭代计划包括：</p>
+<ul>
+<li>支持将 SkyWalking Span 汇聚为指标，展示每个 Endpoint 的性能指标</li>
+<li>支持集成应用代码日志：集成 Promtail&#x2F;Fluentd 等日志数据源</li>
+<li>支持使用 eBPF 采集 On&#x2F;Off CPU 火焰图，提供零侵扰的 Continue Profile 能力</li>
+</ul>
+<h2 id="0x5-什么是-DeepFlow"><a href="#0x5-什么是-DeepFlow" class="headerlink" title="0x5: 什么是 DeepFlow"></a><a href="#0x5-%E4%BB%80%E4%B9%88%E6%98%AF-DeepFlow" title="0x5: 什么是 DeepFlow"></a>0x5: 什么是 DeepFlow</h2><p>DeepFlow 是云杉网络开发的一款<strong>可观测性</strong>产品，旨在为复杂的云基础设施及云原生应用提供深度可观测性。DeepFlow 基于 eBPF 实现了应用性能指标、分布式追踪、持续性能剖析等观测信号的<strong>零侵扰</strong>（<code>Zero Code</code>）采集，并结合<strong>智能标签</strong>（<code>SmartEncoding</code>）技术实现了所有观测信号的<strong>全栈</strong>（<code>Full Stack</code>）关联和高效存取。使用 DeepFlow，可以让云原生应用自动具有深度可观测性，从而消除开发者不断插桩的沉重负担，并为 DevOps&#x2F;SRE 团队提供从代码到基础设施的监控及诊断能力。</p>
+<p>GitHub 地址：<a target="_blank" rel="noopener" href="https://github.com/deepflowio/deepflow">https://github.com/deepflowio/deepflow</a></p>
+<p>访问 <a target="_blank" rel="noopener" href="https://deepflow.io/docs/zh/ce-install/overview/">DeepFlow Demo</a>，体验高度自动化的可观测性新时代。</p>
+<p>相关文章</p>
+<p>2023-03-20<a target="_blank" rel="noopener" href="https://www.deepflow.io/blog/zh/026-traditional-APMs-use-deepflow-to-enhance-data/" title="利用 DeepFlow 为传统 APM 开启全栈追踪能力">利用 DeepFlow 为传统 APM 开启全栈追踪能力</a>AutoTracingAPMSkyWalking</p>
+<p>2023-09-09<a target="_blank" rel="noopener" href="https://www.deepflow.io/blog/zh/036-ebpf-the-key-technology-to-observability-zh/" title="eBPF 是实现可观测性的关键技术">eBPF 是实现可观测性的关键技术</a>AutoTracingAPM</p>
+<p>2022-08-12<a target="_blank" rel="noopener" href="https://www.deepflow.io/blog/zh/003-use-otel-to-receive-skywalking-agent-trace-data/" title="使用 OpenTelemetry 零代码修改接收 SkyWalking 追踪数据">使用 OpenTelemetry 零代码修改接收 SkyWalking 追踪数据</a>APMOpenTelemetrySkyWalking</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/10/30/%E4%BD%BF%E7%94%A8DeepFlow%E4%BD%9C%E4%B8%BASkyWalking%E7%9A%84%E5%90%8E%E7%AB%AF%EF%BC%8C%E6%B6%88%E9%99%A4%E8%A7%82%E6%B5%8B%E7%9B%B2%E7%82%B9/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DeepFlow/" rel="tag">DeepFlow</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+      <a href="/2024/10/31/%E8%87%AA%E6%89%98%E7%AE%A1%E7%AB%99%E7%82%B9%E7%9B%91%E6%8E%A7%E5%B7%A5%E5%85%B7Uptime-Kuma%E6%90%AD%E5%BB%BA%E4%B8%8E%E4%BD%BF%E7%94%A8/" class="article-nav-link">
+        <strong class="article-nav-caption">上一篇</strong>
+        <div class="article-nav-title">
+          
+            自托管站点监控工具Uptime Kuma搭建与使用
+          
+        </div>
+      </a>
+    
+    
+      <a href="/2024/10/30/eBPF%E8%AF%B4%E6%98%8E/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">eBPF说明</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
