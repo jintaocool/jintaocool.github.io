@@ -128,28 +128,28 @@
 <h1 id="准备工作"><a href="#准备工作" class="headerlink" title="准备工作"></a>准备工作</h1><h2 id="更换国内yum源提速"><a href="#更换国内yum源提速" class="headerlink" title="更换国内yum源提速"></a>更换国内yum源提速</h2><p>参考<a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_27022339/article/details/121384460">CentOS更换YUM源</a>更换yum源，国内下载速度更快。</p>
 <h2 id="找MySQL官方yum仓库地址"><a href="#找MySQL官方yum仓库地址" class="headerlink" title="找MySQL官方yum仓库地址"></a>找MySQL官方yum仓库地址</h2><p>这一步只是告诉大家后面安装脚本中MySQL Yum 仓库来源，可以跳过。</p>
 <p>打开页面<a target="_blank" rel="noopener" href="https://dev.mysql.com/downloads/repo/yum/">MySQL - yum 下载源</a>找到跟当前系统版本匹配的yum源，点击【Download】。</p>
-<p><img src="/images/1730690027-29d17ee99c02f837fec57e022b324026.png" alt="image-20211117191843633"></p>
+<p><img src="/images/1730690027-29d17ee99c02f837fec57e022b324026.png" alt="image-20241117191843633"></p>
 <p>鼠标右击【No thanks, just start my download】来复制链接地址，安装的时候要使用。</p>
-<p><img src="/images/1730690027-d48fbc3e7859db19f9cd02047a58a29b.png" alt="image-20211117191809514"></p>
+<p><img src="/images/1730690027-d48fbc3e7859db19f9cd02047a58a29b.png" alt="image-20241117191809514"></p>
 <h1 id="安装、启停MySQL"><a href="#安装、启停MySQL" class="headerlink" title="安装、启停MySQL"></a>安装、启停MySQL</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;安装MySQL Yum Repository仓库&quot; &gt; /dev/null</span><br><span class="line">yum -y localinstall https://dev.mysql.com/get/mysql80-community-release-el7-1.noarch.rpm</span><br><span class="line"></span><br><span class="line">echo &quot;安装MySQL，这一步需要时间较长&quot; &gt; /dev/null</span><br><span class="line">yum -y install mysql-community-server</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-9b9f8ffe79e7ec5a13a66820ab9a4c16.png" alt="image-20211117203403669"></p>
+<p><img src="/images/1730690027-9b9f8ffe79e7ec5a13a66820ab9a4c16.png" alt="image-20241117203403669"></p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">启动</span></span><br><span class="line">systemctl start mysqld</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">重启</span></span><br><span class="line">systemctl restart mysqld</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">停止</span></span><br><span class="line">systemctl stop mysqld</span><br></pre></td></tr></table></figure>
 
 <h1 id="卸载MySQL"><a href="#卸载MySQL" class="headerlink" title="卸载MySQL"></a>卸载MySQL</h1><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum -y remove mysql-community-server</span><br></pre></td></tr></table></figure>
 
 <h1 id="相关文件路径"><a href="#相关文件路径" class="headerlink" title="相关文件路径"></a>相关文件路径</h1><p>配置文件在<code>/etc/my.cnf</code>目录下，查看内容（<code>cat /etc/my.cnf</code>）可以看到数据目录（&#x2F;var&#x2F;lib&#x2F;mysql）、错误日志（log-error）等路径。</p>
-<p><img src="/images/1730690027-831bc3cdc8cc88a1391f9dc0bdbffebd.png" alt="image-20211118111158231"></p>
+<p><img src="/images/1730690027-831bc3cdc8cc88a1391f9dc0bdbffebd.png" alt="image-20241118111158231"></p>
 <h1 id="登陆并修改root密码"><a href="#登陆并修改root密码" class="headerlink" title="登陆并修改root密码"></a>登陆并修改root密码</h1><p>要得先启动服务。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">echo &quot;通过日志查看初始密码&quot; &gt; /dev/null</span><br><span class="line">cat /var/log/mysqld.log | grep password</span><br><span class="line"></span><br><span class="line">echo &quot;登陆MySQL，输入密码后回车&quot; &gt; /dev/null</span><br><span class="line">mysql -u root -p</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-f769ff25fd670c1b323790ee5531f55f.png" alt="image-20211118100806160"></p>
+<p><img src="/images/1730690027-f769ff25fd670c1b323790ee5531f55f.png" alt="image-20241118100806160"></p>
 <p>修改root密码。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ALTER USER &#x27;root&#x27;@&#x27;localhost&#x27; IDENTIFIED BY &#x27;Pwd666666.&#x27;;</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-398ff91e8490d0d3360b721b3eb59a4c.png" alt="image-20211118101115866"></p>
+<p><img src="/images/1730690027-398ff91e8490d0d3360b721b3eb59a4c.png" alt="image-20241118101115866"></p>
 <p>如果提示下图中的错误，是因为密码强度不够，需要包含大小写英文、数字和符号。</p>
-<p><img src="/images/1730690027-9a281afd025eae777b6c95ac2bf3e2ad.png" alt="image-20211118101012819"></p>
+<p><img src="/images/1730690027-9a281afd025eae777b6c95ac2bf3e2ad.png" alt="image-20241118101012819"></p>
 <h1 id="远程连接问题"><a href="#远程连接问题" class="headerlink" title="远程连接问题"></a>远程连接问题</h1><h2 id="连接不允许"><a href="#连接不允许" class="headerlink" title="连接不允许"></a>连接不允许</h2><p>如果连接报下图中的错误，是因为root用户默认只能通过本机（localhost）来访问。</p>
 <blockquote>
 <p>1130 - Host ‘192.168.0.1’ is not allowed to connect to this MySQL server</p>
@@ -157,12 +157,12 @@
 <p>通过mysql库中user表可以看到个每个用户允许的host。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定使用mysql库</span></span><br><span class="line">use mysql</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">查询user表信息</span></span><br><span class="line">select Host, User from user;</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-5ef3b95e54ab5970c368eda6a4c161bd.png" alt="image-20211118133656321"></p>
+<p><img src="/images/1730690027-5ef3b95e54ab5970c368eda6a4c161bd.png" alt="image-20241118133656321"></p>
 <p>我们可以对root用户添加一条允许其他或者所有（%）主机的配置，只要保证主键（主键字段是user+host）不重复，可以用一个用户配置多条。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">创建允许所有主机使用root访问的记录，并指定密码</span></span><br><span class="line">CREATE USER &#x27;root&#x27;@&#x27;%&#x27; IDENTIFIED BY &#x27;Pwd666666.&#x27;;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">赋予这个配置特权</span></span><br><span class="line">GRANT ALL PRIVILEGES ON *.* TO &#x27;root&#x27;@&#x27;%&#x27;;</span><br></pre></td></tr></table></figure>
 
 <p>可以看到user新增的配置。这时候任何主机都可以可以使用root远程连接了。</p>
-<p><img src="/images/1730690027-0c29bb6281b29304c49f70b924ba5d40.png" alt="image-20211118135815493"></p>
+<p><img src="/images/1730690027-0c29bb6281b29304c49f70b924ba5d40.png" alt="image-20241118135815493"></p>
 <h2 id="鉴权插件无法加载"><a href="#鉴权插件无法加载" class="headerlink" title="鉴权插件无法加载"></a>鉴权插件无法加载</h2><p>有的同学远程连接会报这个错：</p>
 <blockquote>
 <p>authentication plugin ‘caching_sha2_password’ cannot be loaded;</p>
@@ -170,11 +170,11 @@
 <p>是因为MySQL 8默认使用的鉴权插件为caching_sha2_password插件，而有的客户端环境不支持。执行下面的语句可以通过plugin栏看到各用户配置的插件。</p>
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">select</span> Host,<span class="keyword">User</span>,plugin <span class="keyword">from</span> <span class="keyword">user</span>;</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-51cfcab494bad83d271d016db40feab2.png" alt="image-20211118144225745"></p>
+<p><img src="/images/1730690027-51cfcab494bad83d271d016db40feab2.png" alt="image-20241118144225745"></p>
 <p>我们将插件改成客户端支持的mysql_native_password就行了。</p>
 <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">指定User为root，Host为%的记录使用的插件为mysql_native_password，并指定密码为Pwd666666.</span></span><br><span class="line">alter user &#x27;root&#x27;@&#x27;%&#x27; identified with mysql_native_password by &#x27;Pwd666666.&#x27;;</span><br></pre></td></tr></table></figure>
 
-<p><img src="/images/1730690027-8ad46aef40ba6e7e91e42b989e1d687b.png" alt="image-20211118145353188"></p>
+<p><img src="/images/1730690027-8ad46aef40ba6e7e91e42b989e1d687b.png" alt="image-20241118145353188"></p>
 <h1 id="参考链接"><a href="#参考链接" class="headerlink" title="参考链接"></a>参考链接</h1><p><a target="_blank" rel="noopener" href="https://dev.mysql.com/doc/refman/8.0/en/linux-installation-yum-repo.html">MySQL - Installing MySQL on Linux Using the MySQL Yum Repository</a></p>
 <p><a target="_blank" rel="noopener" href="https://blog.csdn.net/qq_26462567/article/details/102475057">CSDN - linux yum安装mysql8</a></p>
  
