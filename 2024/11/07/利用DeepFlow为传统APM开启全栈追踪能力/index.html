@@ -1,0 +1,753 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>利用DeepFlow为传统APM开启全栈追踪能力 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="DeepFlow-利用DeepFlow为传统APM开启全栈追踪能力"
+  class="article article-type-DeepFlow"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  利用DeepFlow为传统APM开启全栈追踪能力
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/11/07/%E5%88%A9%E7%94%A8DeepFlow%E4%B8%BA%E4%BC%A0%E7%BB%9FAPM%E5%BC%80%E5%90%AF%E5%85%A8%E6%A0%88%E8%BF%BD%E8%B8%AA%E8%83%BD%E5%8A%9B/" class="article-date">
+  <time datetime="2024-11-07T09:23:40.000Z" itemprop="datePublished">2024-11-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/DeepFlow/">DeepFlow</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.1k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>传统 APM 聚焦在代码层面，不具备全栈多维度无盲点看问题的能力，同时由于插码的阻碍往往难以覆盖所有微服务，DeepFlow 依靠 eBPF 零代码修改采集全栈追踪数据并聚合生成了调用关系，可以增强传统 APM 的数据，大大缩短问题定界时间。对于已经使用传统 APM 工具的用户，可以考虑使用 DeepFlow 提供的 API 来增强应用依赖拓扑及调用追踪，以获得全栈数据追踪能力。</p>
+<p>本文以 SkyWalking 为例从落地实现角度来描述，如何将在传统 APM 中集成 DeepFlow 的数据，增强传统 APM 数据能力， 主要从以下两个角度来：</p>
+<ul>
+<li>依赖拓扑：增强查看某历史时间范围内服务（POD）到服务（POD）全栈路径拓扑以及全景上下游拓扑。</li>
+<li>调用链追踪：增强查看某个应用 Span 对应系统 Span、网络 Span 时延消耗以及追踪未插码服务的能力。</li>
+</ul>
+<p>开启下文的阅读之前，需要对 DeepFlow 目前已有的数据及术语有了解，下文默认读者都有一定的认知。</p>
+<h2 id="0x0-全栈路径拓扑-界面"><a href="#0x0-全栈路径拓扑-界面" class="headerlink" title="0x0 全栈路径拓扑-界面"></a><a href="#0x0-%E5%85%A8%E6%A0%88%E8%B7%AF%E5%BE%84%E6%8B%93%E6%89%91-%E7%95%8C%E9%9D%A2" title="0x0 全栈路径拓扑-界面"></a>0x0 全栈路径拓扑-界面</h2><p>增强查看某历史时间范围内服务（POD）到服务（POD）应用和网络指标量能力，可以快速回答在某一段时间内端到端路径是否存在瓶颈点，下面将结合 Skywalking 介绍产品 UI 界面如何融合</p>
+<p>第一步：聚焦需要查看的路径（以下举例通过拓扑图路径点击，大家可以根据环境的实际情况来定义使用流程）</p>
+<p><img src="/images/1730971324-3f135c5cba60c70d3ce63635ad2abd80.png" alt="聚焦需要查看的路径" title="聚焦需要查看的路径">聚焦需要查看的路径</p>
+<p><img src="/images/1730971324-9ac5b5a56616d64dc98d23100b56a1aa.jpg" alt="点击全栈路径拓扑" title="点击全栈路径拓扑">点击全栈路径拓扑</p>
+<p>第二步：查看全栈路径拓扑（增强能力）</p>
+<p><img src="/images/1730971324-539f9f05a9b6c1e11d683a863f0029e9.jpg" alt="查看全栈路径拓扑" title="查看全栈路径拓扑">查看全栈路径拓扑</p>
+<p>上图拓扑中每一个节点都对应一个统计位置（tap_side），<a target="_blank" rel="noopener" href="https://deepflow.io/docs/zh/features/universal-map/auto-metrics/">统计位置的说明参考 DeepFlow 官网的线上文档</a>，以<code>客户端容器节点</code>举例说明具体的含义，表达是 cartservice 服务访问 redis-cart 服务，在 cartservice 对应 POD 所在的容器节点上采集到的访问数据，然后聚合的指标量。上图查看的指标量为<code>响应时延</code>，不难看出瓶颈在服务端容器网络，判断过程如下：</p>
+<ul>
+<li>客户端时延：④&#x3D;204.31ms，为请求服务端的总时延，由以下几部分组成<ul>
+<li>客户端容器网络：路径①（也就是⑤-④），图中所示为38.14us</li>
+<li>云网络：路径②（也就是⑥-⑤），图中所示为273.13us</li>
+<li>服务端容器网络：路径③（也就是⑦-⑥），图中所示为204.25ms</li>
+<li>服务端：即图中⑦，为372.83us</li>
+</ul>
+</li>
+</ul>
+<h2 id="0x1-全栈路径拓扑-API"><a href="#0x1-全栈路径拓扑-API" class="headerlink" title="0x1 全栈路径拓扑-API"></a><a href="#0x1-%E5%85%A8%E6%A0%88%E8%B7%AF%E5%BE%84%E6%8B%93%E6%89%91-API" title="0x1 全栈路径拓扑-API"></a>0x1 全栈路径拓扑-API</h2><p>结合 API 看看如何实现，DeepFlow 的所有数据均可通过 SQL API 获取。</p>
+<p>调用方输入<code>客户端名称</code>、<code>服务端名称</code>、<code>指标量</code>以及<code>时间范围</code>作为 API 的搜索条件即可获得<code>全栈路径拓扑</code>数据。</p>
+<p>第一步：获取 Skywalking 路径的<code>客户端服务及服务端名称</code>，根据需求明确需要查看的<code>指标量</code>及查看的<code>时间范围</code></p>
+<p><img src="/images/1730971324-e27f5b960002cbbbd41571dbfacafce0.jpg" alt="Skywalking 输入" title="Skywalking 输入">Skywalking 输入</p>
+<p>第二步：查询 DeepFlow 获取应用&#x2F;网络统计位置的数据，<a target="_blank" rel="noopener" href="https://deepflow.io/docs/zh/integration/output/query/sql/">SQL 调用参考 DeepFlow 官网的线上文档</a></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">SELECT Avg(`request`), /* 需要查看的指标量 */</span><br><span class="line">       pod_service_0,  /* 客户端服务名称，客户端为 POD，则替换为 pod_0 */</span><br><span class="line">       tap_side,</span><br><span class="line">       pod_service_1 /* 服务端服务名称，服务端为 POD，则替换为 pod_1 */</span><br><span class="line">FROM vtap_app_edge_port  /* 查看应用指标使用 vtap_app_edge_port；查看网络指标切换到 vtap_flow_edge_port */</span><br><span class="line">WHERE time&gt;=1678760220 AND time&lt;=1678762020 AND</span><br><span class="line">      pod_service_0=&#x27;deepflow-server&#x27; AND  /* 过滤客户端 */</span><br><span class="line">      pod_service_1=&#x27;deepflow-server&#x27;   /* 过滤服务端 */</span><br><span class="line">GROUP BY pod_service_0,</span><br><span class="line">         tap_side,</span><br><span class="line">         pod_service_1,</span><br></pre></td></tr></table></figure>
+
+<p>第三步：根据返回数据绘制拓扑图</p>
+<p>每个 tap_side 对应一个节点，节点根据 <code>c-app/app/c-p/c/c-nd/c-hv/c-gw-hv/c-gw/local/rest/s-gw/s-gw-hv/s-hv/s-nd/s/s-p/s-app</code> 从左到右排序，每个节点独立显示<code>指标数据</code>。</p>
+<h2 id="0x2-全景上下游拓扑-界面"><a href="#0x2-全景上下游拓扑-界面" class="headerlink" title="0x2 全景上下游拓扑-界面"></a><a href="#0x2-%E5%85%A8%E6%99%AF%E4%B8%8A%E4%B8%8B%E6%B8%B8%E6%8B%93%E6%89%91-%E7%95%8C%E9%9D%A2" title="0x2 全景上下游拓扑-界面"></a>0x2 全景上下游拓扑-界面</h2><p>增强某节点查看全景上下游拓扑的能力，可快速发现未插码范围内被谁访问了（比如追踪上游的 Nginx 网关、安全策略未防住的访问等等），以及自身访问了谁，下面也将结合 Skywalking 介绍产品 UI 界面如何融合</p>
+<p>第一步：聚焦需要查看的节点（以下举例通过拓扑图节点点击，大家可以根据环境的实际情况来定义使用流程）</p>
+<p><img src="/images/1730971324-35a4595e1e9f28176f6b4360a7409160.jpg" alt="点击全景上下游拓扑" title="点击全景上下游拓扑">点击全景上下游拓扑</p>
+<p>第二步：查看全景上下游拓扑（增强能力）</p>
+<p><img src="/images/1730971324-305fb5a08c0dd8424cd1f6afd2094a85.jpg" alt="查看全景上下游拓扑" title="查看全景上下游拓扑">查看全景上下游拓扑</p>
+<p>上图为 tikcet-web 服务的全景上下游拓扑，其中 ① 是未插码的 ingress-nginx-controller 服务，表明 ticket-web 服务对外都是通过 ingress 来访问的，其中 ② 为未插码的 kube-dns 服务，经常访问服务慢，可能是因为 DNS 解析慢，而在应用拓扑是无法看出来此信息的。</p>
+<h2 id="0x3-全景上下游拓扑-API"><a href="#0x3-全景上下游拓扑-API" class="headerlink" title="0x3 全景上下游拓扑-API"></a><a href="#0x3-%E5%85%A8%E6%99%AF%E4%B8%8A%E4%B8%8B%E6%B8%B8%E6%8B%93%E6%89%91-API" title="0x3 全景上下游拓扑-API"></a>0x3 全景上下游拓扑-API</h2><p>调用方输入<code>服务名称</code>、<code>指标量</code>以及<code>时间范围</code>作为 API 的搜索条件即可获得<code>全景上下游拓扑</code>数据，需要两次调用的 DeepFlow API，分别获取到上游和下游的数据如下：</p>
+<p>获取上游数据</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">SELECT Avg(`request`), /* 需要查看的指标量 */</span><br><span class="line">       pod_service_0,  /* 客户端服务名称，客户端为 POD，则替换为 pod_0 */</span><br><span class="line">       tap_side,</span><br><span class="line">       pod_service_1 /* 服务端服务名称，服务端为 POD，则替换为 pod_1 */</span><br><span class="line">FROM vtap_app_edge_port  /* 查看应用指标使用 vtap_app_edge_port；查看网络指标切换到 vtap_flow_edge_port */</span><br><span class="line">WHERE time&gt;=1678760220 AND time&lt;=1678762020 AND</span><br><span class="line">      pod_service_1=&#x27;deepflow-server&#x27;   /* 需要查看上游数据的服务 */</span><br><span class="line">GROUP BY pod_service_0,</span><br><span class="line">         tap_side,</span><br><span class="line">         pod_service_1,</span><br></pre></td></tr></table></figure>
+
+<p>获取下游数据</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">SELECT Avg(`request`), /* 需要查看的指标量 */</span><br><span class="line">       pod_service_0,  /* 客户端服务名称，客户端为 POD，则替换为 pod_0 */</span><br><span class="line">       tap_side,</span><br><span class="line">       pod_service_1 /* 服务端服务名称，服务端为 POD，则替换为 pod_1 */</span><br><span class="line">FROM vtap_app_edge_port  /* 查看应用指标使用 vtap_app_edge_port；查看网络指标切换到 vtap_flow_edge_port */</span><br><span class="line">WHERE time&gt;=1678760220 AND time&lt;=1678762020 AND</span><br><span class="line">      pod_service_0=&#x27;deepflow-server&#x27;   /* 需要查看下游数据的服务 */</span><br><span class="line">GROUP BY pod_service_0,</span><br><span class="line">         tap_side,</span><br><span class="line">         pod_service_1,</span><br></pre></td></tr></table></figure>
+
+<h2 id="0x4-调用链追踪-产品"><a href="#0x4-调用链追踪-产品" class="headerlink" title="0x4 调用链追踪-产品"></a><a href="#0x4-%E8%B0%83%E7%94%A8%E9%93%BE%E8%BF%BD%E8%B8%AA-%E4%BA%A7%E5%93%81" title="0x4 调用链追踪-产品"></a>0x4 调用链追踪-产品</h2><p>在开始介绍如何增强调用追踪的数据之前，先结合一张图说明一些后续要使用到的术语</p>
+<p><img src="/images/1730971324-925090f99d10319f8eee9b52b333ba9b.jpg" alt="数据介绍图" title="数据介绍图">数据介绍图</p>
+<ul>
+<li>图中 A 表示应用 Span（来源传统 APM）；S 表示网络 Span（来源 DeepFlow）；N 表示网络 Span（来源 DeepFlow）</li>
+<li>图中黑色部分为发起全栈调用追踪的的应用 Span，后续统称为 <code>应用 Span Y</code></li>
+<li>图中蓝色部分为通过 <code>应用 Span Y</code> 追踪的路径中的系统和网络 Span</li>
+<li>图中绿色部分为通过 <code>应用 Span Y</code> 追踪的下游未插码的 Span</li>
+<li>图中红色部分为通过 <code>应用 Span Y</code> 追踪的上游未插码的 Span</li>
+</ul>
+<p>接下来将分别来讨论上图中蓝色&#x2F;绿色&#x2F;红色部分如何基于 SkyWalking 产品做 UI 融合（注：以下产品 UI 部分仅为示意图）：</p>
+<p><strong>第一步：聚焦需要查看的应用 Span</strong>（以下举例通过点击 Span，大家可以根据环境的实际情况来定义使用流程）</p>
+<p><img src="/images/1730971324-f398e6bbe93716eac30302710167942c.jpg" alt="聚焦需要查看的路径" title="聚焦需要查看的路径">聚焦需要查看的路径</p>
+<p><img src="/images/1730971324-cc54c3a2e2549bb1b6bd4c1644f75d0d.png" alt="点击全栈调用追踪" title="点击全栈调用追踪">点击全栈调用追踪</p>
+<p><strong>第二步：查看全栈调用拓扑</strong>（增强能力）</p>
+<p><img src="/images/1730971324-d1665310afedef6d6fe9c60504e38631.jpg" alt="查看全栈调用拓扑" title="查看全栈调用拓扑">查看全栈调用拓扑</p>
+<h2 id="0x5-调用链追踪-API"><a href="#0x5-调用链追踪-API" class="headerlink" title="0x5 调用链追踪-API"></a><a href="#0x5-%E8%B0%83%E7%94%A8%E9%93%BE%E8%BF%BD%E8%B8%AA-API" title="0x5 调用链追踪-API"></a>0x5 调用链追踪-API</h2><p>接下来看下结合 DeepFlow 的 SQL API 如何实现，基于前面的术语介绍图，可知传统 APM 结合 DeepFlow 的数据来完成全栈调用追踪的能力，需要分蓝色、绿色和红色三部分来实现，接下来将分开介绍这三部分的数据实现。</p>
+<p>蓝色部分：<strong>根据 应用 Span 的 TraceID + SpanID 追踪 DeepFlow 的系统 Span 和网络 Span</strong>，可以方便的查看某次调用在系统和网络分布消耗的时延，快速定界问题。可以通过 TraceID、SpanID 作为搜索条件获取 DeepFlow 的系统和网络 Span</p>
+<p><img src="/images/1730971324-8e3a8cb4c4c3552279a3cac1b3cb5fe7.jpg" alt="蓝色部分-追踪图" title="蓝色部分-追踪图">蓝色部分-追踪图</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">SELECT response_duration,</span><br><span class="line">       start_time,</span><br><span class="line">       end_time,</span><br><span class="line">       resource_gl0_0, /* 客户端 */</span><br><span class="line">       resource_gl0_1, /* 服务端 */</span><br><span class="line">       tap_port_type,  /* eBPF、NIC ... */</span><br><span class="line">       tap_port,       /* NIC Name */</span><br><span class="line">       trace_id,</span><br><span class="line">       span_id</span><br><span class="line">FROM l7_flow_log</span><br><span class="line">WHERE trace_id = &#x27;c5ad367da7ed41fc97921d91a0584bd8.63.16620935428909473&#x27; AND</span><br><span class="line">      span_id = &#x27;e05ee7a06d674085a16dfea36ed11b98.169.16620935428971714-2&#x27; AND /* 非必须，精确搜索 */</span><br><span class="line">      time &gt;= 1662093572 AND time &lt;= 1662095372 /* 加速搜索 */</span><br></pre></td></tr></table></figure>
+
+<p>此部分的细节部分可以参考<a target="_blank" rel="noopener" href="https://deepflow.io/blog/007-skywalking-distributed-tracing-without-blind-spots/#0x1-DeepFlow-SQL-API">DeepFlow 让 SkyWalking 分布式追踪无盲点</a>。</p>
+<p>红色部分：<strong>增强某个应用 Span 上游的 Span，对于插码范围以外（之前）的部分</strong>，例如追踪出来从未插码的客户端 Span</p>
+<p><img src="/images/1730971324-a7c8c0708c36b6dcb049b7e6df250aaf.jpg" alt="红色部分-追踪原理解释图" title="红色部分-追踪原理解释图">红色部分-追踪原理解释图</p>
+<p>对于这部分数据的追踪，需要分几个步骤来逐一进行关联</p>
+<ul>
+<li>① 根据<code>应用 Span Y</code> 的 TraceID + SpanID 追踪 DeepFlow 的系统 Span，此时可能会得到多个系统 Span，只需要获取与<code>应用 Span Y</code>紧邻的<code>系统 Span X</code>继续往下追踪即可（可通过总时延最长来判断）</li>
+<li>② 获取<code>系统 Span X</code>的 syscall_trace_id_request 作为其他系统 Span 的搜索条件，得到<code>系统 Span Z</code></li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">SELECT response_duration,  /* SELECT 字段可以根据需求自定义即可*/</span><br><span class="line">       l7_protocol,</span><br><span class="line">       Enum(request_type),</span><br><span class="line">       request_resource,</span><br><span class="line">       process_kname_0,</span><br><span class="line">       process_kname_1,</span><br><span class="line">       tap_side,</span><br><span class="line">       req_tcp_seq,</span><br><span class="line">       resp_tcp_seq,</span><br><span class="line">       Enum(auto_instance_type_0) AS `client_Enum(auto_instance_type_0)`,</span><br><span class="line">       auto_instance_0,</span><br><span class="line">       Enum(auto_instance_type_1) AS `server_Enum(auto_instance_type_1)`,</span><br><span class="line">       auto_instance_1,</span><br><span class="line">FROM l7_flow_log</span><br><span class="line">WHERE time&gt;=1678764261 AND /*追踪开始时间，建议设置比系统 Span X 的开始时间早 3min*/</span><br><span class="line">      time&lt;=1678767861 AND /*追踪结束时间，建议设置比系统 Span X 的结束时间晚 3min*//</span><br><span class="line">      (syscall_trace_id_request=16787489195430278) /* 16787489195430278 为 系统 Span Y 的 syscall_trace_id_request */</span><br><span class="line">ORDER BY `end_time`</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>③ 获取<code>系统 Span Z</code> 的 req_tcp_seq&#x2F;resp_tcp_seq 作为其他系统 Span 和网络 Span 的搜索条件，得到<code>网络 Span Z.1/Z.2 以及系统 Span Q</code>，此处逻辑特别注意：req_tcp_seq !&#x3D;0 &amp; resp_tcp_seq !&#x3D;0 则需要同时满足 req_tcp_seq 和 resp_tcp_seq；如果其中一个为 0，则任意满足一个即可</li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">SELECT response_duration,  /* SELECT 字段可以根据需求自定义即可*/</span><br><span class="line">       l7_protocol,</span><br><span class="line">       Enum(request_type),</span><br><span class="line">       request_resource,</span><br><span class="line">       process_kname_0,</span><br><span class="line">       process_kname_1,</span><br><span class="line">       tap_side,</span><br><span class="line">       req_tcp_seq,</span><br><span class="line">       resp_tcp_seq,</span><br><span class="line">       Enum(auto_instance_type_0) AS `client_Enum(auto_instance_type_0)`,</span><br><span class="line">       auto_instance_0,</span><br><span class="line">       Enum(auto_instance_type_1) AS `server_Enum(auto_instance_type_1)`,</span><br><span class="line">       auto_instance_1,</span><br><span class="line">FROM l7_flow_log</span><br><span class="line">WHERE time&gt;=1678764261 AND</span><br><span class="line">      time&lt;=1678767861 AND</span><br><span class="line">      (type=2 AND</span><br><span class="line">      req_tcp_seq=3575241005 AND /* 3575241005 为系统 Span Z 的 req_tcp_seq*/</span><br><span class="line">      resp_tcp_seq=995863176) /* 995863176 为系统 Span Z 的 resp_tcp_seq*/</span><br><span class="line">ORDER BY `end_time`</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>④ 接下来可继续追踪<code>系统 Span Q</code> 的上游系统 Span，这里将分两种情况，如果上游的系统 Span 与<code>系统 Span Q</code> 在同一个线程，则重复步骤 [2]&#x2F;[3] 即可，如果在不同线程&#x2F;进程中，目前仅支持网关设置了 X-Request-ID 的情况下继续追踪，获取<code>系统 Span Q</code>的 x-request-id 作为查询其他系统 Span 和网络 Span 的搜索条件，得到其上游的<code>系统 Span M</code></li>
+</ul>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">SELECT response_duration,  /* SELECT 字段可以根据需求自定义即可*/</span><br><span class="line">       l7_protocol,</span><br><span class="line">       Enum(request_type),</span><br><span class="line">       request_resource,</span><br><span class="line">       process_kname_0,</span><br><span class="line">       process_kname_1,</span><br><span class="line">       tap_side,</span><br><span class="line">       req_tcp_seq,</span><br><span class="line">       resp_tcp_seq,</span><br><span class="line">       Enum(auto_instance_type_0) AS `client_Enum(auto_instance_type_0)`,</span><br><span class="line">       auto_instance_0,</span><br><span class="line">       Enum(auto_instance_type_1) AS `server_Enum(auto_instance_type_1)`,</span><br><span class="line">       auto_instance_1,</span><br><span class="line">FROM l7_flow_log</span><br><span class="line">WHERE time&gt;=1678764261 AND</span><br><span class="line">      time&lt;=1678767861 AND</span><br><span class="line">      x_request_id=6e903947-5ef0-4c63-91a8-a2a599171633 /* 6e903947-5ef0-4c63-91a8-a2a599171633 为系统 Span Q 的 x_request_id*/</span><br><span class="line">ORDER BY `end_time`</span><br></pre></td></tr></table></figure>
+
+<ul>
+<li>⑤ 到此，已经根据上述步骤追踪得到所有的上游 Span，接下来将确定父子关系，可直接根据总的响应时延，按从大到小降序排列即可</li>
+</ul>
+<p>绿色部分：<strong>增强某个应用 Span 下游的 Span，对于插码范围以外（之后）的部分追踪</strong>，例如追踪出来未插码的服务端 Span（DNS），此追踪过程与<code>红色部分</code>非常相似，仅步骤 ② 中的<code>syscall_trace_id_request</code>换成<code>syscall_trace_id_response</code>即可，此处不在赘述。</p>
+<p><img src="/images/1730971324-5dee2b0af4609f27f48f23f6074bffc6.jpg" alt="绿色部分-追踪图" title="绿色部分-追踪图">绿色部分-追踪图</p>
+<h2 id="0x6-什么是-DeepFlow"><a href="#0x6-什么是-DeepFlow" class="headerlink" title="0x6: 什么是 DeepFlow"></a><a href="#0x6-%E4%BB%80%E4%B9%88%E6%98%AF-DeepFlow" title="0x6: 什么是 DeepFlow"></a>0x6: 什么是 DeepFlow</h2><p>DeepFlow 是云杉网络开发的一款<strong>可观测性</strong>产品，旨在为复杂的云基础设施及云原生应用提供深度可观测性。DeepFlow 基于 eBPF 实现了应用性能指标、分布式追踪、持续性能剖析等观测信号的<strong>零侵扰</strong>（<code>Zero Code</code>）采集，并结合<strong>智能标签</strong>（<code>SmartEncoding</code>）技术实现了所有观测信号的<strong>全栈</strong>（<code>Full Stack</code>）关联和高效存取。使用 DeepFlow，可以让云原生应用自动具有深度可观测性，从而消除开发者不断插桩的沉重负担，并为 DevOps&#x2F;SRE 团队提供从代码到基础设施的监控及诊断能力。</p>
+<p>GitHub 地址：<a target="_blank" rel="noopener" href="https://github.com/deepflowio/deepflow">https://github.com/deepflowio/deepflow</a></p>
+<p>访问 <a target="_blank" rel="noopener" href="https://deepflow.io/docs/zh/ce-install/overview/">DeepFlow Demo</a>，体验高度自动化的可观测性新时代。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/11/07/%E5%88%A9%E7%94%A8DeepFlow%E4%B8%BA%E4%BC%A0%E7%BB%9FAPM%E5%BC%80%E5%90%AF%E5%85%A8%E6%A0%88%E8%BF%BD%E8%B8%AA%E8%83%BD%E5%8A%9B/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/DeepFlow/" rel="tag">DeepFlow</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/11/05/Zabbix%E9%83%A8%E7%BD%B2%E8%84%9A%E6%9C%AC%E3%80%90%E8%87%AA%E5%AE%9A%E4%B9%89%E7%89%88%E6%9C%AC-mysql8-0-4%E3%80%91/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Zabbix部署脚本【自定义版本 + mysql8.0.4】</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
