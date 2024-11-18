@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>使用eBPF诊断服务网格网络性能 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-使用eBPF诊断服务网格网络性能"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  使用eBPF诊断服务网格网络性能
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/11/18/%E4%BD%BF%E7%94%A8eBPF%E8%AF%8A%E6%96%AD%E6%9C%8D%E5%8A%A1%E7%BD%91%E6%A0%BC%E7%BD%91%E7%BB%9C%E6%80%A7%E8%83%BD/" class="article-date">
+  <time datetime="2024-11-18T02:58:11.000Z" itemprop="datePublished">2024-11-18</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">13 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>本文将展示如何利用 Apache SkyWalking 与 eBPF，使服务网格下的网络故障排除更加容易。</p>
+<p>Tags | <a target="_blank" rel="noopener" href="https://skywalking.apache.org/zh_tags/ebpf">eBPF</a> <a target="_blank" rel="noopener" href="https://skywalking.apache.org/zh_tags/performance">Performance</a></p>
+<p>本文将展示如何利用 <a target="_blank" rel="noopener" href="https://github.com/apache/skywalking">Apache SkyWalking</a> 与 <a target="_blank" rel="noopener" href="https://ebpf.io/what-is-ebpf/">eBPF</a>，使服务网格下的网络故障排除更加容易。</p>
+<p>Apache SkyWalking 是一个分布式系统的应用性能监控工具。它观察服务网格中的指标、日志、痕迹和事件，并使用这些数据来生成 pod 和服务的依赖图。这个依赖关系图可以帮助你快速系统，尤其是在出现问题的时候。</p>
+<p>然而，在排除 SkyWalking 服务拓扑中的网络问题时，确定错误的实际位置有时候并不容易。造成这种困难的原因有两个：</p>
+<ul>
+<li><strong>通过 Envoy sidecar 的流量并不容易观察</strong>：来自 Envoy 的<a target="_blank" rel="noopener" href="https://www.envoyproxy.io/docs/envoy/latest/api-v3/service/accesslog/v3/als.proto">访问日志服务（ALS）</a>的数据显示了服务之间的流量（sidecar-to-sidecar），但没有关于 Envoy sidecar 和它代理的服务之间的通信指标。如果没有这些信息，就很难理解 sidecar 的影响。</li>
+<li><strong>缺乏来自传输层（OSI 第 4 层）通信的数据</strong>：由于服务通常使用应用层（OSI 第 7 层）协议，如 HTTP，可观测性数据通常被限制在应用层通信中。然而，根本原因可能实际上是在传输层，而传输层对可观测性工具来说通常是不透明的。</li>
+</ul>
+<p>获取 Envoy-to-service 和传输层通信的指标，可以更容易诊断服务问题。为此，SkyWalking 需要收集和分析 Kubernetes pod 内进程之间的传输层指标 —— 这项任务很适合 eBPF。我们调查了为此目的使用 eBPF 的情况，并在下面介绍了我们的结果和演示。</p>
+<h2 id="用-eBPF-监控-Kubernetes-网络"><a href="#用-eBPF-监控-Kubernetes-网络" class="headerlink" title="用 eBPF 监控 Kubernetes 网络"></a>用 eBPF 监控 Kubernetes 网络</h2><p>eBPF 起源于 Extended Berkeley Packet Filter，是一种通用的机制，可以在 Linux 内核中注入和运行自己的代码，是监测 Kubernetes Pod 中网络流量的优秀工具。在接下来的几节中，我们将概述如何使用 eBPF 进行网络监控，作为介绍 <a target="_blank" rel="noopener" href="https://github.com/apache/skywalking-rover">Skywalking Rover</a> 的背景，这是一个由 eBPF 驱动的指标收集器和分析器，用于诊断 CPU 和网络性能。</p>
+<h3 id="应用程序和网络如何相互作用"><a href="#应用程序和网络如何相互作用" class="headerlink" title="应用程序和网络如何相互作用"></a>应用程序和网络如何相互作用</h3><p>应用程序和网络之间的互动一般可分为以下步骤，从较高的抽象层次到较低的抽象层次：</p>
+<p><img src="/images/1731898384-7db72d4c5513f5746663bb6687b943b0.svg" alt="抽象层次"></p>
+<ol>
+<li><strong>用户代码</strong>：应用程序代码使用应用程序堆栈中的高级网络库，在网络上交换数据，如发送和接收 HTTP 请求。</li>
+<li><strong>网络库</strong>：当网络库收到网络请求时，它与语言 API 进行交互以发送网络数据。</li>
+<li><strong>语言 API</strong>：每种语言都提供了一个操作网络、系统等的 API。当收到一个请求时，它与系统的 API 进行交互。在 Linux 中，这个 API 被称为系统调用（syscalls）。</li>
+<li><strong>Linux API</strong>：当 Linux 内核通过 API 收到请求时，它与套接字进行通信以发送数据，这通常更接近于 OSI 第四层协议，如 TCP、UDP 等。</li>
+<li><strong>Socket Ops</strong>：向 &#x2F; 从网卡发送或接收数据。</li>
+</ol>
+<p>我们的假设是，eBPF 可以监控网络。有两种方法可以实现拦截：<strong>用户空间（uprobe）或内核空间（kprobe）</strong>。下表总结了两者的区别。</p>
+<table>
+<thead>
+<tr>
+<th>方式</th>
+<th>优点</th>
+<th>缺点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>uprobe</td>
+<td>• 获取更多与应用相关的上下文，例如当前请求是 HTTP 还是 HTTPS。  <br>• 请求和响应可以通过一个方法来截获。</td>
+<td>• 数据结构可能是不稳定的，所以更难获得所需的数据。  <br>• 不同语言&#x2F;库版本的实现可能不同。  <br>• 在没有<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Symbol_table">符号表</a>的应用程序中不起作用。</td>
+</tr>
+<tr>
+<td>kprobe</td>
+<td>• 可用于所有语言。  <br>• 数据结构和方法很稳定，不需要太多调整。  <br>• 更容易与底层数据相关联，如获得 TCP 的目标地址、OSI 第四层协议指标等。</td>
+<td>• 一个单一的请求和响应可能被分割成多个 probe。  <br>• 对于有状态的请求，上下文信息不容易得到。例如 HTTP&#x2F;2 中的头压缩。</td>
+</tr>
+</tbody></table>
+<p>对于一般的网络性能监控，我们选择使用 kprobe（拦截系统调用），原因如下：</p>
+<ol>
+<li>它可用于用任何编程语言编写的应用程序，而且很稳定，所以可以节省大量的开发 &#x2F; 适应成本。</li>
+<li>它可以与系统层面的指标相关联，这使得故障排除更加容易。</li>
+<li>由于一个请求和响应被分割成多个 probe，我们可以利用技术将它们关联起来。</li>
+<li>对于背景信息，它通常用于 OSI 第七层协议网络分析。因此，如果我们只是监测网络性能，那么它们可以被忽略。</li>
+</ol>
+<h3 id="Kprobes-和网络监控"><a href="#Kprobes-和网络监控" class="headerlink" title="Kprobes 和网络监控"></a>Kprobes 和网络监控</h3><p>按照 <a target="_blank" rel="noopener" href="http://linasm.sourceforge.net/docs/syscalls/network.php">Linux 文档中的网络系统调用</a>，我们可以通过两类拦截方法实现网络监控：<strong>套接字操作</strong>和<strong>发送 &#x2F; 接收</strong>方法。</p>
+<h4 id="套接字操作"><a href="#套接字操作" class="headerlink" title="套接字操作"></a>套接字操作</h4><p>当接受或与另一个套接字连接时，我们可以得到以下信息：</p>
+<ol>
+<li><strong>连接信息</strong>：包括来自连接的远程地址，这有助于我们了解哪个 pod 被连接。</li>
+<li><strong>连接统计</strong> ：包括来自套接字的基本指标，如往返时间（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/Round-trip_delay">RTT</a>）、TCP 的丢包数等。</li>
+<li><strong>套接字和文件描述符（<a target="_blank" rel="noopener" href="https://en.wikipedia.org/wiki/File_descriptor">FD</a>）的映射</strong>：包括 Linux 文件描述符和套接字对象之间的关系。在通过 Linux 文件描述符发送和接收数据时，它很有用。</li>
+</ol>
+<h4 id="发送-接收"><a href="#发送-接收" class="headerlink" title="发送 &#x2F; 接收"></a>发送 &#x2F; 接收</h4><p>与发送或接收数据有关的接口是性能分析的重点。它主要包含以下参数：</p>
+<ol>
+<li><strong>Socket 文件描述符</strong>：当前操作对应的套接字的文件描述符。</li>
+<li><strong>缓冲区</strong>：发送或接收的数据，以字节数组形式传递。</li>
+</ol>
+<p>基于上述参数，我们可以分析以下数据：</p>
+<ol>
+<li><strong>字节</strong>：数据包的大小，以字节为单位。</li>
+<li><strong>协议</strong>：根据缓冲区的数据进行协议分析，如 HTTP、MySQL 等。</li>
+<li><strong>执行时间</strong>：发送 &#x2F; 接收数据所需的时间。</li>
+</ol>
+<p>在这一点上（图 1），我们可以分析出连接的整个生命周期的以下步骤：</p>
+<ol>
+<li><strong>连接 &#x2F; 接受</strong>：当连接被创建时。</li>
+<li><strong>转化</strong>：在连接上发送和接收数据。</li>
+<li><strong>关闭</strong>：当连接被关闭时。</li>
+</ol>
+<p><img src="/images/1731898384-e083bcde734b1a3d6f7c98d7ebc31c78.svg" alt="图 1"></p>
+<p><em><strong>图 1</strong></em></p>
+<h3 id="协议和-TLS"><a href="#协议和-TLS" class="headerlink" title="协议和 TLS"></a>协议和 TLS</h3><p>上一节描述了如何使用发送或接收缓冲区数据来分析连接。例如，遵循 <a target="_blank" rel="noopener" href="https://www.rfc-editor.org/rfc/rfc2068.html#section-4.1">HTTP&#x2F;1.1 消息规范</a>来分析连接。然而，这对 TLS 请求 &#x2F; 响应不起作用。</p>
+<p><img src="/images/1731898384-81da6d3d1e25c3c762d953a17cbf9f89.svg" alt="图 2"></p>
+<p><em><strong>图 2</strong></em></p>
+<p>当使用 TLS 时，Linux 内核在用户空间中传输加密的数据。在上图中，应用程序通常通过第三方库（如 OpenSSL）传输 SSL 数据。对于这种情况，Linux API 只能得到加密的数据，所以它不能识别任何高层协议。为了在 eBPF 内部解密，我们需要遵循以下步骤：</p>
+<ol>
+<li><strong>通过 uprobe 读取未加密的数据</strong>：兼容多种语言，使用 uprobe 来捕获发送前或接收后没有加密的数据。通过这种方式，我们可以获得原始数据并将其与套接字联系起来。</li>
+<li><strong>与套接字关联</strong>：我们可以将未加密的数据与套接字关联。</li>
+</ol>
+<h4 id="OpenSSL-用例"><a href="#OpenSSL-用例" class="headerlink" title="OpenSSL 用例"></a>OpenSSL 用例</h4><p>例如，发送 &#x2F; 接收 SSL 数据最常见的方法是使用 OpenSSL 作为共享库，特别是 <a target="_blank" rel="noopener" href="https://www.openssl.org/docs/man1.1.1/man3/SSL_read.html">SSL_read</a> 和 <a target="_blank" rel="noopener" href="https://www.openssl.org/docs/man1.1.1/man3/SSL_write.html">SSL_write</a> 方法，以提交缓冲区数据与套接字。</p>
+<p>按照<a target="_blank" rel="noopener" href="https://www.openssl.org/docs/man1.1.1/man7/ssl.html">文档</a>，我们可以截获这两种方法，这与 Linux 中的 API 几乎相同。OpenSSL 中 SSL 结构的源代码显示， <a target="_blank" rel="noopener" href="https://github.com/openssl/openssl/blob/9eae491721209f302a9a475bffd271370e8bcb8f/crypto/bio/bio_local.h#L115-L125">Socket FD</a> 存在于 <a target="_blank" rel="noopener" href="https://github.com/openssl/openssl/blob/9eae491721209f302a9a475bffd271370e8bcb8f/ssl/ssl_local.h#L1068-L1083">SSL 结构的 BIO 对象</a>中，我们可以通过 offset 得到它。</p>
+<p>综上所述，通过对 OpenSSL 工作原理的了解，我们可以在一个 eBPF 函数中读取未加密的数据。</p>
+<h2 id="SkyWalking-Rover——-基于-eBPF-的指标收集器和分析器"><a href="#SkyWalking-Rover——-基于-eBPF-的指标收集器和分析器" class="headerlink" title="SkyWalking Rover—— 基于 eBPF 的指标收集器和分析器"></a>SkyWalking Rover—— 基于 eBPF 的指标收集器和分析器</h2><p><a target="_blank" rel="noopener" href="https://github.com/apache/skywalking-rover">SkyWalking Rover</a> 在 SkyWalking 生态系统中引入了 eBPF 网络分析功能。目前已在 Kubernetes 环境中得到支持，所以必须在 Kubernetes 集群内部署。部署完成后，SkyWalking Rover 可以监控特定 Pod 内所有进程的网络。基于监测数据，SkyWalking 可以生成进程之间的拓扑关系图和指标。</p>
+<h3 id="拓扑结构图"><a href="#拓扑结构图" class="headerlink" title="拓扑结构图"></a>拓扑结构图</h3><p>拓扑图可以帮助我们了解同一 Pod 内的进程之间以及进程与外部环境（其他 Pod 或服务）之间的网络访问情况。此外，它还可以根据线路的流动方向来确定流量的数据方向。</p>
+<p>在下面的图 3 中，六边形内的所有节点都是一个 Pod 的内部进程，六边形外的节点是外部关联的服务或 Pod。节点由线连接，表示节点之间的请求或响应方向（客户端或服务器）。线条上标明了协议，它是 HTTP (S)、TCP 或 TCP (TLS)。另外，我们可以在这个图中看到，Envoy 和 Python 应用程序之间的线是双向的，因为 Envoy 拦截了所有的应用程序流量。</p>
+<p><img src="/images/1731898384-64c425ee6722d9be5510a8cc18b0e67f.jpg" alt="图 3"></p>
+<p><em><strong>图 3</strong></em></p>
+<h3 id="度量"><a href="#度量" class="headerlink" title="度量"></a>度量</h3><p>一旦我们通过拓扑结构认识到进程之间的网络调用关系，我们就可以选择一个特定的线路，查看两个进程之间的 TCP 指标。</p>
+<p>下图（图4）显示了两个进程之间网络监控的指标。每行有四个指标。左边的两个是在客户端，右边的两个是在服务器端。如果远程进程不在同一个 Pod 中，则只显示一边的指标。</p>
+<p><img src="/images/1731898384-5162f8aaed0b15417d8a63146ace689b.jpg" alt="图 4"></p>
+<p><em><strong>图 4</strong></em></p>
+<p>有以下两种度量类型。</p>
+<ol>
+<li><strong>计数器（Counter）</strong>：记录一定时期内的数据总数。每个计数器包含以下数据。<ol>
+<li><strong>计数</strong>：执行次数。</li>
+<li><strong>字节</strong>：数据包大小，以字节为单位。</li>
+<li><strong>执行时间</strong>：执行时间。</li>
+</ol>
+</li>
+<li><strong>柱状图（Histogram）</strong>：记录数据在桶中的分布。</li>
+</ol>
+<p>基于上述数据类型，暴露了以下指标：</p>
+<table>
+<thead>
+<tr>
+<th>名称</th>
+<th>类型</th>
+<th>单位</th>
+<th>描述</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Write</td>
+<td>计数器和柱状图</td>
+<td>毫秒</td>
+<td>套接字写计数器。</td>
+</tr>
+<tr>
+<td>Read</td>
+<td>计数器和柱状图</td>
+<td>毫秒</td>
+<td>套接字读计数器。</td>
+</tr>
+<tr>
+<td>Write RTT</td>
+<td>计数器和柱状图</td>
+<td>微秒</td>
+<td>套接字写入往返时间（RTT）计数器。</td>
+</tr>
+<tr>
+<td>Connect</td>
+<td>计数器和柱状图</td>
+<td>毫秒</td>
+<td>套接字连接&#x2F;接受另一个服务器&#x2F;客户端的计数器。</td>
+</tr>
+<tr>
+<td>Close</td>
+<td>计数器和柱状图</td>
+<td>毫秒</td>
+<td>有其他套接字的计数器。</td>
+</tr>
+<tr>
+<td>Retransmit</td>
+<td>计数器</td>
+<td>毫秒</td>
+<td>套接字重发包计数器</td>
+</tr>
+<tr>
+<td>Drop</td>
+<td>计数器</td>
+<td>毫秒</td>
+<td>套接字掉包计数器。</td>
+</tr>
+</tbody></table>
+<h2 id="演示"><a href="#演示" class="headerlink" title="演示"></a>演示</h2><p>在本节中，我们将演示如何在服务网格中执行网络分析。要跟上进度，你需要一个正在运行的 Kubernetes 环境。</p>
+<p><strong>注意</strong>：所有的命令和脚本都可以<a target="_blank" rel="noopener" href="https://github.com/mrproliu/skywalking-network-profiling-demo">在这个 GitHub 资源库中</a>找到。</p>
+<h3 id="安装-Istio"><a href="#安装-Istio" class="headerlink" title="安装 Istio"></a>安装 Istio</h3><p>Istio是最广泛部署的服务网格，并附带一个完整的演示应用程序，我们可以用来测试。要安装 Istio 和演示应用程序，请遵循以下步骤：</p>
+<ol>
+<li>使用演示配置文件安装 Istio。</li>
+<li>标记 default 命名空间，所以当我们要部署应用程序时，Istio 会自动注入 Envoy 的 sidecar 代理。</li>
+<li>将 bookinfo 应用程序部署到集群上。</li>
+<li>部署流量生成器，为应用程序生成一些流量。</li>
+</ol>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="built_in">export</span> ISTIO_VERSION=1.13.1</span><br><span class="line"></span><br><span class="line"><span class="comment"># 安装 istio</span></span><br><span class="line">istioctl install -y --<span class="built_in">set</span> profile=demo</span><br><span class="line">kubectl label namespace default istio-injection=enabled</span><br><span class="line"></span><br><span class="line"><span class="comment"># 部署 bookinfo 应用程序</span></span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/istio/istio/<span class="variable">$ISTIO_VERSION</span>/samples/bookinfo/platform/kube/bookinfo.yaml</span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/istio/istio/<span class="variable">$ISTIO_VERSION</span>/samples/bookinfo/networking/bookinfo-gateway.yaml</span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/istio/istio/<span class="variable">$ISTIO_VERSION</span>/samples/bookinfo/networking/destination-rule-all.yaml</span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/istio/istio/<span class="variable">$ISTIO_VERSION</span>/samples/bookinfo/networking/virtual-service-all-v1.yaml</span><br><span class="line"></span><br><span class="line"><span class="comment"># 产生流量</span></span><br><span class="line">kubectl apply -f https://raw.githubusercontent.com/mrproliu/skywalking-network-profiling-demo/main/resources/traffic-generator.yaml</span><br></pre></td></tr></table></figure>
+
+<h3 id="安装-SkyWalking"><a href="#安装-SkyWalking" class="headerlink" title="安装 SkyWalking"></a>安装 SkyWalking</h3><p>下面将安装 SkyWalking 所需的存储、后台和用户界面。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">git <span class="built_in">clone</span> https://github.com/apache/skywalking-kubernetes.git</span><br><span class="line"><span class="built_in">cd</span> skywalking-kubernetes</span><br><span class="line"><span class="built_in">cd</span> chart</span><br><span class="line">helm dep up skywalking</span><br><span class="line">helm -n istio-system install skywalking skywalking \</span><br><span class="line"> --<span class="built_in">set</span> fullnameOverride=skywalking \</span><br><span class="line"> --<span class="built_in">set</span> elasticsearch.minimumMasterNodes=1 \</span><br><span class="line"> --<span class="built_in">set</span> elasticsearch.imageTag=7.5.1 \</span><br><span class="line"> --<span class="built_in">set</span> oap.replicas=1 \</span><br><span class="line"> --<span class="built_in">set</span> ui.image.repository=apache/skywalking-ui \</span><br><span class="line"> --<span class="built_in">set</span> ui.image.tag=9.2.0 \</span><br><span class="line"> --<span class="built_in">set</span> oap.image.tag=9.2.0 \</span><br><span class="line"> --<span class="built_in">set</span> oap.envoy.als.enabled=<span class="literal">true</span> \</span><br><span class="line"> --<span class="built_in">set</span> oap.image.repository=apache/skywalking-oap-server \</span><br><span class="line"> --<span class="built_in">set</span> oap.storageType=elasticsearch \</span><br><span class="line"> --<span class="built_in">set</span> oap.env.SW_METER_ANALYZER_ACTIVE_FILES=<span class="string">&#x27;network-profiling&#x27;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="安装-SkyWalking-Rover"><a href="#安装-SkyWalking-Rover" class="headerlink" title="安装 SkyWalking Rover"></a>安装 SkyWalking Rover</h3><p>SkyWalking Rover 部署在 Kubernetes 的每个节点上，它自动检测 Kubernetes 集群中的服务。网络剖析功能已经在 SkyWalking Rover 的 0.3.0 版本中发布。当网络监控任务被创建时，SkyWalking Rover 会将数据发送到 SkyWalking 后台。</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -f https://raw.githubusercontent.com/mrproliu/skywalking-network-profiling-demo/main/resources/skywalking-rover.yaml</span><br></pre></td></tr></table></figure>
+
+<h3 id="启动网络分析任务"><a href="#启动网络分析任务" class="headerlink" title="启动网络分析任务"></a>启动网络分析任务</h3><p>一旦所有部署完成，我们必须在 SkyWalking UI 中为服务的特定实例创建一个网络分析任务。</p>
+<p>要打开 SkyWalking UI，请运行：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl port-forward svc/skywalking-ui 8080:80 --namespace istio-system</span><br></pre></td></tr></table></figure>
+
+<p>目前，我们可以通过点击服务网格面板中的<strong>数据平面</strong>项目和 <strong>Kubernetes</strong> 面板中的服务项目来选择我们想要监控的特定实例。</p>
+<p>在下图中，我们选择了一个实例，在网络剖析标签里有一个任务列表。当我们点击启动按钮时，SkyWalking Rover 开始监测这个实例的网络。</p>
+<p><img src="/images/1731898384-cf5a7add9328a3dc7cf4f9e990f72f89.jpg" alt="图 5"></p>
+<p><em><strong>图 5</strong></em></p>
+<h3 id="完成"><a href="#完成" class="headerlink" title="完成"></a>完成</h3><p>几秒钟后，你会看到页面的右侧出现进程拓扑结构。</p>
+<p><img src="/images/1731898384-15a2fe1478771aef84d4919256f5124b.jpg" alt="图 6"></p>
+<p><em><strong>图 6</strong></em></p>
+<p>当你点击进程之间的线时，你可以看到两个进程之间的 TCP 指标。</p>
+<p><img src="/images/1731898384-ee118d199f81512f5fa85f33bbef2c99.jpg" alt="图 7"></p>
+<p><em><strong>图 7</strong></em></p>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>在这篇文章中，我们详细介绍了一个使服务网格故障排除困难的问题：网络堆栈中各层之间缺乏上下文。这些情况下，当现有的服务网格 &#x2F;envoy 不能时，eBPF 开始真正帮助调试 &#x2F; 生产。然后，我们研究了如何将 eBPF 应用于普通的通信，如 TLS。最后，我们用 SkyWalking Rover 演示了这个过程的实现。</p>
+<p>目前，我们已经完成了对 OSI 第四层（主要是 TCP）的性能分析。在未来，我们还将介绍对 OSI 第 7 层协议的分析，如 HTTP。</p>
+<h2 id="开始使用-Istio"><a href="#开始使用-Istio" class="headerlink" title="开始使用 Istio"></a>开始使用 Istio</h2><p>开始使用服务网格，<a target="_blank" rel="noopener" href="https://istio.tetratelabs.io/">Tetrate Istio Distro</a> 是安装、管理和升级 Istio 的最简单方法。它提供了一个经过审查的 Istio 上游发布，由 Tetrate 为特定平台进行测试和优化，加上一个 CLI，方便获取、安装和配置多个 Istio 版本。Tetrate Istio Distro 还为 FedRAMP 环境提供 <a target="_blank" rel="noopener" href="https://www.tetrate.io/blog/tetrate-istio-distro-achieves-fips-certification/">FIPS 认证的 Istio 构建</a>。</p>
+<p>对于需要以统一和一致的方式在复杂的异构部署环境中保护和管理服务和传统工作负载的企业，我们提供 <a target="_blank" rel="noopener" href="https://www.tetrate.io/tetrate-service-bridge/">Tetrate Service Bridge</a>，这是我们建立在 Istio 和 Envoy 上的旗舰工作负载应用连接平台。</p>
+<p><a target="_blank" rel="noopener" href="https://www.tetrate.io/contact/">联系我们以了解更多</a>。</p>
+<h2 id="其他资源"><a href="#其他资源" class="headerlink" title="其他资源"></a>其他资源</h2><ol>
+<li><a target="_blank" rel="noopener" href="https://github.com/apache/skywalking">SkyWalking Github Repo</a></li>
+<li><a target="_blank" rel="noopener" href="https://github.com/apache/skywalking-rover">SkyWalking Rover Github Repo</a></li>
+<li><a target="_blank" rel="noopener" href="https://skywalking.apache.org/docs/skywalking-rover/v0.3.0/readme/">SkyWalking Rover 文件</a></li>
+<li><a target="_blank" rel="noopener" href="https://skywalking.apache.org/blog/2022-07-05-pinpoint-service-mesh-critical-performance-impact-by-using-ebpf/">通过使用 eBPF 博文准确定位服务网格关键性能影响</a></li>
+<li><a target="_blank" rel="noopener" href="https://www.youtube.com/watch?v=yUF5qRk4rYY">Apache SkyWalking 与本地 eBPF 代理的介绍</a></li>
+<li><a target="_blank" rel="noopener" href="https://ebpf.io/what-is-ebpf#hook-overview">eBPF hook概述</a></li>
+</ol>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/11/18/%E4%BD%BF%E7%94%A8eBPF%E8%AF%8A%E6%96%AD%E6%9C%8D%E5%8A%A1%E7%BD%91%E6%A0%BC%E7%BD%91%E7%BB%9C%E6%80%A7%E8%83%BD/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/11/15/kubesphere%E4%B8%AD%E4%BF%AE%E6%94%B9%E5%86%85%E7%BD%AEprometheus%E7%9A%84%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">kubesphere中修改内置prometheus的配置文件</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
