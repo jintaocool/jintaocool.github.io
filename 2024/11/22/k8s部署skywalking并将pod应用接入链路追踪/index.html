@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>k8s部署skywalking并将pod应用接入链路追踪 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-k8s部署skywalking并将pod应用接入链路追踪"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  k8s部署skywalking并将pod应用接入链路追踪
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/11/22/k8s%E9%83%A8%E7%BD%B2skywalking%E5%B9%B6%E5%B0%86pod%E5%BA%94%E7%94%A8%E6%8E%A5%E5%85%A5%E9%93%BE%E8%B7%AF%E8%BF%BD%E8%B8%AA/" class="article-date">
+  <time datetime="2024-11-22T06:40:29.000Z" itemprop="datePublished">2024-11-22</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">12 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="一、概述"><a href="#一、概述" class="headerlink" title="一、概述"></a>一、概述</h2><p>前面写了两篇文章介绍使用 docker 部署 spring boot 和 tomcat 项目，并将其接入skywalking，这篇文章主要介绍使用 k8s 部署 skywalking 并将 pod 应用接入链路追踪。</p>
+<h2 id="二、使用-helm-部署-skywalking"><a href="#二、使用-helm-部署-skywalking" class="headerlink" title="二、使用 helm 部署 skywalking"></a>二、使用 helm 部署 skywalking</h2><p>在 k8s 中使用 helm 的前提是需要先安装 helm 客户端，关于 helm 的安装可以查看官方文档。</p>
+<blockquote>
+<p>安装 helm 官方文档地址：<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=mG2yzwv0mmq2WA254FXKUg==.XAYyQ0Nr8OrMi9eIfYJWYAmgxxLdXiw88aew0zuWT5Mgh8TJZEM73p8byWSqcx98">https://helm.sh/docs/intro/in...</a></p>
+</blockquote>
+<p>这里介绍两种方式部署 skywalking , 一种是使用 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=8yQMOGvuozZY3fEPHjwp1Q==.EEhA2wkdx16v36MBHNmzXPQjf8VSFme2oxiPJmVU7es=">Artifact Hub</a> 提供的 chart，另一种是通过 GitHub 提供的源文件进行部署。这两种部署方式的本质是一样的，不同的是通常情况下 GitHub 上面的通常更新先于 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=eTQfB6gMwS7mcKbm5EFypw==.vY5bf2GsXGFx4nHvCxHVsJroFHHQJM/C6EqUvWd3k4Q=">Artifact Hub</a>。</p>
+<h3 id="1、使用-Artifact-Hub-提供的-chart-部署-skywalking"><a href="#1、使用-Artifact-Hub-提供的-chart-部署-skywalking" class="headerlink" title="1、使用 Artifact Hub 提供的 chart 部署 skywalking"></a>1、使用 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=TXHRup5TesqY9VgYHBWekQ==.nYVOj8txXyXGFSC/C8M9w6ogW9Ed9KtnbNTqOsGgh0c=">Artifact Hub</a> 提供的 chart 部署 skywalking</h3><p>这是使用 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=7yD/SpQkPBwpiosdoFaM1A==.zB0JafXk/THnNmuMGh2YYilqQ6hdiLNm8m5ljjjAagI=">Artifact Hub</a> 提供的 chart，搜索 skywalking 可以看到如下图所示：<br><img src="/images/1732257547-3dce429b98f86ac9865508b8445ccdf7.webp" alt="image.png" title="image.png"></p>
+<p>如下图所示，点击 INSTALL 查看并添加 helm 仓库：</p>
+<p><img src="/images/1732257547-100be0a5b2cb18761651dcebf7e043d5.webp" alt="image.png" title="image.png"></p>
+<p>添加 skywalking chart 仓库的命令如下：</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">helm repo add choerodon https:<span class="regexp">//</span>openchart.choerodon.com.cn<span class="regexp">/choerodon/</span>c7n</span><br></pre></td></tr></table></figure>
+
+<p>使用下面的命令查看添加的 repo，这里一并列出了我添加的其他仓库：</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">helm repo list</span><br><span class="line">NAME                    URL                                               </span><br><span class="line">oteemocharts            https:<span class="regexp">//</span>oteemo.github.io/charts                   </span><br><span class="line">kubeview                https:<span class="regexp">//</span>benc-uk.github.io<span class="regexp">/kubeview/</span>charts         </span><br><span class="line">oteemo-charts           https:<span class="regexp">//</span>oteemo.github.io/charts                   </span><br><span class="line">jenkinsci               https:<span class="regexp">//</span>charts.jenkins.io/                        </span><br><span class="line">ygqygq2                 https:<span class="regexp">//yg</span>qygq2.github.io<span class="regexp">/charts/</span>                 </span><br><span class="line">prometheus-community    https:<span class="regexp">//</span>prometheus-community.github.io/helm-charts</span><br><span class="line">my-chart                https:<span class="regexp">//</span>wangedison.github.io<span class="regexp">/k8s-helm-chart/</span>      </span><br><span class="line">carlosjgp               https:<span class="regexp">//</span>carlosjgp.github.io<span class="regexp">/open-charts/</span>          </span><br><span class="line">choerodon               https:<span class="regexp">//</span>openchart.choerodon.com.cn<span class="regexp">/choerodon/</span>c7n  </span><br></pre></td></tr></table></figure>
+
+<p>使用下面的命令在仓库中搜索 skywalking：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">helm</span> search repo skywalking</span><br><span class="line"><span class="attribute">NAME</span>                        CHART VERSION    APP VERSION    DESCRIPTION                 </span><br><span class="line"><span class="attribute">choerodon</span>/skywalking        <span class="number">6</span>.<span class="number">6</span>.<span class="number">0</span>            <span class="number">6</span>.<span class="number">6</span>.<span class="number">0</span>          Apache SkyWalking APM System</span><br><span class="line"><span class="attribute">choerodon</span>/skywalking-oap    <span class="number">0</span>.<span class="number">1</span>.<span class="number">3</span>            <span class="number">0</span>.<span class="number">1</span>.<span class="number">3</span>          skywalking-oap for Choerodon</span><br><span class="line"><span class="attribute">choerodon</span>/skywalking-ui     <span class="number">0</span>.<span class="number">1</span>.<span class="number">4</span>            <span class="number">0</span>.<span class="number">1</span>.<span class="number">4</span>          skywalking-ui for Choerodon </span><br><span class="line"><span class="attribute">choerodon</span>/chart-test        <span class="number">1</span>.<span class="number">0</span>.<span class="number">0</span>            <span class="number">1</span>.<span class="number">0</span>.<span class="number">0</span>          skywalking-ui for Choerodon </span><br></pre></td></tr></table></figure>
+
+<p>为了做一些自定义的配置，比如修改版本号等，使用下面的命令下载 chart 到本地：</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载 chart 到本地</span></span><br><span class="line">[root@k8s-node01 chart-test]<span class="comment"># helm pull choerodon/skywalking</span></span><br><span class="line"><span class="comment"># 查看下载的内容</span></span><br><span class="line">[root@k8s-node01 chart-test]<span class="comment"># ll</span></span><br><span class="line">total <span class="number">12</span></span><br><span class="line">-rw-r--r-- <span class="number">1</span> root root <span class="number">10341</span> Apr <span class="number">21</span> <span class="number">11</span>:<span class="number">12</span> skywalking-<span class="number">6.6</span>.<span class="number">0</span>.tgz</span><br><span class="line"><span class="comment"># 解压 chart 包</span></span><br><span class="line">[root@k8s-node01 chart-test]<span class="comment"># tar -zxvf skywalking-6.6.0.tgz </span></span><br><span class="line">skywalking/Chart.yaml</span><br><span class="line">skywalking/values.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>_helpers.tpl</span><br><span class="line">skywalking<span class="regexp">/templates/i</span>stio-adapter/adapter.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/i</span>stio-adapter/handler.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/i</span>stio-adapter/instance.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/i</span>stio-adapter/rule.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/my</span>sql-init.job.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-clusterrole.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-clusterrolebinding.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-deployment.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-role.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-rolebinding.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-serviceaccount.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/</span>oap-svc.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/ui</span>-deployment.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/ui</span>-ingress.yaml</span><br><span class="line">skywalking<span class="regexp">/templates/ui</span>-svc.yaml</span><br><span class="line">skywalking/.auto_devops.sh</span><br><span class="line">skywalking<span class="regexp">/.choerodon/</span>.docker/config.json</span><br><span class="line">skywalking/.gitlab-ci.yml</span><br><span class="line">skywalking/.helmignore</span><br><span class="line">skywalking/Dockerfile</span><br><span class="line">skywalking/README.md</span><br></pre></td></tr></table></figure>
+
+<p>自定义配置，可以修改 <code>values.yaml</code>文件：</p>
+<figure class="highlight vim"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">vim</span> skywalking/<span class="built_in">values</span>.yaml</span><br></pre></td></tr></table></figure>
+
+<p>可以看到，这里的 skywalking 默认使用的是 mysql 数据库，使用的 skywalking 的版本是 6.6.0，可以根据自己的需求修改对应的版本号，修改完成后保存退出。更多的配置修改说明可以查看 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=fagHpJOJ3K6NWi7UWalugg==.MW4j4Ud8i198GeXgR/DIqiFHocUXpYPdYeMz7gKg8BZ+394fHt6lFcaNK3hWTTgCaD43kCzZQhfRYw6KFrizCg==">skywalking 官方 chart 说明</a>。</p>
+<p>可以使用下面的命令安装 chart，并指定自定义的配置文件：</p>
+<figure class="highlight inform7"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># Usage:  helm install <span class="comment">[NAME]</span> <span class="comment">[CHART]</span> <span class="comment">[flags]</span></span><br><span class="line">helm install  skywalking skywaling -f skywalking/values.yaml</span><br></pre></td></tr></table></figure>
+
+<p>使用上面的命令会将 skywalking 安装在 <code>default</code> 命名空间，我们可以使用 <code>-n namespace</code> 参数指定到特定的命名空间，前提是这个命名空间必须存在。</p>
+<p>安装成功后可以使用下面的命令查看安装的 chart，安装后的 chart 叫做 release：</p>
+<figure class="highlight ebnf"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">helm list</span></span><br></pre></td></tr></table></figure>
+
+<p>可以使用下面的命令卸载 chart：</p>
+<figure class="highlight autoit"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta"># Usage:  helm uninstall RELEASE_NAME [...] [flags]</span></span><br><span class="line">helm uninstall skywalking -n <span class="literal">default</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2、从-GitHub-下载-chart-源文件部署-skywalking"><a href="#2、从-GitHub-下载-chart-源文件部署-skywalking" class="headerlink" title="2、从 GitHub 下载 chart 源文件部署 skywalking"></a>2、从 GitHub 下载 chart 源文件部署 skywalking</h3><blockquote>
+<p>skywalking chart 的 GitHub地址为：<a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=qYImHgv1VTzDnyk/6cyM4Q==.T7e4wGy770Jxh9zRWhq9XlNE8ntWKH6/uV2OwUbZkah7gCig5QWoLeYj8HiIE1gb">https://github.com/apache/sky...</a></p>
+</blockquote>
+<p>在 Linux 系统中使用下面的命令安装 <code>git</code>：</p>
+<figure class="highlight cmake"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum <span class="keyword">install</span> -y git</span><br></pre></td></tr></table></figure>
+
+<p>使用下面的命令 clone 代码：</p>
+<figure class="highlight awk"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">git clone https:<span class="regexp">//gi</span>thub.com<span class="regexp">/apache/</span>skywalking-kubernetes</span><br></pre></td></tr></table></figure>
+
+<p>进到 skywalking 的 chart 目录，可以看到下面的内容：</p>
+<figure class="highlight tap"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">[root@k8s-node01 chart-test]<span class="comment"># cd skywalking-kubernetes/chart/skywalking/</span></span><br><span class="line">[root@k8s-node01 skywalking]<span class="comment"># ll</span></span><br><span class="line">total 84</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root <span class="number"> 1382 </span>Apr<span class="number"> 21 </span>11:35 Chart.yaml</span><br><span class="line">drwxr-xr-x<span class="number"> 3 </span>root root <span class="number"> 4096 </span>Apr<span class="number"> 21 </span>11:35 files</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root  <span class="number"> 877 </span>Apr<span class="number"> 21 </span>11:35 OWNERS</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root<span class="number"> 42593 </span>Apr<span class="number"> 21 </span>11:35 README.md</span><br><span class="line">drwxr-xr-x<span class="number"> 3 </span>root root <span class="number"> 4096 </span>Apr<span class="number"> 21 </span>11:35 templates</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root <span class="number"> 1030 </span>Apr<span class="number"> 21 </span>11:35 values-es6.yaml</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root <span class="number"> 1031 </span>Apr<span class="number"> 21 </span>11:35 values-es7.yaml</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root <span class="number"> 1366 </span>Apr<span class="number"> 21 </span>11:35 values-my-es.yaml</span><br><span class="line">-rw-r--r--<span class="number"> 1 </span>root root<span class="number"> 10184 </span>Apr<span class="number"> 21 </span>11:35 values.yaml</span><br></pre></td></tr></table></figure>
+
+<p>可以看到作者非常贴心的为我们定义了三个自定义配置文件：<code>values-es6.yaml</code> 、<code>values-es7.yaml</code> 和 <code>values-my-es.yaml</code>，分别对应使用 es6、es7 和 外部 es 存储的配置。因为我这里使用的是外部自有的 es 集群，并且 es 的版本是 6.7.0，所以我需要修改 <code>values-my-es.yaml</code> 文件如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Default values for skywalking.</span></span><br><span class="line"><span class="comment"># This is a YAML-formatted file.</span></span><br><span class="line"><span class="comment"># Declare variables to be passed into your templates.</span></span><br><span class="line"></span><br><span class="line"><span class="attr">oap:</span></span><br><span class="line">  <span class="attr">image:</span></span><br><span class="line">    <span class="attr">tag:</span> <span class="number">8.5</span><span class="number">.0</span><span class="string">-es6</span>      <span class="comment"># Set the right tag according to the existing Elasticsearch version</span></span><br><span class="line">  <span class="attr">storageType:</span> <span class="string">elasticsearch</span> <span class="comment"># elasticsearch 对应 es6 ，elasticsearch7 对应 es7</span></span><br><span class="line"></span><br><span class="line"><span class="attr">ui:</span></span><br><span class="line">  <span class="attr">image:</span></span><br><span class="line">    <span class="attr">tag:</span> <span class="number">8.5</span><span class="number">.0</span></span><br><span class="line"></span><br><span class="line"><span class="attr">elasticsearch:</span></span><br><span class="line">  <span class="attr">enabled:</span> <span class="literal">false</span> <span class="comment"># 由于使用 外部的 es，所以这里需要设置为 false，因为设置为 true 会在 k8s 中部署 es</span></span><br><span class="line">  <span class="attr">config:</span>               <span class="comment"># For users of an existing elasticsearch cluster,takes effect when `elasticsearch.enabled` is false</span></span><br><span class="line">    <span class="attr">host:</span> <span class="string">your.elasticsearch.host.or.ip</span></span><br><span class="line">    <span class="attr">port:</span></span><br><span class="line">      <span class="attr">http:</span> <span class="number">9200</span></span><br><span class="line">    <span class="attr">user:</span> <span class="string">&quot;xxx&quot;</span>         <span class="comment"># [optional]</span></span><br><span class="line">    <span class="attr">password:</span> <span class="string">&quot;xxx&quot;</span>     <span class="comment"># [optional]</span></span><br></pre></td></tr></table></figure>
+
+<p>还可以修改 <code>values.yaml</code> 文件，比如开启 ingress，更多详细的配置可以查看 GitHub 中 <a target="_blank" rel="noopener" href="https://link.segmentfault.com/?enc=//TpQShaGa+J5/zn0KrQAw==.Vth5EbuGQZloySDZHAPnfU4E4p5pu2EvUCygA93xl8i5ApUiWBkjeCS95aU0BX+s">skywalking-kubernetes</a> 的说明，根据需要配置好之后就可以使用下面的命令安装 chart：</p>
+<figure class="highlight perl"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">helm install <span class="string">&quot;<span class="subst">$&#123;SKYWALKING_RELEASE_NAME&#125;</span>&quot;</span> skywalking -n <span class="string">&quot;<span class="subst">$&#123;SKYWALKING_RELEASE_NAMESPACE&#125;</span>&quot;</span>  -f ./skywalking/<span class="keyword">values</span>-<span class="keyword">my</span>-es.yaml</span><br></pre></td></tr></table></figure>
+
+<p>安装完成以后，可以通过下面的命令查看 pod 是否正常启动：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">[root<span class="variable">@k8s</span><span class="operator">-</span>node01 <span class="operator">~</span>]# kubectl <span class="keyword">get</span> pod <span class="operator">-</span>n <span class="keyword">default</span></span><br><span class="line">NAME                                     READY   STATUS      RESTARTS   AGE</span><br><span class="line">skywalking<span class="operator">-</span>es<span class="operator">-</span>init<span class="operator">-</span>v6sbn                 <span class="number">0</span><span class="operator">/</span><span class="number">1</span>     Completed   <span class="number">0</span>          <span class="number">1</span>h</span><br><span class="line">skywalking<span class="operator">-</span>oap<span class="number">-5</span>c4d5bf887<span class="number">-4</span>cvjk          <span class="number">1</span><span class="operator">/</span><span class="number">1</span>     <span class="keyword">Running</span>     <span class="number">0</span>          <span class="number">1</span>h</span><br><span class="line">skywalking<span class="operator">-</span>oap<span class="number">-5</span>c4d5bf887<span class="operator">-</span>g75fj          <span class="number">1</span><span class="operator">/</span><span class="number">1</span>     <span class="keyword">Running</span>     <span class="number">0</span>          <span class="number">1</span>h</span><br><span class="line">skywalking<span class="operator">-</span>ui<span class="number">-6</span>cd4bbd858<span class="operator">-</span>sbpvt           <span class="number">1</span><span class="operator">/</span><span class="number">1</span>     <span class="keyword">Running</span>     <span class="number">0</span>          <span class="number">1</span>h</span><br></pre></td></tr></table></figure>
+
+<h2 id="二、使用-sidecar-将-pod-接入链路追踪"><a href="#二、使用-sidecar-将-pod-接入链路追踪" class="headerlink" title="二、使用 sidecar 将 pod 接入链路追踪"></a>二、使用 sidecar 将 pod 接入链路追踪</h2><p>前面简单介绍了使用 helm 部署 skywalking，下面介绍如何使用 sidecar 将 pod 接入链路追踪。Java微服务接入skywalking 可以使用 <code>SkyWalking Java Agent</code> 来上报监控数据，这就需要 java 微服务在启动参数中通过 <code>-javaagent:&lt;skywalking-agent-path&gt;</code> 指定 skywalking agent 探针包，通常有以下三种方式集成：</p>
+<ul>
+<li>使用官方提供的基础镜像 <code>skywalking-base</code>；</li>
+<li>将 agent 包构建到已存在的镜像中；</li>
+<li>通过 sidecar 模式挂载 agent；</li>
+</ul>
+<p>前面两种方式在前面的文章中有简单介绍，这里主要介绍如何使用 sidecar 将 pod 接入链路追踪，这种方式不需要修改原来的基础镜像，也不需要重新构建新的服务镜像，而是会以sidecar模式，通过共享的 volume 将 agent 所需的相关文件直接挂载到已经存在的服务镜像中。sidecar模式原理很简单，就是在 pod 中再部署一个初始容器，这个初始容器的作用就是将 skywalking agent 和 pod 中的应用容器共享。</p>
+<h3 id="1、什么是初始化容器-init-container"><a href="#1、什么是初始化容器-init-container" class="headerlink" title="1、什么是初始化容器 init container"></a>1、什么是初始化容器 init container</h3><p>Init Container 就是用来做初始化工作的容器，可以是一个或者多个，如果有多个的话，这些容器会按定义的顺序依次执行，只有所有的 Init Container 执行完后，主容器才会被启动。我们知道一个Pod里面的所有容器是共享数据卷和网络命名空间的，所以 Init Container 里面产生的数据可以被主容器使用到的。</p>
+<h3 id="2、自定义-skywalking-agent-镜像"><a href="#2、自定义-skywalking-agent-镜像" class="headerlink" title="2、自定义 skywalking agent 镜像"></a>2、自定义 skywalking agent 镜像</h3><p>在开始以 sidecar 方式将一个 java 微服务接入 skywalking 之前，我们需要构建 skywalking agent 的公共镜像，具体步骤如下：</p>
+<ul>
+<li><p>使用下面的命令下载 skywalking agent 并解压：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 下载 skywalking-8.5.0 for es6 版本的发布包，与部署的 skywalking 后端版本一致</span></span><br><span class="line"><span class="attribute">wget</span> https://www.apache.org/dyn/closer.cgi/skywalking/<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span>/apache-skywalking-apm-<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span>.tar.gz</span><br><span class="line"><span class="comment"># 将下载的发布包解压到当前目录</span></span><br><span class="line"><span class="attribute">tar</span> -zxvf apache-skywalking-apm-<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span>.tar.gz</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>在前面步骤中解压的 skywalking 发行包的同级目录编写 Dockerfile 文件，具体内容如下：</p>
+<figure class="highlight gradle"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="keyword">FROM</span> busybox:latest</span><br><span class="line">LABEL maintainer=<span class="string">&quot;xiniao&quot;</span></span><br><span class="line"><span class="keyword">COPY</span> apache-skywalking-apm-bin<span class="regexp">/agent/</span> <span class="regexp">/usr/</span>skywalking<span class="regexp">/agent/</span></span><br></pre></td></tr></table></figure>
+
+<p>在上述 Dockefile 文件中使用的基础镜像是 bosybox 镜像，而不是 SkyWalking 的发行镜像，这样可以确保构建出来的sidecar镜像保持最小。</p>
+</li>
+<li><p>使用下面的命令构建镜像：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">docker</span> build -t skywalking-agent-sidecar:<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span> .</span><br></pre></td></tr></table></figure>
+
+<p>使用下面的命令查看构建的镜像：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">docker</span> images |grep agent</span><br><span class="line"><span class="attribute">skywalking</span>-agent-sidecar          <span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span>             <span class="number">98290</span>e961b49        <span class="number">5</span> days ago          <span class="number">32</span>.<span class="number">6</span>MB</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>使用下面的命令给镜像打标签，这里推送到我的阿里云镜像仓库：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">docker</span> tag skywalking-agent-sidecar:<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span> registry.cn-shenzhen.aliyuncs.com/devan/skywalking-agent-sidecar:<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span></span><br></pre></td></tr></table></figure>
+
+<p>使用下面的命令推送镜像到远程仓库：</p>
+<figure class="highlight apache"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attribute">docker</span> push registry.cn-shenzhen.aliyuncs.com/devan/skywalking-agent-sidecar:<span class="number">8</span>.<span class="number">5</span>.<span class="number">0</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3、sidecar-模式接入-skywalking"><a href="#3、sidecar-模式接入-skywalking" class="headerlink" title="3、sidecar 模式接入 skywalking"></a>3、sidecar 模式接入 skywalking</h3><p>上面我们通过手工构建的方式构建了 SkyWalking Java Agent 的公共 Docker 镜像，接下来我们将演示如何通过编写 Kubernetes 服务发布文件，来将 Java 服务发布到 K8s 集群的过程中自动以 SideCar 的形式集成Agent 并接入 SkyWalking 服务。</p>
+</li>
+<li><p>创建一个 <code>deploy-skywalking.yaml</code>文件，内容如下：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">apps/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Deployment</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line"><span class="attr">name:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">labels:</span></span><br><span class="line">  <span class="attr">app:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">replicas:</span> <span class="number">1</span></span><br><span class="line"><span class="attr">selector:</span></span><br><span class="line">  <span class="attr">matchLabels:</span></span><br><span class="line">    <span class="attr">app:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">template:</span></span><br><span class="line">  <span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">labels:</span></span><br><span class="line">      <span class="attr">app:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line">  <span class="attr">spec:</span></span><br><span class="line">    <span class="comment">#构建初始化镜像(通过初始化镜像的方式集成SkyWalking Agent)</span></span><br><span class="line">    <span class="attr">initContainers:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">image:</span> <span class="string">registry.cn-shenzhen.aliyuncs.com/devan/skywalking-agent-sidecar:8.5.0</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">sw-agent-sidecar</span></span><br><span class="line">        <span class="attr">imagePullPolicy:</span> <span class="string">IfNotPresent</span></span><br><span class="line">        <span class="attr">command:</span> [ <span class="string">&quot;sh&quot;</span> ]</span><br><span class="line">        <span class="attr">args:</span></span><br><span class="line">          [</span><br><span class="line">              <span class="string">&quot;-c&quot;</span>,</span><br><span class="line">              <span class="string">&quot;cp -R /usr/skywalking/agent/* /skywalking/agent&quot;</span>,</span><br><span class="line">          ]</span><br><span class="line">        <span class="attr">volumeMounts:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">mountPath:</span> <span class="string">/skywalking/agent</span></span><br><span class="line">            <span class="attr">name:</span> <span class="string">sw-agent</span></span><br><span class="line">    <span class="attr">containers:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line">        <span class="attr">image:</span> <span class="string">$&#123;ORIGIN_REPO&#125;/spring-boot-skywalking-demo:$&#123;IMAGE_TAG&#125;</span></span><br><span class="line">        <span class="attr">imagePullPolicy:</span> <span class="string">Always</span></span><br><span class="line">        <span class="attr">env:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">TZ</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">Asia/Shanghai</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">BUILD_TAG</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">$&#123;BUILD_TAG&#125;</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">NAMESPACE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">default</span></span><br><span class="line">          <span class="comment">#这里通过JAVA_TOOL_OPTIONS，而不是JAVA_OPTS可以实现不通过将agent命令加入到java应用jvm参数而实现agent的集成</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">JAVA_TOOL_OPTIONS</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">-javaagent:/usr/skywalking/agent/skywalking-agent.jar</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">SW_AGENT_NAME</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">SW_AGENT_COLLECTOR_BACKEND_SERVICES</span></span><br><span class="line">            <span class="comment"># FQDN: servicename.namespacename.svc.cluster.local</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">skywalking-oap.default.svc:11800</span></span><br><span class="line">        <span class="attr">ports:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">containerPort:</span> <span class="number">8080</span></span><br><span class="line">        <span class="attr">resources:</span></span><br><span class="line">          <span class="attr">requests:</span></span><br><span class="line">            <span class="attr">cpu:</span> <span class="string">200m</span></span><br><span class="line">            <span class="attr">memory:</span> <span class="string">500Mi</span></span><br><span class="line">        <span class="attr">volumeMounts:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">mountPath:</span> <span class="string">/usr/skywalking/agent</span></span><br><span class="line">            <span class="attr">name:</span> <span class="string">sw-agent</span></span><br><span class="line">    <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">sw-agent</span></span><br><span class="line">        <span class="attr">emptyDir:</span> &#123; &#125;</span><br><span class="line"></span><br><span class="line"></span><br><span class="line"><span class="meta">---</span></span><br><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Service</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line"><span class="attr">name:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">namespace:</span> <span class="string">default</span></span><br><span class="line"><span class="attr">labels:</span></span><br><span class="line">  <span class="attr">app:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line"><span class="attr">ports:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">port</span></span><br><span class="line">    <span class="attr">port:</span> <span class="number">80</span></span><br><span class="line">    <span class="attr">protocol:</span> <span class="string">TCP</span></span><br><span class="line">    <span class="attr">targetPort:</span> <span class="number">8080</span></span><br><span class="line"><span class="attr">selector:</span></span><br><span class="line">  <span class="attr">app:</span> <span class="string">spring-boot-skywalking-demo</span></span><br><span class="line"><span class="attr">type:</span> <span class="string">ClusterIP</span></span><br></pre></td></tr></table></figure>
+
+<p><code>spec.volumes</code> 指的是 pod 中的卷，<code>spec.containers.volumeMounts</code> 是将指定的卷 mount 到容器指定的位置，相当于 docker 里面的 <code>-v 宿主机目录：容器目录</code>，我们这里使用的是 <code>emptyDir&#123;&#125;</code>，这个就相当于一个共享卷，是一个临时的目录，生命周期等同于Pod的生命周期。初始容器执行的命令是 <code>sh -c cp -R /usr/skywalking/agent/* /skywalking/agent</code>， 意思是将 skywalking agent 复制到共享目录，主容器关联了共享目录，所以主容器就可以访问 skywalking agent。</p>
+</li>
+</ul>
+<p>使用下面的命令部署应用：</p>
+<figure class="highlight powershell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply <span class="operator">-f</span> <span class="built_in">deploy-skywalking</span>.yaml</span><br></pre></td></tr></table></figure>
+
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>这篇文章简单介绍了使用 helm 部署 skywalking，关于 helm 的使用以及如何自定义 chart，后面可以写一篇文章介绍一下，如果想要详细了解，建议还是查看官方文档。还有简单介绍了 pod 应用以 SideCar 模式接入SkyWalking 服务，主要是理解初始容器 initContainers 的作用，初始容器是在主容器启动之前执行，可以和主容器共享数据卷共享网络命名空间。</p>
+<p>参考文章<br><a target="_blank" rel="noopener" href="https://segmentfault.com/a/1190000039365064">k8s微服务接入SkyWalking，三分钟教你怎么玩！</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/11/22/k8s%E9%83%A8%E7%BD%B2skywalking%E5%B9%B6%E5%B0%86pod%E5%BA%94%E7%94%A8%E6%8E%A5%E5%85%A5%E9%93%BE%E8%B7%AF%E8%BF%BD%E8%B8%AA/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/11/22/Kubernetes%E9%9B%86%E7%BE%A4%E9%80%9A%E8%BF%87Helm%E9%83%A8%E7%BD%B2skywalking/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Kubernetes集群通过Helm部署skywalking</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
