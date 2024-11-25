@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">34</span>
+            <span class="post-count">370</span>
         </span>
     </span>
 
@@ -122,7 +122,15 @@
   
     <div class="article-entry" itemprop="articleBody">
        
-  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">label_replace(sum(probe_success&#123;job=~&quot;.*ping.*&quot;,ip=~&quot;10.138.238.7[3-5]&quot;&#125;) by (app,app_code,job,ostype),&quot;cmdb_id&quot;,&quot;VM-100455&quot;,&quot;&quot;,&quot;&quot;)</span><br></pre></td></tr></table></figure> 
+  <figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">label_replace(sum(probe_success&#123;job=~&quot;.*ping.*&quot;,ip=~&quot;10.138.238.7[3-5]&quot;&#125;) by (app,app_code,job,ostype),&quot;cmdb_id&quot;,&quot;VM-100455&quot;,&quot;&quot;,&quot;&quot;)</span><br></pre></td></tr></table></figure>
+
+<p>label_replace((topk(1,oracledb_tablespace_used_percent{type !&#x3D; “UNDO”}) by (ip,id,app,app_code,job)), “job”, “oracle”, “job”, “^oracle.*”) </p>
+<p>表达式解析</p>
+<p>oracledb_tablespace_used_percent{type !&#x3D; “UNDO”}<br>解析：这是一个基础的指标查询，选择 oracledb_tablespace_used_percent 指标的样本，但排除 type 为 “UNDO” 的样本。<br>作用：获取所有非 UNDO 类型的 Oracle 表空间使用百分比。</p>
+<p>topk(1, … )<br>解析：topk 函数返回前 k 个最高值的样本。在这个例子中，k 为 1，即返回最高的一个样本。<br>作用：从上一步筛选出的非 UNDO 类型表空间使用百分比中，选择使用率最高的一个。</p>
+<p>by (ip, id, app, app_code, job)<br>解析：by 子句用于按指定的标签对结果进行分组。<br>作用：确保 topk 函数在每个 (ip, id, app, app_code, job) 组合内分别选择最高的表空间使用百分比。</p>
+<p>label_replace(…, “job”, “oracle”, “job”, “^oracle.<em>“)<br>解析：label_replace 函数用于替换或修改样本的标签值。<br>参数：<br>第一个参数是输入的样本集。<br>第二个参数是目标标签名称，即要修改的标签名称。<br>第三个参数是新的标签值。<br>第四个参数是源标签名称，即要匹配的标签名称。<br>第五个参数是正则表达式，用于匹配源标签值。<br>作用：将 job 标签值中匹配正则表达式 ^oracle.</em> 的部分替换为 “oracle”。</p>
+ 
       <!-- reward -->
       
       <div id="reword-out">
