@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>在kubesphere内置的prometheus中增加自定义规则 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Kubernetes-在kubesphere内置的prometheus中增加自定义规则"
+  class="article article-type-Kubernetes"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  在kubesphere内置的prometheus中增加自定义规则
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/12/18/%E5%9C%A8kubesphere%E5%86%85%E7%BD%AE%E7%9A%84prometheus%E4%B8%AD%E5%A2%9E%E5%8A%A0%E8%87%AA%E5%AE%9A%E4%B9%89%E8%A7%84%E5%88%99/" class="article-date">
+  <time datetime="2024-12-18T02:51:36.000Z" itemprop="datePublished">2024-12-18</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Kubernetes/">Kubernetes</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">29 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>获取规则配置：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl get PrometheusRule  -n kubesphere-monitoring-system -o yaml &gt; prometheus_rule.yaml</span><br></pre></td></tr></table></figure>
+
+<p>在配置文件中增加rule：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br><span class="line">346</span><br><span class="line">347</span><br><span class="line">348</span><br><span class="line">349</span><br><span class="line">350</span><br><span class="line">351</span><br><span class="line">352</span><br><span class="line">353</span><br><span class="line">354</span><br><span class="line">355</span><br><span class="line">356</span><br><span class="line">357</span><br><span class="line">358</span><br><span class="line">359</span><br><span class="line">360</span><br><span class="line">361</span><br><span class="line">362</span><br><span class="line">363</span><br><span class="line">364</span><br><span class="line">365</span><br><span class="line">366</span><br><span class="line">367</span><br><span class="line">368</span><br><span class="line">369</span><br><span class="line">370</span><br><span class="line">371</span><br><span class="line">372</span><br><span class="line">373</span><br><span class="line">374</span><br><span class="line">375</span><br><span class="line">376</span><br><span class="line">377</span><br><span class="line">378</span><br><span class="line">379</span><br><span class="line">380</span><br><span class="line">381</span><br><span class="line">382</span><br><span class="line">383</span><br><span class="line">384</span><br><span class="line">385</span><br><span class="line">386</span><br><span class="line">387</span><br><span class="line">388</span><br><span class="line">389</span><br><span class="line">390</span><br><span class="line">391</span><br><span class="line">392</span><br><span class="line">393</span><br><span class="line">394</span><br><span class="line">395</span><br><span class="line">396</span><br><span class="line">397</span><br><span class="line">398</span><br><span class="line">399</span><br><span class="line">400</span><br><span class="line">401</span><br><span class="line">402</span><br><span class="line">403</span><br><span class="line">404</span><br><span class="line">405</span><br><span class="line">406</span><br><span class="line">407</span><br><span class="line">408</span><br><span class="line">409</span><br><span class="line">410</span><br><span class="line">411</span><br><span class="line">412</span><br><span class="line">413</span><br><span class="line">414</span><br><span class="line">415</span><br><span class="line">416</span><br><span class="line">417</span><br><span class="line">418</span><br><span class="line">419</span><br><span class="line">420</span><br><span class="line">421</span><br><span class="line">422</span><br><span class="line">423</span><br><span class="line">424</span><br><span class="line">425</span><br><span class="line">426</span><br><span class="line">427</span><br><span class="line">428</span><br><span class="line">429</span><br><span class="line">430</span><br><span class="line">431</span><br><span class="line">432</span><br><span class="line">433</span><br><span class="line">434</span><br><span class="line">435</span><br><span class="line">436</span><br><span class="line">437</span><br><span class="line">438</span><br><span class="line">439</span><br><span class="line">440</span><br><span class="line">441</span><br><span class="line">442</span><br><span class="line">443</span><br><span class="line">444</span><br><span class="line">445</span><br><span class="line">446</span><br><span class="line">447</span><br><span class="line">448</span><br><span class="line">449</span><br><span class="line">450</span><br><span class="line">451</span><br><span class="line">452</span><br><span class="line">453</span><br><span class="line">454</span><br><span class="line">455</span><br><span class="line">456</span><br><span class="line">457</span><br><span class="line">458</span><br><span class="line">459</span><br><span class="line">460</span><br><span class="line">461</span><br><span class="line">462</span><br><span class="line">463</span><br><span class="line">464</span><br><span class="line">465</span><br><span class="line">466</span><br><span class="line">467</span><br><span class="line">468</span><br><span class="line">469</span><br><span class="line">470</span><br><span class="line">471</span><br><span class="line">472</span><br><span class="line">473</span><br><span class="line">474</span><br><span class="line">475</span><br><span class="line">476</span><br><span class="line">477</span><br><span class="line">478</span><br><span class="line">479</span><br><span class="line">480</span><br><span class="line">481</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">items:</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">apiVersion:</span> <span class="string">monitoring.coreos.com/v1</span></span><br><span class="line">  <span class="attr">kind:</span> <span class="string">PrometheusRule</span></span><br><span class="line">  <span class="attr">metadata:</span></span><br><span class="line">    <span class="attr">annotations:</span></span><br><span class="line">      <span class="attr">kubectl.kubernetes.io/last-applied-configuration:</span> <span class="string">|</span></span><br><span class="line"><span class="string">        &#123;&quot;apiVersion&quot;:&quot;monitoring.coreos.com/v1&quot;,&quot;kind&quot;:&quot;PrometheusRule&quot;,&quot;metadata&quot;:&#123;&quot;annotations&quot;:&#123;&#125;,&quot;creationTimestamp&quot;:&quot;2020-08-23T17:12:00Z&quot;,&quot;generation&quot;:9,&quot;labels&quot;:&#123;&quot;prometheus&quot;:&quot;k8s&quot;,&quot;role&quot;:&quot;alert-rules&quot;&#125;,&quot;name&quot;:&quot;prometheus-k8s-rules&quot;,&quot;namespace&quot;:&quot;kubesphere-monitoring-system&quot;,&quot;resourceVersion&quot;:&quot;841357052&quot;,&quot;selfLink&quot;:&quot;/apis/monitoring.coreos.com/v1/namespaces/kubesphere-monitoring-system/prometheusrules/prometheus-k8s-rules&quot;,&quot;uid&quot;:&quot;802a6e6f-7afa-422b-8077-67911d4efea1&quot;&#125;,&quot;spec&quot;:&#123;&quot;groups&quot;:[&#123;&quot;name&quot;:&quot;k8s.rules&quot;,&quot;rules&quot;:[&#123;&quot;expr&quot;:&quot;sum((container_cpu_usage_seconds_total&#123;job=\&quot;kubelet\&quot;, image!=\&quot;\&quot;, container!=\&quot;\&quot;&#125; * on(namespace) group_left(label_kubesphere_io_workspace) kube_namespace_labels&#123;job=\&quot;kube-state-metrics\&quot;&#125; - container_cpu_usage_seconds_total&#123;job=\&quot;kubelet\&quot;&#125;&#125;&#125;&#125;&#125;</span></span><br><span class="line"><span class="string"></span>    <span class="attr">creationTimestamp:</span> <span class="string">&quot;2020-08-23T17:12:00Z&quot;</span></span><br><span class="line">    <span class="attr">generation:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">labels:</span></span><br><span class="line">      <span class="attr">prometheus:</span> <span class="string">k8s</span></span><br><span class="line">      <span class="attr">role:</span> <span class="string">alert-rules</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">prometheus-k8s-rules</span></span><br><span class="line">    <span class="attr">namespace:</span> <span class="string">kubesphere-monitoring-system</span></span><br><span class="line">    <span class="attr">resourceVersion:</span> <span class="string">&quot;841359056&quot;</span></span><br><span class="line">    <span class="attr">selfLink:</span> <span class="string">/apis/monitoring.coreos.com/v1/namespaces/kubesphere-monitoring-system/prometheusrules/prometheus-k8s-rules</span></span><br><span class="line">    <span class="attr">uid:</span> <span class="string">802a6e6f-7afa-422b-8077-67911d4efea1</span></span><br><span class="line">  <span class="attr">spec:</span></span><br><span class="line">    <span class="attr">groups:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">k8s.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum((container_cpu_usage_seconds_total&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container!=&quot;&quot;&#125; * on(namespace) group_left(label_kubesphere_io_workspace) kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125; - container_cpu_usage_seconds_total&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container!=&quot;&quot;&#125; offset 90s * on(namespace) group_left(label_kubesphere_io_workspace) kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;) / 90) by (namespace, label_kubesphere_io_workspace)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:container_cpu_usage_seconds_total:sum_rate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(container_memory_usage_bytes&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container!=&quot;&quot;&#125; * on(namespace) group_left(label_kubesphere_io_workspace) kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;) by (namespace, label_kubesphere_io_workspace)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:container_memory_usage_bytes:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(container_memory_working_set_bytes&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container!=&quot;&quot;&#125; * on(namespace) group_left(label_kubesphere_io_workspace) kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;) by (namespace, label_kubesphere_io_workspace)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:container_memory_usage_bytes_wo_cache:sum</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">node.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          max(label_replace(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125;, &quot;pod&quot;, &quot;$1&quot;, &quot;pod&quot;, &quot;(.*)&quot;)) by (node, namespace, pod)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;node_namespace_pod:kube_pod_info:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count by (node) (sum by (node, cpu) (</span></span><br><span class="line"><span class="string">            node_cpu_seconds_total&#123;job=&quot;node-exporter&quot;&#125;</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          ))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_num_cpu:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          avg(irate(node_cpu_seconds_total&#123;job=&quot;node-exporter&quot;,mode=&quot;used&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">:node_cpu_utilisation:avg1m</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          avg by (node) (</span></span><br><span class="line"><span class="string">            irate(node_cpu_seconds_total&#123;job=&quot;node-exporter&quot;,mode=&quot;used&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_cpu_utilisation:avg1m</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          1 -</span></span><br><span class="line"><span class="string">          sum(node_memory_MemFree_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_Cached_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_Buffers_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_SReclaimable_bytes&#123;job=&quot;node-exporter&quot;&#125;)</span></span><br><span class="line"><span class="string">          /</span></span><br><span class="line"><span class="string">          sum(node_memory_MemTotal_bytes&#123;job=&quot;node-exporter&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;:node_memory_utilisation:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            (node_memory_MemFree_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_Cached_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_Buffers_bytes&#123;job=&quot;node-exporter&quot;&#125; + node_memory_SReclaimable_bytes&#123;job=&quot;node-exporter&quot;&#125;)</span></span><br><span class="line"><span class="string">            * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">              node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_memory_bytes_available:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            node_memory_MemTotal_bytes&#123;job=&quot;node-exporter&quot;&#125;</span></span><br><span class="line"><span class="string">            * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">              node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_memory_bytes_total:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          1 - (node:node_memory_bytes_available:sum / node:node_memory_bytes_total:sum)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;node:node_memory_utilisation:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_disk_reads_completed_total&#123;job=&quot;node-exporter&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:data_volume_iops_reads:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_disk_writes_completed_total&#123;job=&quot;node-exporter&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:data_volume_iops_writes:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_disk_read_bytes_total&#123;job=&quot;node-exporter&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:data_volume_throughput_bytes_read:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_disk_written_bytes_total&#123;job=&quot;node-exporter&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:data_volume_throughput_bytes_written:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(node_network_receive_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m])) +</span></span><br><span class="line"><span class="string">          sum(irate(node_network_transmit_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">:node_net_utilisation:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            (irate(node_network_receive_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m]) +</span></span><br><span class="line"><span class="string">            irate(node_network_transmit_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_net_utilisation:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_network_transmit_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_net_bytes_transmitted:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (</span></span><br><span class="line"><span class="string">            irate(node_network_receive_bytes_total&#123;job=&quot;node-exporter&quot;,device!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;&#125;[5m])</span></span><br><span class="line"><span class="string">          * on (namespace, pod) group_left(node)</span></span><br><span class="line"><span class="string">            node_namespace_pod:kube_pod_info:</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:node_net_bytes_received:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by(node) (sum(max(node_filesystem_files&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125;) by (device, pod, namespace)) by (pod, namespace) * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;node:node_inodes_total:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by(node) (sum(max(node_filesystem_files_free&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125;) by (device, pod, namespace)) by (pod, namespace) * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;node:node_inodes_free:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (node_load1&#123;job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) / node:node_num_cpu:sum</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:load1:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (node_load5&#123;job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) / node:node_num_cpu:sum</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:load5:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) (node_load15&#123;job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) / node:node_num_cpu:sum</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:load15:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum by (node) ((kube_pod_status_scheduled&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;true&quot;&#125; &gt; 0)  * on (namespace, pod) group_left(node) kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125; unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_count:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (node:pod_running:count / sum(kube_node_status_capacity_pods) by (node)) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_utilization:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125; unless on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=~&quot;Failed|Pending|Unknown|Succeeded&quot;&#125; &gt; 0))  by (node) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_running:count</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125; unless on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=~&quot;Failed|Pending|Unknown|Running&quot;&#125; &gt; 0))  by (node) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;,status=~&quot;unknown|false&quot;&#125; &gt; 0)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_succeeded:count</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;, node!=&quot;&quot;&#125; unless on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Succeeded&quot;&#125;&gt;0) unless on (pod, namespace) ((kube_pod_status_ready&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;true&quot;&#125;&gt;0) and on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Running&quot;&#125;&gt;0)) unless on (pod, namespace) kube_pod_container_status_waiting_reason&#123;job=&quot;kube-state-metrics&quot;, reason=&quot;ContainerCreating&quot;&#125;&gt;0) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_abnormal:count</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (node:pod_abnormal:count / count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;, node!=&quot;&quot;&#125; unless on (pod, namespace) kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Succeeded&quot;&#125;&gt;0) by (node)) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:pod_abnormal:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(max(node_filesystem_avail_bytes&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) by (device, node)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">&#x27;node:disk_space_available:&#x27;</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          1- sum(max(node_filesystem_avail_bytes&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) by (device, node)) by (node) / sum(max(node_filesystem_size_bytes&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125; * on (namespace, pod) group_left(node) node_namespace_pod:kube_pod_info:) by (device, node)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:disk_space_utilization:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (1 - (node:node_inodes_free: / node:node_inodes_total:))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">node:disk_inode_utilization:ratio</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">cluster.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125; unless on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Succeeded&quot;&#125;&gt;0) unless on (pod, namespace) ((kube_pod_status_ready&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;true&quot;&#125;&gt;0) and on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Running&quot;&#125;&gt;0)) unless on (pod, namespace) kube_pod_container_status_waiting_reason&#123;job=&quot;kube-state-metrics&quot;, reason=&quot;ContainerCreating&quot;&#125;&gt;0)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:pod_abnormal:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum((kube_pod_status_scheduled&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;true&quot;&#125; &gt; 0)  * on (namespace, pod) group_left(node) (sum by (node, namespace, pod) (kube_pod_info)) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;,status=~&quot;unknown|false&quot;&#125; &gt; 0))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:pod:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          cluster:pod_abnormal:sum / sum(kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase!=&quot;Succeeded&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:pod_abnormal:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;&#125; and on (pod, namespace) (kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Running&quot;&#125;&gt;0) unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:pod_running:count</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          cluster:pod_running:count / sum(kube_node_status_capacity_pods unless on (node) (kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;,condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125; &gt; 0))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:pod_utilization:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          1 - sum(max(node_filesystem_avail_bytes&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125;) by (device, instance)) / sum(max(node_filesystem_size_bytes&#123;device=~&quot;/dev/.*&quot;, device!~&quot;/dev/loop\\d+&quot;, job=&quot;node-exporter&quot;&#125;) by (device, instance))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:disk_utilization:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          1 - sum(node:node_inodes_free:) / sum(node:node_inodes_total:)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:disk_inode_utilization:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:node_offline:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;, status=~&quot;unknown|false&quot;&#125;) / sum(kube_node_status_condition&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;Ready&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">cluster:node_offline:ratio</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">namespace.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (count(kube_pod_info&#123;job=&quot;kube-state-metrics&quot;, node!=&quot;&quot;&#125;) by (namespace) - sum(kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Succeeded&quot;&#125;) by (namespace)  - sum(kube_pod_status_ready&#123;job=&quot;kube-state-metrics&quot;, condition=&quot;true&quot;&#125; * on (pod, namespace) kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase=&quot;Running&quot;&#125;) by (namespace) - sum(kube_pod_container_status_waiting_reason&#123;job=&quot;kube-state-metrics&quot;, reason=&quot;ContainerCreating&quot;&#125;) by (namespace)) * on (namespace) group_left(label_kubesphere_io_workspace)(kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:pod_abnormal:count</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          namespace:pod_abnormal:count / (sum(kube_pod_status_phase&#123;job=&quot;kube-state-metrics&quot;, phase!=&quot;Succeeded&quot;, namespace!=&quot;&quot;&#125;) by (namespace) * on (namespace) group_left(label_kubesphere_io_workspace)(kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:pod_abnormal:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          max(kube_resourcequota&#123;job=&quot;kube-state-metrics&quot;, type=&quot;used&quot;&#125;) by (resource, namespace) / min(kube_resourcequota&#123;job=&quot;kube-state-metrics&quot;, type=&quot;hard&quot;&#125;) by (resource, namespace) *  on (namespace) group_left(label_kubesphere_io_workspace) (kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:resourcequota_used:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum (label_replace(label_join(sum(irate(container_cpu_usage_seconds_total&#123;job=&quot;kubelet&quot;, pod!=&quot;&quot;, image!=&quot;&quot;&#125;[5m])) by (namespace, pod) * on (pod, namespace) group_left(owner_kind,owner_name) label_replace(label_join(label_replace(label_replace(kube_pod_owner&#123;job=&quot;kube-state-metrics&quot;&#125;,&quot;owner_kind&quot;, &quot;Deployment&quot;, &quot;owner_kind&quot;, &quot;ReplicaSet&quot;), &quot;owner_kind&quot;, &quot;Pod&quot;, &quot;owner_kind&quot;, &quot;&lt;none&gt;&quot;),&quot;tmp&quot;,&quot;:&quot;,&quot;owner_name&quot;,&quot;pod&quot;),&quot;owner_name&quot;,&quot;$1&quot;,&quot;tmp&quot;,&quot;&lt;none&gt;:(.*)&quot;), &quot;workload&quot;,&quot;:&quot;,&quot;owner_kind&quot;,&quot;owner_name&quot;), &quot;workload&quot;,&quot;$1&quot;,&quot;workload&quot;,&quot;(Deployment:.+)-(.+)&quot;)) by (namespace, workload, owner_kind)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:workload_cpu_usage:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum (label_replace(label_join(sum(container_memory_usage_bytes&#123;job=&quot;kubelet&quot;, pod!=&quot;&quot;, image!=&quot;&quot;&#125;) by (namespace, pod) * on (pod, namespace) group_left(owner_kind,owner_name) label_replace(label_join(label_replace(label_replace(kube_pod_owner&#123;job=&quot;kube-state-metrics&quot;&#125;,&quot;owner_kind&quot;, &quot;Deployment&quot;, &quot;owner_kind&quot;, &quot;ReplicaSet&quot;), &quot;owner_kind&quot;, &quot;Pod&quot;, &quot;owner_kind&quot;, &quot;&lt;none&gt;&quot;),&quot;tmp&quot;,&quot;:&quot;,&quot;owner_name&quot;,&quot;pod&quot;),&quot;owner_name&quot;,&quot;$1&quot;,&quot;tmp&quot;,&quot;&lt;none&gt;:(.*)&quot;), &quot;workload&quot;,&quot;:&quot;,&quot;owner_kind&quot;,&quot;owner_name&quot;), &quot;workload&quot;,&quot;$1&quot;,&quot;workload&quot;,&quot;(Deployment:.+)-(.+)&quot;)) by (namespace, workload, owner_kind)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:workload_memory_usage:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum (label_replace(label_join(sum(container_memory_working_set_bytes&#123;job=&quot;kubelet&quot;, pod!=&quot;&quot;, image!=&quot;&quot;&#125;) by (namespace, pod) * on (pod, namespace) group_left(owner_kind,owner_name) label_replace(label_join(label_replace(label_replace(kube_pod_owner&#123;job=&quot;kube-state-metrics&quot;&#125;,&quot;owner_kind&quot;, &quot;Deployment&quot;, &quot;owner_kind&quot;, &quot;ReplicaSet&quot;), &quot;owner_kind&quot;, &quot;Pod&quot;, &quot;owner_kind&quot;, &quot;&lt;none&gt;&quot;),&quot;tmp&quot;,&quot;:&quot;,&quot;owner_name&quot;,&quot;pod&quot;),&quot;owner_name&quot;,&quot;$1&quot;,&quot;tmp&quot;,&quot;&lt;none&gt;:(.*)&quot;), &quot;workload&quot;,&quot;:&quot;,&quot;owner_kind&quot;,&quot;owner_name&quot;), &quot;workload&quot;,&quot;$1&quot;,&quot;workload&quot;,&quot;(Deployment:.+)-(.+)&quot;)) by (namespace, workload, owner_kind)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:workload_memory_usage_wo_cache:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum (label_replace(label_join(sum(irate(container_network_transmit_bytes_total&#123;pod!=&quot;&quot;, interface!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;, job=&quot;kubelet&quot;&#125;[5m])) by (namespace, pod) * on (pod, namespace) group_left(owner_kind,owner_name) label_replace(label_join(label_replace(label_replace(kube_pod_owner&#123;job=&quot;kube-state-metrics&quot;&#125;,&quot;owner_kind&quot;, &quot;Deployment&quot;, &quot;owner_kind&quot;, &quot;ReplicaSet&quot;), &quot;owner_kind&quot;, &quot;Pod&quot;, &quot;owner_kind&quot;, &quot;&lt;none&gt;&quot;),&quot;tmp&quot;,&quot;:&quot;,&quot;owner_name&quot;,&quot;pod&quot;),&quot;owner_name&quot;,&quot;$1&quot;,&quot;tmp&quot;,&quot;&lt;none&gt;:(.*)&quot;), &quot;workload&quot;,&quot;:&quot;,&quot;owner_kind&quot;,&quot;owner_name&quot;), &quot;workload&quot;,&quot;$1&quot;,&quot;workload&quot;,&quot;(Deployment:.+)-(.+)&quot;)) by (namespace, workload, owner_kind)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:workload_net_bytes_transmitted:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum (label_replace(label_join(sum(irate(container_network_receive_bytes_total&#123;pod!=&quot;&quot;, interface!~&quot;^(cali.+|tunl.+|dummy.+|kube.+|flannel.+|cni.+|docker.+|veth.+|lo.*)&quot;, job=&quot;kubelet&quot;&#125;[5m])) by (namespace, pod) * on (pod, namespace) group_left(owner_kind,owner_name) label_replace(label_join(label_replace(label_replace(kube_pod_owner&#123;job=&quot;kube-state-metrics&quot;&#125;,&quot;owner_kind&quot;, &quot;Deployment&quot;, &quot;owner_kind&quot;, &quot;ReplicaSet&quot;), &quot;owner_kind&quot;, &quot;Pod&quot;, &quot;owner_kind&quot;, &quot;&lt;none&gt;&quot;),&quot;tmp&quot;,&quot;:&quot;,&quot;owner_name&quot;,&quot;pod&quot;),&quot;owner_name&quot;,&quot;$1&quot;,&quot;tmp&quot;,&quot;&lt;none&gt;:(.*)&quot;), &quot;workload&quot;,&quot;:&quot;,&quot;owner_kind&quot;,&quot;owner_name&quot;), &quot;workload&quot;,&quot;$1&quot;,&quot;workload&quot;,&quot;(Deployment:.+)-(.+)&quot;)) by (namespace, workload, owner_kind)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:workload_net_bytes_received:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          label_replace(label_replace(sum(kube_deployment_status_replicas_unavailable&#123;job=&quot;kube-state-metrics&quot;&#125;) by (deployment, namespace) / sum(kube_deployment_spec_replicas&#123;job=&quot;kube-state-metrics&quot;&#125;) by (deployment, namespace) * on (namespace) group_left(label_kubesphere_io_workspace)(kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;), &quot;workload&quot;,&quot;Deployment:$1&quot;, &quot;deployment&quot;, &quot;(.*)&quot;), &quot;owner_kind&quot;,&quot;Deployment&quot;, &quot;&quot;, &quot;&quot;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:deployment_unavailable_replicas:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          label_replace(label_replace(sum(kube_daemonset_status_number_unavailable&#123;job=&quot;kube-state-metrics&quot;&#125;) by (daemonset, namespace) / sum(kube_daemonset_status_desired_number_scheduled&#123;job=&quot;kube-state-metrics&quot;&#125;) by (daemonset, namespace) * on (namespace) group_left(label_kubesphere_io_workspace)(kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;) , &quot;workload&quot;,&quot;DaemonSet:$1&quot;, &quot;daemonset&quot;, &quot;(.*)&quot;), &quot;owner_kind&quot;,&quot;DaemonSet&quot;, &quot;&quot;, &quot;&quot;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:daemonset_unavailable_replicas:ratio</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          label_replace(label_replace((1 - sum(kube_statefulset_status_replicas_current&#123;job=&quot;kube-state-metrics&quot;&#125;) by (statefulset, namespace) / sum(kube_statefulset_replicas&#123;job=&quot;kube-state-metrics&quot;&#125;) by (statefulset, namespace)) * on (namespace) group_left(label_kubesphere_io_workspace)(kube_namespace_labels&#123;job=&quot;kube-state-metrics&quot;&#125;) , &quot;workload&quot;,&quot;StatefulSet:$1&quot;, &quot;statefulset&quot;, &quot;(.*)&quot;), &quot;owner_kind&quot;,&quot;StatefulSet&quot;, &quot;&quot;, &quot;&quot;)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">namespace:statefulset_unavailable_replicas:ratio</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">etcd.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=&quot;etcd&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:up:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(changes(etcd_server_leader_changes_seen_total&#123;job=&quot;etcd&quot;&#125;[1h])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_server_leader_changes_seen:sum_changes</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_server_proposals_failed_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;))by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_server_proposals_failed:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_server_proposals_applied_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_server_proposals_applied:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_server_proposals_committed_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_server_proposals_committed:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(etcd_server_proposals_pending&#123;job=&quot;etcd&quot;&#125;) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_server_proposals_pending:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(etcd_debugging_mvcc_db_total_size_in_bytes&#123;job=&quot;etcd&quot;&#125;,&quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_debugging_mvcc_db_total_size:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(etcd_mvcc_db_total_size_in_bytes&#123;job=&quot;etcd&quot;&#125;,&quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_mvcc_db_total_size:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_network_client_grpc_received_bytes_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_network_client_grpc_received_bytes:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_network_client_grpc_sent_bytes_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_network_client_grpc_sent_bytes:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(grpc_server_started_total&#123;job=&quot;etcd&quot;,grpc_type=&quot;unary&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:grpc_server_started:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(grpc_server_handled_total&#123;job=&quot;etcd&quot;,grpc_type=&quot;unary&quot;,grpc_code!=&quot;OK&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:grpc_server_handled:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(grpc_server_msg_received_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:grpc_server_msg_received:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(grpc_server_msg_sent_total&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:grpc_server_msg_sent:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_disk_wal_fsync_duration_seconds_sum&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance) / sum(irate(etcd_disk_wal_fsync_duration_seconds_count&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_wal_fsync_duration:avg</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(label_replace(sum(irate(etcd_disk_backend_commit_duration_seconds_sum&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance) / sum(irate(etcd_disk_backend_commit_duration_seconds_count&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_backend_commit_duration:avg</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">etcd_histogram.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.99, sum(label_replace(sum(irate(etcd_disk_wal_fsync_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance, le),&quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.99&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_wal_fsync_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.9, sum(label_replace(sum(irate(etcd_disk_wal_fsync_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance, le), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.9&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_wal_fsync_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.5, sum(label_replace(sum(irate(etcd_disk_wal_fsync_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance, le), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.5&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_wal_fsync_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.99, sum(label_replace(sum(irate(etcd_disk_backend_commit_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance,le), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.99&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_backend_commit_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.9, sum(label_replace(sum(irate(etcd_disk_backend_commit_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance, le), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.9&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_backend_commit_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.5, sum(label_replace(sum(irate(etcd_disk_backend_commit_duration_seconds_bucket&#123;job=&quot;etcd&quot;&#125;[5m])) by (instance, le), &quot;node&quot;, &quot;$1&quot;, &quot;instance&quot;, &quot;(.*):.*&quot;)) by (node, le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.5&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">etcd:etcd_disk_backend_commit_duration:histogram_quantile</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">apiserver.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=&quot;apiserver&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">apiserver:up:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(apiserver_request_count&#123;job=&quot;apiserver&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">apiserver:apiserver_request_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(apiserver_request_count&#123;job=&quot;apiserver&quot;&#125;[5m])) by (verb)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">apiserver:apiserver_request_count:sum_verb_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(apiserver_request_latencies_sum&#123;job=&quot;apiserver&quot;, verb!~&quot;WATCH|CONNECT&quot;&#125;[5m])) / sum(irate(apiserver_request_latencies_count&#123;job=&quot;apiserver&quot;, verb!~&quot;WATCH|CONNECT&quot;&#125;[5m]))/ 1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">apiserver:apiserver_request_latencies:avg</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(apiserver_request_latencies_sum&#123;job=&quot;apiserver&quot;, verb!~&quot;WATCH|CONNECT&quot;&#125;[5m])) by (verb) / sum(irate(apiserver_request_latencies_count&#123;job=&quot;apiserver&quot;, verb!~&quot;WATCH|CONNECT&quot;&#125;[5m])) by (verb) / 1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">apiserver:apiserver_request_latencies:avg_by_verb</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">scheduler.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=&quot;kube-scheduler&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">scheduler:up:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(scheduler_schedule_attempts_total&#123;job=&quot;kube-scheduler&quot;&#125;) by (result)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">scheduler:scheduler_schedule_attempts:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(rate(scheduler_schedule_attempts_total&#123;job=&quot;kube-scheduler&quot;&#125;[5m])) by (result)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">scheduler:scheduler_schedule_attempts:sum_rate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (sum(rate(scheduler_e2e_scheduling_latency_microseconds_sum&#123;job=&quot;kube-scheduler&quot;&#125;[1h]))  / sum(rate(scheduler_e2e_scheduling_latency_microseconds_count&#123;job=&quot;kube-scheduler&quot;&#125;[1h]))) /  1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">scheduler:scheduler_e2e_scheduling_latency:avg</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">scheduler_histogram.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.99, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket&#123;job=&quot;kube-scheduler&quot;&#125;[1h])) by (le) ) / 1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.99&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">scheduler:scheduler_e2e_scheduling_latency:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.9, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket&#123;job=&quot;kube-scheduler&quot;&#125;[1h])) by (le) ) / 1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.9&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">scheduler:scheduler_e2e_scheduling_latency:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.5, sum(rate(scheduler_e2e_scheduling_latency_microseconds_bucket&#123;job=&quot;kube-scheduler&quot;&#125;[1h])) by (le) ) / 1e+06</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.5&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">scheduler:scheduler_e2e_scheduling_latency:histogram_quantile</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">controller_manager.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=&quot;kube-controller-manager&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">controller_manager:up:sum</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">coredns.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=&quot;coredns&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:up:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_cache_hits_total&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_cache_hits_total:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_cache_misses&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_cache_misses:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_dns_request_count_total&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_dns_request_type_count_total&#123;job=&quot;coredns&quot;&#125;[5m])) by (type)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_type_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_dns_response_rcode_count_total&#123;job=&quot;coredns&quot;&#125;[5m])) by (rcode)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_response_rcode_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_panic_count_total&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_panic_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_proxy_request_count_total&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_proxy_request_count:sum_irate</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_dns_request_duration_seconds_sum&#123;job=&quot;coredns&quot;&#125;[5m])) / sum(irate(coredns_dns_request_duration_seconds_count&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_duration:avg</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(irate(coredns_proxy_request_duration_seconds_sum&#123;job=&quot;coredns&quot;&#125;[5m])) / sum(irate(coredns_proxy_request_duration_seconds_count&#123;job=&quot;coredns&quot;&#125;[5m]))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">coredns:coredns_proxy_request_duration:avg</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">coredns_histogram.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.99, sum(irate(coredns_dns_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.99&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.9, sum(irate(coredns_dns_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.9&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.5, sum(irate(coredns_dns_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.5&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_dns_request_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.99, sum(irate(coredns_proxy_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.99&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_proxy_request_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.9, sum(irate(coredns_proxy_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.9&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_proxy_request_duration:histogram_quantile</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          histogram_quantile(0.5, sum(irate(coredns_proxy_request_duration_seconds_bucket&#123;job=&quot;coredns&quot;&#125;[5m])) by (le))</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">quantile:</span> <span class="string">&quot;0.5&quot;</span></span><br><span class="line">        <span class="attr">record:</span> <span class="string">coredns:coredns_proxy_request_duration:histogram_quantile</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">prometheus.rules</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(up&#123;job=~&quot;prometheus-k8s.*&quot;&#125; == 1)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">prometheus:up:sum</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          sum(rate(prometheus_tsdb_head_samples_appended_total&#123;job=~&quot;prometheus-k8s.*&quot;&#125; [5m])) by (job, pod)</span></span><br><span class="line"><span class="string"></span>        <span class="attr">record:</span> <span class="string">prometheus:prometheus_tsdb_head_samples_appended:sum_rate</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">my-node-time</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">myClockSkewDetected</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">message:</span> <span class="string">Clock</span> <span class="string">skew</span> <span class="string">detected</span> <span class="string">on</span> <span class="string">node-exporter</span> &#123;&#123; <span class="string">$labels.namespace</span> &#125;&#125;<span class="string">/&#123;&#123;</span></span><br><span class="line">            <span class="string">$labels.pod</span> <span class="string">&#125;&#125;.</span> <span class="string">Ensure</span> <span class="string">NTP</span> <span class="string">is</span> <span class="string">configured</span> <span class="string">correctly.</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">abs(node_timex_offset_seconds&#123;job=&quot;node-exporter&quot;&#125;)</span> <span class="string">&gt;</span> <span class="number">0.03</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">2m</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">P2-warning</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">node-exporter</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">NodeFilesystemSpaceFillingUp</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">Filesystem</span> <span class="string">on</span> &#123;&#123; <span class="string">$labels.device</span> &#125;&#125; <span class="string">at</span> &#123;&#123; <span class="string">$labels.instance</span> &#125;&#125;</span><br><span class="line">            <span class="string">has</span> <span class="string">only</span> &#123;&#123; <span class="string">printf</span> <span class="string">&quot;%.2f&quot;</span> <span class="string">$value</span> &#125;&#125;<span class="string">%</span> <span class="string">available</span> <span class="string">space</span> <span class="string">left</span> <span class="string">and</span> <span class="string">is</span> <span class="string">filling</span></span><br><span class="line">            <span class="string">up.</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">node_filesystem_avail_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125;</span> <span class="string">/</span> <span class="string">node_filesystem_size_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125;</span></span><br><span class="line">          <span class="string">*</span> <span class="number">100</span> <span class="string">&lt;</span> <span class="number">40</span> <span class="string">and</span> <span class="string">predict_linear(node_filesystem_avail_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125;[6h],</span></span><br><span class="line">          <span class="number">24</span><span class="string">*60*60)</span> <span class="string">&lt;</span> <span class="number">0</span></span><br><span class="line">        <span class="attr">for:</span> <span class="string">1h</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">warning</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">NodeFilesystemSpaceFillingUp</span></span><br><span class="line">        <span class="attr">annotations:</span></span><br><span class="line">          <span class="attr">description:</span> <span class="string">Filesystem</span> <span class="string">on</span> &#123;&#123; <span class="string">$labels.device</span> &#125;&#125; <span class="string">at</span> &#123;&#123; <span class="string">$labels.instance</span> &#125;&#125;</span><br><span class="line">            <span class="string">has</span> <span class="string">only</span> &#123;&#123; <span class="string">printf</span> <span class="string">&quot;%.2f&quot;</span> <span class="string">$value</span> &#125;&#125;<span class="string">%</span> <span class="string">available</span> <span class="string">space</span> <span class="string">left</span> <span class="string">and</span> <span class="string">is</span> <span class="string">filling</span></span><br><span class="line">            <span class="string">up</span> <span class="string">fast.</span></span><br><span class="line">          <span class="attr">runbook_url:</span> <span class="string">https://github.com/kubernetes-monitoring/kubernetes-mixin/tree/master/runbook.md#alert-name-nodefilesystemspacefillingup</span></span><br><span class="line">          <span class="attr">summary:</span> <span class="string">Filesystem</span> <span class="string">is</span> <span class="string">predicted</span> <span class="string">to</span> <span class="string">run</span> <span class="string">out</span> <span class="string">of</span> <span class="string">space</span> <span class="string">within</span> <span class="string">the</span> <span class="string">next</span> <span class="number">4</span> <span class="string">hours.</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">          (</span></span><br><span class="line"><span class="string">            node_filesystem_avail_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125; / node_filesystem_size_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125; * 100 &lt; 15</span></span><br><span class="line"><span class="string">          and</span></span><br><span class="line"><span class="string">            predict_linear(node_filesystem_avail_bytes&#123;job=&quot;node-exporter&quot;,fstype!=&quot;&quot;&#125;[6h], 4*60*60) &lt; 0</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span>        <span class="attr">for:</span> <span class="string">1h</span></span><br><span class="line">        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">severity:</span> <span class="string">critical</span></span><br></pre></td></tr></table></figure>
+
+<p>使配置生效：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl apply -f prometheus_rule.yaml</span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/12/18/%E5%9C%A8kubesphere%E5%86%85%E7%BD%AE%E7%9A%84prometheus%E4%B8%AD%E5%A2%9E%E5%8A%A0%E8%87%AA%E5%AE%9A%E4%B9%89%E8%A7%84%E5%88%99/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Kubernetes/" rel="tag">Kubernetes</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/12/18/linux-vi%E4%B8%AD%E6%96%87%E4%B9%B1%E7%A0%81%E5%A4%84%E7%90%86%E6%96%B9%E6%B3%95/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">linux vi中文乱码处理方法</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
