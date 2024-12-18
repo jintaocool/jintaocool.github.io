@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus Operator自定义报警规则 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus-Operator自定义报警规则"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus Operator自定义报警规则
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2024/12/18/Prometheus-Operator%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8A%A5%E8%AD%A6%E8%A7%84%E5%88%99/" class="article-date">
+  <time datetime="2024-12-18T08:17:03.000Z" itemprop="datePublished">2024-12-18</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="配置-PrometheusRule"><a href="#配置-PrometheusRule" class="headerlink" title="配置 PrometheusRule"></a>配置 PrometheusRule</h3><p>现在我们知道怎么自定义一个 ServiceMonitor 对象了，但是如果需要自定义一个报警规则的话呢？比如现在我们去查看 Prometheus Dashboard 的 Alert 页面下面就已经有一些报警规则了，还有一些是已经触发规则的了：</p>
+<p><img src="/images/1734503534-20f7050e08a1233233e9dd0730ea5600.jpg" alt="alerts"></p>
+<p>但是这些报警信息是哪里来的呢？他们应该用怎样的方式通知我们呢？我们知道之前我们使用自定义的方式可以在 Prometheus 的配置文件之中指定 AlertManager 实例和 报警的 rules 文件，现在我们通过 Operator 部署的呢？我们可以在 Prometheus Dashboard 的 Config 页面下面查看关于 AlertManager 的配置：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">alerting:</span></span><br><span class="line">  <span class="attr">alert_relabel_configs:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">separator:</span> <span class="string">;</span></span><br><span class="line">      <span class="attr">regex:</span> <span class="string">prometheus_replica</span></span><br><span class="line">      <span class="attr">replacement:</span> <span class="string">$1</span></span><br><span class="line">      <span class="attr">action:</span> <span class="string">labeldrop</span></span><br><span class="line">  <span class="attr">alertmanagers:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">kubernetes_sd_configs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">role:</span> <span class="string">endpoints</span></span><br><span class="line">          <span class="attr">namespaces:</span></span><br><span class="line">            <span class="attr">names:</span></span><br><span class="line">              <span class="bullet">-</span> <span class="string">monitoring</span></span><br><span class="line">      <span class="attr">scheme:</span> <span class="string">http</span></span><br><span class="line">      <span class="attr">path_prefix:</span> <span class="string">/</span></span><br><span class="line">      <span class="attr">timeout:</span> <span class="string">10s</span></span><br><span class="line">      <span class="attr">relabel_configs:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_service_name</span>]</span><br><span class="line">          <span class="attr">separator:</span> <span class="string">;</span></span><br><span class="line">          <span class="attr">regex:</span> <span class="string">alertmanager-main</span></span><br><span class="line">          <span class="attr">replacement:</span> <span class="string">$1</span></span><br><span class="line">          <span class="attr">action:</span> <span class="string">keep</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_endpoint_port_name</span>]</span><br><span class="line">          <span class="attr">separator:</span> <span class="string">;</span></span><br><span class="line">          <span class="attr">regex:</span> <span class="string">web</span></span><br><span class="line">          <span class="attr">replacement:</span> <span class="string">$1</span></span><br><span class="line">          <span class="attr">action:</span> <span class="string">keep</span></span><br><span class="line"><span class="attr">rule_files:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">/etc/prometheus/rules/prometheus-k8s-rulefiles-0/*.yaml</span></span><br></pre></td></tr></table></figure>
+
+<p>上面 alertmanagers 实例的配置我们可以看到是通过角色为 endpoints 的 kubernetes 的服务发现机制获取的，匹配的是服务名为 alertmanager-main，端口名未 web 的 Service 服务，我们查看下 alertmanager-main 这个 Service：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br></pre></td><td class="code"><pre><span class="line">kubectl describe svc alertmanager-main -n monitoring</span><br><span class="line">Name:                     alertmanager-main</span><br><span class="line">Namespace:                monitoring</span><br><span class="line">Labels:                   alertmanager=main</span><br><span class="line">Annotations:              kubectl.kubernetes.io/last-applied-configuration=&#123;&quot;apiVersion&quot;:&quot;v1&quot;,&quot;kind&quot;:&quot;Service&quot;,&quot;metadata&quot;:&#123;&quot;annotations&quot;:&#123;&#125;,&quot;labels&quot;:&#123;&quot;alertmanager&quot;:&quot;main&quot;&#125;,&quot;name&quot;:&quot;alertmanager-main&quot;,&quot;namespace&quot;:&quot;monitoring&quot;&#125;,...</span><br><span class="line">Selector:                 alertmanager=main,app=alertmanager</span><br><span class="line">Type:                     NodePort</span><br><span class="line">IP:                       10.104.156.29</span><br><span class="line">Port:                     web  9093/TCP</span><br><span class="line">TargetPort:               web/TCP</span><br><span class="line">NodePort:                 web  31918/TCP</span><br><span class="line">Endpoints:                10.244.2.34:9093,10.244.2.37:9093,10.244.4.109:9093</span><br><span class="line">Session Affinity:         None</span><br><span class="line">External Traffic Policy:  Cluster</span><br><span class="line">Events:                   &lt;none&gt;</span><br></pre></td></tr></table></figure>
+
+<p>可以看到服务名正是 alertmanager-main，Port 定义的名称也是 web，符合上面的规则，所以 Prometheus 和 AlertManager 组件就正确关联上了。而对应的报警规则文件位于：<code>/etc/prometheus/rules/prometheus-k8s-rulefiles-0/</code>目录下面所有的 YAML 文件。我们可以进入 Prometheus 的 Pod 中验证下该目录下面是否有 YAML 文件：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl <span class="built_in">exec</span> -it prometheus-k8s-0 /bin/sh -n monitoring</span></span><br><span class="line">Defaulting container name to prometheus.</span><br><span class="line">Use &#x27;kubectl describe pod/prometheus-k8s-0 -n monitoring&#x27; to see all of the containers in this pod.</span><br><span class="line">/prometheus $ ls /etc/prometheus/rules/prometheus-k8s-rulefiles-0/</span><br><span class="line">monitoring-prometheus-k8s-rules.yaml</span><br><span class="line">/prometheus $ cat /etc/prometheus/rules/prometheus-k8s-rulefiles-0/monitoring-pr</span><br><span class="line">ometheus-k8s-rules.yaml</span><br><span class="line">groups:</span><br><span class="line">- name: k8s.rules</span><br><span class="line">  rules:</span><br><span class="line">  - expr: |</span><br><span class="line">      sum(rate(container_cpu_usage_seconds_total&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container_name!=&quot;&quot;&#125;[5m])) by (namespace)</span><br><span class="line">    record: namespace:container_cpu_usage_seconds_total:sum_rate</span><br><span class="line">......</span><br></pre></td></tr></table></figure>
+
+<p>这个 YAML 文件实际上就是我们之前创建的一个 PrometheusRule 文件包含的：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">cat</span> prometheus-rules.yaml</span></span><br><span class="line">apiVersion: monitoring.coreos.com/v1</span><br><span class="line">kind: PrometheusRule</span><br><span class="line">metadata:</span><br><span class="line">  labels:</span><br><span class="line">    prometheus: k8s</span><br><span class="line">    role: alert-rules</span><br><span class="line">  name: prometheus-k8s-rules</span><br><span class="line">  namespace: monitoring</span><br><span class="line">spec:</span><br><span class="line">  groups:</span><br><span class="line">  - name: k8s.rules</span><br><span class="line">    rules:</span><br><span class="line">    - expr: |</span><br><span class="line">        sum(rate(container_cpu_usage_seconds_total&#123;job=&quot;kubelet&quot;, image!=&quot;&quot;, container_name!=&quot;&quot;&#125;[5m])) by (namespace)</span><br><span class="line">      record: namespace:container_cpu_usage_seconds_total:sum_rate</span><br></pre></td></tr></table></figure>
+
+<p>我们这里的 PrometheusRule 的 name 为 prometheus-k8s-rules，namespace 为 monitoring，我们可以猜想到我们创建一个 PrometheusRule 资源对象后，会自动在上面的 prometheus-k8s-rulefiles-0 目录下面生成一个对应的<code>&lt;namespace&gt;-&lt;name&gt;.yaml</code>文件，所以如果以后我们需要自定义一个报警选项的话，只需要定义一个 PrometheusRule 资源对象即可。至于为什么 Prometheus 能够识别这个 PrometheusRule 资源对象呢？这就需要查看我们创建的 prometheus 这个资源对象了，里面有非常重要的一个属性 ruleSelector，用来匹配 rule 规则的过滤器，要求匹配具有 prometheus&#x3D;k8s 和 role&#x3D;alert-rules 标签的 PrometheusRule 资源对象，现在明白了吧？</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">ruleSelector:</span></span><br><span class="line">  <span class="attr">matchLabels:</span></span><br><span class="line">    <span class="attr">prometheus:</span> <span class="string">k8s</span></span><br><span class="line">    <span class="attr">role:</span> <span class="string">alert-rules</span></span><br></pre></td></tr></table></figure>
+
+<p>所以我们要想自定义一个报警规则，只需要创建一个具有 prometheus&#x3D;k8s 和 role&#x3D;alert-rules 标签的 PrometheusRule 对象就行了，比如现在我们添加一个 etcd 是否可用的报警，我们知道 etcd 整个集群有一半以上的节点可用的话集群就是可用的，所以我们判断如果不可用的 etcd 数量超过了一半那么就触发报警，创建文件 prometheus-etcdRules.yaml：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">monitoring.coreos.com/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">PrometheusRule</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">labels:</span></span><br><span class="line">    <span class="attr">prometheus:</span> <span class="string">k8s</span></span><br><span class="line">    <span class="attr">role:</span> <span class="string">alert-rules</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">etcd-rules</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">monitoring</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">groups:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">etcd</span></span><br><span class="line">      <span class="attr">rules:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">alert:</span> <span class="string">EtcdClusterUnavailable</span></span><br><span class="line">          <span class="attr">annotations:</span></span><br><span class="line">            <span class="attr">summary:</span> <span class="string">etcd</span> <span class="string">cluster</span> <span class="string">small</span></span><br><span class="line">            <span class="attr">description:</span> <span class="string">If</span> <span class="string">one</span> <span class="string">more</span> <span class="string">etcd</span> <span class="string">peer</span> <span class="string">goes</span> <span class="string">down</span> <span class="string">the</span> <span class="string">cluster</span> <span class="string">will</span> <span class="string">be</span> <span class="string">unavailable</span></span><br><span class="line">          <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">            count(up&#123;job=&quot;etcd&quot;&#125; == 0) &gt; (count(up&#123;job=&quot;etcd&quot;&#125;) / 2 - 1)</span></span><br><span class="line"><span class="string"></span>          <span class="attr">for:</span> <span class="string">3m</span></span><br><span class="line">          <span class="attr">labels:</span></span><br><span class="line">            <span class="attr">severity:</span> <span class="string">critical</span></span><br></pre></td></tr></table></figure>
+
+<p>注意 label 标签一定至少要有 prometheus&#x3D;k8s 和 role&#x3D;alert-rules，创建完成后，隔一会儿再去容器中查看下 rules 文件夹：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">kubectl exec -it prometheus-k8s-0 /bin/sh -n monitoring</span><br><span class="line">Defaulting container name to prometheus.</span><br><span class="line">Use &#x27;kubectl describe pod/prometheus-k8s-0 -n monitoring&#x27; to see all of the containers in this pod.</span><br><span class="line">/prometheus $ ls /etc/prometheus/rules/prometheus-k8s-rulefiles-0/</span><br><span class="line">monitoring-etcd-rules.yaml            monitoring-prometheus-k8s-rules.yaml</span><br></pre></td></tr></table></figure>
+
+<p>可以看到我们创建的 rule 文件已经被注入到了对应的 rulefiles 文件夹下面了，证明我们上面的设想是正确的。然后再去 Prometheus Dashboard 的 Alert 页面下面就可以查看到上面我们新建的报警规则了：</p>
+<p><img src="/images/1734503534-913f6f877d9b874c7d3fb26a3cf4e2b2.jpg" alt="etcd cluster"></p>
+<h3 id="配置报警"><a href="#配置报警" class="headerlink" title="配置报警"></a>配置报警</h3><p>我们知道了如何去添加一个报警规则配置项，但是这些报警信息用怎样的方式去发送呢？前面的课程中我们知道我们可以通过 AlertManager 的配置文件去配置各种报警接收器，现在我们是通过 Operator 提供的 alertmanager 资源对象创建的组件，应该怎样去修改配置呢？</p>
+<p>首先我们将 alertmanager-main 这个 Service 改为 NodePort 类型的 Service，修改完成后我们可以在页面上的 status 路径下面查看 AlertManager 的配置信息:</p>
+<p><img src="/images/1734503534-4f186a6a23aecb6ddc62f8ee48e80cc6.jpg" alt="alertmanager config"></p>
+<p>这些配置信息实际上是来自于我们之前在<code>prometheus-operator/contrib/kube-prometheus/manifests</code>目录下面创建的 alertmanager-secret.yaml 文件：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">v1</span></span><br><span class="line"><span class="attr">data:</span></span><br><span class="line">  <span class="attr">alertmanager.yaml:</span> <span class="string">Imdsb2JhbCI6IAogICJyZXNvbHZlX3RpbWVvdXQiOiAiNW0iCiJyZWNlaXZlcnMiOiAKLSAibmFtZSI6ICJudWxsIgoicm91dGUiOiAKICAiZ3JvdXBfYnkiOiAKICAtICJqb2IiCiAgImdyb3VwX2ludGVydmFsIjogIjVtIgogICJncm91cF93YWl0IjogIjMwcyIKICAicmVjZWl2ZXIiOiAibnVsbCIKICAicmVwZWF0X2ludGVydmFsIjogIjEyaCIKICAicm91dGVzIjogCiAgLSAibWF0Y2giOiAKICAgICAgImFsZXJ0bmFtZSI6ICJEZWFkTWFuc1N3aXRjaCIKICAgICJyZWNlaXZlciI6ICJudWxsIg==</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Secret</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">alertmanager-main</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">monitoring</span></span><br><span class="line"><span class="attr">type:</span> <span class="string">Opaque</span></span><br></pre></td></tr></table></figure>
+
+<p>可以将 alertmanager.yaml 对应的 value 值做一个 base64 解码：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash"><span class="built_in">echo</span> <span class="string">&quot;Imdsb2JhbCI6IAogICJyZXNvbHZlX3RpbWVvdXQiOiAiNW0iCiJyZWNlaXZlcnMiOiAKLSAibmFtZSI6ICJudWxsIgoicm91dGUiOiAKICAiZ3JvdXBfYnkiOiAKICAtICJqb2IiCiAgImdyb3VwX2ludGVydmFsIjogIjVtIgogICJncm91cF93YWl0IjogIjMwcyIKICAicmVjZWl2ZXIiOiAibnVsbCIKICAicmVwZWF0X2ludGVydmFsIjogIjEyaCIKICAicm91dGVzIjogCiAgLSAibWF0Y2giOiAKICAgICAgImFsZXJ0bmFtZSI6ICJEZWFkTWFuc1N3aXRjaCIKICAgICJyZWNlaXZlciI6ICJudWxsIg==&quot;</span> | <span class="built_in">base64</span> -d</span></span><br><span class="line">&quot;global&quot;:</span><br><span class="line">  &quot;resolve_timeout&quot;: &quot;5m&quot;</span><br><span class="line">&quot;receivers&quot;:</span><br><span class="line">- &quot;name&quot;: &quot;null&quot;</span><br><span class="line">&quot;route&quot;:</span><br><span class="line">  &quot;group_by&quot;:</span><br><span class="line">  - &quot;job&quot;</span><br><span class="line">  &quot;group_interval&quot;: &quot;5m&quot;</span><br><span class="line">  &quot;group_wait&quot;: &quot;30s&quot;</span><br><span class="line">  &quot;receiver&quot;: &quot;null&quot;</span><br><span class="line">  &quot;repeat_interval&quot;: &quot;12h&quot;</span><br><span class="line">  &quot;routes&quot;:</span><br><span class="line">  - &quot;match&quot;:</span><br><span class="line">      &quot;alertname&quot;: &quot;DeadMansSwitch&quot;</span><br><span class="line">    &quot;receiver&quot;: &quot;null&quot;</span><br></pre></td></tr></table></figure>
+
+<p>我们可以看到内容和上面查看的配置信息是一致的，所以如果我们想要添加自己的接收器，或者模板消息，我们就可以更改这个文件：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">global:</span></span><br><span class="line">  <span class="attr">resolve_timeout:</span> <span class="string">5m</span></span><br><span class="line">  <span class="attr">smtp_smarthost:</span> <span class="string">&quot;smtp.163.com:25&quot;</span></span><br><span class="line">  <span class="attr">smtp_from:</span> <span class="string">&quot;ych_1024@163.com&quot;</span></span><br><span class="line">  <span class="attr">smtp_auth_username:</span> <span class="string">&quot;ych_1024@163.com&quot;</span></span><br><span class="line">  <span class="attr">smtp_auth_password:</span> <span class="string">&quot;&lt;邮箱密码&gt;&quot;</span></span><br><span class="line">  <span class="attr">smtp_hello:</span> <span class="string">&quot;163.com&quot;</span></span><br><span class="line">  <span class="attr">smtp_require_tls:</span> <span class="literal">false</span></span><br><span class="line"><span class="attr">route:</span></span><br><span class="line">  <span class="attr">group_by:</span> [<span class="string">&quot;job&quot;</span>, <span class="string">&quot;severity&quot;</span>]</span><br><span class="line">  <span class="attr">group_wait:</span> <span class="string">30s</span></span><br><span class="line">  <span class="attr">group_interval:</span> <span class="string">5m</span></span><br><span class="line">  <span class="attr">repeat_interval:</span> <span class="string">12h</span></span><br><span class="line">  <span class="attr">receiver:</span> <span class="string">default</span></span><br><span class="line">  <span class="attr">routes:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">receiver:</span> <span class="string">webhook</span></span><br><span class="line">      <span class="attr">match:</span></span><br><span class="line">        <span class="attr">alertname:</span> <span class="string">CoreDNSDown</span></span><br><span class="line"><span class="attr">receivers:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&quot;default&quot;</span></span><br><span class="line">    <span class="attr">email_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">to:</span> <span class="string">&quot;517554016@qq.com&quot;</span></span><br><span class="line">        <span class="attr">send_resolved:</span> <span class="literal">true</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">&quot;webhook&quot;</span></span><br><span class="line">    <span class="attr">webhook_configs:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">url:</span> <span class="string">&quot;http://dingtalk-hook.kube-ops:5000&quot;</span></span><br><span class="line">        <span class="attr">send_resolved:</span> <span class="literal">true</span></span><br></pre></td></tr></table></figure>
+
+<p>将上面文件保存为 alertmanager.yaml，然后使用这个文件创建一个 Secret 对象：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">先将之前的 secret 对象删除</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl delete secret alertmanager-main -n monitoring</span></span><br><span class="line">secret &quot;alertmanager-main&quot; deleted</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl create secret generic alertmanager-main --from-file=alertmanager.yaml -n monitoring</span></span><br><span class="line">secret &quot;alertmanager-main&quot; created</span><br></pre></td></tr></table></figure>
+
+<p>我们添加了两个接收器，默认的通过邮箱进行发送，对于 CoreDNSDown 这个报警我们通过 webhook 来进行发送，这个 webhook 就是我们前面课程中定义的一个钉钉接收的 Server，上面的步骤创建完成后，很快我们就会收到一条钉钉消息：</p>
+<p><img src="/images/1734503534-4d3ea2bbbaed1b71a99f6f8a10a8790b.jpg" alt="钉钉"></p>
+<p>同样邮箱中也会收到报警信息：</p>
+<p><img src="/images/1734503534-732f9a148f47b3dfd3843a7dbcfe285b.jpg" alt="邮箱"></p>
+<p>我们再次查看 AlertManager 页面的 status 页面的配置信息可以看到已经变成上面我们的配置信息了：</p>
+<p><img src="/images/1734503534-09fa9faa3acc11c60b413fbd088a89ff.jpg" alt="alertmanager config"></p>
+<p>AlertManager 配置也可以使用模板(.tmpl 文件)，这些模板可以与 alertmanager.yaml 配置文件一起添加到 Secret 对象中，比如：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">apiVersion：v1</span></span><br><span class="line"><span class="string">kind：secret</span></span><br><span class="line"><span class="string">metadata：</span></span><br><span class="line"><span class="string">name：alertmanager-example</span></span><br><span class="line"><span class="string">data：</span></span><br><span class="line"><span class="string">alertmanager.yaml：&#123;BASE64_CONFIG&#125;</span></span><br><span class="line"><span class="string">template_1.tmpl：&#123;BASE64_TEMPLATE_1&#125;</span></span><br><span class="line"><span class="string">template_2.tmpl：&#123;BASE64_TEMPLATE_2&#125;</span></span><br><span class="line"><span class="string">...</span></span><br></pre></td></tr></table></figure>
+
+<p>模板会被放置到与配置文件相同的路径，当然要使用这些模板文件，还需要在 alertmanager.yaml 配置文件中指定：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">templates:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">&quot;*.tmpl&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>创建成功后，Secret 对象将会挂载到 AlertManager 对象创建的 AlertManager Pod 中去。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2024/12/18/Prometheus-Operator%E8%87%AA%E5%AE%9A%E4%B9%89%E6%8A%A5%E8%AD%A6%E8%A7%84%E5%88%99/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2024/12/18/Prometheus-Operator%E9%80%9A%E8%BF%87additional%E6%B7%BB%E5%8A%A0target/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus Operator通过additional添加target</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2024
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
