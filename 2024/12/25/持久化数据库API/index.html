@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">495</span>
+            <span class="post-count">492</span>
         </span>
     </span>
 
@@ -116,6 +116,8 @@
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
@@ -123,68 +125,21 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>1，vmauth组件代理如下</p>
-<p>查询接口：<a target="_blank" rel="noopener" href="http://hosmpdb.haier.net/api/v1/query">http://hosmpdb.haier.net/api/v1/query</a> 【需要口令】<br>写入接口：<a target="_blank" rel="noopener" href="http://hosmpdb.haier.net/api/v1/write">http://hosmpdb.haier.net/api/v1/write</a> 【需要口令】<br>用户名：prometheus<br>密码：uPwrRd{ysv1SOW#</p>
-<p>以上查询时会需要认证口令，可以将账号密码信息转换成header放在请求中<br>请求Headers参数如下:<br>参数名：Authorization<br>参数值：Basic cHJvbWV0aGV1czp1UHdyUmR7eXN2MVNPVyM&#x3D;</p>
-<p>持久化数据库查询API：<br>hosmpdb.haier.net&#x2F;api&#x2F;v1&#x2F;query?query&#x3D;查询表达式<br>    - “&#x2F;api&#x2F;v1&#x2F;query”<br>    - “&#x2F;api&#x2F;v1&#x2F;query_range”<br>    - “&#x2F;api&#x2F;v1&#x2F;label&#x2F;[^&#x2F;]+&#x2F;values”<br>    - “&#x2F;api&#x2F;v1&#x2F;labels”</p>
-<p>持久化数据库写入API：<br>hosmpdb.haier.net&#x2F;api&#x2F;v1&#x2F;write</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">查询接口：http://hosmpdb.haier.net/api/v1/query 【需要口令】</span><br><span class="line">写入接口：http://hosmpdb.haier.net/api/v1/write 【需要口令】</span><br><span class="line">用户名：prometheus</span><br><span class="line">密码：uPwrRd&#123;ysv1SOW#</span><br></pre></td></tr></table></figure>
+
+<p>以上查询时会需要认证口令，可以将账号密码信息转换成header放在请求中<br>请求Headers参数如下:</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">参数名：Authorization</span><br><span class="line">参数值：Basic cHJvbWV0aGV1czp1UHdyUmR7eXN2MVNPVyM=</span><br></pre></td></tr></table></figure>
+
+<p>持久化数据库查询API：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">hosmpdb.haier.net/api/v1/query?query=查询表达式</span><br><span class="line">    - &quot;/api/v1/query&quot;</span><br><span class="line">    - &quot;/api/v1/query_range&quot;</span><br><span class="line">    - &quot;/api/v1/label/[^/]+/values&quot;</span><br><span class="line">    - &quot;/api/v1/labels&quot;</span><br></pre></td></tr></table></figure>
+
+<p>持久化数据库写入API：</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">hosmpdb.haier.net/api/v1/write</span><br></pre></td></tr></table></figure>
+
 <p>域名解析：hosmpdb.haier.net   —   10.250.37.190 — ng转发：10.250.9.74:8427</p>
-<p>victoriametrics负载均衡配置【10.250.9.74:8427】：</p>
-<p>users:</p>
-<ul>
-<li>username: “prometheus”<br>password: “uPwrRd{ysv1SOW#”<br>url_map:<ul>
-<li>src_paths:<ul>
-<li>“&#x2F;api&#x2F;v1&#x2F;query”</li>
-<li>“&#x2F;api&#x2F;v1&#x2F;query_range”</li>
-<li>“&#x2F;api&#x2F;v1&#x2F;label&#x2F;[^&#x2F;]+&#x2F;values”</li>
-<li>“&#x2F;api&#x2F;v1&#x2F;labels”<br>url_prefix:</li>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.74:8901/select/0/prometheus">http://10.250.9.74:8901/select/0/prometheus</a>“</li>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.75:8902/select/0/prometheus">http://10.250.9.75:8902/select/0/prometheus</a>“</li>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.76:8903/select/0/prometheus">http://10.250.9.76:8903/select/0/prometheus</a>“</li>
-</ul>
-</li>
-<li>src_paths: [“&#x2F;api&#x2F;v1&#x2F;write”]<br>url_prefix:<ul>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.74:8801/insert/0/prometheus">http://10.250.9.74:8801/insert/0/prometheus</a>“</li>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.75:8802/insert/0/prometheus">http://10.250.9.75:8802/insert/0/prometheus</a>“</li>
-<li>“<a target="_blank" rel="noopener" href="http://10.250.9.76:8803/insert/0/prometheus">http://10.250.9.76:8803/insert/0/prometheus</a>“</li>
-</ul>
-</li>
-</ul>
-</li>
-</ul>
-<hr>
-<p>2，nginx代理如下</p>
-<pre><code>upstream  vmselect &#123;
-    server  10.250.9.74:8901 weight=5 ;
-    server  10.250.9.75:8902 weight=5 ;
-    server  10.250.9.76:8903 weight=5 ;
-&#125;
+<h2 id="victoriametrics负载均衡配置【10-250-9-74-8427】："><a href="#victoriametrics负载均衡配置【10-250-9-74-8427】：" class="headerlink" title="victoriametrics负载均衡配置【10.250.9.74:8427】："></a>victoriametrics负载均衡配置【10.250.9.74:8427】：<br><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">users:</span><br><span class="line">- username: &quot;prometheus&quot;</span><br><span class="line">  password: &quot;uPwrRd&#123;ysv1SOW#&quot;</span><br><span class="line">  url_map:</span><br><span class="line">  - src_paths:</span><br><span class="line">    - &quot;/api/v1/query&quot;</span><br><span class="line">    - &quot;/api/v1/query_range&quot;</span><br><span class="line">    - &quot;/api/v1/label/[^/]+/values&quot;</span><br><span class="line">    - &quot;/api/v1/labels&quot;</span><br><span class="line">    url_prefix:</span><br><span class="line">    - &quot;http://10.250.9.74:8901/select/0/prometheus&quot;</span><br><span class="line">    - &quot;http://10.250.9.75:8902/select/0/prometheus&quot;</span><br><span class="line">    - &quot;http://10.250.9.76:8903/select/0/prometheus&quot;</span><br><span class="line">  - src_paths: [&quot;/api/v1/write&quot;]</span><br><span class="line">    url_prefix:</span><br><span class="line">    - &quot;http://10.250.9.74:8801/insert/0/prometheus&quot;</span><br><span class="line">    - &quot;http://10.250.9.75:8802/insert/0/prometheus&quot;</span><br><span class="line">    - &quot;http://10.250.9.76:8803/insert/0/prometheus&quot;</span><br></pre></td></tr></table></figure></h2><p>2，nginx代理如下</p>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">upstream  vmselect &#123;</span><br><span class="line">    server  10.250.9.74:8901 weight=5 ;</span><br><span class="line">    server  10.250.9.75:8902 weight=5 ;</span><br><span class="line">    server  10.250.9.76:8903 weight=5 ;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 8900;</span><br><span class="line">    server_name _;</span><br><span class="line">    auth_basic &quot;authentication&quot;;                # 开启基本认证</span><br><span class="line">    auth_basic_user_file /etc/nginx/conf.d/passwd;      # 密码文件</span><br><span class="line">    location / &#123;</span><br><span class="line">        proxy_pass http://vmselect/select/0/prometheus/;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">upstream vminsert &#123;</span><br><span class="line">    server  10.250.9.74:8801 weight=5 ;</span><br><span class="line">    server  10.250.9.75:8802 weight=5 ;</span><br><span class="line">    server  10.250.9.76:8803 weight=5 ;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line">server &#123;</span><br><span class="line">    listen 8800;</span><br><span class="line">    server_name _;</span><br><span class="line">    auth_basic &quot;authentication&quot;;                # 开启基本认证</span><br><span class="line">    auth_basic_user_file /etc/nginx/conf.d/passwd;      # 密码文件</span><br><span class="line">    location / &#123;</span><br><span class="line">        proxy_pass http://vminsert/insert/0/prometheus/;</span><br><span class="line">    &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
 
-server &#123;
-    listen 8900;
-    server_name _;
-    auth_basic &quot;authentication&quot;;                # 开启基本认证
-    auth_basic_user_file /etc/nginx/conf.d/passwd;      # 密码文件
-    location / &#123;
-        proxy_pass http://vmselect/select/0/prometheus/;
-    &#125;
-&#125;
-
-upstream vminsert &#123;
-    server  10.250.9.74:8801 weight=5 ;
-    server  10.250.9.75:8802 weight=5 ;
-    server  10.250.9.76:8803 weight=5 ;
-&#125;
-
-server &#123;
-    listen 8800;
-    server_name _;
-    auth_basic &quot;authentication&quot;;                # 开启基本认证
-    auth_basic_user_file /etc/nginx/conf.d/passwd;      # 密码文件
-    location / &#123;
-        proxy_pass http://vminsert/insert/0/prometheus/;
-    &#125;
-&#125;
-</code></pre>
 <p>用户名：prometheus<br>密码：Prom@zbx</p>
 <p>查询接口：<a target="_blank" rel="noopener" href="http://10.250.9.74:8900/api/v1/query?query=dts_cpu_utilization">http://10.250.9.74:8900/api/v1/query?query=dts_cpu_utilization</a></p>
 <hr>
