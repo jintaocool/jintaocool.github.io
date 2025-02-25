@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>Prometheus监控java项目（jvm等）：k8s外、k8s内 |  Lijintao&#39;s Blog</title>
+      <title>自定义webhook脚本 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,8 +69,8 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="Prometheus-Prometheus监控java项目（jvm等）：k8s外、k8s内"
-  class="article article-type-Prometheus"
+  id="Scripts-自定义webhook脚本"
+  class="article article-type-Scripts"
   itemscope
   itemprop="blogPost"
   data-scroll-reveal
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  Prometheus监控java项目（jvm等）：k8s外、k8s内
+  自定义webhook脚本
 </h1>
  
 
@@ -88,11 +88,11 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2025/02/18/Prometheus%E7%9B%91%E6%8E%A7java%E9%A1%B9%E7%9B%AE%EF%BC%88jvm%E7%AD%89%EF%BC%89%EF%BC%9Ak8s%E5%A4%96%E3%80%81k8s%E5%86%85/" class="article-date">
-  <time datetime="2025-02-18T01:06:02.000Z" itemprop="datePublished">2025-02-18</time>
+      <a href="/2025/02/25/%E8%87%AA%E5%AE%9A%E4%B9%89webhook%E8%84%9A%E6%9C%AC/" class="article-date">
+  <time datetime="2025-02-25T07:48:54.000Z" itemprop="datePublished">2025-02-25</time>
 </a> 
   <div class="article-category">
-    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+    <a class="article-category-link" href="/categories/Scripts/">Scripts</a>
   </div>
   
 <div class="word_count">
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">647</span>
+            <span class="post-count">299</span>
         </span>
     </span>
 
@@ -109,85 +109,21 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">3 分钟</span>
+            <span class="post-count">1 分钟</span>
         </span>
     </span>
 </div>
  
     </div>
       
-    <div class="tocbot"></div>
-
 
 
 
   
     <div class="article-entry" itemprop="articleBody">
        
-  <h3 id="前言"><a href="#前言" class="headerlink" title="前言"></a>前言</h3><p>虽然可以使用jvisualvm之类的工具监控java项目，但是集群环境下，还是捉襟见肘，下面介绍如何用主流的prometheus来监控java项目。</p>
-<h3 id="java项目配置"><a href="#java项目配置" class="headerlink" title="java项目配置"></a>java项目配置</h3><p>在pom.xml中添加依赖 </p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;org.springframework.boot&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;spring-boot-starter-actuator&lt;/artifactId&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">&lt;!--暴露histogram--&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;io.micrometer&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;micrometer-registry-prometheus&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;1.5.1&lt;/version&gt;</span><br><span class="line">    &lt;!--&lt;version&gt;1.1.3&lt;/version&gt;--&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br><span class="line">&lt;!-- 可选, 用于进程内存使用图表 --&gt;</span><br><span class="line">&lt;dependency&gt;</span><br><span class="line">    &lt;groupId&gt;io.github.mweirauch&lt;/groupId&gt;</span><br><span class="line">    &lt;artifactId&gt;micrometer-jvm-extras&lt;/artifactId&gt;</span><br><span class="line">    &lt;version&gt;0.2.0&lt;/version&gt;</span><br><span class="line">&lt;/dependency&gt;</span><br></pre></td></tr></table></figure>
-
-<p>修改spring boot配置(application.yml)</p>
-<p>（下面management默认内容也是，可以不配）</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">server:</span><br><span class="line">  port: 8096</span><br><span class="line"></span><br><span class="line">spring:</span><br><span class="line">  application:</span><br><span class="line">    name: gift</span><br><span class="line"></span><br><span class="line">management:</span><br><span class="line">  endpoint:</span><br><span class="line">    health:</span><br><span class="line">      show-details: always</span><br><span class="line">  endpoints:</span><br><span class="line">    web:</span><br><span class="line">      exposure:</span><br><span class="line">        include: &#x27;prometheus&#x27;  # 暴露/actuator/prometheus</span><br><span class="line">  metrics:</span><br><span class="line">    tags:</span><br><span class="line">      application: $&#123;spring.application.name&#125;  # 暴露的数据中添加application label</span><br></pre></td></tr></table></figure>
-
-
-<h3 id="非k8s下java项目监控"><a href="#非k8s下java项目监控" class="headerlink" title="非k8s下java项目监控"></a>非k8s下java项目监控</h3><p>打包：mvn clean package</p>
-<p>启动项目：java -jar xxx.jar</p>
-<p>请求：<a target="_blank" rel="noopener" href="http://xxx:8096/qzcsbj/actuator/prometheus%EF%BC%8C%E6%9F%A5%E7%9C%8B%E6%9A%B4%E9%9C%B2%E7%9A%84%E6%95%B0%E6%8D%AE">http://xxx:8096/qzcsbj/actuator/prometheus，查看暴露的数据</a></p>
-<p><img src="/images/1739840866-006d78b41905fab198fa57573c43138e.png"></p>
-<p>在Prometheus中添加配置：vim prometheus.yml</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">- job_name: &quot;gift&quot;</span><br><span class="line">  metrics_path: &quot;/qzcsbj/actuator/prometheus&quot;</span><br><span class="line">  static_configs:</span><br><span class="line">  - targets: [&quot;qzcsbj:8096&quot;]</span><br></pre></td></tr></table></figure>
-
-<p>重启prometheus：systemctl restart prometheus</p>
-<p>访问prometheus：<a target="_blank" rel="noopener" href="http://ip:9090/targets">http://ip:9090/targets</a></p>
-<p>targets下可以看到这个端点</p>
-<p><img src="/images/1739840866-54b02422422ca5270447805e398da94a.png"></p>
-<p>grafana导入模板：4701</p>
-<p>效果如下：</p>
-<p><img src="/images/1739840866-0b7edcedef8e122ff652be065dbaa80b.png"></p>
-<h3 id="其它参考：非k8s下java项目监控"><a href="#其它参考：非k8s下java项目监控" class="headerlink" title="其它参考：非k8s下java项目监控"></a>其它参考：非k8s下java项目监控</h3><p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/uncleyong/p/16335583.html">↓↓↓</a>  </p>
-<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/uncleyong/p/16335583.html">https://www.cnblogs.com/uncleyong/p/16335583.html</a>  </p>
-<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/uncleyong/p/16335583.html">↑↑↑</a></p>
-<p><img src="/images/1739840866-2ffa4b4b02395b1458e1af31b63bd5b8.png"></p>
-<p><img src="/images/1739840866-4aad69378a911f0d0e4e67f0df8a2830.png"></p>
-<h3 id="k8s下java项目监控"><a href="#k8s下java项目监控" class="headerlink" title="k8s下java项目监控"></a>k8s下java项目监控</h3><p>打包：mvn clean package -Dmaven.test.skip&#x3D;true</p>
-<p>打镜像：docker build -t 192.168.117.160&#x2F;gifts&#x2F;gift:v1 .</p>
-<p>把镜像推送到镜像仓库：docker push 192.168.117.160&#x2F;gifts&#x2F;gift:v1</p>
-<p>编写资源yaml文件：deploy和svc</p>
-<p>vim gift.yaml</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br></pre></td><td class="code"><pre><span class="line">---</span><br><span class="line">apiVersion: apps/v1</span><br><span class="line">kind: Deployment</span><br><span class="line">metadata:</span><br><span class="line">  name: gift-java-deploy</span><br><span class="line">  namespace: gift</span><br><span class="line">spec:</span><br><span class="line">  replicas: 1</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels:</span><br><span class="line">      k8s-app: gift</span><br><span class="line">  template:</span><br><span class="line">    metadata:</span><br><span class="line">      labels:</span><br><span class="line">        k8s-app: gift</span><br><span class="line">    spec:</span><br><span class="line">      imagePullSecrets:</span><br><span class="line">      - name: gifts-registry</span><br><span class="line"></span><br><span class="line">      containers:</span><br><span class="line">      - name: gift</span><br><span class="line">        image: 192.168.117.160/gifts/gift:v1215</span><br><span class="line">        imagePullPolicy: IfNotPresent</span><br><span class="line">        ports:</span><br><span class="line">        - containerPort: 8096</span><br><span class="line"></span><br><span class="line">---</span><br><span class="line">apiVersion: v1</span><br><span class="line">kind: Service</span><br><span class="line">metadata:</span><br><span class="line">  name: gift-java-deploy-svc</span><br><span class="line">  namespace: gift</span><br><span class="line">  labels:</span><br><span class="line">    k8s-app: gift-java-deploy-svc</span><br><span class="line">spec:</span><br><span class="line">  type: ClusterIP</span><br><span class="line">  selector:</span><br><span class="line">    k8s-app: gift</span><br><span class="line">  ports:</span><br><span class="line">  - name: gift-java-deploy-svc-api</span><br><span class="line">    port: 8096</span><br><span class="line">    targetPort: 8096</span><br><span class="line">    protocol: TCP</span><br></pre></td></tr></table></figure>
-
-<p>创建资源：kubectl apply -f gift.yaml</p>
-<p><img src="/images/1739840866-9d96d7f821b6d2ab7101f5ed12ba27c2.png"></p>
-<p>查看资源：kubectl get all -n gift</p>
-<p><img src="/images/1739840866-240b19a139a7f2047ce7489b60710377.png"></p>
-<p>编写servicemonitor资源yaml文件：</p>
-<p>vim gift-sm.yaml</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">---</span><br><span class="line">apiVersion: monitoring.coreos.com/v1</span><br><span class="line">kind: ServiceMonitor</span><br><span class="line">metadata:</span><br><span class="line">  name: java-servicemonitor</span><br><span class="line">  namespace: monitoring</span><br><span class="line">  labels:</span><br><span class="line">    k8s-app: gift</span><br><span class="line">spec:</span><br><span class="line">  endpoints:</span><br><span class="line">  - port: gift-java-deploy-svc-api</span><br><span class="line">    interval: 30s</span><br><span class="line">    scheme: http</span><br><span class="line">    path: &#x27;/qzcsbj/actuator/prometheus&#x27;</span><br><span class="line">  selector:</span><br><span class="line">    matchLabels:</span><br><span class="line">      k8s-app: gift-java-deploy-svc</span><br><span class="line">  namespaceSelector:</span><br><span class="line">    matchNames:</span><br><span class="line">    - gift</span><br></pre></td></tr></table></figure>
-
-<p>创建资源：kubectl apply -f gift-sm.yaml</p>
-<p><img src="/images/1739840866-0439416e30d76dce58056420e4ed4ec1.png"></p>
-<p>查看资源：kubectl get servicemonitor -n monitoring</p>
-<p><img src="/images/1739840866-f907d57fa48d4ea806b27ea399894d54.png"></p>
-<p>查看prometheus端口：kubectl get svc -n monitoring</p>
-<p><img src="/images/1739840866-a2043b499ca89dd13970ab014ce11c9e.png"></p>
-<p>访问prometheus：<a target="_blank" rel="noopener" href="http://192.168.117.162:30576/">http://192.168.117.162:30576/</a></p>
-<p>config已经自动生成配置：搜索gift</p>
-<p><img src="/images/1739840866-7bdeee41c59a2984301a58f845a3ea62.png"></p>
-<p>自动发现</p>
-<p><img src="/images/1739840866-3ca0bf5925f4a410424a649658413bc3.png"></p>
-<p>targets</p>
-<p><img src="/images/1739840866-381f3670b6d2b47ad2ce3779f016475c.png"></p>
-<p>查询数据：jvm_threads_live_threads</p>
-<p><img src="/images/1739840866-96e8894b34a9009861cfdda15b21758d.png"></p>
-<p>grafana导入模板：12856</p>
-<p><a target="_blank" rel="noopener" href="https://grafana.com/grafana/dashboards/12856">https://grafana.com/grafana/dashboards/12856</a></p>
-<p>效果：</p>
-<p><img src="/images/1739840866-30ff1de74cafd6b2de6b29993f62f363.png"></p>
-<p><img src="/images/1739840866-1add2ce5b37f6d28b9466915bf040607.png"></p>
- 
+  <p>无需认证：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># -*- coding: utf-8 -*-</span></span><br><span class="line"><span class="comment">#使用python3 运行</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify</span><br><span class="line"><span class="keyword">import</span> logging</span><br><span class="line"></span><br><span class="line">app = Flask(__name__)</span><br><span class="line">logging.basicConfig(level=logging.INFO)</span><br><span class="line"></span><br><span class="line"><span class="comment"># 配置参数</span></span><br><span class="line">WEBHOOK_PORT = <span class="number">5000</span></span><br><span class="line"></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/webhook&#x27;</span>, methods=[<span class="string">&#x27;POST&#x27;</span>]</span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">webhook_listener</span>():</span><br><span class="line">    <span class="string">&quot;&quot;&quot;处理 Webhook 请求的主端点&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 记录请求基本信息</span></span><br><span class="line">    app.logger.info(<span class="string">f&quot;Received webhook from <span class="subst">&#123;request.remote_addr&#125;</span>&quot;</span>)</span><br><span class="line">    app.logger.debug(<span class="string">f&quot;Headers: <span class="subst">&#123;<span class="built_in">dict</span>(request.headers)&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 验证请求方法</span></span><br><span class="line">    <span class="keyword">if</span> request.method != <span class="string">&#x27;POST&#x27;</span>:</span><br><span class="line">        app.logger.warning(<span class="string">&quot;Invalid request method&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;error&quot;</span>: <span class="string">&quot;Method not allowed&quot;</span>&#125;), <span class="number">405</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 处理不同内容类型</span></span><br><span class="line">    content_type = request.headers.get(<span class="string">&#x27;Content-Type&#x27;</span>, <span class="string">&#x27;&#x27;</span>)</span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="keyword">if</span> <span class="string">&#x27;application/json&#x27;</span> <span class="keyword">in</span> content_type:</span><br><span class="line">            data = request.json</span><br><span class="line">        <span class="keyword">elif</span> <span class="string">&#x27;form-data&#x27;</span> <span class="keyword">in</span> content_type <span class="keyword">or</span> <span class="string">&#x27;urlencoded&#x27;</span> <span class="keyword">in</span> content_type:</span><br><span class="line">            data = request.form.to_dict()</span><br><span class="line">        <span class="keyword">else</span>:</span><br><span class="line">            data = request.get_data().decode()</span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        app.logger.error(<span class="string">f&quot;Error parsing data: <span class="subst">&#123;<span class="built_in">str</span>(e)&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;error&quot;</span>: <span class="string">&quot;Bad request&quot;</span>&#125;), <span class="number">400</span></span><br><span class="line"></span><br><span class="line">    <span class="comment"># 记录接收到的数据</span></span><br><span class="line">    app.logger.info(<span class="string">&quot;Received payload:&quot;</span>)</span><br><span class="line">    app.logger.info(data)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 在这里添加你的业务逻辑处理代码</span></span><br><span class="line">    <span class="comment"># 例如：触发CI/CD、更新数据库、发送通知等</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;success&quot;</span>, <span class="string">&quot;message&quot;</span>: <span class="string">&quot;Webhook received&quot;</span>&#125;), <span class="number">200</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    app.run(</span><br><span class="line">        host=<span class="string">&#x27;0.0.0.0&#x27;</span>,</span><br><span class="line">        port=WEBHOOK_PORT,</span><br><span class="line">        debug=<span class="literal">True</span>  <span class="comment"># 生产环境应设置为False</span></span><br><span class="line">    )</span><br></pre></td></tr></table></figure> 
       <!-- reward -->
       
       <div id="reword-out">
@@ -257,12 +193,12 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/02/18/Prometheus%E7%9B%91%E6%8E%A7java%E9%A1%B9%E7%9B%AE%EF%BC%88jvm%E7%AD%89%EF%BC%89%EF%BC%9Ak8s%E5%A4%96%E3%80%81k8s%E5%86%85/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/02/25/%E8%87%AA%E5%AE%9A%E4%B9%89webhook%E8%84%9A%E6%9C%AC/" alt="微信分享二维码">
     </div>
 </div>
 
 <div id="share-mask"></div>  
-  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Scripts/" rel="tag">Scripts</a></li></ul>
 
     </footer>
   </div>
@@ -270,19 +206,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2025/02/25/%E8%87%AA%E5%AE%9A%E4%B9%89webhook%E8%84%9A%E6%9C%AC/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            自定义webhook脚本
-          
-        </div>
-      </a>
     
-    
-      <a href="/2025/01/24/%E8%A7%A3%E5%86%B3Error-Get-https-registry-1-docker-io-v2-%E7%8E%AF%E5%A2%83%E6%8A%A5%E9%94%99%E9%97%AE%E9%A2%98/" class="article-nav-link">
+      <a href="/2025/02/18/Prometheus%E7%9B%91%E6%8E%A7java%E9%A1%B9%E7%9B%AE%EF%BC%88jvm%E7%AD%89%EF%BC%89%EF%BC%9Ak8s%E5%A4%96%E3%80%81k8s%E5%86%85/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">解决Error Get &#34;https://registry-1.docker.io/v2/&#34;:环境报错问题</div>
+        <div class="article-nav-title">Prometheus监控java项目（jvm等）：k8s外、k8s内</div>
       </a>
     
   </nav>
