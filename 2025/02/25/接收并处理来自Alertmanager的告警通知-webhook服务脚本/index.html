@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>接收并处理来自Alertmanager的告警通知 webhook服务脚本 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Scripts-接收并处理来自Alertmanager的告警通知-webhook服务脚本"
+  class="article article-type-Scripts"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  接收并处理来自Alertmanager的告警通知 webhook服务脚本
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/02/25/%E6%8E%A5%E6%94%B6%E5%B9%B6%E5%A4%84%E7%90%86%E6%9D%A5%E8%87%AAAlertmanager%E7%9A%84%E5%91%8A%E8%AD%A6%E9%80%9A%E7%9F%A5-webhook%E6%9C%8D%E5%8A%A1%E8%84%9A%E6%9C%AC/" class="article-date">
+  <time datetime="2025-02-25T08:33:37.000Z" itemprop="datePublished">2025-02-25</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Scripts/">Scripts</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">6 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>以下是一个不需要认证的Python Webhook接收脚本，包含详细注释说明和完整的异常处理：</p>
+<figure class="highlight python"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">KubeSphere/Prometheus Webhook 接收服务（无认证版）</span></span><br><span class="line"><span class="string">功能：接收并处理来自Alertmanager的告警通知</span></span><br><span class="line"><span class="string">&quot;&quot;&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">from</span> flask <span class="keyword">import</span> Flask, request, jsonify</span><br><span class="line"><span class="keyword">import</span> logging</span><br><span class="line"><span class="keyword">from</span> datetime <span class="keyword">import</span> datetime</span><br><span class="line"></span><br><span class="line"><span class="comment"># 初始化Flask应用</span></span><br><span class="line">app = Flask(__name__)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="comment"># 配置日志记录</span></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line">logging.basicConfig(</span><br><span class="line">    level=logging.INFO,  <span class="comment"># 日志级别设为INFO</span></span><br><span class="line">    <span class="built_in">format</span>=<span class="string">&#x27;[%(asctime)s] %(levelname)s in %(module)s: %(message)s&#x27;</span>,  <span class="comment"># 日志格式</span></span><br><span class="line">    handlers=[</span><br><span class="line">        logging.FileHandler(<span class="string">&#x27;webhook.log&#x27;</span>),  <span class="comment"># 日志写入文件</span></span><br><span class="line">        logging.StreamHandler()  <span class="comment"># 同时在控制台输出</span></span><br><span class="line">    ]</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="comment"># 核心处理函数</span></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/webhook&#x27;</span>, methods=[<span class="string">&#x27;POST&#x27;</span>]</span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">handle_webhook</span>():</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    处理Webhook POST请求的主入口</span></span><br><span class="line"><span class="string">    流程：</span></span><br><span class="line"><span class="string">    1. 记录请求基本信息</span></span><br><span class="line"><span class="string">    2. 验证数据格式</span></span><br><span class="line"><span class="string">    3. 解析告警数据</span></span><br><span class="line"><span class="string">    4. 返回响应</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">try</span>:</span><br><span class="line">        <span class="comment"># 记录请求基本信息</span></span><br><span class="line">        client_ip = request.remote_addr</span><br><span class="line">        logging.info(<span class="string">f&quot;收到来自 <span class="subst">&#123;client_ip&#125;</span> 的请求，路径：<span class="subst">&#123;request.path&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 检查请求内容类型</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> request.is_json:</span><br><span class="line">            logging.warning(<span class="string">&quot;无效的Content-Type，需要application/json&quot;</span>)</span><br><span class="line">            <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;error&quot;</span>, <span class="string">&quot;message&quot;</span>: <span class="string">&quot;Unsupported Media Type&quot;</span>&#125;), <span class="number">415</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 解析JSON数据</span></span><br><span class="line">        data = request.get_json()</span><br><span class="line">        </span><br><span class="line">        <span class="comment"># 基础数据验证</span></span><br><span class="line">        <span class="keyword">if</span> <span class="keyword">not</span> data:</span><br><span class="line">            logging.error(<span class="string">&quot;收到空数据&quot;</span>)</span><br><span class="line">            <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;error&quot;</span>, <span class="string">&quot;message&quot;</span>: <span class="string">&quot;Empty payload&quot;</span>&#125;), <span class="number">400</span></span><br><span class="line"></span><br><span class="line">        <span class="comment"># 处理告警数据</span></span><br><span class="line">        process_alert_data(data)</span><br><span class="line"></span><br><span class="line">        <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;success&quot;</span>&#125;), <span class="number">200</span></span><br><span class="line"></span><br><span class="line">    <span class="keyword">except</span> Exception <span class="keyword">as</span> e:</span><br><span class="line">        logging.error(<span class="string">f&quot;处理请求时发生异常: <span class="subst">&#123;<span class="built_in">str</span>(e)&#125;</span>&quot;</span>)</span><br><span class="line">        <span class="keyword">return</span> jsonify(&#123;<span class="string">&quot;status&quot;</span>: <span class="string">&quot;error&quot;</span>, <span class="string">&quot;message&quot;</span>: <span class="string">&quot;Internal Server Error&quot;</span>&#125;), <span class="number">500</span></span><br><span class="line"></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">process_alert_data</span>(<span class="params">data</span>):</span><br><span class="line">    <span class="string">&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">    处理并记录告警数据</span></span><br><span class="line"><span class="string">    参数：data - 解析后的JSON数据</span></span><br><span class="line"><span class="string">    &quot;&quot;&quot;</span></span><br><span class="line">    <span class="comment"># 提取公共信息</span></span><br><span class="line">    alert_status = data.get(<span class="string">&#x27;status&#x27;</span>, <span class="string">&#x27;unknown&#x27;</span>)</span><br><span class="line">    group_key = data.get(<span class="string">&#x27;groupKey&#x27;</span>, <span class="string">&#x27;&#x27;</span>)</span><br><span class="line">    logging.info(<span class="string">f&quot;处理告警组：<span class="subst">&#123;group_key&#125;</span>，状态：<span class="subst">&#123;alert_status&#125;</span>&quot;</span>)</span><br><span class="line"></span><br><span class="line">    <span class="comment"># 遍历所有告警项</span></span><br><span class="line">    <span class="keyword">for</span> alert <span class="keyword">in</span> data.get(<span class="string">&#x27;alerts&#x27;</span>, []):</span><br><span class="line">        <span class="comment"># 提取标签和注释</span></span><br><span class="line">        labels = alert.get(<span class="string">&#x27;labels&#x27;</span>, &#123;&#125;)</span><br><span class="line">        annotations = alert.get(<span class="string">&#x27;annotations&#x27;</span>, &#123;&#125;)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 构建告警信息字典</span></span><br><span class="line">        alert_info = &#123;</span><br><span class="line">            <span class="string">&#x27;timestamp&#x27;</span>: datetime.now().strftime(<span class="string">&#x27;%Y-%m-%d %H:%M:%S&#x27;</span>),</span><br><span class="line">            <span class="string">&#x27;alertname&#x27;</span>: labels.get(<span class="string">&#x27;alertname&#x27;</span>, <span class="string">&#x27;unknown&#x27;</span>),</span><br><span class="line">            <span class="string">&#x27;severity&#x27;</span>: labels.get(<span class="string">&#x27;severity&#x27;</span>, <span class="string">&#x27;none&#x27;</span>),</span><br><span class="line">            <span class="string">&#x27;instance&#x27;</span>: labels.get(<span class="string">&#x27;instance&#x27;</span>, <span class="string">&#x27;&#x27;</span>),</span><br><span class="line">            <span class="string">&#x27;description&#x27;</span>: annotations.get(<span class="string">&#x27;description&#x27;</span>, <span class="string">&#x27;无描述信息&#x27;</span>),</span><br><span class="line">            <span class="string">&#x27;status&#x27;</span>: alert.get(<span class="string">&#x27;status&#x27;</span>, <span class="string">&#x27;unknown&#x27;</span>)</span><br><span class="line">        &#125;</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 记录告警详细信息</span></span><br><span class="line">        logging.info(<span class="string">f&quot;&quot;&quot;</span></span><br><span class="line"><span class="string">        === 告警详情 ===</span></span><br><span class="line"><span class="string">        名称：<span class="subst">&#123;alert_info[<span class="string">&#x27;alertname&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        状态：<span class="subst">&#123;alert_info[<span class="string">&#x27;status&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        级别：<span class="subst">&#123;alert_info[<span class="string">&#x27;severity&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        实例：<span class="subst">&#123;alert_info[<span class="string">&#x27;instance&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        描述：<span class="subst">&#123;alert_info[<span class="string">&#x27;description&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        接收时间：<span class="subst">&#123;alert_info[<span class="string">&#x27;timestamp&#x27;</span>]&#125;</span></span></span><br><span class="line"><span class="string">        ================</span></span><br><span class="line"><span class="string">        &quot;&quot;&quot;</span>)</span><br><span class="line"></span><br><span class="line">        <span class="comment"># 此处可添加业务处理逻辑，例如：</span></span><br><span class="line">        <span class="comment"># - 发送到消息队列</span></span><br><span class="line">        <span class="comment"># - 写入数据库</span></span><br><span class="line">        <span class="comment"># - 触发自动化操作</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="comment"># 测试端点（可选）</span></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="meta">@app.route(<span class="params"><span class="string">&#x27;/test&#x27;</span>, methods=[<span class="string">&#x27;GET&#x27;</span>]</span>)</span></span><br><span class="line"><span class="keyword">def</span> <span class="title function_">test_endpoint</span>():</span><br><span class="line">    <span class="string">&quot;&quot;&quot;健康检查端点&quot;&quot;&quot;</span></span><br><span class="line">    <span class="keyword">return</span> jsonify(&#123;</span><br><span class="line">        <span class="string">&quot;status&quot;</span>: <span class="string">&quot;running&quot;</span>,</span><br><span class="line">        <span class="string">&quot;timestamp&quot;</span>: datetime.now().isoformat()</span><br><span class="line">    &#125;)</span><br><span class="line"></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="comment"># 启动服务</span></span><br><span class="line"><span class="comment"># ======================</span></span><br><span class="line"><span class="keyword">if</span> __name__ == <span class="string">&#x27;__main__&#x27;</span>:</span><br><span class="line">    <span class="comment"># 启动参数配置</span></span><br><span class="line">    host = <span class="string">&#x27;0.0.0.0&#x27;</span>  <span class="comment"># 监听所有接口</span></span><br><span class="line">    port = <span class="number">5000</span>         <span class="comment"># 服务端口</span></span><br><span class="line">    </span><br><span class="line">    logging.info(<span class="string">f&quot;启动Webhook服务，监听地址：http://<span class="subst">&#123;host&#125;</span>:<span class="subst">&#123;port&#125;</span>&quot;</span>)</span><br><span class="line">    app.run(</span><br><span class="line">        host=host,</span><br><span class="line">        port=port,</span><br><span class="line">        threaded=<span class="literal">True</span>   <span class="comment"># 启用多线程处理并发请求</span></span><br><span class="line">    )</span><br></pre></td></tr></table></figure>
+
+<p>脚本功能说明</p>
+<p>使用Flask框架搭建Web服务<br>监听&#x2F;webhook端点的POST请求<br>包含&#x2F;test端点用于服务健康检查<br>核心处理流程</p>
+<p>  A[接收请求] –&gt; B{验证Content-Type}<br>  B –&gt;|是JSON| C[解析JSON数据]<br>  B –&gt;|非JSON| D[返回415错误]<br>  C –&gt; E[处理告警数据]<br>  E –&gt; F[记录日志]<br>  F –&gt; G[返回成功响应]<br>  C –&gt;|解析失败| H[返回400错误]<br>  E –&gt;|处理异常| I[返回500错误]</p>
+<p>同时输出到文件(webhook.log)和控制台<br>记录请求来源IP、处理状态等元信息<br>格式化输出告警详细信息<br>错误处理</p>
+<p>无效Content-Type返回415<br>空数据返回400<br>全局异常捕获返回500<br>所有错误都会记录详细日志<br>使用方式<br>启动服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 安装依赖</span></span><br><span class="line">pip install flask</span><br><span class="line"></span><br><span class="line"><span class="comment"># 运行服务（开发模式）</span></span><br><span class="line">python webhook_server.py</span><br><span class="line"></span><br><span class="line"><span class="comment"># 生产环境建议使用：</span></span><br><span class="line">gunicorn -w 4 -b 0.0.0.0:5000 webhook_server:app</span><br><span class="line">发送测试请求</span><br><span class="line">python</span><br><span class="line">import requests</span><br><span class="line">import json</span><br><span class="line"></span><br><span class="line"><span class="comment"># 模拟告警数据</span></span><br><span class="line">test_data = &#123;</span><br><span class="line">    <span class="string">&quot;receiver&quot;</span>: <span class="string">&quot;webhook-test&quot;</span>,</span><br><span class="line">    <span class="string">&quot;status&quot;</span>: <span class="string">&quot;firing&quot;</span>,</span><br><span class="line">    <span class="string">&quot;alerts&quot;</span>: [</span><br><span class="line">        &#123;</span><br><span class="line">            <span class="string">&quot;status&quot;</span>: <span class="string">&quot;firing&quot;</span>,</span><br><span class="line">            <span class="string">&quot;labels&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;alertname&quot;</span>: <span class="string">&quot;HighCPUUsage&quot;</span>,</span><br><span class="line">                <span class="string">&quot;severity&quot;</span>: <span class="string">&quot;critical&quot;</span>,</span><br><span class="line">                <span class="string">&quot;instance&quot;</span>: <span class="string">&quot;10.0.0.1:9100&quot;</span></span><br><span class="line">            &#125;,</span><br><span class="line">            <span class="string">&quot;annotations&quot;</span>: &#123;</span><br><span class="line">                <span class="string">&quot;description&quot;</span>: <span class="string">&quot;CPU使用率超过95%&quot;</span></span><br><span class="line">            &#125;</span><br><span class="line">        &#125;</span><br><span class="line">    ]</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 发送测试请求</span></span><br><span class="line">response = requests.post(</span><br><span class="line">    <span class="string">&quot;http://localhost:5000/webhook&quot;</span>,</span><br><span class="line">    json=test_data</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"><span class="built_in">print</span>(f<span class="string">&quot;状态码: &#123;response.status_code&#125;&quot;</span>)</span><br><span class="line"><span class="built_in">print</span>(f<span class="string">&quot;响应内容: &#123;response.text&#125;&quot;</span>)</span><br><span class="line">查看日志输出</span><br><span class="line">[2023-12-20 14:30:45] INFO <span class="keyword">in</span> webhook_server: 启动Webhook服务，监听地址：http://0.0.0.0:5000</span><br><span class="line">[2023-12-20 14:31:02] INFO <span class="keyword">in</span> webhook_server: 收到来自 127.0.0.1 的请求，路径：/webhook</span><br><span class="line">[2023-12-20 14:31:02] INFO <span class="keyword">in</span> webhook_server: 处理告警组：，状态：firing</span><br><span class="line">[2023-12-20 14:31:02] INFO <span class="keyword">in</span> webhook_server: </span><br><span class="line">        === 告警详情 ===</span><br><span class="line">        名称：HighCPUUsage</span><br><span class="line">        状态：firing</span><br><span class="line">        级别：critical</span><br><span class="line">        实例：10.0.0.1:9100</span><br><span class="line">        描述：CPU使用率超过95%</span><br><span class="line">        接收时间：2023-12-20 14:31:02</span><br><span class="line">        ================</span><br></pre></td></tr></table></figure>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/02/25/%E6%8E%A5%E6%94%B6%E5%B9%B6%E5%A4%84%E7%90%86%E6%9D%A5%E8%87%AAAlertmanager%E7%9A%84%E5%91%8A%E8%AD%A6%E9%80%9A%E7%9F%A5-webhook%E6%9C%8D%E5%8A%A1%E8%84%9A%E6%9C%AC/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Scripts/" rel="tag">Scripts</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/02/25/%E8%87%AA%E5%AE%9A%E4%B9%89webhook%E8%84%9A%E6%9C%AC/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">自定义webhook脚本</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
