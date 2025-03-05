@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">550</span>
+            <span class="post-count">552</span>
         </span>
     </span>
 
@@ -116,8 +116,6 @@
  
     </div>
       
-    <div class="tocbot"></div>
-
 
 
 
@@ -153,9 +151,9 @@
 <figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker info | grep <span class="string">&quot;Docker Root Dir&quot;</span></span><br><span class="line"><span class="comment"># 正确输出应为:</span></span><br><span class="line"><span class="comment"># Docker Root Dir: /data/docker</span></span><br></pre></td></tr></table></figure>
 
 <p>四、全流程操作示例</p>
-<h1 id="全新安装场景"><a href="#全新安装场景" class="headerlink" title="全新安装场景"></a>全新安装场景</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">mkdir</span> -p /data/docker</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;&#123;&quot;data-root&quot;:&quot;/data/docker&quot;&#125;&#x27;</span> | sudo <span class="built_in">tee</span> /etc/docker/daemon.json</span><br><span class="line">curl -fsSL https://get.docker.com | sudo sh</span><br><span class="line">sudo systemctl start docker</span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 全新安装场景</span></span><br><span class="line">sudo <span class="built_in">mkdir</span> -p /data/docker</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;&#123;&quot;data-root&quot;:&quot;/data/docker&quot;&#125;&#x27;</span> | sudo <span class="built_in">tee</span> /etc/docker/daemon.json</span><br><span class="line">curl -fsSL https://get.docker.com | sudo sh</span><br><span class="line">sudo systemctl start docker</span><br></pre></td></tr></table></figure>
 
-<h1 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run hello-world</span><br><span class="line">docker info | grep <span class="string">&quot;Root Dir&quot;</span></span><br></pre></td></tr></table></figure>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 验证</span></span><br><span class="line">docker run hello-world</span><br><span class="line">docker info | grep <span class="string">&quot;Root Dir&quot;</span></span><br></pre></td></tr></table></figure>
 
 <p>五、注意事项</p>
 <p>场景	处理方式<br>磁盘空间不足	确保 &#x2F;data 分区有足够容量（建议 &gt; 50GB）<br>SELinux 启用	添加 SELinux 标签：<br>sudo chcon -R system_u:object_r:container_file_t:s0 &#x2F;data&#x2F;docker<br>Firewalld 限制	开放必要端口：<br>sudo firewall-cmd –add-port&#x3D;2375-2377&#x2F;tcp –permanent<br>sudo firewall-cmd –reload<br>Kubernetes 集成	需同步修改 kubelet 的 –docker-root 参数<br>Docker Compose 项目	所有卷映射路径需基于新目录调整</p>
