@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>归档: 2025/3 |  Lijintao&#39;s Blog</title>
+      <title>修改Docker默认安装目录 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -68,73 +68,207 @@
       
     <main class="content on">
       <section class="outer">
-  
-  
-  <article class="articles">
+  <article
+  id="Docker-修改Docker默认安装目录"
+  class="article article-type-Docker"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
     
-    
-    <h1 class="page-type-title">2025/3</h1>
-    
-    
-  
-  
-  
-  
-  
-  
-  <div class="archives-wrap">
-    <div class="archive-year-wrap">
-      <a href="/archives/2025" class="archive-year">2025</a>
-    </div>
-    <div class="archives">
-      
-      <article class="archive-article archive-type-Docker">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/03/05/%E4%BF%AE%E6%94%B9Docker%E9%BB%98%E8%AE%A4%E5%AE%89%E8%A3%85%E7%9B%AE%E5%BD%95/" class="archive-article-date">
-  <time datetime="2025-03-05T03:06:11.000Z" itemprop="datePublished">03/05</time>
-</a>
+    <header class="article-header">
        
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/03/05/%E4%BF%AE%E6%94%B9Docker%E9%BB%98%E8%AE%A4%E5%AE%89%E8%A3%85%E7%9B%AE%E5%BD%95/"
-    >修改Docker默认安装目录</a> 
-</h2>
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  修改Docker默认安装目录
+</h1>
  
 
-    </header>
-    
-    
-  </div>
-</article>
       
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/03/05/%E4%BF%AE%E6%94%B9Docker%E9%BB%98%E8%AE%A4%E5%AE%89%E8%A3%85%E7%9B%AE%E5%BD%95/" class="article-date">
+  <time datetime="2025-03-05T03:06:11.000Z" itemprop="datePublished">2025-03-05</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Docker/">Docker</a>
+  </div>
   
-  
-      <article class="archive-article archive-type-Alertmanager">
-  <div class="archive-article-inner">
-    <header class="archive-article-header">
-      <a href="/2025/03/04/Alertmanager%E8%B7%AF%E7%94%B1%E8%87%AA%E4%B8%8A%E8%80%8C%E4%B8%8B%E5%8C%B9%E9%85%8D%E5%8E%9F%E7%90%86%E7%AC%94%E8%AE%B0/" class="archive-article-date">
-  <time datetime="2025-03-04T01:33:49.000Z" itemprop="datePublished">03/04</time>
-</a>
-       
-<h2 itemprop="name">
-  <a class="archive-article-title" href="/2025/03/04/Alertmanager%E8%B7%AF%E7%94%B1%E8%87%AA%E4%B8%8A%E8%80%8C%E4%B8%8B%E5%8C%B9%E9%85%8D%E5%8E%9F%E7%90%86%E7%AC%94%E8%AE%B0/"
-    >Alertmanager路由自上而下匹配原理笔记</a> 
-</h2>
- 
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">550</span>
+        </span>
+    </span>
 
-    </header>
-    
-    
-  </div>
-</article>
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">2 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
       
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>一、安装前预配置（适用于新安装环境）</p>
+<ol>
+<li><p>创建目标目录</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">mkdir</span> -p /data/docker</span><br><span class="line">sudo <span class="built_in">chmod</span> 755 /data/docker</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>配置 Docker 数据目录</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 创建或修改 Docker 配置文件</span></span><br><span class="line">sudo <span class="built_in">mkdir</span> -p /etc/docker</span><br><span class="line">sudo <span class="built_in">tee</span> /etc/docker/daemon.json &lt;&lt;-<span class="string">&#x27;EOF&#x27;</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">&quot;data-root&quot;</span>: <span class="string">&quot;/data/docker&quot;</span></span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>安装 Docker</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 使用官方脚本安装（自动识别配置）</span></span><br><span class="line">curl -fsSL https://get.docker.com | sudo sh</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>二、已安装 Docker 的迁移方案</p>
+<ol>
+<li><p>停止 Docker 服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo systemctl stop docker</span><br><span class="line">sudo systemctl stop containerd</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>迁移现有数据</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo rsync -avxP /var/lib/docker/ /data/docker/</span><br><span class="line">sudo <span class="built_in">mv</span> /var/lib/docker /var/lib/docker.bak  <span class="comment"># 备份原目录</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>修改配置文件</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">tee</span> /etc/docker/daemon.json &lt;&lt;-<span class="string">&#x27;EOF&#x27;</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">&quot;data-root&quot;</span>: <span class="string">&quot;/data/docker&quot;</span></span><br><span class="line">&#125;</span><br><span class="line">EOF</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>重启服务</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo systemctl start docker</span><br><span class="line">sudo systemctl <span class="built_in">enable</span> docker</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>三、验证配置生效</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker info | grep <span class="string">&quot;Docker Root Dir&quot;</span></span><br><span class="line"><span class="comment"># 正确输出应为:</span></span><br><span class="line"><span class="comment"># Docker Root Dir: /data/docker</span></span><br></pre></td></tr></table></figure>
+
+<p>四、全流程操作示例</p>
+<h1 id="全新安装场景"><a href="#全新安装场景" class="headerlink" title="全新安装场景"></a>全新安装场景</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">mkdir</span> -p /data/docker</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&#x27;&#123;&quot;data-root&quot;:&quot;/data/docker&quot;&#125;&#x27;</span> | sudo <span class="built_in">tee</span> /etc/docker/daemon.json</span><br><span class="line">curl -fsSL https://get.docker.com | sudo sh</span><br><span class="line">sudo systemctl start docker</span><br></pre></td></tr></table></figure>
+
+<h1 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h1><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker run hello-world</span><br><span class="line">docker info | grep <span class="string">&quot;Root Dir&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>五、注意事项</p>
+<p>场景	处理方式<br>磁盘空间不足	确保 &#x2F;data 分区有足够容量（建议 &gt; 50GB）<br>SELinux 启用	添加 SELinux 标签：<br>sudo chcon -R system_u:object_r:container_file_t:s0 &#x2F;data&#x2F;docker<br>Firewalld 限制	开放必要端口：<br>sudo firewall-cmd –add-port&#x3D;2375-2377&#x2F;tcp –permanent<br>sudo firewall-cmd –reload<br>Kubernetes 集成	需同步修改 kubelet 的 –docker-root 参数<br>Docker Compose 项目	所有卷映射路径需基于新目录调整</p>
+<p>六、配置解析</p>
+<p>参数	作用	示例值<br>data-root	定义 Docker 数据存储根目录	&#x2F;data&#x2F;docker<br>exec-opts	存储驱动配置（可选）	[“native.cgroupdriver&#x3D;systemd”]<br>storage-driver	指定存储引擎（可选）	overlay2</p>
+<p>七、兼容性说明</p>
+<p>系统环境	验证支持情况<br>CentOS&#x2F;RHEL	✅ 全版本支持<br>Ubuntu&#x2F;Debian	✅ 18.04+ 完美兼容<br>Kernel 版本	≥ 3.10（推荐 ≥ 5.4）<br>Docker 版本	≥ 19.03（推荐 24.0+）</p>
+<p>通过以上步骤，Docker 的所有数据（包括镜像、容器、卷等）将永久存储到 &#x2F;data&#x2F;docker 目录。此方案适用于生产环境长期使用，如需还原配置，删除 daemon.json 中的 data-root 项并重启服务即可。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
       
     </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/03/05/%E4%BF%AE%E6%94%B9Docker%E9%BB%98%E8%AE%A4%E5%AE%89%E8%A3%85%E7%9B%AE%E5%BD%95/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Docker/" rel="tag">Docker</a></li></ul>
+
+    </footer>
   </div>
-  
-  
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/03/04/Alertmanager%E8%B7%AF%E7%94%B1%E8%87%AA%E4%B8%8A%E8%80%8C%E4%B8%8B%E5%8C%B9%E9%85%8D%E5%8E%9F%E7%90%86%E7%AC%94%E8%AE%B0/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Alertmanager路由自上而下匹配原理笔记</div>
+      </a>
+    
+  </nav>
 
   
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
 </section>
       <footer class="footer">
   <div class="outer">
@@ -284,6 +418,22 @@
 <script src="/js/lazyload.min.js"></script>
 
 <!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
 
 <script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
 <link
