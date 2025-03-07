@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Linux服务器系统自动巡检脚本生成html报告 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Linux-Linux服务器系统自动巡检脚本生成html报告"
+  class="article article-type-Linux"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Linux服务器系统自动巡检脚本生成html报告
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/03/07/Linux%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%B3%BB%E7%BB%9F%E8%87%AA%E5%8A%A8%E5%B7%A1%E6%A3%80%E8%84%9A%E6%9C%AC%E7%94%9F%E6%88%90html%E6%8A%A5%E5%91%8A/" class="article-date">
+  <time datetime="2025-03-07T08:31:06.000Z" itemprop="datePublished">2025-03-07</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Linux/">Linux</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">17 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>一、 前言</p>
+<p>为了实现Linux服务器系统自动巡检并生成HTML报告，我们可以编写一个Shell脚本。以下是一个简单的示例脚本，该脚本将收集系统信息，并将其格式化为HTML报告。</p>
+<p>二、脚本说明</p>
+<p>1、使用root用户执行</p>
+<p>2、使用说明</p>
+<p>1)、脚本中 ifconfig、mpstat、iostat命令有依赖，需要安装相关依赖包</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">yum -y install bc sysstat net-tools</span><br></pre></td></tr></table></figure>
+
+<p>2)、执行完巡检之后，将在脚本所在的路径下生成html巡检结果报告，如下</p>
+<p>192.168.1.102os_linux_summary.html</p>
+<p>3)、巡检项信息如下（其他统计项可根据实际需要自行添加）</p>
+<p>1.系统基本信息</p>
+<p>2.cpu信息</p>
+<p>3.ip网络信息</p>
+<p>4.cpu使用率</p>
+<p>5.连接数信息</p>
+<p>6.系统限制信息</p>
+<p>7.内存使用信息</p>
+<p>8.磁盘使用信息</p>
+<p>9)、网络流量情况&#x2F;系统资源变化</p>
+<p>10)、cpu消耗情况前10排行</p>
+<p>11)、cpu消耗按内存情况前10排行</p>
+<p>12)、磁盘io情况</p>
+<p>13)、系统定时任务列表</p>
+<p>14)、系统定时任务脚本内容</p>
+<p>三、脚本内容</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br><span class="line">166</span><br><span class="line">167</span><br><span class="line">168</span><br><span class="line">169</span><br><span class="line">170</span><br><span class="line">171</span><br><span class="line">172</span><br><span class="line">173</span><br><span class="line">174</span><br><span class="line">175</span><br><span class="line">176</span><br><span class="line">177</span><br><span class="line">178</span><br><span class="line">179</span><br><span class="line">180</span><br><span class="line">181</span><br><span class="line">182</span><br><span class="line">183</span><br><span class="line">184</span><br><span class="line">185</span><br><span class="line">186</span><br><span class="line">187</span><br><span class="line">188</span><br><span class="line">189</span><br><span class="line">190</span><br><span class="line">191</span><br><span class="line">192</span><br><span class="line">193</span><br><span class="line">194</span><br><span class="line">195</span><br><span class="line">196</span><br><span class="line">197</span><br><span class="line">198</span><br><span class="line">199</span><br><span class="line">200</span><br><span class="line">201</span><br><span class="line">202</span><br><span class="line">203</span><br><span class="line">204</span><br><span class="line">205</span><br><span class="line">206</span><br><span class="line">207</span><br><span class="line">208</span><br><span class="line">209</span><br><span class="line">210</span><br><span class="line">211</span><br><span class="line">212</span><br><span class="line">213</span><br><span class="line">214</span><br><span class="line">215</span><br><span class="line">216</span><br><span class="line">217</span><br><span class="line">218</span><br><span class="line">219</span><br><span class="line">220</span><br><span class="line">221</span><br><span class="line">222</span><br><span class="line">223</span><br><span class="line">224</span><br><span class="line">225</span><br><span class="line">226</span><br><span class="line">227</span><br><span class="line">228</span><br><span class="line">229</span><br><span class="line">230</span><br><span class="line">231</span><br><span class="line">232</span><br><span class="line">233</span><br><span class="line">234</span><br><span class="line">235</span><br><span class="line">236</span><br><span class="line">237</span><br><span class="line">238</span><br><span class="line">239</span><br><span class="line">240</span><br><span class="line">241</span><br><span class="line">242</span><br><span class="line">243</span><br><span class="line">244</span><br><span class="line">245</span><br><span class="line">246</span><br><span class="line">247</span><br><span class="line">248</span><br><span class="line">249</span><br><span class="line">250</span><br><span class="line">251</span><br><span class="line">252</span><br><span class="line">253</span><br><span class="line">254</span><br><span class="line">255</span><br><span class="line">256</span><br><span class="line">257</span><br><span class="line">258</span><br><span class="line">259</span><br><span class="line">260</span><br><span class="line">261</span><br><span class="line">262</span><br><span class="line">263</span><br><span class="line">264</span><br><span class="line">265</span><br><span class="line">266</span><br><span class="line">267</span><br><span class="line">268</span><br><span class="line">269</span><br><span class="line">270</span><br><span class="line">271</span><br><span class="line">272</span><br><span class="line">273</span><br><span class="line">274</span><br><span class="line">275</span><br><span class="line">276</span><br><span class="line">277</span><br><span class="line">278</span><br><span class="line">279</span><br><span class="line">280</span><br><span class="line">281</span><br><span class="line">282</span><br><span class="line">283</span><br><span class="line">284</span><br><span class="line">285</span><br><span class="line">286</span><br><span class="line">287</span><br><span class="line">288</span><br><span class="line">289</span><br><span class="line">290</span><br><span class="line">291</span><br><span class="line">292</span><br><span class="line">293</span><br><span class="line">294</span><br><span class="line">295</span><br><span class="line">296</span><br><span class="line">297</span><br><span class="line">298</span><br><span class="line">299</span><br><span class="line">300</span><br><span class="line">301</span><br><span class="line">302</span><br><span class="line">303</span><br><span class="line">304</span><br><span class="line">305</span><br><span class="line">306</span><br><span class="line">307</span><br><span class="line">308</span><br><span class="line">309</span><br><span class="line">310</span><br><span class="line">311</span><br><span class="line">312</span><br><span class="line">313</span><br><span class="line">314</span><br><span class="line">315</span><br><span class="line">316</span><br><span class="line">317</span><br><span class="line">318</span><br><span class="line">319</span><br><span class="line">320</span><br><span class="line">321</span><br><span class="line">322</span><br><span class="line">323</span><br><span class="line">324</span><br><span class="line">325</span><br><span class="line">326</span><br><span class="line">327</span><br><span class="line">328</span><br><span class="line">329</span><br><span class="line">330</span><br><span class="line">331</span><br><span class="line">332</span><br><span class="line">333</span><br><span class="line">334</span><br><span class="line">335</span><br><span class="line">336</span><br><span class="line">337</span><br><span class="line">338</span><br><span class="line">339</span><br><span class="line">340</span><br><span class="line">341</span><br><span class="line">342</span><br><span class="line">343</span><br><span class="line">344</span><br><span class="line">345</span><br></pre></td><td class="code"><pre><span class="line">#!/bin/bash</span><br><span class="line">#Author:爱踢人生sre</span><br><span class="line">#date: 20250306</span><br><span class="line"></span><br><span class="line">ipaddress=`ip a|grep &quot;global&quot;|awk &#x27;&#123;print $2&#125;&#x27; |awk -F/ &#x27;&#123;print $1&#125;&#x27;`</span><br><span class="line">file_output=$&#123;ipaddress&#125;&#x27;os_linux_summary.html&#x27;</span><br><span class="line">td_str=&#x27;&#x27;</span><br><span class="line">th_str=&#x27;&#x27;</span><br><span class="line">#yum -y install bc sysstat net-tools</span><br><span class="line">create_html_css()&#123;</span><br><span class="line">  echo -e &quot;&lt;html&gt;</span><br><span class="line">&lt;head&gt;</span><br><span class="line">&lt;style type=&quot;text/css&quot;&gt;</span><br><span class="line">    body        &#123;font:12px Courier New,Helvetica,sansserif; color:black; background:White;&#125;</span><br><span class="line">    table,tr,td &#123;font:12px Courier New,Helvetica,sansserif; color:Black; background:#FFFFCC; padding:0px 0px 0px 0px; margin:0px 0px 0px 0px;&#125;</span><br><span class="line">    th          &#123;font:bold 12px Courier New,Helvetica,sansserif; color:White; background:#0033FF; padding:0px 0px 0px 0px;&#125;</span><br><span class="line">    h1          &#123;font:bold 12pt Courier New,Helvetica,sansserif; color:Black; padding:0px 0px 0px 0px;&#125;</span><br><span class="line">&lt;/style&gt;</span><br><span class="line">&lt;/head&gt;</span><br><span class="line">&lt;body&gt;&quot;</span><br><span class="line">&#125;</span><br><span class="line">create_html_head()&#123;</span><br><span class="line">echo -e &quot;$1&quot;</span><br><span class="line">&#125;</span><br><span class="line">create_table_head1()&#123;</span><br><span class="line">  echo -e &quot;&lt;table width=&quot;68%&quot; border=&quot;1&quot; bordercolor=&quot;#000000&quot; cellspacing=&quot;0px&quot; style=&quot;border-collapse:collapse&quot;&gt;&quot;</span><br><span class="line">&#125;</span><br><span class="line">create_table_head2()&#123;</span><br><span class="line">  echo -e &quot;&lt;table width=&quot;100%&quot; border=&quot;1&quot; bordercolor=&quot;#000000&quot; cellspacing=&quot;0px&quot; style=&quot;border-collapse:collapse&quot;&gt;&quot;</span><br><span class="line">&#125;</span><br><span class="line">create_td()&#123;</span><br><span class="line">    td_str=`echo $1 | awk &#x27;BEGIN&#123;FS=&quot;|&quot;&#125;&#x27;&#x27;&#123;i=1; while(i&lt;=NF) &#123;print &quot;&lt;td&gt;&quot;$i&quot;&lt;/td&gt;&quot;;i++&#125;&#125;&#x27;`</span><br><span class="line">&#125;</span><br><span class="line">create_th()&#123;</span><br><span class="line">    th_str=`echo $1|awk &#x27;BEGIN&#123;FS=&quot;|&quot;&#125;&#x27;&#x27;&#123;i=1; while(i&lt;=NF) &#123;print &quot;&lt;th&gt;&quot;$i&quot;&lt;/th&gt;&quot;;i++&#125;&#125;&#x27;`</span><br><span class="line">&#125;</span><br><span class="line">create_tr1()&#123;</span><br><span class="line">  create_td &quot;$1&quot;</span><br><span class="line">  echo -e &quot;&lt;tr&gt;</span><br><span class="line">    $td_str</span><br><span class="line">  &lt;/tr&gt;&quot; &gt;&gt; $file_output</span><br><span class="line">&#125;</span><br><span class="line">create_tr2()&#123;</span><br><span class="line">  create_th &quot;$1&quot;</span><br><span class="line">  echo -e &quot;&lt;tr&gt;</span><br><span class="line">    $th_str</span><br><span class="line">  &lt;/tr&gt;&quot; &gt;&gt; $file_output</span><br><span class="line">&#125;</span><br><span class="line">create_tr3()&#123;</span><br><span class="line">  echo -e &quot;&lt;tr&gt;&lt;td&gt;</span><br><span class="line">  &lt;pre style=\&quot;font-family:Courier New; word-wrap: break-word; white-space: pre-wrap; white-space: -moz-pre-wrap\&quot; &gt;</span><br><span class="line">  `cat $1`</span><br><span class="line">  &lt;/pre&gt;&lt;/td&gt;&lt;/tr&gt;&quot; &gt;&gt; $file_output</span><br><span class="line">&#125;</span><br><span class="line">create_table_end()&#123;</span><br><span class="line">  echo -e &quot;&lt;/table&gt;&quot;</span><br><span class="line">&#125;</span><br><span class="line">create_html_end()&#123;</span><br><span class="line">  echo -e &quot;&lt;/body&gt;&lt;/html&gt;&quot;</span><br><span class="line">&#125;</span><br><span class="line">NAME_VAL_LEN=12</span><br><span class="line">name_val () &#123;</span><br><span class="line">   printf &quot;%+*s | %s\n&quot; &quot;$&#123;NAME_VAL_LEN&#125;&quot; &quot;$1&quot; &quot;$2&quot;</span><br><span class="line">&#125;</span><br><span class="line">get_physics()&#123;</span><br><span class="line">    name_val &quot;巡检时间&quot; &quot;`date`&quot;</span><br><span class="line">    name_val &quot;主机名&quot; &quot;`uname -n`&quot;</span><br><span class="line">    name_val &quot;系统版本&quot; &quot;`cat /etc/&#123;oracle,redhat,SuSE,centos&#125;-release 2&gt;/dev/null|sort -ru|head -n1`&quot;</span><br><span class="line">    name_val &quot;内核版本&quot; &quot;`uname -r`&quot;</span><br><span class="line">    name_val &quot;架构&quot; &quot;CPU=`lscpu|grep Architecture|awk -F: &#x27;&#123;print $2&#125;&#x27;|sed &#x27;s/^[[:space:]]*//g&#x27;`;OS=`getconf LONG_BIT`-bit&quot;</span><br><span class="line">&#125;</span><br><span class="line">get_cpuinfo () &#123;</span><br><span class="line">   file=&quot;/proc/cpuinfo&quot;</span><br><span class="line">   virtual=`grep -c ^processor &quot;$&#123;file&#125;&quot;`</span><br><span class="line">   physical=`grep &#x27;physical id&#x27; &quot;$&#123;file&#125;&quot; | sort -u | wc -l`</span><br><span class="line">   cores=`grep &#x27;cpu cores&#x27; &quot;$&#123;file&#125;&quot; | head -n 1 | cut -d: -f2`</span><br><span class="line">   model=`grep &quot;model name&quot; &quot;$&#123;file&#125;&quot;|sort -u|awk -F: &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">   speed=`grep -i &quot;cpu MHz&quot; &quot;$&#123;file&#125;&quot;|sort -u|awk -F: &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">   cache=`grep -i &quot;cache size&quot; &quot;$&#123;file&#125;&quot;|sort -u|awk -F: &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">   SysCPUIdle=`vmstat | sed -n &#x27;$ p&#x27; | awk &#x27;&#123;print $15&#125;&#x27;`</span><br><span class="line">   [ &quot;$&#123;physical&#125;&quot; = &quot;0&quot; ] &amp;&amp; physical=&quot;$&#123;virtual&#125;&quot;</span><br><span class="line">   [ -z &quot;$&#123;cores&#125;&quot; ] &amp;&amp; cores=0</span><br><span class="line">   cores=$(($&#123;cores&#125; * $&#123;physical&#125;));</span><br><span class="line">   htt=&quot;&quot;</span><br><span class="line">   if [ $&#123;cores&#125; -gt 0 -a $cores -lt $virtual ]; then htt=yes; else htt=no; fi</span><br><span class="line">   name_val &quot;线程&quot; &quot;physical = $&#123;physical&#125;, cores = $&#123;cores&#125;, virtual = $&#123;virtual&#125;, hyperthreading = $&#123;htt&#125;&quot;</span><br><span class="line">   name_val &quot;cpu型号&quot; &quot;$&#123;physical&#125;*$&#123;model&#125;&quot;</span><br><span class="line">   name_val &quot;速度&quot; &quot;$&#123;virtual&#125;*$&#123;speed&#125;&quot;</span><br><span class="line">   name_val &quot;缓存&quot; &quot;$&#123;virtual&#125;*$&#123;cache&#125;&quot;</span><br><span class="line">   name_val &quot;CPU空闲率(%)&quot; &quot;$&#123;SysCPUIdle&#125;%&quot;</span><br><span class="line">&#125;</span><br><span class="line">get_netinfo()&#123;</span><br><span class="line">   echo &quot;interface | status | ipadds     |      mtu    |  Speed     |     Duplex&quot; &gt;&gt;/tmp/tmpnet_h1_`date +%y%m%d`.txt</span><br><span class="line">   for ipstr in `ifconfig -a|grep &quot;: flags&quot;|awk  &#x27;&#123;print $1&#125;&#x27;|sed &#x27;s/.$//&#x27;`</span><br><span class="line">   do</span><br><span class="line">      ipadds=`ifconfig $&#123;ipstr&#125;|grep -w inet|awk &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">      mtu=`ifconfig $&#123;ipstr&#125;|grep mtu|awk &#x27;&#123;print $NF&#125;&#x27;`</span><br><span class="line">      speed=`ethtool $&#123;ipstr&#125;|grep Speed|awk -F: &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">      duplex=`ethtool $&#123;ipstr&#125;|grep Duplex|awk -F: &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">      echo &quot;$&#123;ipstr&#125;&quot;  &quot;up&quot; &quot;$&#123;ipadds&#125;&quot; &quot;$&#123;mtu&#125;&quot; &quot;$&#123;speed&#125;&quot; &quot;$&#123;duplex&#125;&quot;\</span><br><span class="line">      |awk &#x27;&#123;print $1,&quot;|&quot;, $2,&quot;|&quot;, $3,&quot;|&quot;, $4,&quot;|&quot;, $5,&quot;|&quot;, $6&#125;&#x27;  &gt;&gt;/tmp/tmpnet1_`date +%y%m%d`.txt</span><br><span class="line">   done</span><br><span class="line">&#125;</span><br><span class="line">get_cpuuse()&#123;</span><br><span class="line">   echo &quot;#######################################  cpu使用率  #######################################&quot; &gt;&gt;/tmp/tmp_cpuuse_`date +%y%m%d`.txt</span><br><span class="line">   mpstat -P ALL 10 6 &gt;&gt;/tmp/tmp_cpuuse_`date +%y%m%d`.txt</span><br><span class="line">&#125;</span><br><span class="line">get_connections ()&#123;</span><br><span class="line">  filemax=`cat /proc/sys/fs/file-max`</span><br><span class="line">  name_val &quot;Number of concurrent connections&quot; &quot;$&#123;filemax&#125;&quot;</span><br><span class="line">&#125;</span><br><span class="line">get_ulimitinfo()&#123;</span><br><span class="line">   echo &quot;#######################################  系统限制最大进程数  #######################################&quot; &gt;&gt;/tmp/tmp_ulimitinfo_`date +%y%m%d`.txt</span><br><span class="line">   ulimit -a &gt;&gt;/tmp/tmp_ulimitinfo_`date +%y%m%d`.txt</span><br><span class="line">&#125;</span><br><span class="line">get_meminfo()&#123;</span><br><span class="line">   echo &quot;Locator   |Size     |Speed       |Form Factor  | Type      |    Type Detail&quot; &gt;&gt;/tmp/tmpmem3_h1_`date +%y%m%d`.txt</span><br><span class="line">   dmidecode| grep -v &quot;Memory Device Mapped Address&quot;|grep -A12 -w &quot;Memory Device&quot; \</span><br><span class="line">   |egrep &quot;Locator:|Size:|Speed:|Form Factor:|Type:|Type Detail:&quot; \</span><br><span class="line">   |awk -F: &#x27;/Size|Type|Form.Factor|Type.Detail|^[\t ]+Locator/&#123;printf(&quot;|%s&quot;, $2)&#125;/^[\t ]+Speed/&#123;print &quot;|&quot; $2&#125;&#x27; \</span><br><span class="line">   |grep -v &quot;No Module Installed&quot; \</span><br><span class="line">   |awk -F&quot;|&quot; &#x27;&#123;print $4,&quot;|&quot;, $2,&quot;|&quot;, $7,&quot;|&quot;, $3,&quot;|&quot;, $5,&quot;|&quot;, $6&#125;&#x27; &gt;&gt;/tmp/tmpmem3_t1_`date +%y%m%d`.txt</span><br><span class="line">   free -glht &gt;&gt;/tmp/tmpmem2_`date +%y%m%d`.txt</span><br><span class="line">   memtotal=`vmstat -s | head -1 | awk &#x27;&#123;print $1&#125;&#x27;`</span><br><span class="line">   avm=`vmstat -s| sed -n &#x27;3p&#x27; | awk &#x27;&#123;print $1&#125;&#x27;`</span><br><span class="line">   name_val &quot;Mem_used_rate(%)&quot; &quot;`echo &quot;100*$&#123;avm&#125;/$&#123;memtotal&#125;&quot; | bc`%&quot; &gt;&gt;/tmp/tmpmem1_`date +%y%m%d`.txt</span><br><span class="line"></span><br><span class="line">&#125;</span><br><span class="line">get_diskinfo()&#123;</span><br><span class="line">   echo &quot;Filesystem        |Type   |Size |  Used  | Avail | Use%  | Mounted on | Opts&quot; &gt;&gt;/tmp/tmpdisk_h1_`date +%y%m%d`.txt</span><br><span class="line">   df -ThP|grep -v tmpfs|sed &#x27;1d&#x27;|sort &gt;/tmp/tmpdf1_`date +%y%m%d`.txt</span><br><span class="line">   mount -l|awk &#x27;&#123;print $1,$6&#125;&#x27;|grep ^/|sort &gt;/tmp/tmpdf2_`date +%y%m%d`.txt</span><br><span class="line">   join /tmp/tmpdf1_`date +%y%m%d`.txt /tmp/tmpdf2_`date +%y%m%d`.txt\</span><br><span class="line">   |awk &#x27;&#123;print $1,&quot;|&quot;, $2,&quot;|&quot;, $3,&quot;|&quot;, $4,&quot;|&quot;, $5,&quot;|&quot;, $6,&quot;|&quot;, $7,&quot;|&quot;, $8&#125;&#x27; &gt;&gt;/tmp/tmpdisk_t1_`date +%y%m%d`.txt</span><br><span class="line">   lsblk &gt;&gt;/tmp/tmpdisk1_`date +%y%m%d`.txt</span><br><span class="line">   for disk in `ls -l /sys/block|awk &#x27;&#123;print $9&#125;&#x27;|sed &#x27;/^$/d&#x27;|grep -v fd`</span><br><span class="line">   do</span><br><span class="line">      echo &quot;$&#123;disk&#125;&quot; `cat /sys/block/$&#123;disk&#125;/queue/scheduler`  &gt;&gt;/tmp/tmpdisk2_`date +%y%m%d`.txt</span><br><span class="line">   done</span><br><span class="line">   pvs &gt;&gt;/tmp/tmpdisk3_`date +%y%m%d`.txt</span><br><span class="line">   echo &quot;======================  =====  =====  =====  =====  =====  ==========  =======&quot; &gt;&gt;/tmp/tmpdisk3_`date +%y%m%d`.txt</span><br><span class="line">   vgs &gt;&gt;/tmp/tmpdisk3_`date +%y%m%d`.txt</span><br><span class="line">   echo &quot;======================  =====  =====  =====  =====  =====  ==========  =======&quot; &gt;&gt;/tmp/tmpdisk3_`date +%y%m%d`.txt</span><br><span class="line">   lvs &gt;&gt;/tmp/tmpdisk3_`date +%y%m%d`.txt</span><br><span class="line">&#125;</span><br><span class="line">get_topproc()&#123;</span><br><span class="line">   #os load</span><br><span class="line">   echo &quot;#######################################  网络流量情况  #######################################&quot; &gt;&gt;/tmp/tmpload_`date +%y%m%d`.txt</span><br><span class="line">   sar -n DEV 10 6 &gt;&gt;/tmp/tmpload_`date +%y%m%d`.txt</span><br><span class="line">   echo &quot;#######################################  系统资源变化  #######################################&quot; &gt;&gt;/tmp/tmpload_`date +%y%m%d`.txt</span><br><span class="line">   vmstat -S M 10 6  &gt;&gt;/tmp/tmpload_`date +%y%m%d`.txt</span><br><span class="line">   #top cpu</span><br><span class="line">   mpstat 1 5 &gt;&gt;/tmp/tmptopcpu_`date +%y%m%d`.txt</span><br><span class="line">   echo &quot;#######################################  消耗CPU前十排行  #######################################&quot; &gt;&gt;/tmp/tmptopcpu_`date +%y%m%d`.txt</span><br><span class="line">   ps aux|head -1 &gt;&gt;/tmp/tmptopcpu_`date +%y%m%d`.txt</span><br><span class="line">   ps aux|grep -v PID|sort -rn -k +3|head  &gt;&gt;/tmp/tmptopcpu_`date +%y%m%d`.txt</span><br><span class="line">   #top mem</span><br><span class="line">   echo &quot;#######################################  消耗内存前十排行  #######################################&quot; &gt;&gt;/tmp/tmptopmem_`date +%y%m%d`.txt</span><br><span class="line">   ps aux|head -1 &gt;&gt;/tmp/tmptopmem_`date +%y%m%d`.txt</span><br><span class="line">   ps aux|grep -v PID|sort -rn -k +4|head  &gt;&gt;/tmp/tmptopmem_`date +%y%m%d`.txt</span><br><span class="line">   echo &quot;TOP10 CPU Resource Process&quot; &gt;&gt;/tmp/tmptopmem_`date +%y%m%d`.txt</span><br><span class="line">   top -bn1 -o &quot;%CPU&quot;|sed  -n &#x27;1,17p&#x27;</span><br><span class="line">   #top i/o</span><br><span class="line">   echo &quot;#######################################  磁盘io情况  #######################################&quot; &gt;&gt;/tmp/tmptopio_`date +%y%m%d`.txt</span><br><span class="line">   iostat -k -d 10 5  &gt;&gt;/tmp/tmptopio_`date +%y%m%d`.txt</span><br><span class="line">&#125;</span><br><span class="line">get_crontablist()&#123;</span><br><span class="line">   crontab -l &gt;&gt;/tmp/tmp_crontab_`date +%y%m%d`.txt</span><br><span class="line">  if [ -s /tmp/tmp_crontab_`date +%y%m%d`.txt ] ; then</span><br><span class="line">    echo &#x27;ths file is not empyt and file info&#x27;</span><br><span class="line">  else</span><br><span class="line">    echo &#x27;#### 无定时任务 ####&#x27; &gt;&gt;/tmp/tmp_crontab_`date +%y%m%d`.txt</span><br><span class="line">  fi</span><br><span class="line">&#125;</span><br><span class="line">get_crontab_content()&#123;</span><br><span class="line">   crontab_content_log=/tmp/tmp_crontab_content_`date +%y%m%d`.txt</span><br><span class="line">   crontab -l|awk -F &#x27; &#x27; &#x27;&#123; print $NF&#125;&#x27; &gt;&gt;$crontab_content_log</span><br><span class="line">   contrab_num=`crontab -l|awk -F &#x27; &#x27; &#x27;&#123; print $NF&#125;&#x27;|wc -l`</span><br><span class="line">   if [ $contrab_num -ne 0 ];then</span><br><span class="line">   count=1</span><br><span class="line">   while [ $count -le $contrab_num ]</span><br><span class="line">     do</span><br><span class="line">       echo &quot;#######################################  获取系统定时任务脚本 $count 内容开始  #######################################&quot; &gt;&gt;/tmp/tmp_crontab_shellcontent_`date +%y%m%d`.txt</span><br><span class="line">       cat `sed -n -e &quot;$&#123;count&#125;p&quot; $crontab_content_log` &gt;&gt;/tmp/tmp_crontab_shellcontent_`date +%y%m%d`.txt</span><br><span class="line">       echo -e &quot;\n#######################################  获取系统定时任务脚本 $count 内容结束  #######################################\n&quot; &gt;&gt;/tmp/tmp_crontab_shellcontent_`date +%y%m%d`.txt</span><br><span class="line">	   count=$[$&#123;count&#125;+1]</span><br><span class="line">     done</span><br><span class="line">   else</span><br><span class="line">     echo &#x27;#### 无定时执行脚本 ####&#x27; &gt;&gt;/tmp/tmp_crontab_shellcontent_`date +%y%m%d`.txt</span><br><span class="line">   fi</span><br><span class="line">&#125;</span><br><span class="line">create_html()&#123;</span><br><span class="line">  rm -rf $file_output</span><br><span class="line">  touch $file_output</span><br><span class="line">  create_html_css &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;系统基本信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_physics &gt;&gt;/tmp/tmpos_summ_`date +%y%m%d`.txt</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpos_summ_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;cpu信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_cpuinfo &gt;&gt;/tmp/tmp_cpuinfo_`date +%y%m%d`.txt</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmp_cpuinfo_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;ip网络信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_netinfo</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr2 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpnet_h1_`date +%y%m%d`.txt</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpnet1_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;cpu使用率&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_cpuuse</span><br><span class="line">  create_tr3 &quot;/tmp/tmp_cpuuse_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;连接数信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_connections &gt;&gt;/tmp/tmp_connections_`date +%y%m%d`.txt</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmp_connections_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;系统限制信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_ulimitinfo</span><br><span class="line">  create_tr3 &quot;/tmp/tmp_ulimitinfo_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;内存使用信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_meminfo</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpmem1_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmpmem2_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr2 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpmem3_h1_`date +%y%m%d`.txt</span><br><span class="line"></span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpmem3_t1_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;磁盘使用信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_diskinfo</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr2 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpdisk_h1_`date +%y%m%d`.txt</span><br><span class="line">  while read line</span><br><span class="line">  do</span><br><span class="line">    create_tr1 &quot;$line&quot;</span><br><span class="line">  done &lt; /tmp/tmpdisk_t1_`date +%y%m%d`.txt</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmpdisk1_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmpdisk2_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmpdisk3_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;网络流量情况&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_topproc</span><br><span class="line">  create_tr3 &quot;/tmp/tmpload_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;消耗CPU前十排行&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmptopcpu_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;消耗内存前十排行&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmptopmem_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line"></span><br><span class="line">  create_html_head &quot;磁盘io情况&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  create_tr3 &quot;/tmp/tmptopio_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;定时任务信息&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_crontablist</span><br><span class="line">  create_tr3 &quot;/tmp/tmp_crontab_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_head &quot;定时任务脚本内容&quot; &gt;&gt; $file_output</span><br><span class="line">  create_table_head1 &gt;&gt; $file_output</span><br><span class="line">  get_crontab_content</span><br><span class="line">  create_tr3 &quot;/tmp/tmp_crontab_shellcontent_`date +%y%m%d`.txt&quot;</span><br><span class="line">  create_table_end &gt;&gt; $file_output</span><br><span class="line">  create_html_end &gt;&gt; $file_output</span><br><span class="line">  sed -i &#x27;s/BORDER=1/width=&quot;68%&quot; border=&quot;1&quot; bordercolor=&quot;#000000&quot; cellspacing=&quot;0px&quot; style=&quot;border-collapse:collapse&quot;/g&#x27; $file_output</span><br><span class="line">  rm -rf /tmp/tmp*_`date +%y%m%d`.txt</span><br><span class="line">&#125;</span><br><span class="line"># This script must be executed as root</span><br><span class="line">RUID=`id|awk -F\( &#x27;&#123;print $1&#125;&#x27;|awk -F\= &#x27;&#123;print $2&#125;&#x27;`</span><br><span class="line">if [ $&#123;RUID&#125; != &quot;0&quot; ];then</span><br><span class="line">    echo&quot;This script must be executed as root&quot;</span><br><span class="line">    exit 1</span><br><span class="line">fi</span><br><span class="line">PLATFORM=`uname`</span><br><span class="line">if [ $&#123;PLATFORM&#125; = &quot;HP-UX&quot; ] ; then</span><br><span class="line">    echo &quot;This script does not support HP-UX platform for the time being&quot;</span><br><span class="line">exit 1</span><br><span class="line">elif [ $&#123;PLATFORM&#125; = &quot;SunOS&quot; ] ; then</span><br><span class="line">    echo &quot;This script does not support SunOS platform for the time being&quot;</span><br><span class="line">exit 1</span><br><span class="line">elif [ $&#123;PLATFORM&#125; = &quot;AIX&quot; ] ; then</span><br><span class="line">    echo &quot;This script does not support AIX platform for the time being&quot;</span><br><span class="line">exit 1</span><br><span class="line">elif [ $&#123;PLATFORM&#125; = &quot;Linux&quot; ] ; then</span><br><span class="line">  create_html</span><br><span class="line">fi</span><br></pre></td></tr></table></figure>
+
+<p>四、执行脚本：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">chmod +x check_system.sh</span><br><span class="line">./check_system.sh</span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/03/07/Linux%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%B3%BB%E7%BB%9F%E8%87%AA%E5%8A%A8%E5%B7%A1%E6%A3%80%E8%84%9A%E6%9C%AC%E7%94%9F%E6%88%90html%E6%8A%A5%E5%91%8A/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/03/05/Docker%E5%B0%86%E6%9C%AC%E5%9C%B0%E9%95%9C%E5%83%8F%E8%BF%81%E7%A7%BB%E5%88%B0%E5%8F%A6%E4%B8%80%E5%8F%B0%E6%9C%8D%E5%8A%A1%E5%99%A8%E7%9A%84%E8%AF%A6%E7%BB%86%E6%93%8D%E4%BD%9C%E6%AD%A5%E9%AA%A4/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Docker将本地镜像迁移到另一台服务器的详细操作步骤</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
