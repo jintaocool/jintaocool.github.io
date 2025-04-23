@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">920</span>
+            <span class="post-count">871</span>
         </span>
     </span>
 
@@ -109,7 +109,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">4 分钟</span>
+            <span class="post-count">3 分钟</span>
         </span>
     </span>
 </div>
@@ -149,14 +149,9 @@
 <li>metrics.io&#x2F;service: user-module :此注解信息，用于标识此程序的服务信息，对应微服务中的不同模块所属。</li>
 </ul>
 <p>二、Prometheus(Kubesphere)服务配置【注：此部分无需用户进行配置】</p>
-<ol>
-<li><p>PaaS 平台支持说明<br>以下容器集群已经完成功能支持：<br>sit、huawei、qingdao、jifang、tmms-prod、wanlian-prod、wanlian-test、reception-prod、cartech-prod、cartech-test、cartech-pre、cartech-uat、dmz-pro、dmz-sit、uat、pre、dev、str</p>
-</li>
-<li><p>Prometheus 配置文件（prometheus.yml）</p>
+<p>   Prometheus 配置文件（prometheus.yml）</p>
 <figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br></pre></td><td class="code"><pre><span class="line"><span class="bullet">-</span> <span class="attr">job_name:</span> <span class="string">&#x27;kubernetes-pods-metrics&#x27;</span></span><br><span class="line">  <span class="attr">kubernetes_sd_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">role:</span> <span class="string">pod</span></span><br><span class="line">  <span class="attr">relabel_configs:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_pod_annotation_metrics_io_scrape</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">keep</span></span><br><span class="line">    <span class="attr">regex:</span> <span class="literal">true</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_pod_annotation_metrics_io_path</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">    <span class="attr">target_label:</span> <span class="string">__metrics_path__</span></span><br><span class="line">    <span class="attr">regex:</span> <span class="string">(.+)</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__address__</span>, <span class="string">__meta_kubernetes_pod_annotation_metrics_io_port</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">    <span class="attr">regex:</span> <span class="string">([^:]+)(?::\d+)?;(\d+)</span></span><br><span class="line">    <span class="attr">replacement:</span> <span class="string">$1:$2</span></span><br><span class="line">    <span class="attr">target_label:</span> <span class="string">__address__</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_pod_annotation_metrics_io_service</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">    <span class="attr">target_label:</span> <span class="string">service</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_namespace</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">    <span class="attr">target_label:</span> <span class="string">kubernetes_namespace</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">source_labels:</span> [<span class="string">__meta_kubernetes_pod_name</span>]</span><br><span class="line">    <span class="attr">action:</span> <span class="string">replace</span></span><br><span class="line">    <span class="attr">target_label:</span> <span class="string">kubernetes_pod_name</span></span><br></pre></td></tr></table></figure>
 <p>核心逻辑：</p>
-</li>
-</ol>
 <ul>
 <li>通过 kubernetes_sd_configs 动态发现 Pod </li>
 <li>使用 relabel_configs 重构抓取地址和路径，适配动态 IP</li>
