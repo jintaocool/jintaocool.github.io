@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>SkyWalking后端服务参数优化 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-SkyWalking后端服务参数优化"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  SkyWalking后端服务参数优化
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/12/SkyWalking%E5%90%8E%E7%AB%AF%E6%9C%8D%E5%8A%A1%E5%8F%82%E6%95%B0%E4%BC%98%E5%8C%96/" class="article-date">
+  <time datetime="2025-06-12T09:01:38.000Z" itemprop="datePublished">2025-06-12</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">743</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">2 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="引言"><a href="#引言" class="headerlink" title="引言"></a>引言</h2><p>SkyWalking作为分布式系统的APM（应用性能监控）工具，其后端服务的性能直接影响监控数据的收集、存储和查询效率。本章将详细介绍如何通过配置优化、存储策略调整和集群部署等方式提升SkyWalking后端服务的性能表现。</p>
+<h2 id="核心优化方向"><a href="#核心优化方向" class="headerlink" title="核心优化方向"></a>核心优化方向</h2><h3 id="1-配置参数调优"><a href="#1-配置参数调优" class="headerlink" title="1. 配置参数调优"></a>1. 配置参数调优</h3><h4 id="1-1-核心线程池配置"><a href="#1-1-核心线程池配置" class="headerlink" title="1.1 核心线程池配置"></a>1.1 核心线程池配置</h4><p>修改<code>application.yml</code>中的线程池参数以适应高负载场景：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">core:</span></span><br><span class="line">  <span class="attr">default:</span></span><br><span class="line">    <span class="comment"># 处理请求的线程数</span></span><br><span class="line">    <span class="attr">restExecutorThreadPoolSize:</span> <span class="string">$&#123;SW_CORE_REST_EXECUTOR_THREAD_POOL_SIZE:8&#125;</span></span><br><span class="line">    <span class="comment"># 异步持久化线程数</span></span><br><span class="line">    <span class="attr">persistentExecutorThreadPoolSize:</span> <span class="string">$&#123;SW_CORE_PERSISTENT_EXECUTOR_THREAD_POOL_SIZE:4&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>建议值</p>
+<ul>
+<li>生产环境建议<code>restExecutorThreadPoolSize</code>设置为CPU核心数的1.5-2倍</li>
+<li><code>persistentExecutorThreadPoolSize</code>建议设置为物理磁盘数量的整数倍</li>
+</ul>
+<h4 id="1-2-缓存配置优化"><a href="#1-2-缓存配置优化" class="headerlink" title="1.2 缓存配置优化"></a>1.2 缓存配置优化</h4><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">storage:</span></span><br><span class="line">  <span class="comment"># 指标数据缓存时间(分钟)</span></span><br><span class="line">  <span class="attr">metricsDataTTL:</span> <span class="string">$&#123;SW_STORAGE_METRICS_DATA_TTL:90&#125;</span></span><br><span class="line">  <span class="comment"># 原始数据缓存时间(分钟)</span></span><br><span class="line">  <span class="attr">recordDataTTL:</span> <span class="string">$&#123;SW_STORAGE_RECORD_DATA_TTL:7&#125;</span></span><br><span class="line">  <span class="comment"># 每批次处理的最大记录数</span></span><br><span class="line">  <span class="attr">maxSizeOfBatchWrite:</span> <span class="string">$&#123;SW_STORAGE_MAX_SIZE_OF_BATCH_WRITE:5000&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-存储层优化"><a href="#2-存储层优化" class="headerlink" title="2. 存储层优化"></a>2. 存储层优化</h3><h4 id="2-1-Elasticsearch优化方案"><a href="#2-1-Elasticsearch优化方案" class="headerlink" title="2.1 Elasticsearch优化方案"></a>2.1 Elasticsearch优化方案</h4><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">storage:</span></span><br><span class="line">  <span class="attr">elasticsearch:</span></span><br><span class="line">    <span class="comment"># 索引分片数设置</span></span><br><span class="line">    <span class="attr">indexShardsNumber:</span> <span class="string">$&#123;SW_STORAGE_ES_INDEX_SHARDS_NUMBER:2&#125;</span></span><br><span class="line">    <span class="comment"># 索引副本数设置</span></span><br><span class="line">    <span class="attr">indexReplicasNumber:</span> <span class="string">$&#123;SW_STORAGE_ES_INDEX_REPLICAS_NUMBER:1&#125;</span></span><br><span class="line">    <span class="comment"># 批量处理配置</span></span><br><span class="line">    <span class="attr">bulkActions:</span> <span class="string">$&#123;SW_STORAGE_ES_BULK_ACTIONS:5000&#125;</span></span><br><span class="line">    <span class="attr">bulkSizeMB:</span> <span class="string">$&#123;SW_STORAGE_ES_BULK_SIZE_MB:50&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>分片策略</p>
+<ul>
+<li>单个分片大小建议控制在30-50GB</li>
+<li>分片数 &#x3D; 每日数据量(GB) &#x2F; 40GB</li>
+</ul>
+<h4 id="2-2-索引生命周期管理"><a href="#2-2-索引生命周期管理" class="headerlink" title="2.2 索引生命周期管理"></a>2.2 索引生命周期管理</h4><p>Rollover</p>
+<p>Rollover</p>
+<p>Delete</p>
+<p>metrics-1day</p>
+<p>metrics-7days</p>
+<p>metrics-30days</p>
+<p>Expired</p>
+<h3 id="3-集群部署优化"><a href="#3-集群部署优化" class="headerlink" title="3. 集群部署优化"></a>3. 集群部署优化</h3><h4 id="3-1-节点角色分离"><a href="#3-1-节点角色分离" class="headerlink" title="3.1 节点角色分离"></a>3.1 节点角色分离</h4><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">core:</span></span><br><span class="line">  <span class="comment"># 配置为混合节点</span></span><br><span class="line">  <span class="attr">role:</span> <span class="string">$&#123;SW_CORE_ROLE:Mixed&#125;</span></span><br><span class="line">  <span class="comment"># 或指定为独立角色</span></span><br><span class="line">  <span class="comment"># role: $&#123;SW_CORE_ROLE:Receiver/Aggregator&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>注意</p>
+<p>生产环境建议将Receiver和Aggregator角色分离，Receiver节点负责数据接收，Aggregator节点负责数据聚合</p>
+<h4 id="3-2-负载均衡配置"><a href="#3-2-负载均衡配置" class="headerlink" title="3.2 负载均衡配置"></a>3.2 负载均衡配置</h4><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">receiver-sharing-server:</span></span><br><span class="line">  <span class="comment"># 接收器端口配置</span></span><br><span class="line">  <span class="attr">restHost:</span> <span class="string">$&#123;SW_RECEIVER_SHARING_SERVER_REST_HOST:0.0.0.0&#125;</span></span><br><span class="line">  <span class="attr">restPort:</span> <span class="string">$&#123;SW_RECEIVER_SHARING_SERVER_REST_PORT:12800&#125;</span></span><br><span class="line">  <span class="attr">restContextPath:</span> <span class="string">$&#123;SW_RECEIVER_SHARING_SERVER_REST_CONTEXT_PATH:/&#125;</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="实战案例"><a href="#实战案例" class="headerlink" title="实战案例"></a>实战案例</h2><h3 id="电商平台优化实践"><a href="#电商平台优化实践" class="headerlink" title="电商平台优化实践"></a>电商平台优化实践</h3><p>某电商平台在双11期间SkyWalking出现性能瓶颈，通过以下优化措施提升性能：</p>
+<ol>
+<li>将<code>restExecutorThreadPoolSize</code>从默认4调整为16</li>
+<li>配置Elasticsearch索引生命周期策略：<ul>
+<li>热节点保留3天数据</li>
+<li>温节点保留7天数据</li>
+</ul>
+</li>
+<li>部署独立的Aggregator节点处理聚合计算</li>
+</ol>
+<p>优化后指标：</p>
+<ul>
+<li>P99延迟从1200ms降至350ms</li>
+<li>数据丢失率从5%降至0.1%</li>
+</ul>
+<h2 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h2><p>SkyWalking后端优化需要从多个维度综合考虑：</p>
+<ol>
+<li><strong>资源配置</strong>：合理分配CPU、内存和线程资源</li>
+<li><strong>存储策略</strong>：根据数据保留需求设计存储方案</li>
+<li><strong>集群架构</strong>：根据业务规模选择合适的部署模式</li>
+</ol>
+<h2 id="延伸学习"><a href="#延伸学习" class="headerlink" title="延伸学习"></a>延伸学习</h2><ul>
+<li>使用<code>jstack</code>和<code>jstat</code>监控OAP服务JVM状态</li>
+<li>通过SkyWalking的<code>/debugging</code>端点获取内部指标</li>
+<li>定期检查Elasticsearch的<code>_cat/indices?v</code>接口监控索引健康状态</li>
+</ul>
+<p>推荐练习：</p>
+<ol>
+<li>在测试环境模拟高负载场景，调整线程池参数观察性能变化</li>
+<li>为不同业务线配置独立的存储策略</li>
+<li>实践Receiver和Aggregator角色的分离部署</li>
+</ol>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/06/12/SkyWalking%E5%90%8E%E7%AB%AF%E6%9C%8D%E5%8A%A1%E5%8F%82%E6%95%B0%E4%BC%98%E5%8C%96/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/12/MaoXian-Web-Clipper-%E7%BD%91%E9%A1%B5%E5%89%AA%E8%97%8F%E6%8F%92%E4%BB%B6/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">MaoXian Web Clipper 网页剪藏插件</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
