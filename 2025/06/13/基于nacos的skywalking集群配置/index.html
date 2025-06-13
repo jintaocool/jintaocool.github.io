@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>基于nacos的skywalking集群配置 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-基于nacos的skywalking集群配置"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  基于nacos的skywalking集群配置
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/13/%E5%9F%BA%E4%BA%8Enacos%E7%9A%84skywalking%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE/" class="article-date">
+  <time datetime="2025-06-13T01:06:11.000Z" itemprop="datePublished">2025-06-13</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">5 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p><strong>Apache Skywalking 简介：</strong></p>
+<p>Apache Skywalking 是由吴晟老师创建，是我认为目前综合能力最强大的开源分布式链路追踪系统（全链路监控系统），虽然开源全链路工具在功能上没有商业的强大，但是开源工具有开源工具的好处(没有最好的只有最适合的，大家应该根据自己的业务场景进行选择，我们选择了开源全链路监控软件Apache Skywalking)。 skywalking官网地址： <a target="_blank" rel="noopener" href="http://skywalking.apache.org/zh/">http://skywalking.apache.org/zh/</a> github地址： <a target="_blank" rel="noopener" href="https://github.com/apache/skywalking">https://github.com/apache/skywalking</a></p>
+<p><strong>开源相对于商业产品的好处：</strong></p>
+<p>1：成本低，商业系统按照服务器收费如果服务器众多一年的开销巨大。<br>2：安全，数据放到自己的服务器上不至于有泄露公司机密风险。<br>3：源代码开放可学习性强，skywalking 有着非常优秀的工程设计能力，学习其源码对技术人员成长有得天独厚的好处。</p>
+<p><strong>skywalking为什么要进行集群配置?</strong></p>
+<p>如果公司里有大量的业务，比如本人所在公司的业务特点就是业务众多访问量大，本部门有几十个国内外业务，机房也涉及到国内、印度、俄罗斯等几个机房，业务众多量级大单台skywalking oap server 是不够用的(具体多大量级需要多少配置在这里不详细说，篇幅有限此篇文章重点介绍如何配置skywalking nacos)，skywalking oap 之间本身不能搭建集群，需要一个集群管理器来组建集群，截至到发稿skywalking 支持nacos、zookeeper、Kubernetes、Consul、Etcd 五种集群管理器，由于本人做了一些skywalking社区 的nacos相关开发维护工作有一点nacos集群相关经验，下面分享一下基于nacos的集群管理如何搭建并在本地进行真实搭建演示，其他组件原理和配置类似，后面主要介绍如何配置skywalking nacos集群，别的比如说代码分析暂时不在此研究，一提到配置本人习惯先从配置文件入手，本文主要用到skywalking的application.yml 和alarm-settings.yml两个配置文件，为了方便大家学习此文章对skywalking整体目录结构也罗列了一下如下</p>
+<p><strong>skywalking目录结构</strong></p>
+<p>├── agent                    #java agent所在目录(包括java agent的配置文件)</p>
+<p>├── config                   #配置文件目录</p>
+<p>│    ├── alarm-settings-sample.yml       #告警配置例子</p>
+<p>│    ├── alarm-settings.yml              #告警配置(本文涉及到配置)</p>
+<p>│    ├── application.yml                 #oap配置(本文涉及到配置)</p>
+<p>│    ├── component-libraries.yml         #组件库配置</p>
+<p>│    ├── gateways.yml                    #网关配置</p>
+<p>│    ├── log4j2.xml                      #日志配置</p>
+<p>│    ├── official_analysis.oal           #数据分析指标配置</p>
+<p>│    └── service-apdex-threshold.yml     #阀值配置</p>
+<p>├── bin                      #启动相关脚本(包括web、oap)</p>
+<p>│    ├── oapService.bat              #oap初始化启动脚本(windows)</p>
+<p>│    ├── oapServiceInit.bat          #oap初始化脚本windows</p>
+<p>│    ├── oapServiceInit.sh           #oap初始化脚本linux</p>
+<p>│    ├── oapServiceNoInit.bat        #oap无需初始化启动脚本windows</p>
+<p>│    ├── oapServiceNoInit.sh         #oap无需初始化启动脚本linux</p>
+<p>│    ├── oapService.sh               #oap初始化启动脚本windows</p>
+<p>│    ├── startup.bat                 #skywalking启动脚本windows</p>
+<p>│    ├── startup.sh                  #skywalking启动脚本linux</p>
+<p>│    ├── webappService.bat           #UI启动脚本windows</p>
+<p>│    └── webappService.sh            #UI启动脚本linux</p>
+<p>├── LICENSE                                #LICENSE 文件</p>
+<p>├── licenses                               #licenses所在目录</p>
+<p>├── NOTICE                 #NOTICE 文件</p>
+<p>├── oap-libs                 #oap依赖jar包</p>
+<p>├── README.txt          #README文件</p>
+<p>├── logs                        #各种日志</p>
+<p>└── webapp                   #UI jar包</p>
+<p>      ├── skywalking-webapp.jar            #UI jar包</p>
+<p>      └── webapp.yml                         #web相关配置</p>
+<p><strong>部署架构图</strong></p>
+<p>架构图是方便大家理解整体架构做准备，这里为了给大家演示是在本地搭建两个oap server，多台原理是一样的（线上生产环境可能会每个公司根据自己的情况会有一些额外配置、比如线上agent域名上报的grpc http2代理、机房间网络端口不通需要特殊处理等）</p>
+<p><img src="/images/1749776676-7890f162e1b9781cbeb994b80d2364bd.webp"></p>
+<p>架构图</p>
+<p><strong>nacos 安装部署</strong></p>
+<p>1.下载nacos 地址：<a target="_blank" rel="noopener" href="https://github.com/alibaba/nacos/releases">https://github.com/alibaba/nacos/releases</a></p>
+<p>2.解压</p>
+<p>3.启动server（standalone是单独部署） Linux&#x2F;Unix&#x2F;Mac 如果使用的是Ubuntu系统或者遇到下面的错误 [[symbol not found,推荐运行下面的命令:</p>
+<p>Windows</p>
+<p>运行如下命令启动</p>
+<p>启动成功会出如下界面</p>
+<p><img src="/images/1749776676-02cfa683436d6d32e2259e81ef2330f1.webp"></p>
+<p>ui管理后台(ui地址在启动日志里查看，默认用户名和密码全是nacos)。</p>
+<p><img src="/images/1749776676-d75f7c4dda8886172ae0aeab46e85c27.webp"></p>
+<p><strong>skywalking 7 集群部署(两台)：</strong></p>
+<p>这里演示两台skywalking oap server 集群部署，多台原理也一样由于时间问题这里就不做演示了。 下载 skywalking(直接使用推荐下载Binary，如果需要研究源码下载Source code) 下载地址：<a target="_blank" rel="noopener" href="https://skywalking.apache.org/downloads/">https://skywalking.apache.org/downloads/</a> 下图是skywalking中nacos集群配置部分</p>
+<p><img src="/images/1749776676-990c52883dccadd3a3021664efa2d0a8.webp"></p>
+<p>下图是skywalking中nacos 动态配置部分。</p>
+<p><img src="/images/1749776676-19663d7ccc52e5d33a6fefa560a246d8.webp"></p>
+<p>如果配置成功nacos 启动skywalking后台会发现这两个skywalking oap 服务。</p>
+<p><img src="/images/1749776676-64ad4ca3cfa7acb19605a161af8edf03.webp"></p>
+<p><strong>什么是动态配置？</strong></p>
+<p>skywalking动态配置的意思就是在不用重启服务的情况下能动态的修改一些配置参数，显而易见这么做的好处是在不影响线上正常运行的情况下可以修改配置参数。</p>
+<p>skywalking支持的动态配置</p>
+<p><img src="/images/1749776676-7f05a25d078a44d1e816278b0ae8171f.webp"></p>
+<p>配置动态配置：</p>
+<p>进入nacos点击右上角+</p>
+<p><img src="/images/1749776676-b2389d1c8d8781073dddc28b66a2c966.webp"></p>
+<p>填好信息并且把告警配置粘贴进入(这些告警信息参数后续自己可以在nacos页面进行修改，修改之后skywalking那面会跟着修改，这样就达到了动态配置的效果)，点击右下角publish 会显示发布成功</p>
+<p><img src="/images/1749776676-df40566b9b19689e0d9b533b3c170a01.webp"></p>
+<p>在列表里会看到已发布的配置</p>
+<p><img src="/images/1749776676-fef725835885574387518dd2c2611108.webp"></p>
+<p><strong>测试动态配置是否生效</strong></p>
+<p>到刚才的nacos页面点击修改，把webhooks注释掉一个</p>
+<p><img src="/images/1749776676-1476d1f84aac8c24afde0bfe5c3fd733.webp"></p>
+<p>结果skywalking 的skywalking-oap-server.log 日志打印出修改之后的log了，说明修改成功</p>
+<p><img src="/images/1749776676-c937231dcc1aaa2422eeb86372b4f0c7.webp"></p>
+<p>其他配置项的原理和配置方法类似，这里就不全部列出来了，到此基于nacos的skywalking 集群配置完毕。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/06/13/%E5%9F%BA%E4%BA%8Enacos%E7%9A%84skywalking%E9%9B%86%E7%BE%A4%E9%85%8D%E7%BD%AE/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/12/Skywalking%E6%90%AD%E5%BB%BAnacos%E6%B3%A8%E5%86%8C%E4%B8%AD%E5%BF%83%E5%8F%8Amysql%E5%AD%98%E5%82%A8%E7%9A%84%E9%9B%86%E7%BE%A4%E6%9E%B6%E6%9E%84/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Skywalking搭建nacos注册中心及mysql存储的集群架构</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
