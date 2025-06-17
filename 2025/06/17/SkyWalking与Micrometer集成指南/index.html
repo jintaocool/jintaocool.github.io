@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">491</span>
+            <span class="post-count">486</span>
         </span>
     </span>
 
@@ -125,7 +125,7 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>实现Spring应用监控数据无缝接入SkyWalking，可观测性 Spring Boot 监控指标</p>
-<h2 id="Micrometer与SkyWalking集成概述"><a href="#Micrometer与SkyWalking集成概述" class="headerlink" title="Micrometer与SkyWalking集成概述"></a>Micrometer与SkyWalking集成概述</h2><p>Micrometer Observation提供统一的监控API，使Spring应用可通过Micrometer 1.10 API将指标发送至SkyWalking Meter系统。</p>
+<p>Micrometer Observation提供统一的监控API，使Spring应用可通过Micrometer 1.10 API将指标发送至SkyWalking Meter系统。</p>
 <p>集成前提</p>
 <p>需先在Java应用中配置Micrometer的Spring Agent，参考<a target="_blank" rel="noopener" href="https://skywalking.apache.org/docs/main/next/en/setup/agent/java-agent/observations/">Java agent观测文档</a>。</p>
 <h2 id="SkyWalking后端配置"><a href="#SkyWalking后端配置" class="headerlink" title="SkyWalking后端配置"></a>SkyWalking后端配置</h2><h3 id="1-启用指标接收器"><a href="#1-启用指标接收器" class="headerlink" title="1. 启用指标接收器"></a>1. 启用指标接收器</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">receiver-meter:</span><br><span class="line">  selector: $&#123;SW_RECEIVER_METER:default&#125;</span><br><span class="line">  default: &#123;&#125;</span><br></pre></td></tr></table></figure>
