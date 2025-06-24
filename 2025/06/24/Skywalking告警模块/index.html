@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Skywalking告警模块 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Skywalking-Skywalking告警模块"
+  class="article article-type-Skywalking"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Skywalking告警模块
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/06/24/Skywalking%E5%91%8A%E8%AD%A6%E6%A8%A1%E5%9D%97/" class="article-date">
+  <time datetime="2025-06-24T06:20:31.000Z" itemprop="datePublished">2025-06-24</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Skywalking/">Skywalking</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">7 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>Skywalking 发送告警的基本原理是每隔一段时间轮询 skywalking-oap 收集到的链路追踪的数据，再根据所配置的告警规则（如服务响应时间、服务响应时间百分比）等，如果达到阈值则发送响应的告警信息。 发送告警信息是以线程池异步的方式调用 webhook 接口完成，（具体的webhook接口可以使用者自行定义），从而开发者可以在指定的webhook接口中自行编写各种告警方式，钉钉告警、邮件告警等等。</p>
+<p>告警的核心由一组规则驱动，这些规则定义在 安装解压缩包里面的<code>config/alarm-settings.yml</code>文件中, 打开之后如下所示：rules 即为需要配置的告警规则的列表；第一个规则 ‘endpoint_percent_rule’，是规则名，不能重复且必须以 ‘_rule’ 为结尾.</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">rules:</span></span><br><span class="line">  <span class="comment"># Rule unique name, must be ended with `_rule`.（告警规则名称应该具有唯一性，且必须以 `_rule` 结尾。）</span></span><br><span class="line">  <span class="attr">endpoint_percent_rule:</span></span><br><span class="line">    <span class="comment"># Metrics value need to be long, double or int. （指标值需要是long，double 或者 int）</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">endpoint_percent</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">75</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&lt;</span></span><br><span class="line">    <span class="comment"># The length of time to evaluate the metrics（告警检查周期：多久检查一次当前的指标数据是否符合告警规则，单位是分钟）</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="comment"># How many times after the metrics match the condition, will trigger alarm（累计达到多少次告警值后触发告警）</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">3</span></span><br><span class="line">    <span class="comment"># How many times of checks, the alarm keeps silence after alarm triggered, default as same as period.（忽略相同告警 message 的周期，默认与告警检查周期一致）</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">10</span></span><br><span class="line"></span><br><span class="line">  <span class="attr">service_percent_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_percent</span></span><br><span class="line">    <span class="comment"># [Optional] Default, match all services in this metrics（可选项，默认匹配所有服务）</span></span><br><span class="line">    <span class="attr">include-names:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">service_a</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">service_b</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">85</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&lt;</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">4</span></span><br></pre></td></tr></table></figure>
+
+<p>告警规则的定义分为两部分。</p>
+<ol>
+<li>告警规则。它们定义了应该如何触发度量警报，应该考虑什么条件。</li>
+<li>网络钩子。当警告触发时，哪些服务终端需要被告知，你可以通过钩子接收告警信息，然后按需将告警信息推送到其他告警平台。</li>
+</ol>
+<h2 id="告警规则"><a href="#告警规则" class="headerlink" title="告警规则"></a>告警规则</h2><p>告警规则主要有以下几点：</p>
+<ul>
+<li><strong>Rule name</strong>。在告警信息中显示的唯一名称。必须以<code>_rule</code>结尾。指定的规则（与规则名不同，这里是对应的告警中的规则map，具体可查看 <a target="_blank" rel="noopener" href="https://github.com/apache/skywalking/blob/master/docs/en/setup/backend/backend-alarm.md#list-of-all-potential-metrics-name">backend-alarm.md</a>，其中一些常见的，endpoint_percent_rule——端点相应半分比告警，service_percent_rule——服务相应百分比告警）</li>
+<li><strong>Metrics name</strong>。 也是 OAL 脚本中的度量名。只支持long,double和int类型。详情见<a href="#%E6%89%80%E6%9C%89%E5%8F%AF%E8%83%BD%E7%9A%84%E5%BA%A6%E9%87%8F%E5%90%8D%E7%A7%B0%E5%88%97%E8%A1%A8">所有可能的度量名称列表</a>.</li>
+<li><strong>Include names</strong>。使用本规则告警的服务列表。比如服务名，端点名。</li>
+<li><strong>Threshold</strong>。阈值,与metrics-name和下面的比较符号相匹配</li>
+<li><strong>OP</strong>。 操作符, 支持 <code>&gt;</code>, <code>&lt;</code>, <code>=</code>。欢迎贡献所有的操作符。如 metrics-name: endpoint_percent, threshold: 75，op: &lt; ,表示如果相应时长小于平均75%则发送告警</li>
+<li><strong>Period</strong>.。多久告警规则需要被核实一下。这是一个时间窗口，与后端部署环境时间相匹配。</li>
+<li><strong>Count</strong>。 在一个Period窗口中，如果<strong>value</strong>s超过Threshold值（按op），达到Count值，需要发送警报。</li>
+<li><strong>Silence period</strong>。在时间N中触发报警后，在<strong>TN -&gt; TN + period</strong>这个阶段不告警。 默认情况下，它和<strong>Period</strong>一样，这意味着相同的告警（在同一个Metrics name拥有相同的Id）在同一个Period内只会触发一次。</li>
+</ul>
+<h2 id="默认告警规则"><a href="#默认告警规则" class="headerlink" title="默认告警规则"></a>默认告警规则</h2><p>为了方便，我们在发行版中提供了默认的<code>alarm setting.yml</code>文件，包括以下规则 1.过去3分钟内服务平均响应时间超过1秒。 1.服务成功率在过去2分钟内低于80%。 1.服务90%响应时间在过去3分钟内低于1000毫秒. 1.服务实例在过去2分钟内的平均响应时间超过1秒。 1.端点平均响应时间过去2分钟超过1秒。</p>
+<h2 id="所有可能的度量名称列表"><a href="#所有可能的度量名称列表" class="headerlink" title="所有可能的度量名称列表"></a>所有可能的度量名称列表</h2><p>这些度量名称定义在 <a target="_blank" rel="noopener" href="https://github.com/apache/skywalking/blob/master/oap-server/server-starter/src/main/resources/official_analysis.oal">OAL 脚本</a>中, 现在，来自<strong>Service</strong>, <strong>Service Instance</strong>, <strong>Endpoint</strong>的度量可以用于告警，我们会在后期版本中进行扩展。</p>
+<h2 id="Webhook"><a href="#Webhook" class="headerlink" title="Webhook"></a>Webhook</h2><p>SkyWalking 的告警 Webhook 要求接收方是一个 Web 容器。 需要在部署启动的时候在 <code>config/alarm-settings.yml</code>文件中配置接受请求的URL：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Sample alarm rules.</span></span><br><span class="line"><span class="attr">rules:</span></span><br><span class="line">  <span class="attr">service_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_resp_time</span></span><br><span class="line">    <span class="comment"># [Optional] Default, match all services in this metrics（可选项，默认匹配所有服务）</span></span><br><span class="line">    <span class="attr">include-names:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">dubbox-provider</span></span><br><span class="line">      <span class="bullet">-</span> <span class="string">dubbox-consumer</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">1000</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">1</span></span><br><span class="line"></span><br><span class="line"><span class="string">👇</span> <span class="string">配置webhook，接收告警规则的URL。</span></span><br><span class="line"><span class="attr">webhooks:</span> </span><br><span class="line">  <span class="bullet">-</span> <span class="string">http://127.0.0.1:8090/notify/</span></span><br><span class="line">  <span class="bullet">-</span> <span class="string">http://127.0.0.1:8888/go-wechat/</span></span><br></pre></td></tr></table></figure>
+
+<p>告警的消息会通过 HTTP 请求进行发送, 请求方法为 <code>POST</code>, <code>Content-Type</code> 为 <code>application/json</code>, JSON 格式可以参考 <code>List&lt;org.apache.skywalking.oap.server.core.alarm.AlarmMessage</code>, 包含以下信息.</p>
+<ul>
+<li><strong>scopeId</strong>，<strong>scope</strong>. 所有可用的 Scope 请查阅 <code>org.apache.skywalking.oap.server.core.source.DefaultScopeDefine</code>.</li>
+<li><strong>name</strong>. 目标 Scope 的实体名称.</li>
+<li><strong>id0</strong>. Scope 实体的 ID.</li>
+<li><strong>id1</strong>. 未使用.</li>
+<li><strong>ruleName</strong>. 触发的告警规则名称.</li>
+<li><strong>alarmMessage</strong>. 报警消息内容.</li>
+<li><strong>startTime</strong>. 告警时间.</li>
+</ul>
+<p>以下是一个 POST 方式推送出去的告警信息样例：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">[</span><span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;scopeId&quot;</span><span class="punctuation">:</span> <span class="number">1</span><span class="punctuation">,</span> </span><br><span class="line">    <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;SERVICE&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;serviceA&quot;</span><span class="punctuation">,</span> </span><br><span class="line">    <span class="attr">&quot;id0&quot;</span><span class="punctuation">:</span> <span class="number">12</span><span class="punctuation">,</span>  </span><br><span class="line">    <span class="attr">&quot;id1&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span>  </span><br><span class="line">    <span class="attr">&quot;ruleName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_resp_time_rule&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;alarmMessage&quot;</span><span class="punctuation">:</span> <span class="string">&quot;alarmMessage xxxx&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;startTime&quot;</span><span class="punctuation">:</span> <span class="number">1560524171000</span></span><br><span class="line"><span class="punctuation">&#125;</span><span class="punctuation">,</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;scopeId&quot;</span><span class="punctuation">:</span> <span class="number">1</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;scope&quot;</span><span class="punctuation">:</span> <span class="string">&quot;SERVICE&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;name&quot;</span><span class="punctuation">:</span> <span class="string">&quot;serviceB&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;id0&quot;</span><span class="punctuation">:</span> <span class="number">23</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;id1&quot;</span><span class="punctuation">:</span> <span class="number">0</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;ruleName&quot;</span><span class="punctuation">:</span> <span class="string">&quot;service_resp_time_rule&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;alarmMessage&quot;</span><span class="punctuation">:</span> <span class="string">&quot;alarmMessage yyy&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;startTime&quot;</span><span class="punctuation">:</span> <span class="number">1560524171000</span></span><br><span class="line"><span class="punctuation">&#125;</span><span class="punctuation">]</span></span><br></pre></td></tr></table></figure>
+
+<p>以下是一个可参考的告警配置：</p>
+<figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># Sample alarm rules.</span></span><br><span class="line"><span class="attr">rules:</span></span><br><span class="line">  <span class="comment"># Rule unique name, must be ended with `_rule`.</span></span><br><span class="line">  <span class="attr">service_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_resp_time</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">500</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes.</span></span><br><span class="line">  <span class="attr">service_sla_rule:</span></span><br><span class="line">    <span class="comment"># Indicator value need to be long, double or int</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_sla</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&lt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">8000</span></span><br><span class="line">    <span class="comment"># The length of time to evaluate the metric</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="comment"># How many times after the metric match the condition, will trigger alarm</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">2</span></span><br><span class="line">    <span class="comment"># How many times of checks, the alarm keeps silence after alarm triggered, default as same as period.</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">3</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Successful</span> <span class="string">rate</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">lower</span> <span class="string">than</span> <span class="number">80</span><span class="string">%</span> <span class="string">in</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes.</span></span><br><span class="line">  <span class="attr">service_p90_sla_rule:</span></span><br><span class="line">    <span class="comment"># Indicator value need to be long, double or int</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_p90</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">500</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="number">90</span><span class="string">%</span> <span class="string">response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">lower</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes</span></span><br><span class="line">  <span class="attr">service_instance_resp_time_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">service_instance_resp_time</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">500</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">service</span> <span class="string">instance</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes.</span></span><br><span class="line">  <span class="attr">endpoint_avg_rule:</span></span><br><span class="line">    <span class="attr">metrics-name:</span> <span class="string">endpoint_avg</span></span><br><span class="line">    <span class="attr">op:</span> <span class="string">&quot;&gt;&quot;</span></span><br><span class="line">    <span class="attr">threshold:</span> <span class="number">500</span></span><br><span class="line">    <span class="attr">period:</span> <span class="number">10</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">1</span></span><br><span class="line">    <span class="attr">silence-period:</span> <span class="number">5</span></span><br><span class="line">    <span class="attr">message:</span> <span class="string">Response</span> <span class="string">time</span> <span class="string">of</span> <span class="string">endpoint</span> &#123;<span class="string">name</span>&#125; <span class="string">is</span> <span class="string">more</span> <span class="string">than</span> <span class="string">1000ms</span> <span class="string">in</span> <span class="string">last</span> <span class="number">10</span> <span class="string">minutes.</span></span><br><span class="line"></span><br><span class="line"><span class="attr">webhooks:</span></span><br><span class="line"><span class="comment">#  - http://127.0.0.1/notify/</span></span><br><span class="line"><span class="comment">#  - http://127.0.0.1/go-wechat/</span></span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/06/24/Skywalking%E5%91%8A%E8%AD%A6%E6%A8%A1%E5%9D%97/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Skywalking/" rel="tag">Skywalking</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/06/24/Skywalking-TraceId%E4%B8%8E%E6%97%A5%E5%BF%97%E7%BB%84%E4%BB%B6%E9%9B%86%E6%88%90/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Skywalking TraceId与日志组件集成</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
