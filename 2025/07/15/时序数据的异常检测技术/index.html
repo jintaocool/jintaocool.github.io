@@ -1,0 +1,888 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>时序数据的异常检测技术 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-时序数据的异常检测技术"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  时序数据的异常检测技术
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/07/15/%E6%97%B6%E5%BA%8F%E6%95%B0%E6%8D%AE%E7%9A%84%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B%E6%8A%80%E6%9C%AF/" class="article-date">
+  <time datetime="2025-07-15T09:17:58.000Z" itemprop="datePublished">2025-07-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">7.5k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">25 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="什么是异常检测？"><a href="#什么是异常检测？" class="headerlink" title="什么是异常检测？"></a><strong>什么是异常检测？</strong></h1><p>通常来讲，<strong>异常检测是指识别不符合预期行为的异常模式的任务</strong>。您可能也注意到了，这个定义相当宽泛，实际上它很大程度上取决于：</p>
+<ul>
+<li>数据的性质。</li>
+<li>企业所处的行业。</li>
+<li>特定的业务环境。</li>
+</ul>
+<p>然而，无论定义如何变化，<strong>异常事件都可能对您的业务产生重大影响</strong>，特别是在未被发现或被曲解的情况下。</p>
+<p><strong>异常检测建模的主要挑战在于将异常视为正常模式或正常模式视为异常。</strong></p>
+<p>如果模型将异常误分类为正常，且忽略了这个异常，那么根据业务场景的严重性，这可能会导致不可挽回的损失（如核电站、自动驾驶故障等）。</p>
+<p>另一方面，<strong>一个产生太多误报的模型也不实用。因为它频繁干扰常规业务流程，会导致模型乃至整个产品的信誉受损，用户也不会再使用这个工具。</strong></p>
+<h1 id="时序数据中的异常检测"><a href="#时序数据中的异常检测" class="headerlink" title="时序数据中的异常检测"></a>时序数据中的异常检测</h1><p>检测异常本身就很难，而对于时序数据来说则更难，因为时序数据具有时间顺序，即时间轴，这为数据增加了一个额外的维度。这个时间维度通常具有趋势、季节性和其他使异常检测变得更加复杂的模式。</p>
+<h1 id="为什么异常检测还不够？"><a href="#为什么异常检测还不够？" class="headerlink" title="为什么异常检测还不够？"></a><strong>为什么异常检测还不够？</strong></h1><p>异常检测是任何可观测性系统中重要且关键的组成部分，但仅靠它是不够的。异常代表着偏离常态的情况，但要理解这些偏差的含义，我们需要一个强大的监控和警报系统来支持。</p>
+<p>全面的监控系统可以让我们观察数据，为异常检测提供有价值的上下文，而告警系统可以确保我们在发生异常的时候及时收到通知，从而实现快速响应和解决问题。</p>
+<p>因此，<strong>只有将异常检测与强大的监控和告警机制相结合，才能创建一个端到端的可观察系统</strong>。这个系统不仅可以识别异常，还可以<strong>为常见的异常提供可操作的解决方案</strong>，使其成为管理和理解数据的重要资产。</p>
+<h1 id="为什么基于阈值的告警还不够？"><a href="#为什么基于阈值的告警还不够？" class="headerlink" title="为什么基于阈值的告警还不够？"></a><strong>为什么基于阈值的告警还不够？</strong></h1><p>虽然在某些情况下，基于简单规则的告警系统（对原始或预聚合指标设置恒定阈值）是非常有效的，但是在处理复杂的时序数据时，它们往往是不够用的。这种基于规则的检测模式依赖于预定义的阈值或条件来触发告警。然而，时序数据通常表现出复杂的行为和模式，简单的规则无法有效捕获，因此需要基于机器学习 (ML) 的告警：</p>
+<ul>
+<li>例如，时序数据可能具有强烈的季节性，数据的行为可能因一年中的时间、一天中的一部分等而有所不同。一个简单的基于阈值的规则可能在旺季产生错误的告警，或在淡季未能检测到异常（考虑发布会和电商大促的场景）。</li>
+<li>此外，还存在不同类型的异常，其中一些很难追踪。</li>
+<li>输入数据可能引入多变量依赖性，因此需要适当的模型进行训练以考虑到这些模式。</li>
+</ul>
+<p>因此，需要我们一种更复杂的方法，这就是异常检测发挥作用的地方。</p>
+<h1 id="时间序列介绍"><a href="#时间序列介绍" class="headerlink" title="时间序列介绍"></a>时间序列介绍</h1><p>时间序列是按时间顺序排列的数值数据点序列，通常在时间上（如每日、每小时）等间隔。在时间序列中，时间通常是自变量，目标通常是对未来进行预测。时间序列数据也可能包含[趋势]和[季节性]组成部分。例如，对于一个时间序列 Y：</p>
+<ul>
+<li>Y 表示时间序列的名称。</li>
+<li>Y_ 表示时间序列 Y 在特定时间点 t 的值。</li>
+<li>t 通常表示时间轴。</li>
+</ul>
+<p><img src="/images/1752570981-d8dec6cba8aa80f3abc228fabcbb45e6.webp"></p>
+<p>时序数据的示例：</p>
+<ul>
+<li>RAM 利用率</li>
+<li>天气数据</li>
+<li>每小时温度读数</li>
+<li>心率监测（EKG）</li>
+<li>脑部监测（EEG）</li>
+<li>季度销售额</li>
+<li>每日股票价格</li>
+</ul>
+<h2 id="趋势"><a href="#趋势" class="headerlink" title="趋势"></a>趋势</h2><p>时序数据中的趋势指的是数据随着时间的推移而呈现出的长期增加或减少的现象。趋势可以是线性的，也可以是非线性的。下面是一个线性增长趋势的例子：</p>
+<p><img src="/images/1752570981-b957e85de94be323f975fae69a81af0a.webp"></p>
+<h2 id="季节性"><a href="#季节性" class="headerlink" title="季节性"></a>季节性</h2><p>季节性是指时间序列数据中在一天、一周、一个月、一个季度、一年等时间范围内周期性出现的可预测且重复的模式。时间序列分析的关键是了解季节性如何影响序列，从而能够对未来做出更好的预测。</p>
+<p><img src="/images/1752570981-ece8b0f10d2bf6a61dbee3277413206f.webp"></p>
+<p>季节性时间序列的示例：</p>
+<ul>
+<li>工厂机器（每小时）</li>
+<li>道路交通（每日）</li>
+<li>用电量（每月）</li>
+<li>零售额（年）</li>
+</ul>
+<h2 id="间歇性时序"><a href="#间歇性时序" class="headerlink" title="间歇性时序"></a>间歇性时序</h2><p><strong>间歇性</strong>时间序列是一种非零值以不规则间隔出现，且与一系列零交替出现的时间序列。此外，序列中还可能存在缺失数据（NoData）或不规则值。</p>
+<p><img src="/images/1752570981-6c346e6a5d912daa4e9226cb1cab874a.webp"></p>
+<h1 id="异常介绍"><a href="#异常介绍" class="headerlink" title="异常介绍"></a>异常介绍</h1><h2 id="异常（Anomaly）"><a href="#异常（Anomaly）" class="headerlink" title="异常（Anomaly）"></a><strong>异常（Anomaly）</strong></h2><p>异常是指数据点或模式与其他数据的预期行为存在显著偏差。在时间序列数据中，异常可能是流量突然激增、销售额下降或任何其他异常的重大变化。</p>
+<p><strong>从商业角度</strong>来看，异常一般有两种类型——[离群点]和[新奇点]。从本文角度来看，最常见的异常类型有三种：</p>
+<ul>
+<li><strong>点异常</strong>：当数据样本与数据分布存在显著差异时，就会出现点异常，从而导致被标记为点或全局异常。</li>
+<li><strong>集体异常</strong>：在这种情况下，单个数据点可能并不会出现异常，但一系列的数据点可能会被标记为异常。</li>
+<li><strong>上下文异常</strong>：某些数据点在某个上下文中可能被认为是正常的，但在另一个上下文中则可能被视为异常。</li>
+</ul>
+<h3 id="异常分数（Anomaly-Score）"><a href="#异常分数（Anomaly-Score）" class="headerlink" title="异常分数（Anomaly Score）"></a>异常分数（<strong>Anomaly Score</strong>）</h3><p>异常分数是一个量化指标，用来衡量数据点与基于历史数据和模式识别得出的预期值或模式之间的偏离程度。通常来说，分数越高表示数据点越可能是异常的。</p>
+<p>在 VictoriaMetrics 异常检测中，分数通常分布在区间 <code>[0, ∞)</code>，其中 <code>[0, 1)</code> 表示非异常，<code>[1, ∞)</code> 表示不同程度的异常。因此，可以设置简单规则（例如：如果异常分数大于 1，则触发告警）作为合理的默认设置。</p>
+<h3 id="异常阈值"><a href="#异常阈值" class="headerlink" title="异常阈值"></a><strong>异常阈值</strong></h3><p>这个数值定义了边界，左边的点将被视为“正常”，而右边的点将被视为“异常”。</p>
+<p>注意：增加阈值将减少[误报（false positives）]的数量，但会增加[漏报（false negatives）]的数量（反之亦然）。</p>
+<h2 id="离群点（Outlier）"><a href="#离群点（Outlier）" class="headerlink" title="离群点（Outlier）"></a>离群点（<strong>Outlier</strong>）</h2><p>离群点是一种异常，它的数据点明显偏离其他类似的观测值。离群点可能是由数据变化或测量误差引起的。</p>
+<h3 id="离群点检测"><a href="#离群点检测" class="headerlink" title="离群点检测"></a>离群点检测</h3><p>离群点检测通常是基于<strong>无监督学习算法</strong>的异常检测技术，<strong>其训练数据包含异常值</strong>。这些异常值在某种意义上被定义为“远离其他”的观测值。在这种情况下异常（anomaly）被称作离群点（outlier）。</p>
+<p>因此，异常值检测算法通过识别数据点最密集的区域来建立对数据集的理解，同时在这个过程中忽略那些显著偏离常规模式的点。这样，算法就能够区分出哪些是数据集中的正常模式，哪些可能是由于错误、变化或其他原因产生的异常值。这种方法有助于在数据分析中识别和处理异常情况，从而提高数据质量和分析结果的准确性。</p>
+<h2 id="新奇点（Novelty）"><a href="#新奇点（Novelty）" class="headerlink" title="新奇点（Novelty）"></a>新奇点（<strong>Novelty</strong>）</h2><p><strong>新奇点</strong>：指数据中首次出现的、未曾被观察到的模式。与离群点（outlier）不同，离群点远离其他观察结果，但并不一定意味着系统本身发生了变化，<strong>新奇点表示产生数据的底层系统发生了变化，意味着系统可能经历了某种转变或发展了新的行为模式。</strong></p>
+<h3 id="新奇点检测"><a href="#新奇点检测" class="headerlink" title="新奇点检测"></a>新奇点检测</h3><p>新奇点检测通常是基于<strong>半监督学习算法</strong>的异常检测技术。<strong>它通过使用未受异常值污染的训练数据</strong>，判断新的观测值是否为异常。在这种情况下，异常（anomaly）被称为新奇点（novelty）。</p>
+<h1 id="机器学习介绍"><a href="#机器学习介绍" class="headerlink" title="机器学习介绍"></a>机器学习介绍</h1><h2 id="单变量数据"><a href="#单变量数据" class="headerlink" title="单变量数据"></a>单变量数据</h2><p>单变量数据由对单一属性或变量的观测结果组成。例如，天气预报模型使用过去记录的温度值来预测未来的气温。</p>
+<p>进行单变量预测时，仅使用历史时序数据来预测未来数据。例如，如需预测纽约市明天的气温，单变量预测意味着仅使用历史气温这一个变量来预测未来气温。进行单变量预测时，您还可以发现季节性模式和趋势。</p>
+<h2 id="多变量数据"><a href="#多变量数据" class="headerlink" title="多变量数据"></a>多变量数据</h2><p>多变量数据由对多个变量或属性的观察结果组成。<strong>多变量时间序列包含多个单变量时间序列变量</strong>。每个变量不仅依赖于它自己的过去值，而且还依赖于其他变量。这种依赖性被用来预测未来的值。</p>
+<p>进行多变量预测时，使用多个因素来预测未来的数据。例如，如需预测纽约市明天的气温，除了使用历史气温之外，您还可以使用气压、紫外线指数、附近地理区域的云量百分比、风速和其他变量。</p>
+<h2 id="有监督学习"><a href="#有监督学习" class="headerlink" title="有监督学习"></a>有监督学习</h2><p><a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E7%259B%2591%25E7%259D%25A3%25E5%25AD%25A6%25E4%25B9%25A0" title="https://zh.wikipedia.org/wiki/%E7%9B%91%E7%9D%A3%E5%AD%A6%E4%B9%A0">有监督学习</a>，也称为监督机器学习，是机器学习的一个子类别。它的定义是，通过使用带有标签或标记的数据集来进行算法的训练：</p>
+<ul>
+<li><strong>数据分类</strong>：即分类任务（classification task）。这是一种监督学习任务，旨在使算法能够区分不同的类别。在异常检测的场景下，分类任务是将数据点分类为离群&#x2F;非离群，取值范围为[0,1]。</li>
+<li><strong>结果预测</strong>：即回归任务（regression task）。作为另一种监督学习任务，其目标是预测一个连续的数值。在异常检测场景中，回归任务的目的是预测异常分数，该分数表示数据点异常的可能性，取值范围为[0, Inf)。</li>
+</ul>
+<p>因此，为了训练和使用此类算法，我们需要准备一个包含标记特征（X）和已知真实情况（目标，y，即 is_anomaly &#x3D; {0, 1}）的数据集。</p>
+<blockquote>
+<p>Prometheus 的数据格式非常适合算法训练，因为它天然具有标签。</p>
+</blockquote>
+<h3 id="引导"><a href="#引导" class="headerlink" title="引导"></a>引导</h3><ul>
+<li><strong>当拥有高质量的标记数据集</strong>并清楚了解<strong>业务环境中的异常构成时</strong>，可以采用这些技术和机器学习模型。</li>
+<li>虽然监督学习<strong>擅长处理已知类型的异常</strong>，但它可能无法有效识别偏离既定模式的<strong>全新行为。</strong></li>
+<li>请注意，这些数据集通常在正常和异常实例的分布中表现出[明显的不平衡]。</li>
+</ul>
+<h3 id="模型"><a href="#模型" class="headerlink" title="模型"></a>模型</h3><ul>
+<li><strong>逻辑回归</strong>（Logistic Regression）：一个简单但有效的模型，用于二元分类任务（即结果只有两种可能类别的情况）。在 <code>scikit-learn</code>库中，可以使用<code>LogisticRegression</code>来实现逻辑回归。特别适合于数据集具有线性决策边界的情况，即可以通过一个或多个线性方程清晰分开的不同类别。</li>
+<li><strong>随机森林</strong>（Random Forest）：一个集成学习方法，可以处理复杂的数据集，并且对于具有非线性关系的分类问题特别有用，它通过组合多个决策树来提高模型处理具有非线性关系的复杂数据集的性能。在<code>scikit-learn</code>库中，可以使用<code>RandomForestClassifier</code>来实现随机森林。</li>
+<li><strong>SVM（</strong> Support Vector Machine ）：在高维空间中有效，尤其适用于正常与异常之间有明显区别的情况。在<code>scikit-learn</code>库中可以使用<code>SVC</code>来实现 SVM。</li>
+</ul>
+<h2 id="无监督学习"><a href="#无监督学习" class="headerlink" title="无监督学习"></a>无监督学习</h2><p><a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E7%2584%25A1%25E7%259B%25A3%25E7%259D%25A3%25E5%25AD%25B8%25E7%25BF%2592" title="https://zh.wikipedia.org/wiki/%E7%84%A1%E7%9B%A3%E7%9D%A3%E5%AD%B8%E7%BF%92">无监督学习</a> <strong>，</strong> 也被称为无监督机器学习，是指使用机器学习算法分析和<a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E8%2581%259A%25E7%25B1%25BB%25E5%2588%2586%25E6%259E%2590" title="https://zh.wikipedia.org/wiki/%E8%81%9A%E7%B1%BB%E5%88%86%E6%9E%90">聚类</a>（cluster analysis）未标记的数据集，执行<a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E9%2599%258D%25E7%25BB%25B4" title="https://zh.wikipedia.org/wiki/%E9%99%8D%E7%BB%B4">降维</a>（dimensionality reduce）并发现隐藏的模式或数据分组，所有这些过程都不需要人工干预：</p>
+<p>它利用数据中的隐藏模式和基于邻近度的标准（proximity-based criterias）来发现数据集中的异常点（即寻找那些与中心群体“远离”的数据点）。因此，要训练和使用这类算法，只需要未标记的（无监督的）数据集，其中只包含特征（X），而不需要目标变量（如有监督学习中的 y）。</p>
+<h3 id="引导-1"><a href="#引导-1" class="headerlink" title="引导"></a>引导</h3><p>在异常检测中使用无监督学习的核心假设是：</p>
+<ol>
+<li><p><strong>异常比正常数据少得多</strong>：这一假设支撑了各种算法的有效性，这些算法将异常识别为与大多数数据的显著偏差。示例算法包括：</p>
+<ol>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html" title="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html">孤立森林（Isolation Forest</a></li>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EllipticEnvelope.html%23sklearn.covariance.EllipticEnvelope" title="https://scikit-learn.org/stable/modules/generated/sklearn.covariance.EllipticEnvelope.html#sklearn.covariance.EllipticEnvelope">椭圆模型拟合 Elliptic Envelope</a></li>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html%23sklearn.neighbors.LocalOutlierFactor" title="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html#sklearn.neighbors.LocalOutlierFactor">局部异常因子（Local Outlier Factor）</a>：novelty&#x3D;False 模式</li>
+</ol>
+</li>
+</ol>
+<p>这些方法在正常点周围构建了某种置信区间（或信任区域）。超过这个区间的异常点（黑点）可以被识别为异常，这是一种无监督的方法：</p>
+<p><img src="/images/1752570981-0b429bf8ef32265c0f857a1a97cbc4d8.webp"></p>
+<ol start="2">
+<li><p><strong>对底层过程进行建模并预测未来行为</strong>：通过分析过去，这些方法可以预测时间序列的未来值，并将与这些预测有显著偏差的点标记为异常。这种方法可以同时归类为：</p>
+<ol>
+<li>无监督学习：没有已知的预定义异常</li>
+<li>自监督学习：数据本身（<code>y == X</code>）用于学习和得出预测。</li>
+<li>时序预测：根据过程的过去&#x2F;现在值预测其未来值。</li>
+</ol>
+</li>
+</ol>
+<p>下图显示了预测的未来（预期行为）以及偏差（实际行为）。这些偏差的大小与异常分数的严重程度相关；偏差越大，异常分数越高。</p>
+<p><img src="/images/1752570981-f1c1c7306c44498df91c4ca616f81c61.webp"></p>
+<p>所以</p>
+<ul>
+<li><p>当没有干净和&#x2F;或标记的数据集时，请选择这些技术和模型。在无法对数据进行标记的情况下，这种方法表现良好。但是，<strong>该方法在处理与正常数据非常相似的细微异常时，可能会遇到困难</strong>。</p>
+</li>
+<li><p>根据数据复杂性，例如趋势或季节性的存在，可以下两种方法之间进行选择：</p>
+<ul>
+<li><strong>基于分布的算法</strong>（distribution-based algorithms）：如孤立森林（Isolation Forest）</li>
+<li><strong>时序预测技术</strong>（time-series forecasting）： 通过预测未来的时间点并将其与实际观测值进行比较，可以识别出偏离预期的异常点。</li>
+</ul>
+</li>
+</ul>
+<h3 id="模型-1"><a href="#模型-1" class="headerlink" title="模型"></a>模型</h3><ul>
+<li><a href="https://link.juejin.cn/?target=https://docs.victoriametrics.com/anomaly-detection/components/models/index.html%23prophet" title="https://docs.victoriametrics.com/anomaly-detection/components/models/index.html#prophet">Facebook 的 Prophet</a>：适合处理具有强烈季节性影响、变化点和趋势的时间序列。</li>
+<li><a href="https://link.juejin.cn/?target=https://lightgbm.readthedocs.io/en/stable/" title="https://lightgbm.readthedocs.io/en/stable/">诸如 LightGBM</a> 这样的机器学习算法，特别是与时间序列特定特征一起使用时。</li>
+<li><a href="https://link.juejin.cn/?target=https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html" title="https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html">(S)ARIMA(X)</a>：适用于具有清晰、明确趋势的时间序列。</li>
+<li><a href="https://link.juejin.cn/?target=https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html" title="https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html">Holt-Winters 指数平滑法</a>：可有效捕捉时间序列数据中更简单的季节性和趋势。</li>
+<li>诸如 Z 分数等简单技术在某些时间序列场景中可能非常有效</li>
+</ul>
+<h2 id="半监督学习"><a href="#半监督学习" class="headerlink" title="半监督学习"></a>半监督学习</h2><p><a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E5%258D%258A%25E7%259B%2591%25E7%259D%25A3%25E5%25AD%25A6%25E4%25B9%25A0" title="https://zh.wikipedia.org/wiki/%E5%8D%8A%E7%9B%91%E7%9D%A3%E5%AD%A6%E4%B9%A0">半监督学习</a>，也称为弱监督学习，是机器学习的一个分支，它在训练时使用了少量的有标签数据（Labeled data）和大量的无标签数据（Unlabeled data）。半监督学习介于<a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E7%2584%25A1%25E7%259B%25A3%25E7%259D%25A3%25E5%25AD%25B8%25E7%25BF%2592" title="https://zh.wikipedia.org/wiki/%E7%84%A1%E7%9B%A3%E7%9D%A3%E5%AD%B8%E7%BF%92">无监督学习</a>（训练数据全部无标签）和<a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E7%259B%2591%25E7%259D%25A3%25E5%25AD%25A6%25E4%25B9%25A0" title="https://zh.wikipedia.org/wiki/%E7%9B%91%E7%9D%A3%E5%AD%A6%E4%B9%A0">有监督学习</a>（训练数据全部有标签）之间。半监督学习旨在缓解训练数据中有标签数据有限的问题：</p>
+<ul>
+<li>使用没有异常的“正常”数据点组来训练模型，以将新数据点分类为“内联”（指新数据点与训练时所用的正常数据点相似，即它们是常规观察）或“外联”（新数据点与训练数据中的常规模式不同，可能表示<a href="https://link.juejin.cn/?target=https://li.feishu.cn/docx/GUFxdHdmEoDrekxQbTRcmiGWnPb%23GMbtdQx0IoVbRdxA6PxcAGQHneh" title="https://li.feishu.cn/docx/GUFxdHdmEoDrekxQbTRcmiGWnPb#GMbtdQx0IoVbRdxA6PxcAGQHneh">新奇</a>）。</li>
+<li>使用少量标记的异常的子集，在数据集中找到类似的异常以进行进一步的细化和专家评估。</li>
+</ul>
+<p>半监督学习可以作为专家更深入分析的起点，通过机器学习模型初步筛选出可能的异常，然后由专家进行更细致的评估和决策。</p>
+<p>半监督异常检测技术<strong>基于一个仅包含标记为“正常”（</strong> <code>is_anomaly=0</code> <strong>）实例的训练数据集</strong>。在这种设置下，如果一个未见过的数据实例与训练数据学习到的特征非常吻合，则被分类为正常；如果偏离这些特征，则表明存在异常。</p>
+<p>这种检测方法在新奇点检测时非常有效。</p>
+<p>下图示突出显示了透明边界框内“正常”数据的区域，在这个区域时间序列表现出预期的行为。与我们之前讨论的无监督学习方法相比，标记这样扩展的、一致的区域通常更简单、更节省时间，而不是精确地确定许多个别的异常。</p>
+<p><img src="/images/1752570981-3c14a45aa6c2704d27848a26474ce238.webp"></p>
+<h3 id="引导-2"><a href="#引导-2" class="headerlink" title="引导"></a>引导</h3><p>当数据集质量很高，且几乎只包含非异常数据点时，可以选择这些方法和机器学习模型。这可能需要领域专家的参与，以准确识别和标记时序数据中的“正常”时期。</p>
+<p>然而，半监督异常检测的有效性取决于“正常”数据标签的准确性，并且可能会错过那些与<strong>正常模式微妙融合的异常</strong>。</p>
+<p>对于提供离群点和新奇点检测模式的算法，建议在配置中切换到新奇点模式。一个例子是使用 scikit-learn 库中的中的<a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html%23sklearn.neighbors.LocalOutlierFactor" title="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html#sklearn.neighbors.LocalOutlierFactor">局部异常因子（Local Outlier Factor）</a>算法，将 novelty&#x3D;True。</p>
+<h3 id="模型-2"><a href="#模型-2" class="headerlink" title="模型"></a>模型</h3><ul>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html%23sklearn.neighbors.LocalOutlierFactor" title="https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.LocalOutlierFactor.html#sklearn.neighbors.LocalOutlierFactor">局部异常因子（Local Outlier Factor）</a>：可有效检测数据中的局部偏差，在<code>novelty=True</code>时序数据模式下设置时特别有用。</li>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/outlier_detection.html%23novelty-detection" title="https://scikit-learn.org/stable/modules/outlier_detection.html#novelty-detection">单类 SVM（One-Class SVM）</a></li>
+</ul>
+<h2 id="自监督学习"><a href="#自监督学习" class="headerlink" title="自监督学习"></a>自监督学习</h2><p>自监督学习是一种机器学习过程，其中模型从输入数据的一部分学习到另一部分。它也被称为预测性学习或预训练学习。在这个过程中，无监督问题通过自动生成标签被转化为有监督问题。</p>
+<h1 id="时序预测介绍"><a href="#时序预测介绍" class="headerlink" title="时序预测介绍"></a>时序预测介绍</h1><p><strong>时序预测</strong>：根据历史和当前数据，预测未来一段时间或某个特定点的值的技术。其方法包括[从单变量输入&#x2F;单变量输出]到[多变量输入&#x2F;多变量输出]等不同设置。</p>
+<p>时间序列预测本身可以用于异常检测任务，当我们根据过去的时间序列数据训练模型时，预测未来并根据以下情况计算异常分数：</p>
+<h2 id="不平衡数据"><a href="#不平衡数据" class="headerlink" title="不平衡数据"></a>不平衡数据</h2><p>不平衡数据是指目标类别在数据点分布上不均匀的数据集，即一个类别标签拥有大量观测值，而另一个类别则只有少量观测值。在异常检测场景中，一个例子是标记过的数据集中有数千个“正常”类型的数据点（<code>is_anomaly=0</code>），而只有少数几个点被标记为“异常”（<code>is_anomaly=1</code>）。</p>
+<h2 id="假阳性（False-Positive）"><a href="#假阳性（False-Positive）" class="headerlink" title="假阳性（False Positive）"></a>假阳性（<strong>False Positive</strong>）</h2><p><strong>假阳性</strong>（也称为假阳性错误或第一类错误）是二元分类[监督问题]中的错误，指测试结果错误地指示了某种情况的存在，而实际上该情况并不存在。（例如，实际数据点正常却被预测为异常，也就是误报）。</p>
+<h2 id="假阴性（False-Negative）"><a href="#假阴性（False-Negative）" class="headerlink" title="假阴性（False Negative）"></a>假阴性（<strong>False Negative</strong>）</h2><p><strong>假阴性</strong>（也称为假阴性错误或第二类错误 <strong>）</strong> 是二元分类[监督问题]中的错误，与[假阳性]相反测试结果错误地指示某种条件不存在，而实际上存在该条件（例如，将某个点归类为“正常”，而它在真实数据中却是异常的，也就是漏报）。</p>
+<h2 id="精度"><a href="#精度" class="headerlink" title="精度"></a>精度</h2><p>精度（也称为阳性预测值）是检索到的实例中相关实例的比例，取值范围在 0 到 1 之间（完美的数据点分类）。在异常检测的场景下，精度可以被计算为<strong>预测为异常的点数与检索到的真实数据中真实异常点数的比例</strong>。</p>
+<p>举例：</p>
+<ul>
+<li>有 100 个数据点，其中 10 个是真正的异常。</li>
+<li>该模型预测有 10 个异常。</li>
+<li>这 10 个预测中有 7 个是正确的（与基本事实标签相交），3 个是错误的（[误报]）</li>
+<li>精度即为<strong>正确预测的异常数量</strong>除以<strong>预测的异常数量</strong>，即：7&#x2F;10&#x3D;0.7</li>
+</ul>
+<h2 id="召回率"><a href="#召回率" class="headerlink" title="召回率"></a>召回率</h2><p>召回率（也称为敏感度）是检索到的相关实例的比例，取值范围在 0 到 1 之间（完美的数据点分类）。在异常检测场景下，它可以被计算为<strong>预测为异常的点数与所有真实异常点数的比例</strong>。</p>
+<p>举例：</p>
+<ul>
+<li>有 100 个数据点，其中 10 个是真正的异常。</li>
+<li>该模型预测了 12 个异常。</li>
+<li>这 12 个预测中有 8 个是正确的（与基本事实标签相交）。</li>
+<li>召回率 &#x3D;<strong>正确预测的异常数量&#x2F;所有异常数量，</strong> 即： 8&#x2F;10 &#x3D; 0.8。</li>
+</ul>
+<h1 id="异常检测在可观测系统中的作用"><a href="#异常检测在可观测系统中的作用" class="headerlink" title="异常检测在可观测系统中的作用"></a>异常检测在可观测系统中的作用</h1><p>[异常]不仅仅是数据集中不规则的数据点。特别是在时间序列数据中，它们对整个监控和可观测性机制有着重要的影响。虽然异常检测至关重要，但它<strong>只是更广泛可观测性策略的一个子集</strong>。</p>
+<p>了解由数据的时间序列特性引入的异常类型，有助于简化实时告警和建模。同时，<strong>每种异常类型可能需要不同的处理方法</strong>，包括简单的基于阈值的规则，以及考虑时间空间背景（如趋势或季节性）的复杂机器学习模型。此外，响应措施也会因异常类型而异，例如，财务中的点异常可能需要迅速的人工干预，而能源消耗中的上下文异常可能触发较慢的自动响应。</p>
+<h1 id="异常的类型和算法模型"><a href="#异常的类型和算法模型" class="headerlink" title="异常的类型和算法模型"></a>异常的类型和算法模型</h1><p>[虽然下面的分类并不全面，但在异常检测]场景下，异常通常分为以下三个主要类别之一：</p>
+<ul>
+<li>点异常</li>
+<li>上下文异常</li>
+<li>集体异常（特别是包括新奇事物和转折点）</li>
+</ul>
+<h2 id="点异常（Point-Anomalies）"><a href="#点异常（Point-Anomalies）" class="headerlink" title="点异常（Point Anomalies）"></a>点异常（<strong>Point Anomalies</strong>）</h2><p>点异常是指数据点与其他数据相差太大的单个数据点。当特定数据样本与数据分布明显不同时，就会发生这种情况。例如，在信用卡欺诈检测中，购买高价值商品可视为点异常。</p>
+<p>它不需要考虑时间序列的背景或序列性质。点异常与传统上称为“离群值”的现象最为相似。</p>
+<p><img src="/images/1752570981-61c75f06b6cf5a8f760f24dab6fa003d.webp"></p>
+<p>检测点异常时，评估分布的基本统计属性（指的是数据分布的均值、中位数、标准差等关键特征）的模型通常非常有效。点异常本质上是那些显著偏离分布均值或中位数的单个数据点，因此它们相对容易识别。如果时间序列数据呈现出趋势，通常可以通过简单的<strong>差分技术来去趋势（de-trended</strong>）。在这种方法中，每个数据值被替换为其当前值与前一个值之间的差值，记为Y_t&#x3D;Y_t-Y_{t-1，其中$表示特定的时间点，$表示时间序列，Y_表示时间序列$在特定时间点$的值。</p>
+<p><strong>特性</strong>：模型的[单变量]或[多变量]性质，取决于您是一次分析单个时间序列还是多个时间序列。</p>
+<p><strong>模型</strong>：<a href="https://link.juejin.cn/?target=https://zh.wikipedia.org/wiki/%25E6%25A8%2599%25E6%25BA%2596%25E5%2588%2586%25E6%2595%25B8" title="https://zh.wikipedia.org/wiki/%E6%A8%99%E6%BA%96%E5%88%86%E6%95%B8">Z 分数</a>或类似的简单模型。</p>
+<h2 id="上下文异常（Contextual-Anomalies）"><a href="#上下文异常（Contextual-Anomalies）" class="headerlink" title="上下文异常（Contextual Anomalies）"></a>上下文异常（<strong>Contextual Anomalies）</strong></h2><p><strong>上下文异常是指在特定上下文环境中出现明显偏差，但在该上下文环境之外却看似正常的数据点</strong>。例如，在正常工作时间内，由于员工访问云服务和在线协作，网络带宽使用率较高可能是正常现象。然而，在预计办公室关闭的深夜，同样的带宽使用率将被视为上下文异常。这种异常可能意味着未经授权的访问或设备故障。</p>
+<p>总的来说，这种类型的异常只有在特定背景下（如一天中的时间、季节等）才被视为异常。在确定其异常性质和时间序列的时间性质时，会考虑周围的数据点。</p>
+<p><img src="/images/1752570981-dc9ceb6c5403cf198787fb8ea6895816.webp"></p>
+<p><strong>特性</strong>：必须能够处理<a href="https://link.juejin.cn/?target=https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1%23trend" title="https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1#trend">趋势</a>和<a href="https://link.juejin.cn/?target=https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1%23seasonality" title="https://victoriametrics.com/blog/victoriametrics-anomaly-detection-handbook-chapter-1#seasonality">季节性</a>，有时需要超参数调整才能正确捕捉上下文。</p>
+<p><strong>模型</strong>：<a href="https://link.juejin.cn/?target=https://www.c-s-a.org.cn/html/2023/11/9282.html%23outline_anchor_8" title="https://www.c-s-a.org.cn/html/2023/11/9282.html#outline_anchor_8">Prophet，使用 LOESS (STL) 进行季节趋势分解</a></p>
+<h2 id="集体异常（Collective-Anomalies）"><a href="#集体异常（Collective-Anomalies）" class="headerlink" title="集体异常（Collective Anomalies）"></a>集体异常（<strong>Collective Anomalies）</strong></h2><p>集体异常是由一系列数据点的组合表现出的异常模式，而不是由单个数据点引起的。在集体异常中，单独观察每个数据点时，它们可能看起来是正常的，没有显著偏离预期。然而，当将多个数据点视为一个整体进行分析时，它们共同表现出异常行为。例如，有人为了逃避检测而重复进行多次小额交易，这些交易就会构成一个集体异常。</p>
+<p><img src="/images/1752570981-d7e82dc2b6b37db5a5eb3f37db4169a2.webp"></p>
+<p><strong>特性</strong>：能够分析序列并捕捉时间依赖性，通常需要对更长的序列进行训练才能正确理解集体行为。</p>
+<p><strong>模型</strong>：</p>
+<ul>
+<li><p><a href="https://link.juejin.cn/?target=https://www.c-s-a.org.cn/html/2023/11/9282.html%23outline_anchor_8" title="https://www.c-s-a.org.cn/html/2023/11/9282.html#outline_anchor_8">Prophet，使用 LOESS (STL) 进行季节趋势分解</a></p>
+</li>
+<li><p>更复杂的模型，如<a href="https://link.juejin.cn/?target=https://en.wikipedia.org/wiki/Long_short-term_memory" title="https://en.wikipedia.org/wiki/Long_short-term_memory">LSTM</a>或<a href="https://link.juejin.cn/?target=https://arxiv.org/abs/1802.03903" title="https://arxiv.org/abs/1802.03903">基于自动编码器的</a>神经网络。</p>
+</li>
+<li><p><a href="https://link.juejin.cn/?target=https://docs.victoriametrics.com/anomaly-detection/components/models/index.html%23prophet" title="https://docs.victoriametrics.com/anomaly-detection/components/models/index.html#prophet">Facebook 的 Prophet</a>：适合处理具有强烈季节性影响、变化点和趋势的时间序列。</p>
+</li>
+<li><p><a href="https://link.juejin.cn/?target=https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html" title="https://www.statsmodels.org/dev/generated/statsmodels.tsa.arima.model.ARIMA.html">(S)ARIMA(X)</a>：适用于具有清晰、明确趋势的时间序列。</p>
+</li>
+<li><p><a href="https://link.juejin.cn/?target=https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html" title="https://www.statsmodels.org/dev/generated/statsmodels.tsa.holtwinters.ExponentialSmoothing.html">Holt-Winters 指数平滑法</a>：可有效捕捉时间序列数据中更简单的季节性和趋势。</p>
+</li>
+</ul>
+<h2 id="新奇"><a href="#新奇" class="headerlink" title="新奇"></a>新奇</h2><p>新奇是指在数据中首次出现的、从未被观察到的模式。与离群值不同，新奇代表着产生数据的底层系统发生了变化，这表明系统进入了一个全新的、之前从未被观察到的状态。</p>
+<p>例如，当从一个状态明显切换到另一个状态时，即使两个状态单独考虑都被认为是正常的，它们之间的过渡点（变化点）在数据中引入了“新奇”或意外的行为。这种行为或结构的突然变化就是使其成为新奇的原因。</p>
+<p>在时间序列分析中，变化点通常表示系列属性的结构性断裂、均值、方差或其他转变。在这种情况下，新奇的关键在于它代表了系统以前未观察到的状态或行为，即使该状态或行为本身在正常范围内。两个这样的状态之间突然和意外的转变使得变化点成为新奇。</p>
+<p><strong>从这个角度来看，新奇可以被视为集体异常的一个特例。</strong></p>
+<p><img src="/images/1752570981-41ee14e1adb5a0f96108542ef456165a.webp"></p>
+<p><strong>特性</strong>：</p>
+<ul>
+<li>重点在于识别以前未观察到的新模式。</li>
+<li>通常需要不断地重新训练或调整模型，以解释数据中的新模式。</li>
+<li>我们需要一种机制来区分数据的暂时变化和持久变化。</li>
+</ul>
+<p><strong>模型：</strong></p>
+<ul>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html" title="https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.IsolationForest.html">隔离森林（Isolation Forest）</a>：可以通过调整其算法来专注于新模式，从而适应新颖性检测。孤立森林通过“孤立”数据点来识别异常值，即那些与大多数数据点分离的点。</li>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/outlier_detection.html%23novelty-detection" title="https://scikit-learn.org/stable/modules/outlier_detection.html#novelty-detection">单类 SVM（One-Class SVM）</a>：用于检测数据中的“新奇事件”。它通过学习未受污染的正常数据的边界，来识别那些远离正常模式的数据点。</li>
+<li><a href="https://link.juejin.cn/?target=https://arxiv.org/abs/1802.03903" title="https://arxiv.org/abs/1802.03903">自编码器（Autoencoders）</a>：通过对正常数据进行训练，自动编码器学习了数据的一个压缩表示。如果新数据点与训练数据显著不同，网络将产生高重建误差，从而指示出新颖或异常的模式。</li>
+<li>变点检测模型：<a href="https://link.juejin.cn/?target=https://en.wikipedia.org/wiki/CUSUM" title="https://en.wikipedia.org/wiki/CUSUM">如累积和（CUSUM</a>），这些模型专门开发用于时间序列中的变化点检测。CUSUM通过监控数据的累积和来快速识别过程均值的突然变化</li>
+<li><a href="https://link.juejin.cn/?target=https://scikit-learn.org/stable/modules/outlier_detection.html%23novelty-detection" title="https://scikit-learn.org/stable/modules/outlier_detection.html#novelty-detection">任何其他的新奇检测模型：</a>任何其他基于“训练数据代表正常行为”这一假设的新奇检测模型，都有助于模型有效地区分正常观察结果与潜在的（以前未观察到的）异常。</li>
+</ul>
+<h1 id="总结"><a href="#总结" class="headerlink" title="总结"></a>总结</h1><p>异常检测没有万能的解决方案，特别是在监控和可观测领域。时序数据的复杂性要求我们对所从事的<strong>特定领域有深入而细致的理解。最重要的是选择合适模型并对其不断的调优。</strong></p>
+<h1 id="参考"><a href="#参考" class="headerlink" title="参考"></a>参考</h1><p><a href="https://link.juejin.cn/?target=https://www.cnblogs.com/nxf-rabbit75/p/11066048.html" title="https://www.cnblogs.com/nxf-rabbit75/p/11066048.html">异常检测—孤立森林 | one-class SVM</a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/07/15/%E6%97%B6%E5%BA%8F%E6%95%B0%E6%8D%AE%E7%9A%84%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B%E6%8A%80%E6%9C%AF/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/07/15/Prometheus%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B%E8%A7%84%E5%88%99%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90-%E4%BA%8C/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Prometheus异常检测规则深度解析(二)</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
