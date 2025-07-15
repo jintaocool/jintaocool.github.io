@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Prometheus异常检测规则深度解析(二) |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Prometheus-Prometheus异常检测规则深度解析-二"
+  class="article article-type-Prometheus"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Prometheus异常检测规则深度解析(二)
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/07/15/Prometheus%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B%E8%A7%84%E5%88%99%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90-%E4%BA%8C/" class="article-date">
+  <time datetime="2025-07-15T06:34:31.000Z" itemprop="datePublished">2025-07-15</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Prometheus/">Prometheus</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <figure class="highlight yml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br><span class="line">83</span><br><span class="line">84</span><br><span class="line">85</span><br><span class="line">86</span><br><span class="line">87</span><br><span class="line">88</span><br><span class="line">89</span><br><span class="line">90</span><br><span class="line">91</span><br><span class="line">92</span><br><span class="line">93</span><br><span class="line">94</span><br><span class="line">95</span><br><span class="line">96</span><br><span class="line">97</span><br><span class="line">98</span><br><span class="line">99</span><br><span class="line">100</span><br><span class="line">101</span><br><span class="line">102</span><br><span class="line">103</span><br><span class="line">104</span><br><span class="line">105</span><br><span class="line">106</span><br><span class="line">107</span><br><span class="line">108</span><br><span class="line">109</span><br><span class="line">110</span><br><span class="line">111</span><br><span class="line">112</span><br><span class="line">113</span><br><span class="line">114</span><br><span class="line">115</span><br><span class="line">116</span><br><span class="line">117</span><br><span class="line">118</span><br><span class="line">119</span><br><span class="line">120</span><br><span class="line">121</span><br><span class="line">122</span><br><span class="line">123</span><br><span class="line">124</span><br><span class="line">125</span><br><span class="line">126</span><br><span class="line">127</span><br><span class="line">128</span><br><span class="line">129</span><br><span class="line">130</span><br><span class="line">131</span><br><span class="line">132</span><br><span class="line">133</span><br><span class="line">134</span><br><span class="line">135</span><br><span class="line">136</span><br><span class="line">137</span><br><span class="line">138</span><br><span class="line">139</span><br><span class="line">140</span><br><span class="line">141</span><br><span class="line">142</span><br><span class="line">143</span><br><span class="line">144</span><br><span class="line">145</span><br><span class="line">146</span><br><span class="line">147</span><br><span class="line">148</span><br><span class="line">149</span><br><span class="line">150</span><br><span class="line">151</span><br><span class="line">152</span><br><span class="line">153</span><br><span class="line">154</span><br><span class="line">155</span><br><span class="line">156</span><br><span class="line">157</span><br><span class="line">158</span><br><span class="line">159</span><br><span class="line">160</span><br><span class="line">161</span><br><span class="line">162</span><br><span class="line">163</span><br><span class="line">164</span><br><span class="line">165</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">groups:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">AnomalyShortTerm</span></span><br><span class="line">    <span class="attr">rules:</span></span><br><span class="line"></span><br><span class="line">      <span class="comment">################################################################################</span></span><br><span class="line">      <span class="comment">#                     Constants                                                #</span></span><br><span class="line">      <span class="comment">################################################################################</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># The threshold used for filtering low variability periods, in combination with</span></span><br><span class="line">      <span class="comment"># the coefficient of variation.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:threshold_by_covar</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          0.5</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># A threshold used to filter out sparse metrics, for which anomaly detection won&#x27;t</span></span><br><span class="line">      <span class="comment"># work correctly.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:sparse_threshold</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          5/60</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># The stddev multiplier for short term and long term bands.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:stddev_multiplier</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          2</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># The stddev multiplier for margin bands.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:margin_multiplier</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          0.5</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment">################################################################################</span></span><br><span class="line">      <span class="comment">#                     Base Rules                                               #</span></span><br><span class="line">      <span class="comment">################################################################################</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># The framework will take as input any metric tagged with the labels &quot;anomaly_name&quot; and &quot;anomaly_type&quot;.</span></span><br><span class="line">      <span class="comment"># - &quot;anomaly_name&quot; uniquely identifies the metric within the anomaly detection framework.</span></span><br><span class="line">      <span class="comment"># - &quot;anomaly_type&quot; can be used to define independent thresholds for each metric type.</span></span><br><span class="line">      <span class="comment"># A filter is used to exclude metrics that are highly sparse.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:select</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          (</span></span><br><span class="line"><span class="string">            &#123;anomaly_name!=&quot;&quot;, anomaly_type=&quot;requests&quot;, anomaly_select=&quot;&quot;&#125; &gt; 0</span></span><br><span class="line"><span class="string">            unless avg_over_time(&#123;anomaly_name!=&quot;&quot;, anomaly_type=&quot;requests&quot;, anomaly_select=&quot;&quot;&#125;[1h]) &lt; on() group_left anomaly:sparse_threshold</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string">          OR</span></span><br><span class="line"><span class="string">          &#123;anomaly_name!=&quot;&quot;, anomaly_type=&quot;latency&quot;, anomaly_select=&quot;&quot;&#125; &gt; 0</span></span><br><span class="line"><span class="string">          OR</span></span><br><span class="line"><span class="string">          &#123;anomaly_name!=&quot;&quot;, anomaly_type=&quot;errors&quot;, anomaly_select=&quot;&quot;&#125; &gt; 0</span></span><br><span class="line"><span class="string">          OR</span></span><br><span class="line"><span class="string">          &#123;anomaly_name!=&quot;&quot;, anomaly_type=&quot;resource&quot;, anomaly_select=&quot;&quot;&#125; &gt; 0</span></span><br><span class="line"><span class="string"></span>        <span class="attr">labels:</span></span><br><span class="line">          <span class="attr">anomaly_select:</span> <span class="number">1</span></span><br><span class="line"></span><br><span class="line">      <span class="comment"># The mid-line used used as the reference to calculate upper and lower bands.</span></span><br><span class="line">      <span class="comment"># 1 hour is a good compromise between smoothness and responsiveness.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:avg_1h</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          avg_over_time(anomaly:select[1h])</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># Stddev with a one hour time window and a high pass filter applied to it is used as the basis for</span></span><br><span class="line">      <span class="comment"># anomaly detection.</span></span><br><span class="line">      <span class="comment"># The stddev_1h acts as a measure of variability.</span></span><br><span class="line">      <span class="comment"># The high pass filter is used to increase its sensitivity by focusing on periods of high variability. It&#x27;s calculation</span></span><br><span class="line">      <span class="comment"># is based on the coefficient of variation (relative standard deviation), which allows defining a threshold that</span></span><br><span class="line">      <span class="comment"># will work for metrics of any magnitude.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:stddev_1h:filtered</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          stddev_over_time(anomaly:select[1h]) &gt; anomaly:avg_1h * on() group_left anomaly:threshold_by_covar</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># The filtered stddev_1h is smoothed over a 26 hour window to get the final short term bands. In combination with</span></span><br><span class="line">      <span class="comment"># the filtered standard deviation, it provides robust and stable bands that expand gently in the presence of extreme outliers.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:stddev_st</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          avg_over_time(anomaly:stddev_1h:filtered[26h])</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="comment"># Short term, margin and long term bands are combined to form the final bands used for anomaly detection.</span></span><br><span class="line">      <span class="comment"># Margin bands provide minimum width bands and are purely based on the avg_1h. They act as a fallback band for periods in which</span></span><br><span class="line">      <span class="comment"># short term bands do not exist due to very low variability.</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:lower_band</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          clamp_min(</span></span><br><span class="line"><span class="string">            min without(prediction_type)</span></span><br><span class="line"><span class="string">            (</span></span><br><span class="line"><span class="string">                label_replace(</span></span><br><span class="line"><span class="string">                    last_over_time(anomaly:avg_1h[2m]) - last_over_time(anomaly:stddev_st[2m]) * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">                    &quot;prediction_type&quot;, &quot;short_term&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">                )</span></span><br><span class="line"><span class="string">                or</span></span><br><span class="line"><span class="string">                label_replace(</span></span><br><span class="line"><span class="string">                    last_over_time(anomaly:avg_1h[2m]) - last_over_time(anomaly:avg_1h[2m]) * on() group_left anomaly:margin_multiplier,</span></span><br><span class="line"><span class="string">                    &quot;prediction_type&quot;, &quot;margin&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">                )</span></span><br><span class="line"><span class="string">                or</span></span><br><span class="line"><span class="string">                last_over_time(anomaly:lower_band_lt[10m])</span></span><br><span class="line"><span class="string">            ),</span></span><br><span class="line"><span class="string">            0</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:upper_band</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          max without(prediction_type)</span></span><br><span class="line"><span class="string">          (</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                last_over_time(anomaly:avg_1h[2m]) + last_over_time(anomaly:stddev_st[2m]) * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">                &quot;prediction_type&quot;, &quot;short_term&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">            or</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                last_over_time(anomaly:avg_1h[2m]) + last_over_time(anomaly:avg_1h[2m]) * on() group_left anomaly:margin_multiplier,</span></span><br><span class="line"><span class="string">                &quot;prediction_type&quot;, &quot;margin&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">            or</span></span><br><span class="line"><span class="string">            last_over_time(anomaly:upper_band_lt[10m])</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">  <span class="comment"># Long term bands are calculated by a different recording rule group with higher interval for efficiency reasons.</span></span><br><span class="line">  <span class="comment"># They are based on the same principles as short term bands, but with a lookback offset. They can be easily be extended to</span></span><br><span class="line">  <span class="comment"># incorporate other known seasonality patterns.</span></span><br><span class="line">  <span class="comment"># In order to avoid replicating expanded bands for a long period of time, they only take a 1h time window for the stddev.</span></span><br><span class="line">  <span class="comment"># TODO(@jcreixell): apply a gentle smoothing factor to prevent undesirable artifacts.</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">AnomalyLongTerm</span></span><br><span class="line">    <span class="attr">interval:</span> <span class="string">5m</span></span><br><span class="line">    <span class="attr">rules:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:upper_band_lt</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          max without(look_back)</span></span><br><span class="line"><span class="string">          (</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                avg_over_time(anomaly:select[1h] offset 167h30m)</span></span><br><span class="line"><span class="string">                +</span></span><br><span class="line"><span class="string">                stddev_over_time(anomaly:select[1h] offset 167h30m)</span></span><br><span class="line"><span class="string">                        * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">            &quot;look_back&quot;, &quot;1w&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">            or</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                avg_over_time(anomaly:avg_1h[1h] offset 23h30m)</span></span><br><span class="line"><span class="string">                +</span></span><br><span class="line"><span class="string">                stddev_over_time(anomaly:select[1h] offset 23h30m)</span></span><br><span class="line"><span class="string">                        * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">            &quot;look_back&quot;, &quot;1d&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:lower_band_lt</span></span><br><span class="line">        <span class="attr">expr:</span> <span class="string">|-</span></span><br><span class="line"><span class="string">          min without(look_back)</span></span><br><span class="line"><span class="string">          (</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                        avg_over_time(anomaly:select[1h] offset 167h30m)</span></span><br><span class="line"><span class="string">                        -</span></span><br><span class="line"><span class="string">                        stddev_over_time(anomaly:select[1h] offset 167h30m)</span></span><br><span class="line"><span class="string">                        * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">            &quot;look_back&quot;, &quot;1w&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">            or</span></span><br><span class="line"><span class="string">            label_replace(</span></span><br><span class="line"><span class="string">                        avg_over_time(anomaly:select[1h] offset 23h30m)</span></span><br><span class="line"><span class="string">                        -</span></span><br><span class="line"><span class="string">                        stddev_over_time(anomaly:select[1h] offset 23h30m)</span></span><br><span class="line"><span class="string">                        * on() group_left anomaly:stddev_multiplier,</span></span><br><span class="line"><span class="string">            &quot;look_back&quot;, &quot;1d&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">            )</span></span><br><span class="line"><span class="string">          )</span></span><br><span class="line"><span class="string"></span></span><br></pre></td></tr></table></figure>
+
+<p>🌟 整体架构设计<br>这套异常检测规则采用 双重时间窗口策略：<br><img src="/images/wenxiaobai_mermaid_1752561368825.png"></p>
+<p>🔍 核心组件解析</p>
+<ol>
+<li><p>基础参数配置</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 变异系数阈值（过滤低波动数据）</span></span><br><span class="line"><span class="attr">anomaly:threshold_by_covar:</span> <span class="number">0.5</span>  </span><br><span class="line"></span><br><span class="line"><span class="comment"># 稀疏数据阈值（&lt;5个/分钟的数据点）</span></span><br><span class="line"><span class="attr">anomaly:sparse_threshold:</span> <span class="number">5</span><span class="string">/60</span>  </span><br><span class="line"></span><br><span class="line"><span class="comment"># 边界计算乘数</span></span><br><span class="line"><span class="attr">anomaly:stddev_multiplier:</span> <span class="number">2</span>    <span class="comment"># 主边界倍数</span></span><br><span class="line"><span class="attr">anomaly:margin_multiplier:</span> <span class="number">0.5</span>  <span class="comment"># 辅助边界倍数</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>数据选择与过滤</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">anomaly:select = </span><br><span class="line">  (&#123;anomaly_type=&quot;requests&quot;&#125; &gt; 0 AND avg_over_time(...)[1h] &gt;= sparse_threshold)</span><br><span class="line">  OR </span><br><span class="line">  &#123;anomaly_type=~&quot;latency|errors|resource&quot;&#125; &gt; 0</span><br></pre></td></tr></table></figure>
+<p>智能过滤：对请求类(requests)指标应用稀疏性检测（平均&lt;5点&#x2F;分钟则丢弃）<br>直接保留：延迟(latency)、错误(errors)、资源(resource)类指标</p>
+</li>
+<li><p>短期异常检测机制<br><img src="/images/wenxiaobai_mermaid_1752561566858.png"></p>
+</li>
+</ol>
+<p>具体计算流程：</p>
+<p>①移动平均基线<br>anomaly:avg_1h &#x3D; avg_over_time(anomaly:select[1h])</p>
+<p>②动态标准差过滤</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">anomaly:stddev_1h:filtered = </span><br><span class="line">  stddev_over_time(anomaly:select[1h]) </span><br><span class="line">  &gt; avg_1h * threshold_by_covar</span><br></pre></td></tr></table></figure>
+<p>仅保留变异系数&gt;0.5的高波动数据</p>
+<p>③稳定标准差计算<br>anomaly:stddev_st &#x3D; avg_over_time(stddev_1h:filtered[26h])</p>
+<p>26小时窗口平滑，避免瞬时抖动</p>
+<p>④三重边界保护策略<br>下边界：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br></pre></td><td class="code"><pre><span class="line">   min(</span><br><span class="line">     (avg_1h - stddev_st * 2),   # 短期边界</span><br><span class="line">     (avg_1h - avg_1h * 0.5),    # 辅助边界</span><br><span class="line">     lower_band_lt                # 长期边界</span><br><span class="line">   )</span><br><span class="line">```   </span><br><span class="line"></span><br><span class="line">上边界：</span><br><span class="line">```Promql</span><br><span class="line">   max(</span><br><span class="line">     (avg_1h + stddev_st * 2),   # 短期边界</span><br><span class="line">     (avg_1h + avg_1h * 0.5),    # 辅助边界</span><br><span class="line">     upper_band_lt                # 长期边界</span><br><span class="line">   )</span><br></pre></td></tr></table></figure>
+<ol start="4">
+<li>长期基线检测（5分钟间隔）<br><img src="/wenxiaobai_mermaid_1752561801657.png"></li>
+</ol>
+<p>具体实现：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"># 1周前同期数据（167.5小时=7*24-0.5）</span><br><span class="line">upper_band_lt = max(</span><br><span class="line">  (avg_over_time(data[1h] offset 167h30m) </span><br><span class="line">    + stddev_over_time(data[1h] offset 167h30m)*2),</span><br><span class="line">  (avg_over_time(data[1h] offset 23h30m)</span><br><span class="line">    + stddev_over_time(data[1h] offset 23h30m)*2)</span><br><span class="line">)</span><br><span class="line"></span><br><span class="line"># 同理计算下界（使用min和减法）</span><br></pre></td></tr></table></figure>
+<p>️ 关键技术亮点<br>①自适应波动过滤<br>通过threshold_by_covar动态忽略低波动数据（&lt;50%变异系数）<br>避免在稳定时段产生误报</p>
+<p>②多级边界保护</p>
+<p>边界类型	计算逻辑	适用场景<br>短期边界	均值±2倍平滑标准差	常规波动<br>辅助边界	均值±50%自身值	低波动期保护<br>长期边界	历史同期均值±2σ	周期性基线</p>
+<p>③智能数据稀疏处理</p>
+<p>对请求类指标自动过滤稀疏数据（&lt;5点&#x2F;分钟）<br>关键指标（延迟&#x2F;错误）始终保留</p>
+<p>④时移基线技术</p>
+<p>1天偏移：捕捉每日周期模式 (offset 23h30m)<br>1周偏移：捕捉周周期模式 (offset 167h30m)<br>30分钟缓冲避免整点边界效应</p>
+<p>告警触发逻辑<br>当实时数据满足以下任一条件即触发异常：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># 下穿保护下限</span><br><span class="line">current_value &lt; anomaly:lower_band</span><br><span class="line"></span><br><span class="line"># 上穿保护上限</span><br><span class="line">current_value &gt; anomaly:upper_band</span><br></pre></td></tr></table></figure>
+
+<p>🔧 调优建议<br>①敏感度调整：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 降低误报（更宽松）</span></span><br><span class="line"><span class="attr">anomaly:stddev_multiplier:</span> <span class="number">3</span></span><br><span class="line"><span class="attr">anomaly:threshold_by_covar:</span> <span class="number">0.7</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 提高捕捉率（更敏感）</span></span><br><span class="line"><span class="attr">anomaly:stddev_multiplier:</span> <span class="number">1.5</span></span><br><span class="line"><span class="attr">anomaly:margin_multiplier:</span> <span class="number">0.3</span></span><br></pre></td></tr></table></figure>
+<p>②周期扩展：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 在长期规则组添加月周期</span></span><br><span class="line"><span class="bullet">-</span> <span class="attr">record:</span> <span class="string">anomaly:upper_band_lt</span></span><br><span class="line">  <span class="attr">expr:</span> <span class="string">|</span></span><br><span class="line"><span class="string">    max(...,</span></span><br><span class="line"><span class="string">      label_replace(</span></span><br><span class="line"><span class="string">        avg_over_time(... offset 720h)  # 30天偏移</span></span><br><span class="line"><span class="string">        + ...,</span></span><br><span class="line"><span class="string">        &quot;look_back&quot;, &quot;1month&quot;, &quot;&quot;, &quot;&quot;</span></span><br><span class="line"><span class="string">      )</span></span><br><span class="line"><span class="string">    )</span></span><br></pre></td></tr></table></figure>
+
+<p>③稀疏阈值调整：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 高频系统提高稀疏阈值</span></span><br><span class="line"><span class="attr">anomaly:sparse_threshold:</span> <span class="number">20</span><span class="string">/60</span>  <span class="comment"># &gt;20点/分钟</span></span><br></pre></td></tr></table></figure>
+<p>这套规则巧妙结合了统计学原理（标准差法）和业务特性（周期检测），通过多级边界设计平衡了检测灵敏度和误报率，是SkyWalking异常检测的核心机制。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/07/15/Prometheus%E5%BC%82%E5%B8%B8%E6%A3%80%E6%B5%8B%E8%A7%84%E5%88%99%E6%B7%B1%E5%BA%A6%E8%A7%A3%E6%9E%90-%E4%BA%8C/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Prometheus/" rel="tag">Prometheus</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/07/09/%E5%91%8A%E8%AD%A6%E4%B8%AD%E5%BF%83%E5%BC%80%E6%BA%90%E9%A1%B9%E7%9B%AE/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">告警中心开源项目</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
