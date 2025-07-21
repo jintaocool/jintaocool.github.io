@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>基于K8S部署生产高可用的ES集群(附迁移方案) |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Elasticsearch-基于K8S部署生产高可用的ES集群-附迁移方案"
+  class="article article-type-Elasticsearch"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  基于K8S部署生产高可用的ES集群(附迁移方案)
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/07/21/%E5%9F%BA%E4%BA%8EK8S%E9%83%A8%E7%BD%B2%E7%94%9F%E4%BA%A7%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9A%84ES%E9%9B%86%E7%BE%A4-%E9%99%84%E8%BF%81%E7%A7%BB%E6%96%B9%E6%A1%88/" class="article-date">
+  <time datetime="2025-07-21T03:36:44.000Z" itemprop="datePublished">2025-07-21</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Elasticsearch/">Elasticsearch</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.8k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">8 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h3 id="ECK简介"><a href="#ECK简介" class="headerlink" title="ECK简介"></a>ECK简介</h3><blockquote>
+<p><a target="_blank" rel="noopener" href="https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-quickstart.html">https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-quickstart.html</a></p>
+</blockquote>
+<p>Elastic Cloud on Kubernetes (ECK) 是一个官方提供的用于在 Kubernetes 集群中简化部署、管理和操作 Elastic Stack（包括 Elasticsearch 和 Kibana）的扩展。</p>
+<p>ECK 是一个 Kubernetes Operator，它管理和自动化 Elastic Stack 的生命周期。通过使用 ECK，可以在 Kubernetes 环境中快速实现以下功能：</p>
+<ol>
+<li>部署和管理 Elasticsearch 和 Kibana 实例，包括创建、删除、扩展和升级。</li>
+<li>配置和调整 Elastic Stack 组件以满足特定需求。</li>
+<li>自动处理故障检测、恢复和备份。</li>
+<li>保护 Elasticsearch 集群，通过安全配置、证书管理和安全通信来确保数据安全。</li>
+<li>监控 Elastic Stack 的性能和资源使用，从而优化集群性能。</li>
+</ol>
+<h3 id="支持的版本"><a href="#支持的版本" class="headerlink" title="支持的版本"></a>支持的版本</h3><ul>
+<li>Kubernetes 1.26-1.30（ECK2.14.0，低版本可以支持低版本的K8S，请自行到官网查看。）</li>
+<li>Elasticsearch, Kibana, APM Server: 6.8+, 7.1+, 8+</li>
+<li>Beats: 7.0+, 8+</li>
+<li>Logstash: 8.7+</li>
+</ul>
+<h3 id="部署-operator"><a href="#部署-operator" class="headerlink" title="部署 operator"></a>部署 operator</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">kubectl create -f https://download.elastic.co/downloads/eck/2.14.0/crds.yaml</span><br><span class="line">kubectl apply -f https://download.elastic.co/downloads/eck/2.14.0/operator.yaml</span><br></pre></td></tr></table></figure>
+
+<h3 id="部署-ES"><a href="#部署-ES" class="headerlink" title="部署 ES"></a>部署 ES</h3><p>部署版本：</p>
+<ul>
+<li>7.17.24</li>
+</ul>
+<p>部署模式：</p>
+<ul>
+<li>3master节点，master，data共用节点。</li>
+<li>HTTP模式</li>
+<li>basic认证</li>
+<li>hostNetwork</li>
+<li>local-path</li>
+</ul>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br><span class="line">79</span><br><span class="line">80</span><br><span class="line">81</span><br><span class="line">82</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">elasticsearch.k8s.elastic.co/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Elasticsearch</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">casslogs</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">elastic-system</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">version:</span> <span class="number">7.17</span><span class="number">.24</span></span><br><span class="line">  <span class="attr">http:</span></span><br><span class="line">    <span class="attr">tls:</span></span><br><span class="line">      <span class="attr">selfSignedCertificate:</span></span><br><span class="line">        <span class="attr">disabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">nodeSets:</span></span><br><span class="line">  <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">data</span></span><br><span class="line">    <span class="attr">count:</span> <span class="number">3</span></span><br><span class="line">    <span class="comment"># 禁用认证需要增加以下配置</span></span><br><span class="line">    <span class="comment">#config:</span></span><br><span class="line">    <span class="comment">#  xpack.security.authc:</span></span><br><span class="line">    <span class="comment">#    anonymous:</span></span><br><span class="line">    <span class="comment">#      username: anonymous</span></span><br><span class="line">    <span class="comment">#      roles: superuser</span></span><br><span class="line">    <span class="comment">#      authz_exception: false</span></span><br><span class="line">    <span class="attr">podTemplate:</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">initContainers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">sysctl</span></span><br><span class="line">          <span class="attr">securityContext:</span></span><br><span class="line">            <span class="attr">privileged:</span> <span class="literal">true</span></span><br><span class="line">            <span class="attr">runAsUser:</span> <span class="number">0</span></span><br><span class="line">          <span class="attr">command:</span> [<span class="string">&#x27;sh&#x27;</span>, <span class="string">&#x27;-c&#x27;</span>, <span class="string">&#x27;sysctl -w vm.max_map_count=262144&#x27;</span>]</span><br><span class="line">        <span class="attr">containers:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">elasticsearch</span></span><br><span class="line">          <span class="attr">env:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_JAVA_OPTS</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">&quot;-Xms16g -Xmx16g&quot;</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_CLUSTER_MAX__SHARDS__PER__NODE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">&#x27;90000&#x27;</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_HTTP_MAX__CONTENT__LENGTH</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">300MB</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_HTTP_MAX__INITIAL__LINE__LENGTH</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">20KB</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_HTTP_MAX__HEADER__SIZE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">32KB</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_THREAD__POOL_WRITE_QUEUE__SIZE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">&#x27;2000&#x27;</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_THREAD__POOL_SEARCH_QUEUE__SIZE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">&#x27;2000&#x27;</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">ES_SETTING_THREAD__POOL_GET_QUEUE__SIZE</span></span><br><span class="line">            <span class="attr">value:</span> <span class="string">&#x27;2000&#x27;</span></span><br><span class="line">          <span class="attr">resources:</span></span><br><span class="line">            <span class="attr">limits:</span></span><br><span class="line">              <span class="attr">cpu:</span> <span class="number">8</span></span><br><span class="line">              <span class="attr">memory:</span> <span class="string">32Gi</span></span><br><span class="line">            <span class="attr">requests:</span></span><br><span class="line">              <span class="attr">cpu:</span> <span class="string">500m</span></span><br><span class="line">              <span class="attr">memory:</span> <span class="string">512Mi</span></span><br><span class="line">          <span class="attr">volumeMounts:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">timezone-volume</span></span><br><span class="line">            <span class="attr">mountPath:</span> <span class="string">/etc/localtime</span></span><br><span class="line">            <span class="attr">readOnly:</span> <span class="literal">true</span></span><br><span class="line">        <span class="attr">volumes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">timezone-volume</span></span><br><span class="line">          <span class="attr">hostPath:</span></span><br><span class="line">            <span class="attr">path:</span> <span class="string">/usr/share/zoneinfo/Asia/Shanghai</span></span><br><span class="line">        <span class="attr">affinity:</span></span><br><span class="line">          <span class="attr">podAntiAffinity:</span></span><br><span class="line">            <span class="attr">requiredDuringSchedulingIgnoredDuringExecution:</span></span><br><span class="line">            <span class="bullet">-</span> <span class="attr">labelSelector:</span></span><br><span class="line">                <span class="attr">matchLabels:</span></span><br><span class="line">                  <span class="attr">elasticsearch.k8s.elastic.co/cluster-name:</span> <span class="string">casslogs</span></span><br><span class="line">              <span class="attr">topologyKey:</span> <span class="string">kubernetes.io/hostname</span></span><br><span class="line">        <span class="attr">hostNetwork:</span> <span class="literal">true</span></span><br><span class="line">        <span class="attr">dnsPolicy:</span> <span class="string">ClusterFirstWithHostNet</span></span><br><span class="line">    <span class="attr">volumeClaimTemplates:</span></span><br><span class="line">    <span class="bullet">-</span> <span class="attr">metadata:</span></span><br><span class="line">        <span class="attr">name:</span> <span class="string">elasticsearch-data</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">accessModes:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="string">ReadWriteOnce</span></span><br><span class="line">        <span class="attr">resources:</span></span><br><span class="line">          <span class="attr">requests:</span></span><br><span class="line">            <span class="attr">storage:</span> <span class="string">3000Gi</span></span><br><span class="line">        <span class="attr">storageClassName:</span> <span class="string">local-path</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="部署Kibana"><a href="#部署Kibana" class="headerlink" title="部署Kibana"></a>部署Kibana</h3><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">apiVersion:</span> <span class="string">kibana.k8s.elastic.co/v1</span></span><br><span class="line"><span class="attr">kind:</span> <span class="string">Kibana</span></span><br><span class="line"><span class="attr">metadata:</span></span><br><span class="line">  <span class="attr">name:</span> <span class="string">kibana</span></span><br><span class="line">  <span class="attr">namespace:</span> <span class="string">elastic-system</span></span><br><span class="line"><span class="attr">spec:</span></span><br><span class="line">  <span class="attr">version:</span> <span class="number">7.17</span><span class="number">.24</span></span><br><span class="line">  <span class="attr">count:</span> <span class="number">3</span></span><br><span class="line">  <span class="attr">elasticsearchRef:</span></span><br><span class="line">    <span class="attr">name:</span> <span class="string">casslogs</span></span><br><span class="line">    <span class="attr">namespace:</span> <span class="string">elastic-system</span></span><br><span class="line">  <span class="comment"># 禁用认证需要增加以下配置</span></span><br><span class="line">  <span class="comment">#config:</span></span><br><span class="line">  <span class="comment">#  xpack.security.enabled: false</span></span><br><span class="line">  <span class="attr">http:</span></span><br><span class="line">    <span class="attr">service:</span></span><br><span class="line">      <span class="attr">spec:</span></span><br><span class="line">        <span class="attr">type:</span> <span class="string">NodePort</span></span><br><span class="line">    <span class="attr">tls:</span></span><br><span class="line">      <span class="attr">selfSignedCertificate:</span></span><br><span class="line">        <span class="attr">disabled:</span> <span class="literal">true</span></span><br><span class="line">  <span class="attr">podTemplate:</span></span><br><span class="line">    <span class="attr">spec:</span></span><br><span class="line">      <span class="attr">containers:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">kibana</span></span><br><span class="line">        <span class="attr">env:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">NODE_OPTIONS</span></span><br><span class="line">          <span class="attr">value:</span> <span class="string">&quot;--max-old-space-size=2048&quot;</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">I18N_LOCALE</span></span><br><span class="line">          <span class="attr">value:</span> <span class="string">zh-CN</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">SERVER_PUBLICBASEURL</span></span><br><span class="line">          <span class="attr">value:</span> <span class="string">&quot;http://log.casstime.cn&quot;</span></span><br><span class="line">        <span class="attr">resources:</span></span><br><span class="line">          <span class="attr">requests:</span></span><br><span class="line">            <span class="attr">memory:</span> <span class="string">100Mi</span></span><br><span class="line">            <span class="attr">cpu:</span> <span class="number">0.5</span></span><br><span class="line">          <span class="attr">limits:</span></span><br><span class="line">            <span class="attr">memory:</span> <span class="string">4Gi</span></span><br><span class="line">            <span class="attr">cpu:</span> <span class="number">2</span></span><br><span class="line">        <span class="comment"># 禁用认证需要修改健康检查接口</span></span><br><span class="line">        <span class="comment">#readinessProbe:</span></span><br><span class="line">        <span class="comment">#  failureThreshold: 3</span></span><br><span class="line">        <span class="comment">#  initialDelaySeconds: 10</span></span><br><span class="line">        <span class="comment">#  periodSeconds: 10</span></span><br><span class="line">        <span class="comment">#  successThreshold: 1</span></span><br><span class="line">        <span class="comment">#  timeoutSeconds: 5</span></span><br><span class="line">        <span class="comment">#  TCP健康检查方式</span></span><br><span class="line">        <span class="comment">#  tcpSocket:</span></span><br><span class="line">        <span class="comment">#    port: 5601</span></span><br><span class="line">        <span class="comment">#  HTTP健康检查方式</span></span><br><span class="line">        <span class="comment">#  httpGet:</span></span><br><span class="line">        <span class="comment">#    path: /</span></span><br><span class="line">        <span class="comment">#    port: 5601</span></span><br><span class="line">        <span class="comment">#    scheme: HTTP</span></span><br><span class="line">        <span class="attr">volumeMounts:</span></span><br><span class="line">        <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">timezone-volume</span></span><br><span class="line">          <span class="attr">mountPath:</span> <span class="string">/etc/localtime</span></span><br><span class="line">          <span class="attr">readOnly:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">volumes:</span></span><br><span class="line">      <span class="bullet">-</span> <span class="attr">name:</span> <span class="string">timezone-volume</span></span><br><span class="line">        <span class="attr">hostPath:</span></span><br><span class="line">          <span class="attr">path:</span> <span class="string">/usr/share/zoneinfo/Asia/Shanghai</span></span><br><span class="line">      <span class="attr">affinity:</span></span><br><span class="line">        <span class="attr">podAntiAffinity:</span></span><br><span class="line">          <span class="attr">requiredDuringSchedulingIgnoredDuringExecution:</span></span><br><span class="line">          <span class="bullet">-</span> <span class="attr">labelSelector:</span></span><br><span class="line">              <span class="attr">matchLabels:</span></span><br><span class="line">                <span class="attr">elasticsearch.k8s.elastic.co/name:</span> <span class="string">kibana</span></span><br><span class="line">            <span class="attr">topologyKey:</span> <span class="string">kubernetes.io/hostname</span></span><br><span class="line">      <span class="attr">hostNetwork:</span> <span class="literal">true</span></span><br><span class="line">      <span class="attr">dnsPolicy:</span> <span class="string">ClusterFirstWithHostNet</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="用户管理"><a href="#用户管理" class="headerlink" title="用户管理"></a>用户管理</h3><h5 id="方式1"><a href="#方式1" class="headerlink" title="方式1"></a>方式1</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 解析: Secret: casslogs-es-elastic-user</span></span><br><span class="line"><span class="comment"># 获取elastic的密码</span></span><br><span class="line"><span class="comment"># 登录kibana在Stack Management,安全管理中进行用户管理</span></span><br><span class="line">http://10.1.0.26:5601/app/management/security/users</span><br></pre></td></tr></table></figure>
+
+<h5 id="方式2"><a href="#方式2" class="headerlink" title="方式2"></a>方式2</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 编辑部署ES的yaml文件</span></span><br><span class="line">apiVersion: elasticsearch.k8s.elastic.co/v1</span><br><span class="line">kind: Elasticsearch</span><br><span class="line">metadata:</span><br><span class="line">  name: casslogs</span><br><span class="line">  namespace: elastic-system</span><br><span class="line">spec:</span><br><span class="line">  version: 7.17.24</span><br><span class="line">  <span class="comment"># 增加账号管理</span></span><br><span class="line">  auth:</span><br><span class="line">    fileRealm:</span><br><span class="line">    - secretName: es-users-secret</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 新增用户es-users-secret，设置组为超级管理员</span></span><br><span class="line">kind: Secret</span><br><span class="line">apiVersion: v1</span><br><span class="line">metadata:</span><br><span class="line">  name: es-users-secret</span><br><span class="line">  namespace: elastic-system</span><br><span class="line">stringData:</span><br><span class="line">  <span class="comment"># 格式是 账号：密码</span></span><br><span class="line">  <span class="comment"># 可以同时增加多个用户并设置对应的组</span></span><br><span class="line">  <span class="built_in">users</span>: |-</span><br><span class="line">    casslogs:cfsa3fsdfs3s</span><br><span class="line">  users_roles: |-</span><br><span class="line">    superuser:casslogs</span><br></pre></td></tr></table></figure>
+
+<h3 id="kibana配置优化"><a href="#kibana配置优化" class="headerlink" title="kibana配置优化"></a>kibana配置优化</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 日期格式</span></span><br><span class="line">MM-DD@HH:mm:ss.SSS</span><br><span class="line"><span class="comment"># 默认列</span></span><br><span class="line">message</span><br><span class="line"><span class="comment"># 时间筛选速选范围</span></span><br><span class="line">[</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-15m&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 15 分钟&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-30m&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 30 分钟&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-1h&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 1 小时&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-3h&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 3 小时&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-5h&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 5 小时&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-9h&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 9 小时&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-25h&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 25 小时&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">    &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now/d&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now/d&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;今日&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now-3d&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;最近 3 天&quot;</span></span><br><span class="line">  &#125;,</span><br><span class="line">  &#123;</span><br><span class="line">    <span class="string">&quot;from&quot;</span>: <span class="string">&quot;now/w&quot;</span>,</span><br><span class="line">    <span class="string">&quot;to&quot;</span>: <span class="string">&quot;now/w&quot;</span>,</span><br><span class="line">    <span class="string">&quot;display&quot;</span>: <span class="string">&quot;本周&quot;</span></span><br><span class="line">  &#125;</span><br><span class="line">]</span><br></pre></td></tr></table></figure>
+
+<h3 id="ES数据迁移"><a href="#ES数据迁移" class="headerlink" title="ES数据迁移"></a>ES数据迁移</h3><table>
+<thead>
+<tr>
+<th>方案</th>
+<th>elasticsearch-dump</th>
+<th>esm</th>
+<th>reindex</th>
+<th>logstash</th>
+<th>snapshot</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>基本原理</td>
+<td>逻辑备份，类似mysqldump将数据一条一条导出后再执行导入</td>
+<td>ESM 是 medcl 开源的派生自：Elasticsearch Dumper 的工具，基于 go 语言开发。</td>
+<td>reindex 是 Elasticsearch 提供的一个 API 接口，可以把数据从一个集群迁移到另外一个集群</td>
+<td>从一个集群中读取数据然后写入到另一个集群</td>
+<td>从源集群通过Snapshot API 创建数据快照，然后在目标集群中进行恢复</td>
+</tr>
+<tr>
+<td>网络要求</td>
+<td>无网络互通要求</td>
+<td>无网络互通要求</td>
+<td>网络需要互通</td>
+<td>网络需要互通</td>
+<td>无网络互通要求</td>
+</tr>
+<tr>
+<td>迁移速度</td>
+<td>最慢</td>
+<td>很慢</td>
+<td>一般</td>
+<td>很快</td>
+<td>最快</td>
+</tr>
+<tr>
+<td>适合场景</td>
+<td>适用于数据量小的离线场景</td>
+<td>适用于数据量小的离线场景</td>
+<td>适用于数据量中等，在线迁移数据的场景</td>
+<td>适用于数据量很大，实时数据传输的场景</td>
+<td>适用于数据量特大，离线数据迁移的场景</td>
+</tr>
+<tr>
+<td>配置复杂度</td>
+<td>简单</td>
+<td>简单</td>
+<td>中等</td>
+<td>中等</td>
+<td>复杂</td>
+</tr>
+<tr>
+<td>缺点</td>
+<td>速度全宇宙最慢，没有之一</td>
+<td>跨大版本不能迁移mapping，需要手动迁移</td>
+<td>需要设置集群白名单，重启elasticsearch服务</td>
+<td>logstash对资源要求较高，建议单独的一台服务器运行。</td>
+<td>在快照还原过程中无法修改分片数，分片数取决于源集群索引设置。</td>
+</tr>
+<tr>
+<td>迁移时长(1100万条数据)</td>
+<td>3小时</td>
+<td>1小时10分钟</td>
+<td>15分钟</td>
+<td>8分钟</td>
+<td>2分钟</td>
+</tr>
+</tbody></table>
+<h4 id="reindex"><a href="#reindex" class="headerlink" title="reindex"></a>reindex</h4><h5 id="设置索引模板，保证写入速率最大化"><a href="#设置索引模板，保证写入速率最大化" class="headerlink" title="设置索引模板，保证写入速率最大化"></a>设置索引模板，保证写入速率最大化</h5><figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 完成迁移后在索引管理中将number_of_replicas和refresh_interval参数设置为合适的值即可。</span></span><br><span class="line"><span class="string">PUT</span> <span class="string">_template/hwprod</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="attr">&quot;index_patterns&quot;:</span> [</span><br><span class="line">    <span class="string">&quot;hwprod*&quot;</span></span><br><span class="line">  ],</span><br><span class="line">  <span class="attr">&quot;order&quot;:</span> <span class="number">999</span>,</span><br><span class="line">  <span class="attr">&quot;settings&quot;:</span> &#123;</span><br><span class="line">    <span class="attr">&quot;refresh_interval&quot;:</span> <span class="string">&quot;-1&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;number_of_shards&quot;:</span> <span class="string">&quot;3&quot;</span>,</span><br><span class="line">    <span class="attr">&quot;translog&quot;:</span> &#123;</span><br><span class="line">      <span class="attr">&quot;sync_interval&quot;:</span> <span class="string">&quot;60s&quot;</span>,</span><br><span class="line">      <span class="attr">&quot;durability&quot;:</span> <span class="string">&quot;async&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="attr">&quot;number_of_replicas&quot;:</span> <span class="string">&quot;0&quot;</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<h5 id="配置集群白名单，新增源数据集群es地址"><a href="#配置集群白名单，新增源数据集群es地址" class="headerlink" title="配置集群白名单，新增源数据集群es地址"></a>配置集群白名单，新增源数据集群es地址</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 修改配置文件方式</span></span><br><span class="line">vim /etc/elasticsearch/elasticsearch.yml </span><br><span class="line">reindex.remote.whitelist: <span class="string">&quot;10.1.72.33:9200&quot;</span></span><br><span class="line">systemctl restart elasticsearch.service </span><br><span class="line"></span><br><span class="line"><span class="comment"># K8S部署环境变量模式</span></span><br><span class="line">- name: ES_SETTING_REINDEX_REMOTE_WHITELIST</span><br><span class="line">  value: 10.1.72.33:9200</span><br></pre></td></tr></table></figure>
+
+<h5 id="执行reindex迁移"><a href="#执行reindex迁移" class="headerlink" title="执行reindex迁移"></a>执行reindex迁移</h5><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 请求</span></span><br><span class="line"><span class="comment"># size: 每批次的数据量</span></span><br><span class="line"><span class="comment"># slice: 切片数量, 和节点数一致</span></span><br><span class="line"><span class="comment"># wait_for_completion=false: 异步执行</span></span><br><span class="line">POST _reindex?wait_for_completion=<span class="literal">false</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">&quot;source&quot;</span>: &#123;</span><br><span class="line">    <span class="string">&quot;remote&quot;</span>: &#123;</span><br><span class="line">      <span class="string">&quot;host&quot;</span>: <span class="string">&quot;http://10.1.72.33:9200&quot;</span>,</span><br><span class="line">      <span class="string">&quot;username&quot;</span>: <span class="string">&quot;elastic&quot;</span>,</span><br><span class="line">      <span class="string">&quot;password&quot;</span>: <span class="string">&quot;asdf1234&quot;</span></span><br><span class="line">    &#125;,</span><br><span class="line">    <span class="string">&quot;index&quot;</span>: <span class="string">&quot;hwprod-2024.9.1&quot;</span>,</span><br><span class="line">    <span class="string">&quot;size&quot;</span>: 10000,</span><br><span class="line">    <span class="string">&quot;slice&quot;</span>: &#123;</span><br><span class="line">      <span class="string">&quot;id&quot;</span>: 0,</span><br><span class="line">      <span class="string">&quot;max&quot;</span>: 3</span><br><span class="line">    &#125;</span><br><span class="line">  &#125;,</span><br><span class="line">  <span class="string">&quot;dest&quot;</span>: &#123;</span><br><span class="line">    <span class="string">&quot;index&quot;</span>: <span class="string">&quot;hwprod-2024.9.1&quot;</span></span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 响应</span></span><br><span class="line">&#123;</span><br><span class="line">  <span class="string">&quot;task&quot;</span>: <span class="string">&quot;PuSABDEeTsSXUiW7U--uAw:40193&quot;</span></span><br><span class="line">&#125;</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查询异步任务</span></span><br><span class="line">GET _tasks/PuSABDEeTsSXUiW7U--uAw:40193</span><br></pre></td></tr></table></figure>
+
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/07/21/%E5%9F%BA%E4%BA%8EK8S%E9%83%A8%E7%BD%B2%E7%94%9F%E4%BA%A7%E9%AB%98%E5%8F%AF%E7%94%A8%E7%9A%84ES%E9%9B%86%E7%BE%A4-%E9%99%84%E8%BF%81%E7%A7%BB%E6%96%B9%E6%A1%88/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Elasticsearch/" rel="tag">Elasticsearch</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/07/17/Skywalking%E9%95%9C%E5%83%8F%E6%8A%A2%E5%85%88%E7%89%88%E8%8E%B7%E5%8F%96%E5%9C%B0%E5%9D%80/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Skywalking镜像抢先版获取地址</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
