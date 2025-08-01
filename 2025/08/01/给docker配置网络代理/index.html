@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>给docker配置网络代理 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Docker-给docker配置网络代理"
+  class="article article-type-Docker"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  给docker配置网络代理
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/08/01/%E7%BB%99docker%E9%85%8D%E7%BD%AE%E7%BD%91%E7%BB%9C%E4%BB%A3%E7%90%86/" class="article-date">
+  <time datetime="2025-08-01T03:08:55.000Z" itemprop="datePublished">2025-08-01</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Docker/">Docker</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">19 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>有时因为网络原因，比如公司 NAT，或其它啥的，需要使用代理。Docker 的代理配置，略显复杂，因为有三种场景。但基本原理都是一致的，都是利用 Linux 的 http_proxy 等环境变量。</p>
+<h2 id="Dockerd-代理"><a href="#Dockerd-代理" class="headerlink" title="Dockerd 代理"></a>Dockerd 代理</h2><p>在执行docker pull时，是由守护进程dockerd来执行。因此，代理需要配在dockerd的环境中。而这个环境，则是受systemd所管控，因此实际是systemd的配置。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo mkdir -p /etc/systemd/system/docker.service.d</span><br><span class="line">sudo touch /etc/systemd/system/docker.service.d/proxy.conf</span><br></pre></td></tr></table></figure>
+
+<p>在这个proxy.conf文件（可以是任意*.conf的形式）中，添加以下内容：</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTP_PROXY=http://proxy.example.com:8080/&quot;</span><br><span class="line">Environment=&quot;HTTPS_PROXY=http://proxy.example.com:8080/&quot;</span><br><span class="line">Environment=&quot;NO_PROXY=localhost,127.0.0.1,.example.com&quot;</span><br></pre></td></tr></table></figure>
+
+<p>其中，[<a href="http://proxy.example.com:8080]">http://proxy.example.com:8080]</a> 要换成可用的免密代理。通常使用 cntlm 在本机自建免密代理，去对接公司的代理。可参考《Linux下安装配置Cntlm 代理》。</p>
+<h2 id="Container-代理"><a href="#Container-代理" class="headerlink" title="Container 代理"></a>Container 代理</h2><p>在容器运行阶段，如果需要代理上网，则需要配置 ~&#x2F;.docker&#x2F;config.json。以下配置，只在Docker 17.07及以上版本生效。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br></pre></td><td class="code"><pre><span class="line">&#123;</span><br><span class="line"> &quot;proxies&quot;:</span><br><span class="line"> &#123;</span><br><span class="line">   &quot;default&quot;:</span><br><span class="line">   &#123;</span><br><span class="line">     &quot;httpProxy&quot;: &quot;http://proxy.example.com:8080&quot;,</span><br><span class="line">     &quot;httpsProxy&quot;: &quot;http://proxy.example.com:8080&quot;,</span><br><span class="line">     &quot;noProxy&quot;: &quot;localhost,127.0.0.1,.example.com&quot;</span><br><span class="line">   &#125;</span><br><span class="line"> &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
+
+<p>这个是用户级的配置，除了 proxies，docker login 等相关信息也会在其中。而且还可以配置信息展示的格式、插件参数等。</p>
+<p>此外，容器的网络代理，也可以直接在其运行时通过 -e 注入 http_proxy 等环境变量。这两种方法分别适合不同场景。config.json 非常方便，默认在所有配置修改后启动的容器生效，适合个人开发环境。在CI&#x2F;CD的自动构建环境、或者实际上线运行的环境中，这种方法就不太合适，用 -e 注入这种显式配置会更好，减轻对构建、部署环境的依赖。当然，在这些环境中，最好用良好的设计避免配置代理上网。</p>
+<h2 id="Docker-Build-代理"><a href="#Docker-Build-代理" class="headerlink" title="Docker Build 代理"></a>Docker Build 代理</h2><p>虽然 docker build 的本质，也是启动一个容器，但是环境会略有不同，用户级配置无效。在构建时，需要注入 http_proxy 等参数。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker build . \</span><br><span class="line">    --build-arg &quot;HTTP_PROXY=http://proxy.example.com:8080/&quot; \</span><br><span class="line">    --build-arg &quot;HTTPS_PROXY=http://proxy.example.com:8080/&quot; \</span><br><span class="line">    --build-arg &quot;NO_PROXY=localhost,127.0.0.1,.example.com&quot; \</span><br><span class="line">    -t your/image:tag</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意</strong>：无论是 docker run 还是 docker build，默认是网络隔绝的。如果代理使用的是 localhost:3128 这类，则会无效。这类仅限本地的代理，必须加上 –network host 才能正常使用。而一般则需要配置代理的外部IP，而且代理本身要开启 Gateway 模式。</p>
+<h2 id="重启生效"><a href="#重启生效" class="headerlink" title="重启生效"></a>重启生效</h2><p>代理配置完成后，reboot 重启当然可以生效，但不重启也行。</p>
+<p>docker build 代理是在执行前设置的，所以修改后，下次执行立即生效。Container 代理的修改也是立即生效的，但是只针对以后启动的 Container，对已经启动的 Container 无效。</p>
+<p>dockerd 代理的修改比较特殊，它实际上是改 systemd 的配置，因此需要重载 systemd 并重启 dockerd 才能生效。</p>
+<figure class="highlight text"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo systemctl daemon-reload</span><br><span class="line">sudo systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<p><a target="_blank" rel="noopener" href="https://www.cnblogs.com/abc1069/p/17496240.html">如何配置docker通过代理服务器拉取镜像 - 醉马踏千秋 - 博客园</a></p>
+<h1 id="如何配置docker通过代理服务器拉取镜像"><a href="#如何配置docker通过代理服务器拉取镜像" class="headerlink" title="如何配置docker通过代理服务器拉取镜像"></a><a target="_blank" rel="noopener" href="https://www.cnblogs.com/abc1069/p/17496240.html">如何配置docker通过代理服务器拉取镜像</a></h1><p>如果 docker 所在的环境是通过代理服务器和互联网连通的，那么需要一番配置才能让 docker 正常从外网正常拉取镜像。然而仅仅通过配置环境变量的方法是不够的。本文结合已有文档，介绍如何配置代理服务器能使docker正常拉取镜像。</p>
+<p>本文使用的docker 版本是</p>
+<figure class="highlight css"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker <span class="attr">--version</span></span><br><span class="line">Docker version <span class="number">24.0</span>.<span class="number">2</span>, build cb74dfc</span><br></pre></td></tr></table></figure>
+
+<h2 id="问题现象"><a href="#问题现象" class="headerlink" title="问题现象"></a>问题现象</h2><p>如果不配置代理服务器就直接拉镜像，docker 会直接尝试连接镜像仓库，并且连接超时报错。如下所示：</p>
+<figure class="highlight javascript"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">$ docker pull busybox</span><br><span class="line"><span class="title class_">Using</span> <span class="keyword">default</span> <span class="attr">tag</span>: latest</span><br><span class="line"><span class="title class_">Error</span> response <span class="keyword">from</span> <span class="attr">daemon</span>: <span class="title class_">Get</span> <span class="attr">https</span>:<span class="comment">//registry-1.docker.io/v2/: net/http: request canceled </span></span><br><span class="line"><span class="keyword">while</span> waiting <span class="keyword">for</span> connection (<span class="title class_">Client</span>.<span class="property">Timeout</span> exceeded <span class="keyword">while</span> awaiting headers)</span><br></pre></td></tr></table></figure>
+
+<h2 id="容易误导的官方文档"><a href="#容易误导的官方文档" class="headerlink" title="容易误导的官方文档"></a>容易误导的官方文档</h2><p>有这么一篇关于 docker 配置代理服务器的 <a target="_blank" rel="noopener" href="https://docs.docker.com/network/proxy/#configure-the-docker-client" title="官方文档">官方文档</a> ，如果病急乱投医，直接按照这篇文章配置，是不能成功拉取镜像的。</p>
+<p>我们来理解一下这篇文档，文档关键的原文摘录如下：</p>
+<figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">If your container needs <span class="keyword">to</span> use an HTTP, HTTPS, <span class="keyword">or</span> FTP proxy server, you can configure it <span class="keyword">in</span> different ways: Configure the Docker client <span class="keyword">On</span> the Docker client, <span class="keyword">create</span> <span class="keyword">or</span> edit the file <span class="operator">~</span><span class="operator">/</span>.docker<span class="operator">/</span>config.json <span class="keyword">in</span> the home directory <span class="keyword">of</span> the <span class="keyword">user</span> that starts containers.</span><br><span class="line"></span><br><span class="line">...</span><br><span class="line"></span><br><span class="line"><span class="keyword">When</span> you <span class="keyword">create</span> <span class="keyword">or</span> <span class="keyword">start</span> <span class="keyword">new</span> containers, the environment variables <span class="keyword">are</span> <span class="keyword">set</span> automatically <span class="keyword">within</span> the container.</span><br></pre></td></tr></table></figure>
+
+<p>这篇文档说：如果你的 <strong>容器</strong> 需要使用代理服务器，那么可以以如下方式配置： 在运行容器的用户 home 目录下，配置 <code>~/.docker/config.json</code> 文件。重新启动容器后，这些环境变量将自动设置进容器，从而容器内的进程可以使用代理服务。</p>
+<p>所以这篇文章是讲如何配置运行 容器 的环境，与如何拉取镜像无关。如果按照这篇文档的指导，如同南辕北辙。</p>
+<p>要解决问题，我们首先来看一般情况下命令行如何使用代理。</p>
+<h2 id="环境变量"><a href="#环境变量" class="headerlink" title="环境变量"></a>环境变量</h2><p>常规的命令行程序如果要使用代理，需要设置两个环境变量：<code>HTTP_PROXY</code> 和 <code>HTTPS_PROXY</code> 。但是仅仅这样设置环境变量，也不能让 docker 成功拉取镜像。</p>
+<p>我们仔细观察 上面的报错信息，有一句说明了报错的来源：</p>
+<blockquote>
+<p>Error response from daemon:</p>
+</blockquote>
+<p>因为镜像的拉取和管理都是 docker daemon 的职责，所以我们要让 docker daemon 知道代理服务器的存在。而 docker daemon 是由 systemd 管理的，所以我们要从 systemd 配置入手。</p>
+<h2 id="正确的官方文档"><a href="#正确的官方文档" class="headerlink" title="正确的官方文档"></a>正确的官方文档</h2><p>关于 systemd 配置代理服务器的 官方文档在这里，原文说：</p>
+<figure class="highlight mipsasm"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">The Docker daemon uses the HTTP_PROXY, HTTPS_PROXY, <span class="keyword">and </span>NO_PROXY environmental variables in its start-up environment to configure HTTP <span class="keyword">or </span>HTTPS proxy <span class="keyword">behavior. </span>You cannot configure these environment variables using the daemon.<span class="keyword">json </span>file.</span><br><span class="line"></span><br><span class="line">This example overrides the default docker.service file.</span><br><span class="line"></span><br><span class="line">If you are <span class="keyword">behind </span>an HTTP <span class="keyword">or </span>HTTPS proxy server, for example in corporate settings, you need to <span class="keyword">add </span>this configuration in the Docker systemd service file.</span><br></pre></td></tr></table></figure>
+
+<p>这段话的意思是，docker daemon 使用 <code>HTTP_PROXY</code>, <code>HTTPS_PROXY</code>, 和 <code>NO_PROXY</code> 三个环境变量配置代理服务器，但是你需要在 systemd 的文件里配置环境变量，而不能配置在 <code>daemon.json</code> 里。</p>
+<h2 id="具体操作"><a href="#具体操作" class="headerlink" title="具体操作"></a>具体操作</h2><p>下面是来自 <a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/#httphttps-proxy" title="官方文档">官方文档</a> 的操作步骤和详细解释：</p>
+<p>1、创建 dockerd 相关的 systemd 目录，这个目录下的配置将覆盖 dockerd 的默认配置</p>
+<p><code>$ sudo mkdir -p /etc/systemd/system/docker.service.d</code></p>
+<p>新建配置文件 <code>/etc/systemd/system/docker.service.d/http-proxy.conf</code>，这个文件中将包含环境变量</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[Service]</span></span><br><span class="line"><span class="attr">Environment</span>=<span class="string">&quot;HTTP_PROXY=http://proxy.example.com:80&quot;</span></span><br><span class="line"><span class="attr">Environment</span>=<span class="string">&quot;HTTPS_PROXY=https://proxy.example.com:443&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>如果你自己建了私有的镜像仓库，需要 dockerd 绕过代理服务器直连，那么配置 NO_PROXY 变量：</p>
+<figure class="highlight ini"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line"><span class="section">[Service]</span></span><br><span class="line"><span class="attr">Environment</span>=<span class="string">&quot;HTTP_PROXY=http://proxy.example.com:80&quot;</span></span><br><span class="line"><span class="attr">Environment</span>=<span class="string">&quot;HTTPS_PROXY=https://proxy.example.com:443&quot;</span></span><br><span class="line"><span class="attr">Environment</span>=<span class="string">&quot;NO_PROXY=your-registry.com,10.10.10.10,*.example.com&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>多个 <code>NO_PROXY</code> 变量的值用逗号分隔，而且可以使用通配符（*），极端情况下，如果 <code>NO_PROXY=*</code>，那么所有请求都将不通过代理服务器。</p>
+<p>重新加载配置文件，重启 dockerd</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="variable">$ </span>sudo systemctl daemon-reload</span><br><span class="line"><span class="variable">$ </span>sudo systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<p>检查确认环境变量已经正确配置：</p>
+<p><code>$ sudo systemctl show --property=Environment docker</code></p>
+<p>从 docker info 的结果中查看配置项。</p>
+<p>这样配置后，应该可以正常拉取 docker 镜像。</p>
+<h2 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h2><p>docker 镜像由 docker daemon 管理，所以不能用修改 shell 环境变量的方法使用代理服务，而是从 systemd 角度设置环境变量。</p>
+<blockquote>
+<p>参考资料<br><a target="_blank" rel="noopener" href="https://www.lfhacks.com/tech/pull-docker-images-behind-proxy/#correct">https://www.lfhacks.com/tech/pull-docker-images-behind-proxy/#correct</a><br><a target="_blank" rel="noopener" href="https://stackoverflow.com/questions/69047394/cant-pull-docker-image-behind-a-proxy">https://stackoverflow.com/questions/69047394/cant-pull-docker-image-behind-a-proxy</a><br><a target="_blank" rel="noopener" href="https://mikemylonakis.com/unix/docker-proxy/">https://mikemylonakis.com/unix/docker-proxy/</a><br><a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/">https://docs.docker.com/config/daemon/systemd/</a></p>
+<blockquote>
+<p>在一些特定环境下，需要在代理环境下使用Docker的某些功能，本文介绍一些场景下 如何配置网络代理</p>
+</blockquote>
+<h3 id="1-为Docker-Daemon配置代理"><a href="#1-为Docker-Daemon配置代理" class="headerlink" title="1. 为Docker Daemon配置代理"></a>1. 为Docker Daemon配置代理</h3><h3 id="1-1-使用systemd配置代理"><a href="#1-1-使用systemd配置代理" class="headerlink" title="1.1 使用systemd配置代理"></a>1.1 使用<code>systemd</code>配置代理</h3><p>为了使<code>docker pull</code>指令使用代理，需要在<code>/lib/systemd/system/docker.service</code>中的<code>[Service]</code>片段下添加<code>HTTP_PROXY</code>和<code>HTTPS_PROXY</code>环境变量：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line"><span class="comment"># 新增环境变量提供代理服务器信息</span></span><br><span class="line">Environment=<span class="string">&quot;HTTP_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span></span><br><span class="line">Environment=<span class="string">&quot;HTTPS_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span></span><br><span class="line"><span class="comment"># 如果使用了国内镜像源可以配置镜像服务器不使用代理</span></span><br><span class="line">Environmeng=<span class="string">&quot;NO_PROXY=&lt;registry.domain&gt;&quot;</span></span><br><span class="line">ExecStart=...</span><br><span class="line">...</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>注意</strong>：尖括号<code>&lt;&gt;</code>中的内容需要替换为自己的代理服务器信息</p>
+</blockquote>
+<p>随后刷新配置：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl daemon-reload</span><br></pre></td></tr></table></figure>
+
+<p>此时可以通过以下指令检查配置是否加载成功：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">systemctl show --property Environment docker</span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line">Environment=HTTP_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt; HTTPS_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt; NO_PROXY=&lt;registry.domain&gt;</span><br></pre></td></tr></table></figure>
+
+<p>重启Docker服务使配置生效</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<p>重启成功之后通过<code>docker info</code>指令查看docker服务中的代理配置</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker info | grep Proxy</span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line"> HTTP Proxy: http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;</span><br><span class="line"> HTTPS Proxy: http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;</span><br><span class="line"> No Proxy: &lt;registry.domain&gt;</span><br></pre></td></tr></table></figure>
+
+<p>此时再使用<code>docker pull</code>指令拉取镜像时Docker服务会使用代理服务器拉取镜像。</p>
+<p>此外，<code>systemd</code>也会从<code>/etc/systemd/system/docker.service.d</code>和<code>/lib/systemd/system/docker.service.d</code>文件夹下读取配置，所以可以再其中一个文件夹中创建一个名为<code>http-proxy.conf</code>的文件用来保存代理信息。内容如下：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=<span class="string">&quot;HTTP_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span></span><br><span class="line">Environment=<span class="string">&quot;HTTPS_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span></span><br><span class="line">Environmeng=<span class="string">&quot;NO_PROXY=&lt;registry.domain&gt;&quot;</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="1-2-通过daemon-json配置代理"><a href="#1-2-通过daemon-json配置代理" class="headerlink" title="1.2 通过daemon.json配置代理"></a>1.2 通过<code>daemon.json</code>配置代理</h3><p>在<code>/etc/docker/daemon.json</code>中增加代理配置：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;registry-mirrors&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;...&quot;</span><span class="punctuation">]</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;proxies&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;http-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;https-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;no-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;&lt;registry.domain&gt;&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>重启Docker服务：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">systemctl restart docker</span><br></pre></td></tr></table></figure>
+
+<p>检查配置是否生效：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker info| grep Proxy</span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line"> HTTP Proxy: http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;</span><br><span class="line"> HTTPS Proxy: http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;</span><br><span class="line"> No Proxy: &lt;registry.domain&gt;</span><br></pre></td></tr></table></figure>
+
+<p><strong>注意：</strong>通过<code>daemon.json</code>方式配置的优先级会高于通过<code>systemd</code>配置。</p>
+<h3 id="2-在容器中使用代理"><a href="#2-在容器中使用代理" class="headerlink" title="2. 在容器中使用代理"></a>2. 在容器中使用代理</h3><h3 id="2-1-通过命令行配置代理"><a href="#2-1-通过命令行配置代理" class="headerlink" title="2.1 通过命令行配置代理"></a>2.1 通过命令行配置代理</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker run --<span class="built_in">env</span> HTTP_PROXY=<span class="string">&quot;http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span> &lt;some-image&gt;</span><br></pre></td></tr></table></figure>
+
+<p>验证</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">docker run \</span><br><span class="line">    --<span class="built_in">env</span> HTTP_PROXY=<span class="string">&quot;http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;&quot;</span> \</span><br><span class="line">    --<span class="built_in">rm</span> alpine sh -c <span class="string">&#x27;env | grep -i  _PROXY&#x27;</span></span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line">HTTP_PROXY=http://&lt;user&gt;:&lt;password&gt;@&lt;domain&gt;:&lt;port&gt;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-2-通过-docker-config-json配置"><a href="#2-2-通过-docker-config-json配置" class="headerlink" title="2.2 通过~/.docker/config.json配置"></a>2.2 通过<code>~/.docker/config.json</code>配置</h3><p>在<code>~/.docker/config.json</code>中增加以下配置：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;auths&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="string">&quot;...&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;proxies&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    # 通用配置，会对当前客户端连接的所有Docker服务生效</span><br><span class="line">    <span class="attr">&quot;default&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;httpProxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://proxy.example.com:3128&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;httpsProxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://proxy.example.com:3129&quot;</span><span class="punctuation">,</span></span><br><span class="line">      <span class="attr">&quot;noProxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;*.test.example.com,.example.org,127.0.0.0/8&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span><span class="punctuation">,</span></span><br><span class="line">    # 如果只对某个Docker服务时配置代理，则需要通过 docker-host<span class="punctuation">:</span> proxy-settings的方式在下面配置 </span><br><span class="line">    <span class="attr">&quot;tcp://docker-daemon1.example.com&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">      <span class="attr">&quot;noProxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;*.internal.example.net&quot;</span></span><br><span class="line">    <span class="punctuation">&#125;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>验证：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">docker run --<span class="built_in">rm</span> alpine sh -c <span class="string">&#x27;env | grep -i  _PROXY&#x27;</span></span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line">HTTPS_PROXY=https://proxy.example.com:3129</span><br><span class="line">no_proxy=*.test.example.com,.example.org,127.0.0.0/8</span><br><span class="line">NO_PROXY=*.test.example.com,.example.org,127.0.0.0/8</span><br><span class="line">https_proxy=https://proxy.example.com:3129</span><br><span class="line">http_proxy=http://proxy.example.com:3128</span><br><span class="line">HTTP_PROXY=http://proxy.example.com:3128</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-在构建镜像的过程中使用代理"><a href="#3-在构建镜像的过程中使用代理" class="headerlink" title="3. 在构建镜像的过程中使用代理"></a>3. 在构建镜像的过程中使用代理</h3><p>通过<code>~/.docker/config.json</code>的方式配置代理在构建过程中依然有效。</p>
+<p>验证：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">docker build \</span><br><span class="line">  --no-cache \</span><br><span class="line">  --progress=plain \</span><br><span class="line">  - &lt;&lt;<span class="string">EOF</span></span><br><span class="line"><span class="string">FROM alpine</span></span><br><span class="line"><span class="string">RUN env | grep -i _PROXY</span></span><br><span class="line"><span class="string">EOF</span></span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line"><span class="comment"># ...</span></span><br><span class="line"><span class="comment">#5 [2/2] RUN env | grep -i _PROXY</span></span><br><span class="line"><span class="comment">#5 0.382 HTTPS_PROXY=https://proxy.example.com:3129</span></span><br><span class="line"><span class="comment">#5 0.382 no_proxy=*.test.example.com,.example.org,127.0.0.0/8</span></span><br><span class="line"><span class="comment">#5 0.382 NO_PROXY=*.test.example.com,.example.org,127.0.0.0/8</span></span><br><span class="line"><span class="comment">#5 0.382 https_proxy=https://proxy.example.com:3129</span></span><br><span class="line"><span class="comment">#5 0.382 http_proxy=http://proxy.example.com:3128</span></span><br><span class="line"><span class="comment">#5 0.382 HTTP_PROXY=http://proxy.example.com:3128</span></span><br><span class="line"><span class="comment">#5 DONE 0.6s</span></span><br><span class="line"><span class="comment"># ...</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-1-通过命令行配置代理"><a href="#3-1-通过命令行配置代理" class="headerlink" title="3.1 通过命令行配置代理"></a>3.1 通过命令行配置代理</h3><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker build --build-arg HTTP_PROXY=<span class="string">&quot;http://proxy.example.com:3128&quot;</span></span><br></pre></td></tr></table></figure>
+
+<p>验证</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br></pre></td><td class="code"><pre><span class="line">docker build --build-arg HTTP_PROXY=<span class="string">&quot;http://another-proxy.example.com:3128&quot;</span> \</span><br><span class="line">  --no-cache \</span><br><span class="line">  --progress=plain \</span><br><span class="line">  - &lt;&lt;<span class="string">EOF</span></span><br><span class="line"><span class="string">FROM alpine</span></span><br><span class="line"><span class="string">RUN env | grep -i _PROXY</span></span><br><span class="line"><span class="string">EOF</span></span><br><span class="line"><span class="comment"># 输出</span></span><br><span class="line"><span class="comment"># ...</span></span><br><span class="line"><span class="comment">#5 [2/2] RUN env | grep -i _PROXY</span></span><br><span class="line"><span class="comment">#5 0.393 HTTPS_PROXY=https://proxy.example.com:3129</span></span><br><span class="line"><span class="comment">#5 0.393 no_proxy=*.test.example.com,.example.org,127.0.0.0/8</span></span><br><span class="line"><span class="comment">#5 0.393 NO_PROXY=*.test.example.com,.example.org,127.0.0.0/8</span></span><br><span class="line"><span class="comment">#5 0.393 https_proxy=https://proxy.example.com:3129</span></span><br><span class="line"><span class="comment">#5 0.393 http_proxy=http://another-proxy.example.com:3128</span></span><br><span class="line"><span class="comment">#5 0.393 HTTP_PROXY=http://another-proxy.example.com:3128</span></span><br><span class="line"><span class="comment">#5 DONE 0.6s</span></span><br><span class="line"><span class="comment"># ...</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="3-2-不要在Dockerfile中使用ENV指令配置构建过程中使用到的代理配置"><a href="#3-2-不要在Dockerfile中使用ENV指令配置构建过程中使用到的代理配置" class="headerlink" title="3.2 不要在Dockerfile中使用ENV指令配置构建过程中使用到的代理配置"></a>3.2 不要在<code>Dockerfile</code>中使用<code>ENV</code>指令配置构建过程中使用到的代理配置</h3><p>使用环境变量配置构建过程中用到的代理配置会把代理服务器打包进镜像中，如果代理服务器是私有化部署的服务器，通过此镜像创建的容器可能访问不到代理服务器，产生难以理解的错误。</p>
+<p>同时，由于代理配置中可能包含敏感信息，把代理服务器信息嵌入到镜像中也有可能造成一些安全隐患。</p>
+<h3 id="资料来源"><a href="#资料来源" class="headerlink" title="资料来源"></a>资料来源</h3><p><a href="https://link.zhihu.com/?target=https://docs.docker.com/config/daemon/systemd/%23httphttps-proxy">Configure the daemon with systemd</a></p>
+<p><a href="https://link.zhihu.com/?target=https://docs.docker.com/network/proxy/">Configure Docker to use a proxy</a></p>
+<p><a target="_blank" rel="noopener" href="https://zhuanlan.zhihu.com/p/683652583#:~:text=%E9%85%8D%E7%BD%AEDocker%E4%BB%A3%E7%90%86%201%201.%20%E4%B8%BADocker%20Daemon%E9%85%8D%E7%BD%AE%E4%BB%A3%E7%90%86%201.1%20%E4%BD%BF%E7%94%A8%20systemd,7%203.2%20%E4%B8%8D%E8%A6%81%E5%9C%A8%20Dockerfile%20%E4%B8%AD%E4%BD%BF%E7%94%A8%20ENV%20%E6%8C%87%E4%BB%A4%E9%85%8D%E7%BD%AE%E6%9E%84%E5%BB%BA%E8%BF%87%E7%A8%8B%E4%B8%AD%E4%BD%BF%E7%94%A8%E5%88%B0%E7%9A%84%E4%BB%A3%E7%90%86%E9%85%8D%E7%BD%AE%20">配置Docker代理 - 知乎</a></p>
+<p><a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/">使用 systemd 配置守护进程 | Docker 文档</a></p>
+<h1 id="使用-systemd-配置守护进程"><a href="#使用-systemd-配置守护进程" class="headerlink" title="使用 systemd 配置守护进程"></a>使用 systemd 配置守护进程</h1><p>本页介绍如何在使用 systemd 时自定义守护进程设置。</p>
+<h2 id="自定义-Docker-守护进程选项"><a href="#自定义-Docker-守护进程选项" class="headerlink" title="自定义 Docker 守护进程选项"></a><a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/#custom-docker-daemon-options">自定义 Docker 守护进程选项</a></h2><p>Docker 守护进程的大多数配置选项都是使用<code>daemon.json</code> 配置文件设置的。有关更多信息，请参阅<a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/">Docker 守护进程配置概述。</a></p>
+<h2 id="手动创建-systemd-单元文件"><a href="#手动创建-systemd-单元文件" class="headerlink" title="手动创建 systemd 单元文件"></a><a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/#manually-create-the-systemd-unit-files">手动创建 systemd 单元文件</a></h2><p>在没有包管理器的情况下安装二进制文件时，您可能希望将 Docker 与 systemd 集成。为此，请将<a target="_blank" rel="noopener" href="https://github.com/moby/moby/tree/master/contrib/init/systemd">GitHub 存储库</a><code>service</code>中的两个单元文件 (和 <code>socket</code>) 安装 到.<code>/etc/systemd/system</code></p>
+<h3 id="配置-Docker-守护进程以使用代理服务器"><a href="#配置-Docker-守护进程以使用代理服务器" class="headerlink" title="配置 Docker 守护进程以使用代理服务器"></a><a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/systemd/#httphttps-proxy">配置 Docker 守护进程以使用代理服务器</a></h3><p>Docker 守护进程在其启动环境中使用以下环境变量来配置 HTTP 或 HTTPS 代理行为：</p>
+<ul>
+<li><code>HTTP_PROXY</code></li>
+<li><code>http_proxy</code></li>
+<li><code>HTTPS_PROXY</code></li>
+<li><code>https_proxy</code></li>
+<li><code>NO_PROXY</code></li>
+<li><code>no_proxy</code></li>
+</ul>
+<p>在 Docker Engine 23.0 及更高版本中，您还可以在<a target="_blank" rel="noopener" href="https://docs.docker.com/config/daemon/#configure-the-docker-daemon"><code>daemon.json</code>文件</a>中为守护进程配置代理行为：</p>
+<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;proxies&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;http-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;http://proxy.example.com:3128&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;https-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;https://proxy.example.com:3129&quot;</span><span class="punctuation">,</span></span><br><span class="line">    <span class="attr">&quot;no-proxy&quot;</span><span class="punctuation">:</span> <span class="string">&quot;*.test.example.com,.example.org,127.0.0.0/8&quot;</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
+
+<p>这些配置会覆盖默认的<code>docker.service</code>systemd 文件。</p>
+<p>如果您位于 HTTP 或 HTTPS 代理服务器后面（例如在公司设置中），则必须在 systemd 服务文件中指定守护程序代理配置，而不是在文件中<code>daemon.json</code>或使用环境变量。</p>
+<blockquote>
+<p><strong>无根模式注意事项</strong></p>
+<p><a target="_blank" rel="noopener" href="https://docs.docker.com/engine/security/rootless/">在无根模式</a>下运行 Docker 时，systemd 配置文件的位置有所不同 。当以无根模式运行时，Docker 作为用户模式 ​​systemd 服务启动，并使用存储在每个用户主目录中的文件 <code>~/.config/systemd/user/docker.service.d/</code>。此外，必须在不带标志和带标志的<code>systemctl</code>情况下执行。如果您在无根模式下运行 Docker，请选择下面的_“无根模式”选项卡。_<code>sudo``--user</code></p>
+</blockquote>
+<p>常规安装 无根模式</p>
+<hr>
+<ol>
+<li><p>为该服务创建一个 systemd 放置目录<code>docker</code>：</p>
+<figure class="highlight console"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo <span class="built_in">mkdir</span> -p /etc/systemd/system/docker.service.d</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><code>/etc/systemd/system/docker.service.d/http-proxy.conf</code> 创建一个名为添加环境​​变量的文件<code>HTTP_PROXY</code>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTP_PROXY=http://proxy.example.com:3128&quot;</span><br></pre></td></tr></table></figure>
+
+<p>如果您位于 HTTPS 代理服务器后面，请设置<code>HTTPS_PROXY</code>环境变量：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTPS_PROXY=https://proxy.example.com:3129&quot;</span><br></pre></td></tr></table></figure>
+
+<p>可设置多个环境变量；设置非 HTTPS 和 HTTPs 代理；</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTP_PROXY=http://proxy.example.com:3128&quot;</span><br><span class="line">Environment=&quot;HTTPS_PROXY=https://proxy.example.com:3129&quot;</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p><strong>笔记</strong></p>
+<p>代理值中的特殊字符（例如<code>#?!()[]&#123;&#125;</code>）必须使用 进行双重转义<code>%%</code>。例如：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTP_PROXY=http://domain%%5Cuser:complex%%23pass@proxy.example.com:3128/&quot;</span><br></pre></td></tr></table></figure>
+</blockquote>
+</li>
+<li><p>如果您有需要在不使用代理的情况下联系的内部 Docker 注册表，则可以通过<code>NO_PROXY</code>环境变量指定它们。</p>
+<p>该<code>NO_PROXY</code>变量指定一个字符串，其中包含应从代理中排除的主机的逗号分隔值。您可以指定以下选项来排除主机：</p>
+<ul>
+<li>IP 地址前缀 ( <code>1.2.3.4</code>)</li>
+<li>域名，或特殊的 DNS 标签 ( <code>*</code>)</li>
+<li>域名与该名称和所有子域相匹配。以“.”开头的域名仅匹配子域。例如，给定域 <code>foo.example.com</code>和<code>example.com</code>：<ul>
+<li><code>example.com</code>匹配<code>example.com</code>和<code>foo.example.com</code>, 和</li>
+<li><code>.example.com</code>仅匹配<code>foo.example.com</code></li>
+</ul>
+</li>
+<li>单个星号 ( <code>*</code>) 表示不应进行代理</li>
+<li><code>1.2.3.4:80</code>IP 地址前缀 ( ) 和域名 ( <code>foo.example.com:80</code>)接受文字端口号</li>
+</ul>
+<p>例子：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">[Service]</span><br><span class="line">Environment=&quot;HTTP_PROXY=http://proxy.example.com:3128&quot;</span><br><span class="line">Environment=&quot;HTTPS_PROXY=https://proxy.example.com:3129&quot;</span><br><span class="line">Environment=&quot;NO_PROXY=localhost,127.0.0.1,docker-registry.example.com,.corp&quot;</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>刷新更改并重新启动 Docker</p>
+<figure class="highlight console"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl daemon-reload</span></span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl restart docker</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p>验证配置是否已加载并与您所做的更改相匹配，例如：</p>
+<figure class="highlight console"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">sudo systemctl show --property=Environment docker</span></span><br><span class="line"></span><br><span class="line">Environment=HTTP_PROXY=http://proxy.example.com:3128 HTTPS_PROXY=https://proxy.example.com:3129 NO_PROXY=localhost,127.0.0.1,docker-registry.example.com,.corp</span><br></pre></td></tr></table></figure></li>
+</ol>
+</blockquote>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/08/01/%E7%BB%99docker%E9%85%8D%E7%BD%AE%E7%BD%91%E7%BB%9C%E4%BB%A3%E7%90%86/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Docker/" rel="tag">Docker</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/08/01/Docker%E8%AE%BE%E7%BD%AE%E7%BD%91%E7%BB%9C%E4%BB%A3%E7%90%86/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Docker设置网络代理</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
