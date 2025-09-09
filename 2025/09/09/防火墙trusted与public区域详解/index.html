@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">500</span>
+            <span class="post-count">502</span>
         </span>
     </span>
 
@@ -116,6 +116,8 @@
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
@@ -123,19 +125,17 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>trusted 和 public 是 firewalld 中两个完全不同的安全区域，它们在信任级别和默认行为上有本质区别：</p>
-<p>核心差异对比<br>特性	trusted 区域	public 区域<br>信任级别	最高信任级别	最低信任级别<br>默认传入策略	允许所有传入流量（ACCEPT）	拒绝所有传入流量（DROP），仅允许明确允许的服务<br>默认传出策略	允许所有传出流量	允许所有传出流量<br>典型应用场景	内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)<br>默认开放服务	无限制	仅开放 SSH 和 DHCPv6-client<br>安全风险	高风险（完全开放）	低风险（默认严格）<br>建议使用环境	隔离的内部网络测试环境	生产环境服务器面向公网的设备</p>
-<p>详细解释</p>
-<ol>
-<li>trusted 区域 (完全信任)</li>
-</ol>
-<p>行为特征：<br>所有传入流量无条件允许<br>所有传出流量无条件允许<br>相当于禁用防火墙功能<br>配置文件示例：</p>
+<h2 id="核心差异对比"><a href="#核心差异对比" class="headerlink" title="核心差异对比"></a>核心差异对比</h2><h2 id="特性-trusted-区域-public-区域"><a href="#特性-trusted-区域-public-区域" class="headerlink" title="特性	         trusted 区域	                  public 区域"></a>特性	         trusted 区域	                  public 区域</h2><h2 id="信任级别-最高信任级别-最低信任级别默认传入策略-允许所有传入流量（ACCEPT）-拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略-允许所有传出流量-允许所有传出流量典型应用场景-内部完全可信网络-如管理网络、存储网络-公共互联网接口-如面向外网的服务器-默认开放服务-无限制-仅开放-SSH-和-DHCPv6-client安全风险-高风险（完全开放）-低风险（默认严格）建议使用环境-隔离的内部网络测试环境-生产环境服务器面向公网的设备"><a href="#信任级别-最高信任级别-最低信任级别默认传入策略-允许所有传入流量（ACCEPT）-拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略-允许所有传出流量-允许所有传出流量典型应用场景-内部完全可信网络-如管理网络、存储网络-公共互联网接口-如面向外网的服务器-默认开放服务-无限制-仅开放-SSH-和-DHCPv6-client安全风险-高风险（完全开放）-低风险（默认严格）建议使用环境-隔离的内部网络测试环境-生产环境服务器面向公网的设备" class="headerlink" title="信任级别	     最高信任级别	                  最低信任级别默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略	 允许所有传出流量	              允许所有传出流量典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client安全风险	     高风险（完全开放）	              低风险（默认严格）建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备"></a>信任级别	     最高信任级别	                  最低信任级别<br>默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务<br>默认传出策略	 允许所有传出流量	              允许所有传出流量<br>典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)<br>默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client<br>安全风险	     高风险（完全开放）	              低风险（默认严格）<br>建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备</h2><p>详细解释<br>1.trusted 区域 (完全信任)</p>
+<p>行为特征：<br>所有传入流量无条件允许<br>所有传出流量无条件允许<br>相当于禁用防火墙功能</p>
+<p>配置文件示例：</p>
 <figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/trusted.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;ACCEPT&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">short</span>&gt;</span>Trusted<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">description</span>&gt;</span>All incoming connections are accepted.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
 <p>适用场景：<br>内部管理网络（如服务器带外管理口）<br>高安全性隔离环境（如金融交易网络）<br>测试环境需要完全开放访问时</p>
-<ol start="2">
-<li>public 区域 (公共网络)</li>
-</ol>
-<p>行为特征：<br>默认拒绝所有传入流量（DROP）<br>仅允许明确添加的服务（如 HTTP&#x2F;HTTPS&#x2F;SSH）<br>传出流量默认允许<br>配置文件示例：</p>
+<p>2.public 区域 (公共网络)</p>
+<p>行为特征：<br>默认拒绝所有传入流量（DROP）<br>仅允许明确添加的服务（如 HTTP&#x2F;HTTPS&#x2F;SSH）<br>传出流量默认允许</p>
+<p>配置文件示例：</p>
 <figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/public.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;default&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">short</span>&gt;</span>Public<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">description</span>&gt;</span>For use in public areas.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;ssh&quot;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;dhcpv6-client&quot;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+
 <p>适用场景：<br>Web 服务器面向互联网的接口<br>VPN 网关的公网接口<br>任何暴露在公共网络的设备</p>
  
       <!-- reward -->
