@@ -116,8 +116,6 @@
  
     </div>
       
-    <div class="tocbot"></div>
-
 
 
 
@@ -125,7 +123,9 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>trusted 和 public 是 firewalld 中两个完全不同的安全区域，它们在信任级别和默认行为上有本质区别：</p>
-<h2 id="核心差异对比"><a href="#核心差异对比" class="headerlink" title="核心差异对比"></a>核心差异对比</h2><h2 id="特性-trusted-区域-public-区域"><a href="#特性-trusted-区域-public-区域" class="headerlink" title="特性	         trusted 区域	                  public 区域"></a>特性	         trusted 区域	                  public 区域</h2><h2 id="信任级别-最高信任级别-最低信任级别默认传入策略-允许所有传入流量（ACCEPT）-拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略-允许所有传出流量-允许所有传出流量典型应用场景-内部完全可信网络-如管理网络、存储网络-公共互联网接口-如面向外网的服务器-默认开放服务-无限制-仅开放-SSH-和-DHCPv6-client安全风险-高风险（完全开放）-低风险（默认严格）建议使用环境-隔离的内部网络测试环境-生产环境服务器面向公网的设备"><a href="#信任级别-最高信任级别-最低信任级别默认传入策略-允许所有传入流量（ACCEPT）-拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略-允许所有传出流量-允许所有传出流量典型应用场景-内部完全可信网络-如管理网络、存储网络-公共互联网接口-如面向外网的服务器-默认开放服务-无限制-仅开放-SSH-和-DHCPv6-client安全风险-高风险（完全开放）-低风险（默认严格）建议使用环境-隔离的内部网络测试环境-生产环境服务器面向公网的设备" class="headerlink" title="信任级别	     最高信任级别	                  最低信任级别默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务默认传出策略	 允许所有传出流量	              允许所有传出流量典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client安全风险	     高风险（完全开放）	              低风险（默认严格）建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备"></a>信任级别	     最高信任级别	                  最低信任级别<br>默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务<br>默认传出策略	 允许所有传出流量	              允许所有传出流量<br>典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)<br>默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client<br>安全风险	     高风险（完全开放）	              低风险（默认严格）<br>建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备</h2><p>详细解释<br>1.trusted 区域 (完全信任)</p>
+<p>核心差异对比</p>
+<p>特性	         trusted 区域	                  public 区域<br>信任级别	     最高信任级别	                  最低信任级别<br>默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务<br>默认传出策略	 允许所有传出流量	              允许所有传出流量<br>典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)<br>默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client<br>安全风险	     高风险（完全开放）	              低风险（默认严格）<br>建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备</p>
+<p>详细解释<br>1.trusted 区域 (完全信任)</p>
 <p>行为特征：<br>所有传入流量无条件允许<br>所有传出流量无条件允许<br>相当于禁用防火墙功能</p>
 <p>配置文件示例：</p>
 <figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/trusted.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;ACCEPT&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">short</span>&gt;</span>Trusted<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">description</span>&gt;</span>All incoming connections are accepted.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
