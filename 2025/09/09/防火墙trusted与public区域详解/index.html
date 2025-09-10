@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">502</span>
+            <span class="post-count">974</span>
         </span>
     </span>
 
@@ -109,13 +109,15 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">1 分钟</span>
+            <span class="post-count">4 分钟</span>
         </span>
     </span>
 </div>
  
     </div>
       
+    <div class="tocbot"></div>
+
 
 
 
@@ -123,20 +125,118 @@
     <div class="article-entry" itemprop="articleBody">
        
   <p>trusted 和 public 是 firewalld 中两个完全不同的安全区域，它们在信任级别和默认行为上有本质区别：</p>
-<p>核心差异对比</p>
-<p>特性	         trusted 区域	                  public 区域<br>信任级别	     最高信任级别	                  最低信任级别<br>默认传入策略	 允许所有传入流量（ACCEPT）	      拒绝所有传入流量（DROP），仅允许明确允许的服务<br>默认传出策略	 允许所有传出流量	              允许所有传出流量<br>典型应用场景	 内部完全可信网络(如管理网络、存储网络)	公共互联网接口(如面向外网的服务器)<br>默认开放服务	 无限制	                          仅开放 SSH 和 DHCPv6-client<br>安全风险	     高风险（完全开放）	              低风险（默认严格）<br>建议使用环境	 隔离的内部网络测试环境	          生产环境服务器面向公网的设备</p>
-<p>详细解释<br>1.trusted 区域 (完全信任)</p>
-<p>行为特征：<br>所有传入流量无条件允许<br>所有传出流量无条件允许<br>相当于禁用防火墙功能</p>
-<p>配置文件示例：</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/trusted.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;ACCEPT&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">short</span>&gt;</span>Trusted<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">description</span>&gt;</span>All incoming connections are accepted.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h2 id="核心差异对比"><a href="#核心差异对比" class="headerlink" title="核心差异对比"></a>核心差异对比</h2><table>
+<thead>
+<tr>
+<th>特性</th>
+<th><strong>trusted 区域</strong></th>
+<th><strong>public 区域</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>信任级别</strong></td>
+<td>最高信任级别</td>
+<td>最低信任级别</td>
+</tr>
+<tr>
+<td><strong>默认传入策略</strong></td>
+<td>允许所有传入流量（ACCEPT）</td>
+<td>拒绝所有传入流量（DROP），仅允许明确允许的服务</td>
+</tr>
+<tr>
+<td><strong>默认传出策略</strong></td>
+<td>允许所有传出流量</td>
+<td>允许所有传出流量</td>
+</tr>
+<tr>
+<td><strong>典型应用场景</strong></td>
+<td>内部完全可信网络<br>(如管理网络、存储网络)</td>
+<td>公共互联网接口<br>(如面向外网的服务器)</td>
+</tr>
+<tr>
+<td><strong>默认开放服务</strong></td>
+<td>无限制</td>
+<td>仅开放 SSH 和 DHCPv6-client</td>
+</tr>
+<tr>
+<td><strong>安全风险</strong></td>
+<td>高风险（完全开放）</td>
+<td>低风险（默认严格）</td>
+</tr>
+<tr>
+<td><strong>建议使用环境</strong></td>
+<td>隔离的内部网络<br>测试环境</td>
+<td>生产环境服务器<br>面向公网的设备</td>
+</tr>
+</tbody></table>
+<h2 id="详细解释"><a href="#详细解释" class="headerlink" title="详细解释"></a>详细解释</h2><h3 id="1-trusted-区域-完全信任"><a href="#1-trusted-区域-完全信任" class="headerlink" title="1. trusted 区域 (完全信任)"></a>1. trusted 区域 (完全信任)</h3><ul>
+<li><p><strong>行为特征</strong>：</p>
+</li>
+<li><p>所有传入流量<strong>无条件允许</strong></p>
+</li>
+<li><p>所有传出流量<strong>无条件允许</strong></p>
+</li>
+<li><p>相当于<strong>禁用防火墙功能</strong></p>
+</li>
+<li><p><strong>配置文件示例</strong>：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/trusted.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;ACCEPT&quot;</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">short</span>&gt;</span>Trusted<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">description</span>&gt;</span>All incoming connections are accepted.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>适用场景</strong>：</p>
+</li>
+<li><p>内部管理网络（如服务器带外管理口）</p>
+</li>
+<li><p>高安全性隔离环境（如金融交易网络）</p>
+</li>
+<li><p>测试环境需要完全开放访问时</p>
+</li>
+</ul>
+<h3 id="2-public-区域-公共网络"><a href="#2-public-区域-公共网络" class="headerlink" title="2. public 区域 (公共网络)"></a>2. public 区域 (公共网络)</h3><ul>
+<li><p><strong>行为特征</strong>：</p>
+</li>
+<li><p>默认<strong>拒绝所有传入流量</strong>（DROP）</p>
+</li>
+<li><p>仅允许<strong>明确添加的服务</strong>（如 HTTP&#x2F;HTTPS&#x2F;SSH）</p>
+</li>
+<li><p>传出流量默认允许</p>
+</li>
+<li><p><strong>配置文件示例</strong>：</p>
+<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/public.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;default&quot;</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">short</span>&gt;</span>Public<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">description</span>&gt;</span>For use in public areas.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;ssh&quot;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;dhcpv6-client&quot;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>适用场景</strong>：</p>
+</li>
+<li><p>Web 服务器面向互联网的接口</p>
+</li>
+<li><p>VPN 网关的公网接口</p>
+</li>
+<li><p>任何暴露在公共网络的设备</p>
+</li>
+</ul>
+<h2 id="区域选择决策树"><a href="#区域选择决策树" class="headerlink" title="区域选择决策树"></a>区域选择决策树</h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">A[网络接口] --&gt; B&#123;是否暴露在公网?&#125;</span><br><span class="line">B --&gt;|是| C[使用 public 区域]</span><br><span class="line">B --&gt;|否| D&#123;是否完全可信?&#125;</span><br><span class="line">D --&gt;|是| E[使用 trusted 区域]</span><br><span class="line">D --&gt;|否| F[使用 internal 或 work 区域]</span><br></pre></td></tr></table></figure>
 
-<p>适用场景：<br>内部管理网络（如服务器带外管理口）<br>高安全性隔离环境（如金融交易网络）<br>测试环境需要完全开放访问时</p>
-<p>2.public 区域 (公共网络)</p>
-<p>行为特征：<br>默认拒绝所有传入流量（DROP）<br>仅允许明确添加的服务（如 HTTP&#x2F;HTTPS&#x2F;SSH）<br>传出流量默认允许</p>
-<p>配置文件示例：</p>
-<figure class="highlight xml"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment">&lt;!-- /etc/firewalld/zones/public.xml --&gt;</span></span><br><span class="line"><span class="tag">&lt;<span class="name">zone</span> <span class="attr">target</span>=<span class="string">&quot;default&quot;</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">short</span>&gt;</span>Public<span class="tag">&lt;/<span class="name">short</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">description</span>&gt;</span>For use in public areas.<span class="tag">&lt;/<span class="name">description</span>&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;ssh&quot;</span>/&gt;</span></span><br><span class="line">  <span class="tag">&lt;<span class="name">service</span> <span class="attr">name</span>=<span class="string">&quot;dhcpv6-client&quot;</span>/&gt;</span></span><br><span class="line"><span class="tag">&lt;/<span class="name">zone</span>&gt;</span></span><br></pre></td></tr></table></figure>
+<h2 id="配置建议"><a href="#配置建议" class="headerlink" title="配置建议"></a>配置建议</h2><h3 id="安全最佳实践"><a href="#安全最佳实践" class="headerlink" title="安全最佳实践"></a>安全最佳实践</h3><ol>
+<li><p><strong>互联网暴露接口</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 设置为 public 区域</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=public --change-interface=eth0</span><br><span class="line"></span><br><span class="line"><span class="comment"># 仅开放必要端口</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=public --add-service=http</span><br><span class="line">sudo firewall-cmd --permanent --zone=public --add-service=https</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>内部管理接口</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 设置为 trusted 区域</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=trusted --change-interface=eth1</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>混合环境</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 公网接口使用 public</span></span><br><span class="line">sudo firewall-cmd --zone=public --change-interface=eth0</span><br><span class="line"></span><br><span class="line"><span class="comment"># 内网接口使用 trusted</span></span><br><span class="line">sudo firewall-cmd --zone=trusted --change-interface=eth1</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加内部服务的特殊访问规则</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=public --add-rich-rule=<span class="string">&#x27;</span></span><br><span class="line"><span class="string">rule family=&quot;ipv4&quot; source address=&quot;192.168.1.0/24&quot; service name=&quot;mysql&quot; accept&#x27;</span></span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="风险警示"><a href="#风险警示" class="headerlink" title="风险警示"></a>风险警示</h2><p><strong>慎用 trusted 区域</strong>：<br>-😨 在面向公网的接口使用 trusted 等同于没有防火墙<br>-💥 会使服务器暴露在所有网络攻击下<br>-🔓 任何端口都可被扫描和利用</p>
+<p><strong>正确使用示例</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 危险配置（绝对避免）：</span></span><br><span class="line">sudo firewall-cmd --zone=trusted --change-interface=eth0<span class="comment"># 公网接口</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 安全配置：</span></span><br><span class="line">sudo firewall-cmd --zone=public --change-interface=eth0<span class="comment"># 公网接口</span></span><br><span class="line">sudo firewall-cmd --zone=trusted --change-interface=eth1<span class="comment"># 内网管理接口</span></span><br></pre></td></tr></table></figure>
 
-<p>适用场景：<br>Web 服务器面向互联网的接口<br>VPN 网关的公网接口<br>任何暴露在公共网络的设备</p>
+<h2 id="状态检查命令"><a href="#状态检查命令" class="headerlink" title="状态检查命令"></a>状态检查命令</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看所有区域配置</span></span><br><span class="line">sudo firewall-cmd --list-all-zones</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看默认区域</span></span><br><span class="line">sudo firewall-cmd --get-default-zone</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看接口区域分配</span></span><br><span class="line">sudo firewall-cmd --get-active-zones</span><br></pre></td></tr></table></figure>
+
+<p>在您的场景中，如果希望”限制某些IP但允许其他所有访问”，应：</p>
+<ol>
+<li>保持默认区域为 <strong>public</strong></li>
+<li>创建专门的 <strong>blocked_ips</strong> 区域处理禁止IP</li>
+<li>确保面向公网的接口在 <strong>public</strong> 区域</li>
+<li>内部管理接口可放在 <strong>trusted</strong> 区域</li>
+</ol>
+<p>这样既保证了安全性，又实现了您的访问控制需求。</p>
  
       <!-- reward -->
       
