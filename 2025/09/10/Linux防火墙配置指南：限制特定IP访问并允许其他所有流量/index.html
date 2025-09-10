@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>Linux防火墙配置指南：限制特定IP访问并允许其他所有流量 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Linux-Linux防火墙配置指南：限制特定IP访问并允许其他所有流量"
+  class="article article-type-Linux"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  Linux防火墙配置指南：限制特定IP访问并允许其他所有流量
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/09/10/Linux%E9%98%B2%E7%81%AB%E5%A2%99%E9%85%8D%E7%BD%AE%E6%8C%87%E5%8D%97%EF%BC%9A%E9%99%90%E5%88%B6%E7%89%B9%E5%AE%9AIP%E8%AE%BF%E9%97%AE%E5%B9%B6%E5%85%81%E8%AE%B8%E5%85%B6%E4%BB%96%E6%89%80%E6%9C%89%E6%B5%81%E9%87%8F/" class="article-date">
+  <time datetime="2025-09-10T01:52:35.000Z" itemprop="datePublished">2025-09-10</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Linux/">Linux</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">1.3k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">5 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h2 id="概述"><a href="#概述" class="headerlink" title="概述"></a>概述</h2><p>本指南展示如何配置 Linux 防火墙(firewalld)，实现<strong>仅限制特定IP&#x2F;网段的访问，同时允许其他所有IP自由访问任意端口</strong>的方案。这种配置适用于需要隔离恶意IP但保持其他客户端无限制访问的场景。</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">graph TD</span><br><span class="line">A[所有网络流量] --&gt; B&#123;来源IP检查&#125;</span><br><span class="line">B --&gt;|在 blocked_ips 列表| C[拒绝访问 DROP]</span><br><span class="line">B --&gt;|不在 blocked_ips 列表| D[允许所有流量 ACCEPT]</span><br></pre></td></tr></table></figure>
+
+<h2 id="完整配置脚本"><a href="#完整配置脚本" class="headerlink" title="完整配置脚本"></a>完整配置脚本</h2><figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta">#!/bin/bash</span></span><br><span class="line"><span class="comment"># ==============================================</span></span><br><span class="line"><span class="comment"># Linux 防火墙配置脚本</span></span><br><span class="line"><span class="comment"># 功能：限制特定IP访问，允许其他所有IP自由访问</span></span><br><span class="line"><span class="comment"># 版本：1.2</span></span><br><span class="line"><span class="comment"># ==============================================</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 1. 启动并启用 firewalld 服务</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[1/6] 启动并启用防火墙服务...&quot;</span></span><br><span class="line">sudo systemctl start firewalld</span><br><span class="line">sudo systemctl <span class="built_in">enable</span> firewalld</span><br><span class="line"></span><br><span class="line"><span class="comment"># 2. 设置默认区域为 trusted（允许所有流量）</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[2/6] 配置默认区域为 trusted...&quot;</span></span><br><span class="line">sudo firewall-cmd --set-default-zone=trusted</span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;默认区域已设置为: <span class="subst">$(sudo firewall-cmd --get-default-zone)</span>&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 3. 创建新区域用于管理被禁止的IP</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[3/6] 创建 blocked_ips 区域...&quot;</span></span><br><span class="line">sudo firewall-cmd --permanent --new-zone=blocked_ips</span><br><span class="line">sudo firewall-cmd --reload</span><br><span class="line"></span><br><span class="line"><span class="comment"># 4. 将网络接口分配到 trusted 区域（关键步骤！）</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[4/6] 分配网络接口到 trusted 区域...&quot;</span></span><br><span class="line"><span class="comment"># 获取活动接口（自动适配不同服务器）</span></span><br><span class="line">INTERFACE=$(sudo firewall-cmd --get-active-zones | grep -v <span class="string">&#x27;^[[:space:]]&#x27;</span> | <span class="built_in">head</span> -1 | awk <span class="string">&#x27;&#123;print $1&#125;&#x27;</span>)</span><br><span class="line">sudo firewall-cmd --permanent --zone=trusted --change-interface=<span class="variable">$INTERFACE</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;接口 <span class="variable">$INTERFACE</span> 已分配到 trusted 区域&quot;</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 5. 配置 blocked_ips 区域</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[5/6] 配置 blocked_ips 区域规则...&quot;</span></span><br><span class="line"><span class="comment"># 设置区域目标为 DROP（拒绝所有流量）</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --set-target=DROP</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加要禁止的IP或网段（按需修改）</span></span><br><span class="line">BANNED_IPS=(<span class="string">&quot;10.132.0.0/24&quot;</span> <span class="string">&quot;10.0.0.50&quot;</span>)</span><br><span class="line"><span class="keyword">for</span> ip <span class="keyword">in</span> <span class="string">&quot;<span class="variable">$&#123;BANNED_IPS[@]&#125;</span>&quot;</span>; <span class="keyword">do</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;禁止IP访问: <span class="variable">$ip</span>&quot;</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=<span class="string">&quot;<span class="variable">$ip</span>&quot;</span></span><br><span class="line"><span class="keyword">done</span></span><br><span class="line"></span><br><span class="line"><span class="comment"># 6. 应用配置并验证</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;[6/6] 应用防火墙配置...&quot;</span></span><br><span class="line">sudo firewall-cmd --reload</span><br><span class="line"></span><br><span class="line"><span class="comment"># 验证配置</span></span><br><span class="line"><span class="built_in">echo</span> -e <span class="string">&quot;\n=== 验证配置 ===&quot;</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;默认区域: <span class="subst">$(sudo firewall-cmd --get-default-zone)</span>&quot;</span></span><br><span class="line"><span class="built_in">echo</span> <span class="string">&quot;活动区域:&quot;</span></span><br><span class="line">sudo firewall-cmd --get-active-zones</span><br><span class="line"><span class="built_in">echo</span> -e <span class="string">&quot;\n被阻止的IP列表:&quot;</span></span><br><span class="line">sudo firewall-cmd --zone=blocked_ips --list-all --permanent</span><br></pre></td></tr></table></figure>
+
+<h2 id="关键配置说明"><a href="#关键配置说明" class="headerlink" title="关键配置说明"></a>关键配置说明</h2><h3 id="1-区域策略说明"><a href="#1-区域策略说明" class="headerlink" title="1. 区域策略说明"></a>1. 区域策略说明</h3><table>
+<thead>
+<tr>
+<th><strong>区域名称</strong></th>
+<th><strong>目标策略</strong></th>
+<th><strong>功能描述</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td><strong>trusted</strong></td>
+<td>ACCEPT</td>
+<td>允许所有传入和传出流量</td>
+</tr>
+<tr>
+<td><strong>blocked_ips</strong></td>
+<td>DROP</td>
+<td>拒绝指定来源IP的所有流量</td>
+</tr>
+</tbody></table>
+<h3 id="2-配置步骤详解"><a href="#2-配置步骤详解" class="headerlink" title="2. 配置步骤详解"></a>2. 配置步骤详解</h3><ol>
+<li><p><strong>启用防火墙服务</strong><br>启动 firewalld 并设置为开机自启：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo systemctl start firewalld</span><br><span class="line">sudo systemctl <span class="built_in">enable</span> firewalld</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>设置默认区域为 trusted</strong><br>使所有流量默认被允许：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo firewall-cmd --set-default-zone=trusted</span><br></pre></td></tr></table></figure>
+<p><em>注意：此命令无需 <code>--permanent</code> 参数，直接生效且持久化</em></p>
+</li>
+<li><p><strong>创建专用区域 blocked_ips</strong><br>用于管理被禁止的IP地址：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo firewall-cmd --permanent --new-zone=blocked_ips</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>分配网络接口到 trusted 区域</strong><br><strong>关键步骤</strong>：确保网络接口使用正确的区域策略：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 获取活跃接口（自动适配）</span></span><br><span class="line">INTERFACE=$(sudo firewall-cmd --get-active-zones | grep -v <span class="string">&#x27;^[[:space:]]&#x27;</span> | <span class="built_in">head</span> -1 | awk <span class="string">&#x27;&#123;print $1&#125;&#x27;</span>)</span><br><span class="line">sudo firewall-cmd --permanent --zone=trusted --change-interface=<span class="variable">$INTERFACE</span></span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>配置 blocked_ips 拒绝规则</strong><br>设置区域策略并添加被禁IP：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 设置DROP策略</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --set-target=DROP</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加被禁IP（支持IP和CIDR网段）</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=10.132.0.0/24</span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=10.0.0.50</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h3 id="3-管理被禁IP的命令"><a href="#3-管理被禁IP的命令" class="headerlink" title="3. 管理被禁IP的命令"></a>3. 管理被禁IP的命令</h3><p><strong>添加新IP到禁止列表</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=192.168.1.100</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p><strong>从禁止列表移除IP</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --remove-source=10.0.0.50</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<p><strong>禁止整个子网</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=192.168.2.0/24</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<h2 id="配置验证方法"><a href="#配置验证方法" class="headerlink" title="配置验证方法"></a>配置验证方法</h2><ol>
+<li><p><strong>检查区域配置</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看默认区域</span></span><br><span class="line">firewall-cmd --get-default-zone</span><br><span class="line"></span><br><span class="line"><span class="comment"># 查看活动区域</span></span><br><span class="line">firewall-cmd --get-active-zones</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>列出被禁IP</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">firewall-cmd --zone=blocked_ips --list-sources</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>测试连接</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 从被禁IP测试（应失败）</span></span><br><span class="line">ping -c 4 10.0.0.50</span><br><span class="line"></span><br><span class="line"><span class="comment"># 从其他IP测试（应成功）</span></span><br><span class="line">ping -c 4 8.8.8.8</span><br><span class="line"></span><br><span class="line"><span class="comment"># 测试端口访问</span></span><br><span class="line">telnet your-server-ip 22</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="常见问题解决"><a href="#常见问题解决" class="headerlink" title="常见问题解决"></a>常见问题解决</h2><h3 id="1-配置后无法访问服务器"><a href="#1-配置后无法访问服务器" class="headerlink" title="1. 配置后无法访问服务器"></a>1. 配置后无法访问服务器</h3><p><strong>原因</strong>：接口未分配到 trusted 区域<br><strong>解决</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看接口分配情况</span></span><br><span class="line">sudo firewall-cmd --get-active-zones</span><br><span class="line"></span><br><span class="line"><span class="comment"># 手动分配接口</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=trusted --change-interface=eth0</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<h3 id="2-被禁IP仍能访问"><a href="#2-被禁IP仍能访问" class="headerlink" title="2. 被禁IP仍能访问"></a>2. 被禁IP仍能访问</h3><p><strong>原因</strong>：IP未正确添加到 blocked_ips<br><strong>解决</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 检查IP是否在列表</span></span><br><span class="line">sudo firewall-cmd --zone=blocked_ips --list-sources</span><br><span class="line"></span><br><span class="line"><span class="comment"># 添加后重载</span></span><br><span class="line">sudo firewall-cmd --permanent --zone=blocked_ips --add-source=problem_ip</span><br><span class="line">sudo firewall-cmd --reload</span><br></pre></td></tr></table></figure>
+
+<h3 id="3-防火墙规则丢失"><a href="#3-防火墙规则丢失" class="headerlink" title="3. 防火墙规则丢失"></a>3. 防火墙规则丢失</h3><p><strong>原因</strong>：未使用 <code>--permanent</code> 参数<br><strong>解决办法</strong>：所有规则变更都应包含 <code>--permanent</code> 参数，变更后执行 <code>sudo firewall-cmd --reload</code></p>
+<h2 id="安全建议"><a href="#安全建议" class="headerlink" title="安全建议"></a>安全建议</h2><ol>
+<li><p><strong>定期备份配置</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo <span class="built_in">cp</span> -a /etc/firewalld /etc/firewalld-backup-$(<span class="built_in">date</span> +%F)</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>监控被阻止的IP</strong>：</p>
+<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"><span class="comment"># 查看实时阻止日志</span></span><br><span class="line">sudo journalctl -u firewalld -f | grep DROP</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>结合堡垒机使用</strong>：</p>
+</li>
+</ol>
+<ul>
+<li>将堡垒机IP加入白名单</li>
+<li>其他管理访问通过堡垒机跳转</li>
+</ul>
+<blockquote>
+<p><strong>重要提示</strong>：trusted 区域会允许所有流量，仅推荐在内网环境或测试环境中使用。面向公网的服务器应使用更严格的默认策略（如 public 区域）。</p>
+</blockquote>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/09/10/Linux%E9%98%B2%E7%81%AB%E5%A2%99%E9%85%8D%E7%BD%AE%E6%8C%87%E5%8D%97%EF%BC%9A%E9%99%90%E5%88%B6%E7%89%B9%E5%AE%9AIP%E8%AE%BF%E9%97%AE%E5%B9%B6%E5%85%81%E8%AE%B8%E5%85%B6%E4%BB%96%E6%89%80%E6%9C%89%E6%B5%81%E9%87%8F/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/09/09/%E9%98%B2%E7%81%AB%E5%A2%99trusted%E4%B8%8Epublic%E5%8C%BA%E5%9F%9F%E8%AF%A6%E8%A7%A3/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">防火墙trusted与public区域详解</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
