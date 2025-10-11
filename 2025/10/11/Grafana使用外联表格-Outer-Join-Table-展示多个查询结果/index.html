@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">618</span>
+            <span class="post-count">553</span>
         </span>
     </span>
 
@@ -127,18 +127,8 @@
   <p>在使用 Grafana 的时候， 通常会希望将 <strong>多个查询结果</strong> 展示到 <strong>同一个的表格</strong> 上。</p>
 <p>这个时候， 就需要使用到 <strong>外联表格</strong>。</p>
 <p>我们现在需要一个表格， 展示 Pod 的的状态， 包括 CPU 的 <strong>当前、 Request、 Limit</strong></p>
-<h2 id="查询的合并"><a href="#查询的合并" class="headerlink" title="查询的合并"></a>查询的合并</h2><table>
-<thead>
-<tr>
-<th></th>
-<th></th>
-</tr>
-</thead>
-<tbody><tr>
-<td><code>plain&lt;br&gt;1&lt;br&gt;2&lt;br&gt;3&lt;br&gt;4&lt;br&gt;5&lt;br&gt;6&lt;br&gt;7&lt;br&gt;8&lt;br&gt;</code></td>
-<td><code>bash&lt;br&gt;# 当前用量&lt;br&gt;container_cpu_usage_seconds_total&#123;pod=~&quot;node-exporter-.*&quot;&#125;&lt;br&gt;&lt;br&gt;# request&lt;br&gt;kube_pod_container_resource_requests_cpu_cores&#123;pod=~&quot;node-exporter-.*&quot;&#125;&lt;br&gt;&lt;br&gt;# limit&lt;br&gt;kube_pod_container_resource_limits_cpu_cores&#123;pod=~&quot;node-exporter-.*&quot;&#125;&lt;br&gt;</code></td>
-</tr>
-</tbody></table>
+<h2 id="查询的合并"><a href="#查询的合并" class="headerlink" title="查询的合并"></a>查询的合并</h2><figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line"><span class="meta prompt_"># </span><span class="language-bash">当前用量</span></span><br><span class="line">container_cpu_usage_seconds_total&#123;pod=~&quot;node-exporter-.*&quot;&#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash">request</span></span><br><span class="line">kube_pod_container_resource_requests_cpu_cores&#123;pod=~&quot;node-exporter-.*&quot;&#125;</span><br><span class="line"><span class="meta prompt_"></span></span><br><span class="line"><span class="meta prompt_"># </span><span class="language-bash"><span class="built_in">limit</span></span></span><br><span class="line">kube_pod_container_resource_limits_cpu_cores&#123;pod=~&quot;node-exporter-.*&quot;&#125;</span><br></pre></td></tr></table></figure>
+
 <p>可以看到， 多个查询以 <strong>字母</strong> 区分 （A，B，C）</p>
 <p>在没进行展示优化钱， grafana 会按照查询 <strong>独立展示</strong> 表格内容。 用户需要在下拉菜单中选择对应的查询展示。</p>
 <h2 id="外联表格"><a href="#外联表格" class="headerlink" title="外联表格"></a>外联表格</h2><p>通过 <strong>相同字段</strong> 进行 <strong>外联</strong>。 这里选择 pod</p>
