@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>VictoriaMetrics的备份管理 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="VictoriaMetrics-VictoriaMetrics的备份管理"
+  class="article article-type-VictoriaMetrics"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  VictoriaMetrics的备份管理
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/10/17/VictoriaMetrics%E7%9A%84%E5%A4%87%E4%BB%BD%E7%AE%A1%E7%90%86/" class="article-date">
+  <time datetime="2025-10-17T09:50:00.000Z" itemprop="datePublished">2025-10-17</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/VictoriaMetrics/">VictoriaMetrics</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">2.6k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">10 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <h1 id="1-背景"><a href="#1-背景" class="headerlink" title="1.背景"></a>1.背景</h1><p>在可观测领域的 metrics 解决方案中，VictoriaMetrics 整个产品体系的性能非常高。两年前，我们团队用这个组件来代替 kafka+druid 实现的旧版监控系统。其中一个群集扛住了鹅厂内部一个达到 9000 万&#x2F;s datapoint 的业务所产生的 metrics 数据，vm 部分用了不到 1000 核，成本相比 kafka+druid 低了很多。<br>美中不足是 VictoriaMetrics 并未提供类似历史群集的解决方案，虽然提供了免费的 vmbackup 和 vmrestore 工具，但是数据的备份和恢复与历史群集相比仍然是不够的。</p>
+<p>历史群集的难题是这样的：</p>
+<ol>
+<li><p>与历史群集相对的实时群集，默认情况下实时群集仅保存最近 30 天的数据；如果需要读取 31 天，以及更长周期的数据，就需要把备份数据恢复出来形成历史群集；</p>
+</li>
+<li><p>实时群集一般会部署多个 sharding 节点：</p>
+<ul>
+<li>如果 vm-insert 上的 <code>-replicationFactor=1</code>，则数据不重复，每个 sharding 上的数据完全重复，每个节点是全量数据的 n 分之一。</li>
+<li>如果 vm-insert 上的 <code>-replicationFactor=2</code>， 则各个 sharding 上的数据有一部分与其他 sharding 节点是重复的。</li>
+</ul>
+</li>
+<li><p>vm-backup 的备份功能是针对 vm-storage 的 sharding 节点的，如果 vm-storage 群集有 n 个节点，则每个节点都需要独立使用 vm-backup 来备份。</p>
+<ul>
+<li>vm-backup 的原理是先使用 http 协议访问 vm-storage 的 http 服务，访问 <code>/snapshot/create</code> 来创建一个所有磁盘上数据文件的快照。</li>
+<li>数据文件的快照是文件系统的 hardlink，意味着只是在 vfs 上增加对数据文件的引用计数，不会产生拷贝。这一步非常快。</li>
+<li>vm-backup 将数据文件备份到 s3 中；</li>
+<li>备份完成后，调用 vm-storage http 中的 <code>/snapshot/delete?snapshot=&lt;id&gt;</code> 来删除快照</li>
+</ul>
+</li>
+<li><p>备份完成后：</p>
+<ul>
+<li><p>s3 上每个 sharding 对应着一个数据的文件夹</p>
+</li>
+<li><p>每个数据文件夹的数据包含从创建快照开始，倒数 30 天的数据；（如果默认的数据存储周期是 30 天的话）</p>
+</li>
+<li><p>如果需要每天都全新备份，则还需要产生以日期命名的文件夹</p>
+</li>
+<li><p>下面是一个 s3 上备份目录的例子：</p>
+<figure class="highlight yaml"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"><span class="attr">s3://bucket_name:</span>        <span class="string">metrics_data/</span>           <span class="string">daily/</span>              <span class="number">2024-01-26</span><span class="string">/</span>                 <span class="string">sharding-0/</span>                 <span class="string">sharding-1/</span>                 <span class="string">sharding-2/</span> </span><br></pre></td></tr></table></figure></li>
+</ul>
+</li>
+<li><p>如果需要直接根据历史的备份数据来启动历史群集，则：</p>
+<ul>
+<li>有多少个 sharding， 就要启动多少个 vm-storage 实例；</li>
+<li>假设从昨天的备份数据开始启动 vm-storage，则这一组 vm-storage 支持 -1 天到 -31 天的历史数据查询；</li>
+<li>当过去了 24 小时，之前的 vm-storage 群集支持的数据变成了 -2 天到 -32 天。如果需要始终从-1 天开始，则需要在每天半夜重新下载最新的备份，然后重启 vm-storage;</li>
+<li>如果需要支持更长周期，例如 -31 天到 -61 天，则需要从 -31 天开始的备份数据里，再启动一组 vm-storage 群集。假设需要支持过去 300天的历史数据查询，则需要部署十组 vm-storage.</li>
+</ul>
+</li>
+</ol>
+<p>通过以上的描述，应该可以了解到通过目前的工具，支持历史群集很麻烦。<br>实际上，我已经通过已有的工具做出来了对应的部署脚本，请看：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/tree/main/terraform/historical_cluster">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;tree&#x2F;main&#x2F;terraform&#x2F;historical_cluster</a></p>
+<h1 id="2-vmfile"><a href="#2-vmfile" class="headerlink" title="2.vmfile"></a>2.vmfile</h1><p>从官方的文档(<a target="_blank" rel="noopener" href="https://docs.victoriametrics.com/vmbackupmanager.html">https://docs.victoriametrics.com/vmbackupmanager.html</a>)看，vmbackupmanager 对备份数据有更强大的功能，不过也仍然没有提如何部署历史群集。<br>收费购买企业版套件，有可能让部署历史群集变得简单。</p>
+<p>如果有一个工具，能够从多个 sharding 中导出 metrics 数据，然后再导入到一个包含所有数据的文件夹中，那么部署历史群集就会非常简单了。<br>因此，我花了两周时间写出了这个可能节约 2 万美元的小工具：vmfile，对离线的 vm-storage 的数据文件进行处理。</p>
+<p>vmfile 的相关链接是：</p>
+<ul>
+<li>源码(目前还很混乱，整理中)：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/VictoriaMetrics_cluster_v1.96.0/tree/cluster_dev/app/vmfile">https://github.com/ahfuzhang/VictoriaMetrics_cluster_v1.96.0&#x2F;tree&#x2F;cluster_dev&#x2F;app&#x2F;vmfile</a></li>
+<li>版本 v0.0.3: <a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/VictoriaMetrics_cluster_v1.96.0/releases/tag/vmfile_v0.0.3">https://github.com/ahfuzhang/VictoriaMetrics_cluster_v1.96.0&#x2F;releases&#x2F;tag&#x2F;vmfile_v0.0.3</a></li>
+<li>docker 镜像：<a target="_blank" rel="noopener" href="https://hub.docker.com/layers/ahfuzhang/vm-historical/v1.95.1-vmfile/images/sha256-ef2c2f68c2f0fcf6a297cdf0774e4c0e90fbed914505c00f6a5529aa291cdf4b?context=repo">https://hub.docker.com/layers/ahfuzhang/vm-historical/v1.95.1-vmfile/images/sha256-ef2c2f68c2f0fcf6a297cdf0774e4c0e90fbed914505c00f6a5529aa291cdf4b?context=repo</a></li>
+<li>使用 vmfile 来部署历史群集的代码：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/blob/v0.0.3/terraform/historical_cluster/vm-storage-with-merge.tf">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;blob&#x2F;v0.0.3&#x2F;terraform&#x2F;historical_cluster&#x2F;vm-storage-with-merge.tf</a></li>
+</ul>
+<p>下面介绍一下这个工具的几个基本功能：</p>
+<h2 id="2-1-count-index-统计数据文件的索引信息"><a href="#2-1-count-index-统计数据文件的索引信息" class="headerlink" title="2.1 count_index 统计数据文件的索引信息"></a>2.1 count_index 统计数据文件的索引信息</h2><ul>
+<li>通过 <code>-storageDataPath</code> 来指向某个 vm-storage 的数据（或者通过 vm-restore 恢复的）文件夹。</li>
+</ul>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=count_index \	  -storageDataPath=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/realtime-cluster/sharding</span>-<span class="number">0</span>/ \	  -fs.disableMmap=<span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-2-count-data-统计数据文件的数据信息"><a href="#2-2-count-data-统计数据文件的数据信息" class="headerlink" title="2.2 count_data 统计数据文件的数据信息"></a>2.2 count_data 统计数据文件的数据信息</h2><figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=count_data \	  -storageDataPath=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/realtime-cluster/sharding</span>-<span class="number">0</span>/ \	  -fs.disableMmap=<span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<h2 id="2-3-export-metrics-导出-metrics-数据到文本文件"><a href="#2-3-export-metrics-导出-metrics-数据到文本文件" class="headerlink" title="2.3 export_metrics 导出 metrics 数据到文本文件"></a>2.3 export_metrics 导出 metrics 数据到文本文件</h2><ul>
+<li>通过 <code>output</code> 来指定导出的位置</li>
+</ul>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=export_metrics \	  -storageDataPath=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/realtime-cluster/sharding</span>-<span class="number">0</span>/ \      -output=./metrics.txt \	  -fs.disableMmap=<span class="literal">false</span></span><br></pre></td></tr></table></figure>
+
+<p>(后续会优化这个功能，例如：可以把所有 metrics 数据的 name, value, timestamp 都导出，然后可以再导入到 clickhouse 做复杂分析)</p>
+<h2 id="2-4-simple-merge-简单合并多个-sharding-数据"><a href="#2-4-simple-merge-简单合并多个-sharding-数据" class="headerlink" title="2.4 simple_merge 简单合并多个 sharding 数据"></a>2.4 simple_merge 简单合并多个 sharding 数据</h2><p>把多个 sharding 文件夹的数据，把索引和数据两部分分别拷贝到目的文件夹，并最终成为一个可以正常启动 vm-storage 的数据文件夹。</p>
+<ul>
+<li><code>simple_merge_from</code>: 多个逗号分隔的路径</li>
+<li><code>simple_merge_to</code>: merge 后的目的文件夹</li>
+</ul>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=simple_merge \	  -simple_merge_from=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/2024-01-02/sharding</span>-<span class="number">0</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/2024-01-02/sharding</span>-<span class="number">1</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/data</span><span class="regexp">/2024-01-02/sharding</span>-<span class="number">2</span>/ \	  -simple_merge_to=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/Documents/temp</span><span class="regexp">/2024/simple</span>_merge</span><br></pre></td></tr></table></figure>
+
+<h2 id="2-5-merge-重建索引和数据方式的merge"><a href="#2-5-merge-重建索引和数据方式的merge" class="headerlink" title="2.5 merge 重建索引和数据方式的merge"></a>2.5 merge 重建索引和数据方式的merge</h2><ul>
+<li><code>mergev2_from</code>: 多个逗号分隔的路径</li>
+<li><code>mergev2_to</code>: merge 后的目的文件夹</li>
+</ul>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=merge_v2 \	  -mergev2_from=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">0</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">1</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">2</span>/ \	  -mergev2_to=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/Documents/temp</span><span class="regexp">/2024/</span><span class="number">2024</span>-<span class="number">01</span>-<span class="number">22</span>/merge_v2/ \	  -dedup.minScrapeInterval=0s \	  -cpu=<span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<h3 id="2-5-1-降采样-downsample-功能"><a href="#2-5-1-降采样-downsample-功能" class="headerlink" title="2.5.1 降采样(downsample)功能"></a>2.5.1 降采样(downsample)功能</h3><p>当 <code>-dedup.minScrapeInterval=0s</code> 的时候，数据部分不会丢失任何数据。<br>可以使用这个参数指定一个时间窗口，在时间窗口内，同一个 metric 仅保留一个 data point。</p>
+<p>下面的例子，每 5 分钟仅保留一个 data point，数据部分的体积会缩小很多：</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=merge_v2 \	  -mergev2_from=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">0</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">1</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">2</span>/ \	  -mergev2_to=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/Documents/temp</span><span class="regexp">/2024/</span><span class="number">2024</span>-<span class="number">01</span>-<span class="number">22</span>/merge_v2/ \	  -dedup.minScrapeInterval=5m \	  -cpu=<span class="number">1</span></span><br></pre></td></tr></table></figure>
+
+<p>使用降采样方式的 merge，我的测试数据如下：</p>
+<ul>
+<li>降采样时间窗口 0s: 数据部分膨胀 1.1 倍，merge 后记录数不变</li>
+<li>降采样时间窗口 1m: 数据部分膨胀 1.005 倍， merge 后记录数减少 0.004%</li>
+<li>降采样时间窗口 5m: 数据部分减少 2.919 倍， merge 后记录数减少 79.97%</li>
+</ul>
+<h3 id="2-5-2-索引和数据并行merge"><a href="#2-5-2-索引和数据并行merge" class="headerlink" title="2.5.2 索引和数据并行merge"></a>2.5.2 索引和数据并行merge</h3><p>当 <code>-cpu=</code>参数大于 1 时，索引部分和数据部分会并行 merge。目前最多只支持两个核。</p>
+<figure class="highlight ruby"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">vmfile \	  -action=merge_v2 \	  -mergev2_from=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">0</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">1</span>/,<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/xxx/sharding</span>-<span class="number">2</span>/ \	  -mergev2_to=<span class="regexp">/Users/fuchunzhang</span><span class="regexp">/Documents/temp</span><span class="regexp">/2024/</span><span class="number">2024</span>-<span class="number">01</span>-<span class="number">22</span>/merge_v2/ \	  -dedup.minScrapeInterval=5m \	  -cpu=<span class="number">2</span></span><br></pre></td></tr></table></figure>
+
+<h1 id="3-历史群集部署"><a href="#3-历史群集部署" class="headerlink" title="3.历史群集部署"></a>3.历史群集部署</h1><p>有了 vmfile 这个工具后，部署历史群集就简单很多了。<br>每天只需要把最新的备份数据不断 merge 到一个最终的数据文件就行了。(当然，这里仍然是离线操作的)</p>
+<p>每天自动拉取最新的各个 sharding，并开始 merge，然后停掉旧的 vm-storage，启动新的 vm-storage……这一系列的动作我都通过一个 shell 脚本来实现了。</p>
+<p>我通过 terraform 来实现了 k8s 上的部署代码，通过阅读源码，修改成别的部署方式也很容易。<br>历史群集的部署流程如下：</p>
+<ol>
+<li><p>实时群集需要创建 crontab，每天半夜使用 vmbackup 把各个 sharding 部署到 s3 上；</p>
+<ul>
+<li>源码请看：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/blob/main/terraform/realtime_cluster/daily_backup_cronjob.tf">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;blob&#x2F;main&#x2F;terraform&#x2F;realtime_cluster&#x2F;daily_backup_cronjob.tf</a></li>
+</ul>
+</li>
+<li><p>构造一个新的 docker 镜像：</p>
+<ul>
+<li>镜像内包含了 vm-restore 和 vm-storage 两个官方程序</li>
+<li>镜像内包含了编译好的 vmfile 工具</li>
+<li>镜像内提供一个 shell 脚本来把上面的工具串起来</li>
+<li>源码请看：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/tree/main/terraform/historical_cluster/docker_image">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;tree&#x2F;main&#x2F;terraform&#x2F;historical_cluster&#x2F;docker_image</a></li>
+<li>镜像已经发布到 docker hub: <a target="_blank" rel="noopener" href="https://hub.docker.com/layers/ahfuzhang/vm-historical/v1.95.1-vmfile/images/sha256-ef2c2f68c2f0fcf6a297cdf0774e4c0e90fbed914505c00f6a5529aa291cdf4b?context=repo">https://hub.docker.com/layers/ahfuzhang/vm-historical/v1.95.1-vmfile/images/sha256-ef2c2f68c2f0fcf6a297cdf0774e4c0e90fbed914505c00f6a5529aa291cdf4b?context=repo</a></li>
+</ul>
+</li>
+<li><p>创建一个 k8s 上的 deployment，启动命令是上面提到的 shell</p>
+</li>
+</ol>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">container &#123;          name              = &quot;$&#123;local.vm-storage-name-with-merge&#125;-$&#123;count.index&#125;&quot;          image             = &quot;ahfuzhang/vm-historical:v1.95.1-vmfile&quot;  # 包含了多种工具和 shell 的镜像          image_pull_policy = &quot;Always&quot; #&quot;IfNotPresent&quot;          command           = [&quot;/bin/sh&quot;]          args = [            &quot;/daily_with_vmfile.sh&quot;,  # 从镜像中的 shell 脚本启动          ]          ...... </span><br></pre></td></tr></table></figure>
+
+<p>部署的代码请看：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/blob/main/terraform/historical_cluster/vm-storage-with-merge.tf">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;blob&#x2F;main&#x2F;terraform&#x2F;historical_cluster&#x2F;vm-storage-with-merge.tf</a></p>
+<p>shell 的控制参数通过容器的环境变量来传入，重要的参数有这些：</p>
+<ul>
+<li>storage_base_path: 本地的存储路径</li>
+<li>s3_storage_base_path: s3 上的备份文件的路径</li>
+<li>sharding_count: sharding 的个数</li>
+<li>n_days_before : 历史群集从几天以前开始，填 1 就是昨天。历史群集会在第二天半夜拉取最新备份，始终维持在当前时间的 n 天以前。</li>
+</ul>
+<ol start="4">
+<li><p>shell 的执行逻辑：</p>
+<ul>
+<li>检查是否已经存在 merge 后的文件夹，如果不存在，就使用 vmrestore 来下载多个 sharding</li>
+<li>sharding 文件夹下载好后，使用 vmfile 的 merge 功能来重建索引和数据。</li>
+<li>在 merge 好后的文件夹上启动 vm-storage 来提供历史数据的查询服务；</li>
+<li>脚本进入循环睡眠，等到第二天半夜。</li>
+<li>根据当前日期，下载 n_days_before 指定的历史文件夹到本地</li>
+<li>使用 vmfile merge 数据</li>
+<li>启动新的 vm-storage</li>
+<li>停掉旧的 vm-storage</li>
+</ul>
+<p>具体代码请看：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster/blob/main/terraform/historical_cluster/docker_image/daily_with_vmfile.sh">https://github.com/ahfuzhang/deploy_VictoriaMetrics_cluster&#x2F;blob&#x2F;main&#x2F;terraform&#x2F;historical_cluster&#x2F;docker_image&#x2F;daily_with_vmfile.sh</a></p>
+</li>
+</ol>
+<h1 id="The-End"><a href="#The-End" class="headerlink" title="The End"></a>The End</h1><ul>
+<li>vmfile 的功能还会继续优化，如果你们的团队也在使用 VictoriaMetrics ，欢迎关注我的后续进展；</li>
+<li>vmfile 的实现代码很简单，但是原理却相对复杂，涉及很多存储引擎的结构设计。如果对 vm-storage 的 tsdb 感兴趣，欢迎查看我分享的源码分析电子书：<a target="_blank" rel="noopener" href="https://github.com/ahfuzhang/victoria-metrics-1.72.0/blob/master/VictoriaMetrics%E5%AD%98%E5%82%A8%E5%BC%95%E6%93%8E%E5%88%86%E6%9E%90.pdf">《VictoriaMetrics存储引擎分析.pdf》</a></li>
+</ul>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/10/17/VictoriaMetrics%E7%9A%84%E5%A4%87%E4%BB%BD%E7%AE%A1%E7%90%86/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/VictoriaMetrics/" rel="tag">VictoriaMetrics</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/10/13/Grafana%E4%B8%AD%E5%90%88%E5%B9%B6SQL%E4%B8%8EPromQL%E6%9F%A5%E8%AF%A2%E7%BB%93%E6%9E%9C%E5%B1%95%E7%A4%BA%E5%9C%A8%E5%90%8C%E4%B8%80table%E4%B8%AD/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">Grafana中合并SQL与PromQL查询结果展示在同一table中</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
