@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">216</span>
+            <span class="post-count">262</span>
         </span>
     </span>
 
@@ -141,8 +141,12 @@
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">snmptranslate -Tz -m ./VOIP-MTG系列-Linux-MIB.mib</span><br></pre></td></tr></table></figure>
 
 <p><strong><img src="/images/1761197700-b8dc7f95be50bc9cea69fc22ebe99c2f.webp" alt="图片"></strong></p>
-<h3 id="4、将-mib-转换为-zabbix-文件"><a href="#4、将-mib-转换为-zabbix-文件" class="headerlink" title="4、将 mib 转换为 zabbix 文件"></a><strong>4、将 mib 转换为 zabbix 文件</strong></h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">snmptranslate -Tz -m ./VOIP-MTG系列-Linux-MIB.mib | ./mib2zabbix -e -o .1.3.6.1.4.1 -f Template_DX.xml</span><br></pre></td></tr></table></figure>
+<h3 id="4、将-mib-转换为-zabbix-文件"><a href="#4、将-mib-转换为-zabbix-文件" class="headerlink" title="4、将 mib 转换为 zabbix 文件"></a><strong>4、将 mib 转换为 zabbix 文件</strong></h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">snmptranslate -Tz -m ./VOIP-MTG系列-Linux-MIB.mib | ./mib2zabbix -e -f Template_DX.xml</span><br></pre></td></tr></table></figure>
 
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">snmptranslate -Tz -m ./VOIP-MTG系列-Linux-MIB.mib | ./mib2zabbix -e -o .1.3.6.1.4.1 -f Template_DX.xml</span><br></pre></td></tr></table></figure>
+<p>-e: –enable-items  enable all template items (default: disabled)</p>
+<p>-o .1.3.6.1.4.1: 指定基础 OID</p>
+<p>-f Template_2288HV6.xml: 指定输出文件名</p>
 <p>会生成一个XML 文件 直接到入zabbix 就好<br><img src="/images/1761197700-5858021bdd45be92f78d3866550ed409.webp" alt="图片"></p>
 <h3 id="最终效果："><a href="#最终效果：" class="headerlink" title="最终效果："></a>最终效果：</h3><p><img src="/images/1761197700-fa1475510ccb0e6b965a4bdc2221ad04.webp" alt="图片"></p>
  
