@@ -1,0 +1,1001 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>docker部署zabbix 7.4 |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="Zabbix-docker部署zabbix-7-4"
+  class="article article-type-Zabbix"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  docker部署zabbix 7.4
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2025/10/27/docker%E9%83%A8%E7%BD%B2zabbix-7-4/" class="article-date">
+  <time datetime="2025-10-27T08:49:37.000Z" itemprop="datePublished">2025-10-27</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/Zabbix/">Zabbix</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">4.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">18 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+    <div class="tocbot"></div>
+
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <ul>
+<li>操作系统环境：Ubuntu Server 24.04</li>
+<li>zabbix：最新版本7.4</li>
+<li>使用 <code>docker-compose</code> 快速部署 Zabbix Server、Web、Agent、Java Gateway、MySQL 等组件</li>
+<li>包含字体中文化设置、端口映射、持久化存储配置</li>
+<li>适合中小型企业或测试环境快速部署</li>
+</ul>
+<h2 id="🆕-Zabbix-最新版本概览"><a href="#🆕-Zabbix-最新版本概览" class="headerlink" title="🆕 Zabbix 最新版本概览"></a>🆕 Zabbix 最新版本概览</h2><table>
+<thead>
+<tr>
+<th>版本号</th>
+<th>类型</th>
+<th>发布时间</th>
+<th>特点</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Zabbix 7.4</td>
+<td>标准版</td>
+<td>2025 年中发布</td>
+<td>最新功能，适合尝鲜</td>
+</tr>
+<tr>
+<td>Zabbix 7.0</td>
+<td>LTS</td>
+<td>2024 年 6 月</td>
+<td>长期支持，稳定性高</td>
+</tr>
+</tbody></table>
+<p>以下是基于 Zabbix 官方 GitHub 仓库的最新版本 <strong>Zabbix 7.4</strong> 的完整 <code>docker-compose.yml</code> 文件，适用于 Ubuntu Server 24.04 环境，使用 MySQL 数据库和 Alpine 镜像构建，轻量高效</p>
+<p>🧾 Zabbix 7.4 完整 <code>docker-compose.yml</code></p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br></pre></td><td class="code"><pre><span class="line">#version: &#x27;3.5&#x27;</span><br><span class="line"></span><br><span class="line">services:</span><br><span class="line">  mysql:</span><br><span class="line">    image: mysql:8.0</span><br><span class="line">    container_name: zabbix-mysql</span><br><span class="line">    restart: always</span><br><span class="line">    environment:</span><br><span class="line">      MYSQL_DATABASE: zabbix</span><br><span class="line">      MYSQL_USER: zabbix</span><br><span class="line">      MYSQL_PASSWORD: xxxxxxxx</span><br><span class="line">      MYSQL_ROOT_PASSWORD: xxxxxxxx</span><br><span class="line">    volumes:</span><br><span class="line">      - ./data/mysql:/var/lib/mysql</span><br><span class="line">      - ./init.sql:/docker-entrypoint-initdb.d/init.sql</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;3306:3306&quot;</span><br><span class="line"></span><br><span class="line">  zabbix-server:</span><br><span class="line">    image: zabbix/zabbix-server-mysql:alpine-7.4-latest</span><br><span class="line">    container_name: zabbix-server</span><br><span class="line">    restart: always</span><br><span class="line">    depends_on:</span><br><span class="line">      - mysql</span><br><span class="line">    environment:</span><br><span class="line">      DB_SERVER_HOST: mysql</span><br><span class="line">      MYSQL_DATABASE: zabbix</span><br><span class="line">      MYSQL_USER: zabbix</span><br><span class="line">      MYSQL_PASSWORD: xxxxxxxx</span><br><span class="line">    volumes:</span><br><span class="line">      - ./config/server.conf:/etc/zabbix/zabbix_server.conf</span><br><span class="line">      - ./data/zabbix-server:/var/lib/zabbix</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;10051:10051&quot;</span><br><span class="line"></span><br><span class="line">  zabbix-web:</span><br><span class="line">    image: zabbix/zabbix-web-nginx-mysql:alpine-7.4-latest</span><br><span class="line">    container_name: zabbix-web</span><br><span class="line">    restart: always</span><br><span class="line">    depends_on:</span><br><span class="line">      - zabbix-server</span><br><span class="line">      - mysql</span><br><span class="line">    environment:</span><br><span class="line">      DB_SERVER_HOST: mysql</span><br><span class="line">      MYSQL_DATABASE: zabbix</span><br><span class="line">      MYSQL_USER: zabbix</span><br><span class="line">      MYSQL_PASSWORD: xxxxxxxx</span><br><span class="line">      ZBX_SERVER_HOST: zabbix-server</span><br><span class="line">      PHP_TZ: Asia/Shanghai</span><br><span class="line">    volumes:</span><br><span class="line">      - ./zabbix-web:/usr/share/zabbix</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;80:8080&quot;</span><br><span class="line"></span><br><span class="line">  zabbix-agent:</span><br><span class="line">    image: zabbix/zabbix-agent:alpine-7.4-latest</span><br><span class="line">    container_name: zabbix-agent</span><br><span class="line">    restart: always</span><br><span class="line">    depends_on:</span><br><span class="line">      - zabbix-server</span><br><span class="line">    environment:</span><br><span class="line">      ZBX_SERVER_HOST: zabbix-server</span><br><span class="line">      ZBX_HOSTNAME: docker-agent</span><br><span class="line">    volumes:</span><br><span class="line">       - ./config/agent.conf:/etc/zabbix/zabbix_agentd.conf</span><br><span class="line">    ports:</span><br><span class="line">      - &quot;10050:10050&quot;</span><br></pre></td></tr></table></figure>
+
+<h2 id="📦-Zabbix-配置挂载点说明"><a href="#📦-Zabbix-配置挂载点说明" class="headerlink" title="📦 Zabbix 配置挂载点说明"></a>📦 Zabbix 配置挂载点说明</h2><table>
+<thead>
+<tr>
+<th>组件</th>
+<th>容器路径</th>
+<th>推荐挂载本地路径</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody><tr>
+<td>Zabbix Server</td>
+<td><code>/etc/zabbix/zabbix_server.conf</code></td>
+<td><code>./config/server.conf</code></td>
+<td>主配置文件</td>
+</tr>
+<tr>
+<td>Zabbix Agent</td>
+<td><code>/etc/zabbix/zabbix_agentd.conf</code></td>
+<td><code>./config/agent.conf</code></td>
+<td>Agent 配置</td>
+</tr>
+<tr>
+<td>Zabbix Web</td>
+<td><code>/usr/share/zabbix</code></td>
+<td><code>./zabbix-web</code></td>
+<td>Web 前端文件（可加中文字体）</td>
+</tr>
+<tr>
+<td>Zabbix Server</td>
+<td><code>/var/lib/zabbix</code></td>
+<td><code>./data/zabbix-server</code></td>
+<td>数据存储</td>
+</tr>
+<tr>
+<td>MySQL</td>
+<td><code>/var/lib/mysql</code></td>
+<td><code>./data/mysql</code></td>
+<td>数据库持久化</td>
+</tr>
+</tbody></table>
+<h2 id="✅-使用说明"><a href="#✅-使用说明" class="headerlink" title="✅ 使用说明"></a>✅ 使用说明</h2><ol>
+<li><p>创建目录结构：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mkdir -p config data/mysql data/zabbix-server zabbix-web</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>初始化配置文件（可从容器中复制默认配置）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker cp zabbix-server:/etc/zabbix/zabbix_server.conf ./config/server.conf</span><br><span class="line">docker cp zabbix-agent:/etc/zabbix/zabbix_agentd.conf ./config/agent.conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>启动服务：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker compose up -d</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>访问 Web 前端：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://&lt;你的服务器IP&gt;</span><br></pre></td></tr></table></figure>
+
+<p>默认登录：</p>
+<ul>
+<li>用户名：<code>Admin</code></li>
+<li>密码：<code>zabbix</code></li>
+</ul>
+</li>
+</ol>
+<hr>
+<h1 id="🧰实际部署过程中遇到的问题"><a href="#🧰实际部署过程中遇到的问题" class="headerlink" title="🧰实际部署过程中遇到的问题"></a>🧰实际部署过程中遇到的问题</h1><h2 id="⚡问题一："><a href="#⚡问题一：" class="headerlink" title="⚡问题一："></a>⚡<strong>问题一：</strong></h2><p>只创建容器不运行服务，如果你只想创建容器但不启动服务，可以这样做：</p>
+<ol>
+<li><p>创建容器但不启动：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker compose create</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>然后复制配置文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker cp zabbix-server:/etc/zabbix/zabbix_server.conf ./config/server.conf</span><br><span class="line">docker cp zabbix-agent:/etc/zabbix/zabbix_agentd.conf ./config/agent.conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>可选：启动服务</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker compose start</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>sh\@zabbix:~$ sudo docker cp zabbix-server:&#x2F;etc&#x2F;zabbix&#x2F;zabbix_server.conf .&#x2F;config&#x2F;server.conf</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Error response from daemon: mount /home/sh/config/server.conf:/var/lib/docker/overlay2/3e87e7491a66c70c541d3500b3783ab57b31618b61c61224c311a24db953a398/merged/etc/zabbix/zabbix_server.conf, flags: 0x5000: not a directory</span><br></pre></td></tr></table></figure></li>
+</ol>
+<p>这个错误提示说明你尝试将容器内的文件复制到宿主机上的一个路径 <code>./config/server.conf</code>，但该路径被 Docker 挂载为了一个目录（volume），导致无法直接覆盖为文件。</p>
+<h3 id="🧩-问题分析"><a href="#🧩-问题分析" class="headerlink" title="🧩 问题分析"></a>🧩 问题分析</h3><p>你在 <code>docker-compose.yml</code> 中挂载了：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">- ./config/server.conf:/etc/zabbix/zabbix_server.conf</span><br></pre></td></tr></table></figure>
+
+<p>这意味着容器启动时 <code>/etc/zabbix/zabbix_server.conf</code> 被绑定到了宿主机的 <code>./config/server.conf</code> 文件。如果这个文件不存在或路径有误，Docker 会尝试创建一个目录，导致你无法再用 <code>docker cp</code> 复制文件到这个位置。</p>
+<h3 id="✅解决方法：先取消挂载再复制"><a href="#✅解决方法：先取消挂载再复制" class="headerlink" title="✅解决方法：先取消挂载再复制"></a>✅解决方法：先取消挂载再复制</h3><p>如果你只是为了获取原始配置，可以临时注释掉 <code>docker-compose.yml</code> 中的挂载行：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># - ./config/server.conf:/etc/zabbix/zabbix_server.conf</span><br></pre></td></tr></table></figure>
+
+<p>然后重新创建容器并复制配置，你可以绕过挂载冲突，直接复制到一个临时目录，比如 <code>/tmp</code>，然后再移动到目标位置，再恢复挂载。</p>
+<h3 id="✅步骤如下："><a href="#✅步骤如下：" class="headerlink" title="✅步骤如下："></a>✅步骤如下：</h3><ol>
+<li><p><strong>复制到临时目录</strong>（绕过挂载冲突）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo docker cp zabbix-server:/etc/zabbix/zabbix_server.conf /tmp/server.conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>确认文件已复制成功</strong>：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ls -l /tmp/server.conf</span><br></pre></td></tr></table></figure>
+</li>
+<li><p><strong>移动到你的挂载目录</strong>（确保 <code>./config</code> 是目录）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mv /tmp/server.conf ./config/server.conf</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="⚡问题二："><a href="#⚡问题二：" class="headerlink" title="⚡问题二："></a>⚡<strong>问题二：</strong></h2><p>WARN[0000] &#x2F;home&#x2F;sh&#x2F;docker-compose.yml: the attribute `version` is obsolete, it will be ignored, please remove it to avoid potential confusion</p>
+<p>这是一个非常常见的提示，不是错误，只是一个 <strong>警告信息</strong>。它来自新版 Docker Compose 工具，告诉你：</p>
+<blockquote>
+<p><code>version:</code> 字段已经被废弃（obsolete），可以安全地移除。</p>
+</blockquote>
+<h3 id="🧾-为什么会出现这个警告？"><a href="#🧾-为什么会出现这个警告？" class="headerlink" title="🧾 为什么会出现这个警告？"></a>🧾 为什么会出现这个警告？</h3><p>在旧版本的 Docker Compose（比如 v1.x）中，<code>version: &#39;3.5&#39;</code> 是必须的，用来指定 Compose 文件的语法版本。</p>
+<p>但在新版 Docker Compose（v2.x 及以上）中，它会自动识别语法，不再需要 <code>version</code> 字段，因此它提示你可以删掉它。</p>
+<h3 id="✅-解决方法"><a href="#✅-解决方法" class="headerlink" title="✅ 解决方法"></a>✅ 解决方法</h3><p>你只需要把 <code>docker-compose.yml</code> 文件开头的这一行删掉即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line"># version: &#x27;3.5&#x27; ← 删除这一行</span><br></pre></td></tr></table></figure>
+
+<p>然后你的文件就变成这样开头：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">services:</span><br><span class="line">  mysql:</span><br><span class="line">    image: mysql:8.0</span><br><span class="line">    ...</span><br></pre></td></tr></table></figure>
+
+<p>这不会影响功能，也不会影响容器运行。</p>
+<h3 id="🔍-检查你的-Compose-版本"><a href="#🔍-检查你的-Compose-版本" class="headerlink" title="🔍 检查你的 Compose 版本"></a>🔍 检查你的 Compose 版本</h3><p>你可以运行以下命令确认你使用的是新版 Docker Compose：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker compose version</span><br></pre></td></tr></table></figure>
+
+<p>如果输出类似：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Docker Compose version v2.24.1</span><br></pre></td></tr></table></figure>
+
+<p>说明你已经在使用新版，可以放心移除 <code>version</code> 字段。</p>
+<h2 id="⚡问题三："><a href="#⚡问题三：" class="headerlink" title="⚡问题三："></a>⚡<strong>问题三：</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sh@zabbix:~$ sudo docker cp zabbix-agent:/etc/zabbix/zabbix_agentd.conf ./config/agent.conf Error response from daemon: mount /home/sh/config/agent.conf:/var/lib/docker/overlay2/db6c09bd626c67134523c793eec0a832b613c4d598e5ce6e715742d7fda3daec/merged/etc/zabbix/zabbix_agentd.conf, flags: 0x5000: not a directory</span><br></pre></td></tr></table></figure>
+
+<p>遇到的错误和之前的 <code>server.conf</code> 问题是一样的：由于你在 <code>docker-compose.yml</code> 中挂载了 <code>./config/agent.conf</code> 到容器的 <code>/etc/zabbix/zabbix_agentd.conf</code>，但宿主机上的 <code>agent.conf</code> 文件不存在或路径不正确，Docker 把它错误地当成了一个目录挂载，导致你无法复制容器内的原始配置文件。</p>
+<h3 id="✅-彻底解决方法（和-server-conf-一样）"><a href="#✅-彻底解决方法（和-server-conf-一样）" class="headerlink" title="✅ 彻底解决方法（和 server.conf 一样）"></a>✅ 彻底解决方法（和 server.conf 一样）</h3><h3 id="🔧-步骤一：临时取消挂载"><a href="#🔧-步骤一：临时取消挂载" class="headerlink" title="🔧 步骤一：临时取消挂载"></a>🔧 步骤一：临时取消挂载</h3><p>编辑你的 <code>docker-compose.yml</code> 文件，把 <code>zabbix-agent</code> 的挂载注释掉：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># volumes:</span><br><span class="line">#   - ./config/agent.conf:/etc/zabbix/zabbix_agentd.conf</span><br></pre></td></tr></table></figure>
+
+<p>确保这部分不再挂载。</p>
+<h3 id="🔧-步骤二：重新创建容器（不挂载）"><a href="#🔧-步骤二：重新创建容器（不挂载）" class="headerlink" title="🔧 步骤二：重新创建容器（不挂载）"></a>🔧 步骤二：重新创建容器（不挂载）</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker compose down</span><br><span class="line">docker compose up -d</span><br></pre></td></tr></table></figure>
+
+<p>此时容器会使用默认配置文件，不再被挂载覆盖。</p>
+<h3 id="🔧-步骤三：复制配置文件"><a href="#🔧-步骤三：复制配置文件" class="headerlink" title="🔧 步骤三：复制配置文件"></a>🔧 步骤三：复制配置文件</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo docker cp zabbix-agent:/etc/zabbix/zabbix_agentd.conf /tmp/agent.conf</span><br></pre></td></tr></table></figure>
+
+<p>✅ 这一步现在应该不会报错。</p>
+<h3 id="🔧-步骤四：恢复挂载配置"><a href="#🔧-步骤四：恢复挂载配置" class="headerlink" title="🔧 步骤四：恢复挂载配置"></a>🔧 步骤四：恢复挂载配置</h3><p>将复制的文件移动到挂载目录：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">mv /tmp/agent.conf ./config/agent.conf</span><br></pre></td></tr></table></figure>
+
+<p>然后在 <code>docker-compose.yml</code> 中恢复挂载：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">volumes:</span><br><span class="line">  - ./config/agent.conf:/etc/zabbix/zabbix_agentd.conf</span><br></pre></td></tr></table></figure>
+
+<h3 id="🔧-步骤五：重启容器使挂载生效"><a href="#🔧-步骤五：重启容器使挂载生效" class="headerlink" title="🔧 步骤五：重启容器使挂载生效"></a>🔧 步骤五：重启容器使挂载生效</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker compose down</span><br><span class="line">docker compose up -d</span><br></pre></td></tr></table></figure>
+
+<p>✅ 现在你就拥有了可编辑的 <code>agent.conf</code> 文件，并且容器可以正确挂载它。</p>
+<h2 id="⚡问题四："><a href="#⚡问题四：" class="headerlink" title="⚡问题四："></a>⚡<strong>问题四：</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">zabbix-server | 1:20250808:074238.645 cannot use database &quot;zabbix&quot;: its &quot;users&quot; table is empty (is this the Zabbix proxy database?) zabbix-server exited with code 1 zabbix-server | ** Preparing Zabbix server zabbix-server | ** Preparing database zabbix-server | ** Using MYSQL_USER variable from ENV zabbix-server | ** Using MYSQL_PASSWORD variable from ENV zabbix-server | ******************** zabbix-server | * DB_SERVER_HOST: mysql zabbix-server | * DB_SERVER_PORT: 3306 zabbix-server | * DB_SERVER_DBNAME: zabbix zabbix-server | ******************** zabbix-server | ** Database &#x27;zabbix&#x27; already exists. Please be careful with database COLLATE! zabbix-server | ** Table &#x27;zabbix.dbversion&#x27; already exists. zabbix-server | Skipping /var/lib/zabbix/ssl/ssl_ca/, can&#x27;t write zabbix-server | Starting Zabbix Server. Zabbix 7.4.1 (revision 439ef6b). zabbix-server | Press Ctrl+C to exit. zabbix-server | zabbix-server | 1:20250808:074252.025 Starting Zabbix Server. Zabbix 7.4.1 (revision 439ef6b). zabbix-server | 1:20250808:074252.025 ****** Enabled features ****** zabbix-server | 1:20250808:074252.025 SNMP monitoring: YES zabbix-server | 1:20250808:074252.025 IPMI monitoring: YES zabbix-server | 1:20250808:074252.025 Web monitoring: YES zabbix-server | 1:20250808:074252.025 VMware monitoring: YES zabbix-server | 1:20250808:074252.025 SMTP authentication: YES zabbix-server | 1:20250808:074252.025 ODBC: YES zabbix-server | 1:20250808:074252.025 SSH support: YES zabbix-server | 1:20250808:074252.025 IPv6 support: YES zabbix-server | 1:20250808:074252.025 TLS support: YES zabbix-server | 1:20250808:074252.025 ****************************** zabbix-server | 1:20250808:074252.025 using configuration file: /etc/zabbix/zabbix_server.conf zabbix-server | 1:20250808:074252.028 cannot use database &quot;zabbix&quot;: its &quot;users&quot; table is empty (is this the Zabbix proxy database?) zabbix-server exited with code 1</span><br></pre></td></tr></table></figure>
+
+<p>遇到的错误：</p>
+<blockquote>
+<p><code>cannot use database &quot;zabbix&quot;: its &quot;users&quot; table is empty (is this the Zabbix proxy database?)</code></p>
+</blockquote>
+<p>说明 Zabbix Server 能连接到数据库，但数据库没有被正确初始化——也就是说，<strong>Zabbix 的核心表结构存在，但没有数据，比如 <code>users</code></strong> 表为空。这通常发生在：</p>
+<ul>
+<li><p>没有执行初始化 SQL 脚本</p>
+</li>
+<li><p>数据库是空壳，没有导入 Zabbix schema</p>
+</li>
+<li><p>使用了错误的数据库镜像或挂载方式</p>
+<h3 id="✅-解决方案：从-Zabbix-官方源码包提取-SQL-文件"><a href="#✅-解决方案：从-Zabbix-官方源码包提取-SQL-文件" class="headerlink" title="✅ 解决方案：从 Zabbix 官方源码包提取 SQL 文件"></a>✅ 解决方案：从 Zabbix 官方源码包提取 SQL 文件</h3><p>你可以从 Zabbix 官方源码中获取完整的数据库初始化脚本，包括：</p>
+<ul>
+<li><p><code>schema.sql</code>：创建所有表结构</p>
+</li>
+<li><p><code>images.sql</code>：插入图标和界面资源</p>
+</li>
+<li><p><code>data.sql</code>：插入初始数据（如默认用户）</p>
+<p>我们可以将 Zabbix 源码中的三个 SQL 文件：</p>
+<ul>
+<li><code>schema.sql</code>（表结构）</li>
+<li><code>images.sql</code>（图标资源）</li>
+<li><code>data.sql</code>（初始数据） 合并为一个完整的 <code>init.sql</code> 文件，用于自动初始化数据库。</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<hr>
+<h3 id="🧾-合并-SQL-文件为-init-sql"><a href="#🧾-合并-SQL-文件为-init-sql" class="headerlink" title="🧾 合并 SQL 文件为 init.sql"></a>🧾 合并 SQL 文件为 <code>init.sql</code></h3><h3 id="✅-步骤一：下载并解压源码包"><a href="#✅-步骤一：下载并解压源码包" class="headerlink" title="✅ 步骤一：下载并解压源码包"></a>✅ 步骤一：下载并解压源码包</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">wget https://cdn.zabbix.com/zabbix/sources/stable/7.4/zabbix-7.4.1.tar.gz</span><br><span class="line">tar -xvzf zabbix-7.4.1.tar.gz</span><br><span class="line">cd zabbix-7.4.1/database/mysql</span><br></pre></td></tr></table></figure>
+
+<h3 id="✅-步骤二：合并-SQL-文件"><a href="#✅-步骤二：合并-SQL-文件" class="headerlink" title="✅ 步骤二：合并 SQL 文件"></a>✅ 步骤二：合并 SQL 文件</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat schema.sql images.sql data.sql &gt; ../../../init.sql</span><br></pre></td></tr></table></figure>
+
+<p>这会在源码包的上级目录生成一个完整的 <code>init.sql</code> 文件。</p>
+<p>你也可以直接指定目标路径：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">cat schema.sql images.sql data.sql &gt; ~/zabbix-init/init.sql</span><br></pre></td></tr></table></figure>
+
+<h2 id="📦-使用方式：自动初始化数据库"><a href="#📦-使用方式：自动初始化数据库" class="headerlink" title="📦 使用方式：自动初始化数据库"></a>📦 使用方式：自动初始化数据库</h2><p>在你的 <code>docker-compose.yml</code> 中挂载这个文件：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">volumes:</span><br><span class="line">  - ./data/mysql:/var/lib/mysql</span><br><span class="line">  - ./init.sql:/docker-entrypoint-initdb.d/init.sql</span><br></pre></td></tr></table></figure>
+
+<p>然后清理旧容器并重新部署：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">docker compose down -v</span><br><span class="line">rm -rf ./data/mysql</span><br><span class="line">docker compose up -d</span><br></pre></td></tr></table></figure>
+
+<p>✅ MySQL 容器会自动执行 <code>init.sql</code>，完成 Zabbix 所需的数据库初始化。</p>
+<h2 id="⚡问题五："><a href="#⚡问题五：" class="headerlink" title="⚡问题五："></a>⚡<strong>问题五：</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">zabbix-web | 2025/08/08 08:24:20 [error] 108#108: *3 directory index of &quot;/usr/share/zabbix/zabbix/&quot; is forbidden, client: 10.1.xx.29, server: zabbix, request: &quot;GET /zabbix/ HTTP/1.1&quot;, host: &quot;10.1.xx.19&quot;</span><br></pre></td></tr></table></figure>
+
+<p>遇到的 <code>403 Forbidden</code> 错误是因为你访问了错误的路径，或者容器中的 Web 根目录被错误挂载或破坏</p>
+<h3 id="❌-问题分析"><a href="#❌-问题分析" class="headerlink" title="❌ 问题分析"></a>❌ 问题分析</h3><p>你访问的是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://10.1.xx.19/zabbix/</span><br></pre></td></tr></table></figure>
+
+<p>但 Zabbix Docker 镜像的默认 Web 路径是：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">http://&lt;IP&gt;/</span><br></pre></td></tr></table></figure>
+
+<p>并不需要 <code>/zabbix/</code> 前缀。</p>
+<p>同时，日志显示：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">directory index of &quot;/usr/share/zabbix/zabbix/&quot; is forbidden</span><br></pre></td></tr></table></figure>
+
+<p>说明 Nginx 正在尝试访问 <code>/usr/share/zabbix/zabbix/</code>，这通常是因为你挂载了一个空或错误的目录到 <code>/usr/share/zabbix</code>，导致它内部又出现了一个 <code>zabbix/</code> 子目录。</p>
+<h3 id="✅-解决方案"><a href="#✅-解决方案" class="headerlink" title="✅ 解决方案"></a>✅ 解决方案</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo docker cp zabbix-web:/usr/share/zabbix ./zabbix-web/</span><br></pre></td></tr></table></figure>
+
+<p>在执行时，发现结果是 <code>./zabbix-web/zabbix/</code>，而不是直接把 <code>/usr/share/zabbix</code> 的内容放进 <code>./zabbix-web</code>。这是 Docker 的标准行为。</p>
+<h3 id="🧩-为什么会多出一个-zabbix-子目录？"><a href="#🧩-为什么会多出一个-zabbix-子目录？" class="headerlink" title="🧩 为什么会多出一个 zabbix 子目录？"></a>🧩 为什么会多出一个 <code>zabbix</code> 子目录？</h3><p>这是因为你指定的目标路径是一个目录（<code>./zabbix-web/</code>），而源路径是一个目录（<code>/usr/share/zabbix</code>）。Docker 会自动在目标目录下创建一个同名子目录来存放内容。</p>
+<blockquote>
+<p>✅ 所以你得到的是：</p>
+</blockquote>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">./zabbix-web/zabbix/ ← 对应容器中的 /usr/share/zabbix</span><br></pre></td></tr></table></figure>
+
+<h3 id="✅-正确的复制方式（避免嵌套）"><a href="#✅-正确的复制方式（避免嵌套）" class="headerlink" title="✅ 正确的复制方式（避免嵌套）"></a>✅ 正确的复制方式（避免嵌套）</h3><p>如果你希望直接把 <code>/usr/share/zabbix</code> 的内容复制到 <code>./zabbix-web</code> 目录中，而不是嵌套一个子目录，可以这样做：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo docker cp zabbix-web:/usr/share/zabbix/. ./zabbix-web/</span><br></pre></td></tr></table></figure>
+
+<p>注意末尾的 <code>/.</code>，它表示复制目录中的所有内容，而不是整个目录本身。</p>
+<h2 id="🔧-清理并重新复制建议"><a href="#🔧-清理并重新复制建议" class="headerlink" title="🔧 清理并重新复制建议"></a>🔧 清理并重新复制建议</h2><ol>
+<li><p>清理旧的嵌套目录：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo rm -rf ./zabbix-web/zabbix</span><br></pre></td></tr></table></figure>
+</li>
+<li><p>重新复制内容（不嵌套）：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">sudo docker cp zabbix-web:/usr/share/zabbix/. ./zabbix-web/</span><br></pre></td></tr></table></figure></li>
+</ol>
+<h2 id="⚡问题六："><a href="#⚡问题六：" class="headerlink" title="⚡问题六："></a>⚡<strong>问题六：</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">信息 主机 问题·严重性 持续时间 更新 动作 标记</span><br><span class="line">Zabbix server Linux: Zabbix agent is not available (for 3m) 19s 更新 class: os component: system scope: availability</span><br></pre></td></tr></table></figure>
+
+<p>Zabbix Web 界面截图来看，虽然主机 <code>Zabbix server</code> 已启用并显示 Agent 可用（ZBX），但你仍然收到一个错误提示：</p>
+<blockquote>
+<p><strong>Received empty response from Zabbix Agent at [10.1.xx.19]. Assuming that agent dropped connection because of access permissions.</strong></p>
+</blockquote>
+<p>这说明 Zabbix Server 尝试连接 Agent 时，Agent 拒绝了连接请求，很可能是因为访问权限配置不正确。</p>
+<h2 id="🔍-关键点分析"><a href="#🔍-关键点分析" class="headerlink" title="🔍 关键点分析"></a>🔍 关键点分析</h2><ul>
+<li><strong>Agent IP</strong>：界面显示 Agent 接口为 <code>172.18.0.4:10050</code>（容器内 IP）</li>
+<li><strong>Server 尝试连接 IP</strong>：错误提示中是 <code>10.1.xx.19</code>（宿主机 IP）</li>
+</ul>
+<p>这意味着 Zabbix Server 正在尝试从宿主机 IP 访问 Agent，但 Agent 只允许来自 <code>172.18.0.3</code>（Server 容器 IP）的连接。</p>
+<h3 id="✅-解决方案：修改-Agent-配置文件"><a href="#✅-解决方案：修改-Agent-配置文件" class="headerlink" title="✅ 解决方案：修改 Agent 配置文件"></a>✅ 解决方案：修改 Agent 配置文件</h3><p>请在 <code>agent.conf</code> 中将 <code>Server</code> 参数改为允许宿主机 IP：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Server=172.18.0.3,10.1.xx.19</span><br></pre></td></tr></table></figure>
+
+<p>或者更宽松一点：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">Server=0.0.0.0/0</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>⚠️ 注意：使用 <code>0.0.0.0/0</code> 会允许所有来源连接，适合测试环境，不建议用于生产。</p>
+</blockquote>
+<p>然后重启 Agent 容器：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker restart zabbix-agent</span><br></pre></td></tr></table></figure>
+
+<h2 id="🧪-验证方法"><a href="#🧪-验证方法" class="headerlink" title="🧪 验证方法"></a>🧪 验证方法</h2><p>在 Zabbix Web 中点击主机 → “测试” → “获取数据”，确认是否能成功连接 Agent。</p>
+<h2 id="⚡问题七："><a href="#⚡问题七：" class="headerlink" title="⚡问题七："></a>⚡<strong>问题七：</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">数据库中表的字符集或排序规则不受支持：acknowledges, actions, alerts, auditlog, autoreg_host, conditions, config_autoreg_tls, connector, connector_tag, corr_condition_tag, corr_condition_tagpair, corr_condition_tagvalue, correlation, dashboard, dashboard_page, dchecks, drules, dservices, event_tag, events, expressions, functions, globalmacro, globalvars, graph_theme, graphs, graphs_items, group_discovery, group_prototype, ha_node, hgset, history_log, history_str, history_text, host_discovery, host_inventory, host_proxy, host_tag, hostmacro, hostmacro_config, hosts, housekeeper, hstgrp, httpstep, httpstep_field, httptest, httptest_field, httptest_tag, icon_map, icon_mapping, ids, images, interface, interface_snmp, item_condition, item_discovery, item_parameter, item_preproc, item_rtdata, item_rtname, item_tag, items, lld_macro_export, lld_macro_path, lld_override, lld_override_condition, lld_override_operation, lld_override_ophistory, lld_override_opperiod, lld_override_optag, lld_override_optrends, maintenance_tag, maintenances, media, media_type, media_type_message, media_type_oauth, media_type_param, mfa, mfa_totp_secret, module, opconditions, operations, opmessage, optag, problem, problem_tag, profiles, proxy, proxy_autoreg_host, proxy_dhistory, proxy_group, proxy_history, regexps, report, report_param, role, role_rule, scim_group, script_param, scripts, service_problem_tag, service_tag, services, sessions, settings, sla, sla_excluded_downtime, sla_service_tag, sysmap_element_url, sysmap_link_threshold, sysmap_shape, sysmap_url, sysmaps, sysmaps_element_tag, sysmaps_elements, sysmaps_link_triggers, sysmaps_links, tag_filter, task_data, task_remote_command, task_remote_command_result, task_result, token, trigger_tag, triggers, ugset, userdirectory, userdirectory_idpgroup, userdirectory_ldap, userdirectory_media, userdirectory_saml, users, usrgrp, valuemap, valuemap_mapping, widget, widget_field。</span><br></pre></td></tr></table></figure>
+
+<p>遇到的错误提示：</p>
+<blockquote>
+<p>数据库中表的字符集或排序规则不受支持</p>
+</blockquote>
+<p>说明 Zabbix 检测到你的数据库中某些表使用了不兼容的字符集或排序规则。这是 Zabbix 6.0 及以上版本常见的问题，尤其是在使用 MySQL 8.x 时。</p>
+<h2 id="❗-问题原因"><a href="#❗-问题原因" class="headerlink" title="❗ 问题原因"></a>❗ 问题原因</h2><p>Zabbix 要求数据库使用：</p>
+<ul>
+<li>字符集：<code>utf8mb4</code></li>
+<li>排序规则：<code>utf8mb4_bin</code></li>
+</ul>
+<p>但你的数据库或部分表可能使用了：</p>
+<ul>
+<li><code>utf8mb3</code>（旧的 3 字节 UTF-8）</li>
+<li><code>utf8_general_ci</code>、<code>utf8mb4_0900_ai_ci</code> 等不兼容的排序规则</li>
+</ul>
+<h3 id="🔧-步骤一：检查当前字符集和排序规则"><a href="#🔧-步骤一：检查当前字符集和排序规则" class="headerlink" title="🔧 步骤一：检查当前字符集和排序规则"></a>🔧 步骤一：检查当前字符集和排序规则</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">SELECT @@character_set_database, @@collation_database;</span><br></pre></td></tr></table></figure>
+
+<p>如果不是 <code>utf8mb4</code> 和 <code>utf8mb4_bin</code>，需要修复。</p>
+<h3 id="1️⃣-修改数据库默认字符集和排序规则"><a href="#1️⃣-修改数据库默认字符集和排序规则" class="headerlink" title="1️⃣ 修改数据库默认字符集和排序规则"></a>1️⃣ 修改数据库默认字符集和排序规则</h3><p>sql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">ALTER DATABASE zabbix CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;</span><br></pre></td></tr></table></figure>
+
+<h3 id="2️⃣-修复所有表的字符集和排序规则"><a href="#2️⃣-修复所有表的字符集和排序规则" class="headerlink" title="2️⃣ 修复所有表的字符集和排序规则"></a>2️⃣ 修复所有表的字符集和排序规则</h3><p>你可以使用以下语句生成完整修复脚本：</p>
+<p>sql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">SELECT CONCAT(</span><br><span class="line">  &#x27;ALTER TABLE `&#x27;, TABLE_NAME, &#x27;` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;&#x27;</span><br><span class="line">)</span><br><span class="line">FROM information_schema.TABLES</span><br><span class="line">WHERE TABLE_SCHEMA = &#x27;zabbix&#x27;</span><br><span class="line">  AND TABLE_COLLATION != &#x27;utf8mb4_bin&#x27;;</span><br></pre></td></tr></table></figure>
+
+<h3 id="3️⃣表级修复未覆盖所有字段"><a href="#3️⃣表级修复未覆盖所有字段" class="headerlink" title="3️⃣表级修复未覆盖所有字段"></a>3️⃣表级修复未覆盖所有字段</h3><p>Zabbix 不仅要求表的排序规则为 <code>utf8mb4_bin</code>，还要求**所有字段（列）**的排序规则也一致。如果你只执行了 <code>ALTER TABLE ... CONVERT TO CHARACTER SET ...</code>，某些字段可能仍保留原来的 <code>utf8mb4_0900_ai_ci</code>。</p>
+<p>✅ 解决方法：执行字段级修复脚本。</p>
+<h3 id="字段级字符集修复脚本生成-SQL"><a href="#字段级字符集修复脚本生成-SQL" class="headerlink" title="字段级字符集修复脚本生成 SQL"></a>字段级字符集修复脚本生成 SQL</h3><p>请在 MySQL 中运行以下语句，它将生成所有字段的修复语句：</p>
+<p>sql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">SELECT CONCAT(</span><br><span class="line">  &#x27;ALTER TABLE `&#x27;, TABLE_NAME, &#x27;` MODIFY COLUMN `&#x27;, COLUMN_NAME,</span><br><span class="line">  &#x27;` &#x27;, COLUMN_TYPE, &#x27; CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;&#x27;</span><br><span class="line">)</span><br><span class="line">FROM information_schema.COLUMNS</span><br><span class="line">WHERE TABLE_SCHEMA = &#x27;zabbix&#x27;</span><br><span class="line">  AND COLLATION_NAME = &#x27;utf8mb4_0900_ai_ci&#x27;;</span><br></pre></td></tr></table></figure>
+
+<p>拷贝上面生成的529条sql修复语句，下面执行</p>
+<p>在执行任何 <code>ALTER TABLE</code> 或其他 DDL 语句之前，先选择数据库：</p>
+<p>sql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">USE zabbix;</span><br></pre></td></tr></table></figure>
+
+<p>然后再执行你的修复语句：</p>
+<p>sql</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">ALTER TABLE `acknowledges` MODIFY COLUMN `message` varchar(2048) CHARACTER SE</span><br><span class="line">.....</span><br><span class="line">.....</span><br><span class="line">.....</span><br><span class="line">.....</span><br><span class="line">.....</span><br></pre></td></tr></table></figure>
+
+<p>最后重启 Zabbix Server即可：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">docker restart zabbix-server</span><br></pre></td></tr></table></figure>
+
+<h2 id="⚡问题八：docker容器如何安装python环境-zabbix-server每次重启都要重新配置"><a href="#⚡问题八：docker容器如何安装python环境-zabbix-server每次重启都要重新配置" class="headerlink" title="⚡问题八：docker容器如何安装python环境(zabbix-server每次重启都要重新配置)"></a>⚡<strong>问题八：docker容器如何安装python环境(zabbix-server每次重启都要重新配置)</strong></h2><h3 id="先把宿主机上飞书告警python文件拷贝到zabbix-server-docker容器中"><a href="#先把宿主机上飞书告警python文件拷贝到zabbix-server-docker容器中" class="headerlink" title="先把宿主机上飞书告警python文件拷贝到zabbix-server docker容器中"></a>先把宿主机上飞书告警python文件拷贝到zabbix-server docker容器中</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br></pre></td><td class="code"><pre><span class="line">sudo vim feishu.py</span><br><span class="line"></span><br><span class="line">#!/usr/bin/python3</span><br><span class="line"># -*- coding: utf-8 -*-</span><br><span class="line"></span><br><span class="line">import requests</span><br><span class="line">import json</span><br><span class="line">import sys</span><br><span class="line">import os</span><br><span class="line">import datetime</span><br><span class="line"></span><br><span class="line"># 复制的webhook地址粘贴进url内</span><br><span class="line">url = &quot;https://open.feishu.cn/open-apis/bot/v2/hook/xxxxxxxxxxxxxxxxxxxx&quot;</span><br><span class="line"></span><br><span class="line">def send_message(message):</span><br><span class="line">    payload_message = &#123;</span><br><span class="line">       &quot;msg_type&quot;: &quot;text&quot;,</span><br><span class="line">       &quot;content&quot;: &#123;</span><br><span class="line">           &quot;text&quot;: message</span><br><span class="line">         &#125;</span><br><span class="line">    &#125;</span><br><span class="line">    headers = &#123;</span><br><span class="line">       &#x27;Content-Type&#x27;: &#x27;application/json&#x27;</span><br><span class="line">    &#125;</span><br><span class="line"></span><br><span class="line">    response = requests.request(&quot;POST&quot;, url, headers=headers, data=json.dumps(payload_message))</span><br><span class="line">    return response</span><br><span class="line"></span><br><span class="line">if __name__ == &#x27;__main__&#x27;:</span><br><span class="line">     text = sys.argv[1]</span><br><span class="line">     send_message(text)</span><br></pre></td></tr></table></figure>
+
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">sudo chmod +x feishu.py</span><br><span class="line">sudo docker cp feishu.py zabbix-server:/usr/lib/zabbix/alertscripts</span><br></pre></td></tr></table></figure>
+
+<h3 id="🧱在运行中的容器中安装python环境"><a href="#🧱在运行中的容器中安装python环境" class="headerlink" title="🧱在运行中的容器中安装python环境"></a>🧱在运行中的容器中安装python环境</h3><h3 id="🔹如果容器基于Alpine："><a href="#🔹如果容器基于Alpine：" class="headerlink" title="🔹如果容器基于Alpine："></a>🔹如果容器基于Alpine：</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">docker exec -u 0 -it zabbix-server sh</span><br><span class="line">apk add --no-cache python3 py3-pip</span><br></pre></td></tr></table></figure>
+
+<blockquote>
+<p>⚠️注意：某些官方容器（如Zabbix）可能没有包管理器或网络访问权限，安装可能失败。</p>
+</blockquote>
+<h3 id="🔹在容器中安装requests"><a href="#🔹在容器中安装requests" class="headerlink" title="🔹在容器中安装requests"></a>🔹在容器中安装<code>requests</code></h3><p>在Alpine系统中，直接使用：</p>
+<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">apk add py3-requests</span><br></pre></td></tr></table></figure>
+
+<p>这会通过系统包管理器安装 <code>requests</code>，不会触发 PEP 668 限制。</p>
+<h3 id="🔹在容器中测试飞书告警"><a href="#🔹在容器中测试飞书告警" class="headerlink" title="🔹在容器中测试飞书告警"></a>🔹在容器中测试飞书告警</h3><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">/usr/lib/zabbix/alertscripts/feishu.py 测试告警</span><br></pre></td></tr></table></figure>
+
+<h2 id="⚡问题九：用户-报警媒介-启用飞书告警，zabbix-server容器自动重启（目前无解，不确定是否最新版本的bug）"><a href="#⚡问题九：用户-报警媒介-启用飞书告警，zabbix-server容器自动重启（目前无解，不确定是否最新版本的bug）" class="headerlink" title="⚡问题九：用户-报警媒介-启用飞书告警，zabbix-server容器自动重启（目前无解，不确定是否最新版本的bug）"></a>⚡<strong>问题九：用户-报警媒介-启用飞书告警，zabbix-server容器自动重启（目前无解，不确定是否最新版本的bug）</strong></h2><figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">alloc(): unsorted double linked list corrupted zabbix_server [1]: Error waiting for process with PID 67: [10] No child processes</span><br></pre></td></tr></table></figure>
+
+<p><strong>目前只能使用自带的邮件告警。</strong></p>
+<hr>
+<h1 id="最终效果图："><a href="#最终效果图：" class="headerlink" title="最终效果图："></a>最终效果图：</h1><p><strong>docker部署虽然方便后期迁移，但是整体部署难度远高于直接在宿主机上安装部署，生产环境可以结合实际需求评估部署模式。</strong></p>
+<p><a target="_blank" rel="noopener" href="https://yan-jian.com/file/20250811/1.png"><img src="/images/1761554834-8c50da2bc45fba97b183a997c0b32a2d.png"></a></p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2025/10/27/docker%E9%83%A8%E7%BD%B2zabbix-7-4/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Zabbix/" rel="tag">Zabbix</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2025/10/24/mib2zabbix-pl-%E8%84%9A%E6%9C%AC%E5%8F%82%E6%95%B0%E4%BD%BF%E7%94%A8%E8%AF%B4%E6%98%8E/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">mib2zabbix.pl 脚本参数使用说明</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2025
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
