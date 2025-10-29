@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">989</span>
+            <span class="post-count">1k</span>
         </span>
     </span>
 
@@ -125,237 +125,49 @@
     <div class="article-entry" itemprop="articleBody">
        
   <h3 id="使用PrometheusRule定义告警规则"><a href="#使用PrometheusRule定义告警规则" class="headerlink" title="使用PrometheusRule定义告警规则"></a>使用PrometheusRule定义告警规则</h3><p>对于Prometheus而言，在原生的管理方式上，我们需要手动创建Prometheus的告警文件，并且通过在Prometheus配置中声明式的加载。而在Prometheus Operator模式中，告警规则也编程一个通过Kubernetes API 声明式创建的一个资源，如下所示：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: PrometheusRule</code></li>
-<li><code>metadata:</code></li>
-<li><code>labels:</code></li>
-<li><pre><code> `prometheus: example`
-</code></pre>
-</li>
-<li><pre><code> `role: alert-rules`
-</code></pre>
-</li>
-<li><code>name: prometheus-example-rules</code></li>
-<li><code>spec:</code></li>
-<li><code>groups:</code></li>
-<li><code>- name: ./example.rules</code></li>
-<li><pre><code> `rules:`
-</code></pre>
-</li>
-<li><pre><code> `- alert: ExampleAlert`
-</code></pre>
-</li>
-<li><pre><code>   `expr: vector(1)`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: PrometheusRule`</span><br><span class="line">`metadata:`</span><br><span class="line">  `labels:`</span><br><span class="line">    `prometheus: example`</span><br><span class="line">    `role: alert-rules`</span><br><span class="line">  `name: prometheus-example-rules`</span><br><span class="line">`spec:`</span><br><span class="line">  `groups:`</span><br><span class="line">  `- name: ./example.rules`</span><br><span class="line">    `rules:`</span><br><span class="line">    `- alert: ExampleAlert`</span><br><span class="line">      `expr: vector(1)`</span><br></pre></td></tr></table></figure>
+
 <p>将以上内容保存为example-rule.yaml文件，并且通过kubectl命令创建相应的资源：</p>
-<ol>
-<li><code>$ kubectl -n monitoring create -f example-rule.yaml</code></li>
-<li><code>prometheusrule &quot;prometheus-example-rules&quot; created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring create -f example-rule.yaml`</span><br><span class="line">`prometheusrule &quot;prometheus-example-rules&quot; created`</span><br></pre></td></tr></table></figure>
+
 <p>告警规则创建成功后，通过在Prometheus中使用ruleSelector通过选择需要关联的PrometheusRule即可：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>serviceAccountName: prometheus</code></li>
-<li><code>serviceMonitorSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `team: frontend`
-</code></pre>
-</li>
-<li><code>ruleSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `role: alert-rules`
-</code></pre>
-</li>
-<li><pre><code>   `prometheus: example`
-</code></pre>
-</li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `serviceAccountName: prometheus`</span><br><span class="line">  `serviceMonitorSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `team: frontend`</span><br><span class="line">  `ruleSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `role: alert-rules`</span><br><span class="line">      `prometheus: example`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
+
 <p>Prometheus重新加载配置后，从UI中我们可以查看到通过PrometheusRule自动创建的告警规则配置：</p>
 <p><img src="/images/1761615170-45f16420d86b271e90896a8d0357f480.png" alt="Prometheus告警规则"></p>
 <p>如果查看Alerts页面，我们会看到告警已经处于触发状态。</p>
 <h3 id="使用Operator管理Alertmanager实例"><a href="#使用Operator管理Alertmanager实例" class="headerlink" title="使用Operator管理Alertmanager实例"></a>使用Operator管理Alertmanager实例</h3><p>到目前为止，我们已经通过Prometheus Operator的自定义资源类型管理了Promtheus的实例，监控配置以及告警规则等资源。通过Prometheus Operator将原本手动管理的工作全部变成声明式的管理模式，大大简化了Kubernetes下的Prometheus运维管理的复杂度。 接下来，我们将继续使用Promtheus Operator定义和管理Alertmanager相关的内容。</p>
 <p>为了通过Prometheus Operator管理Alertmanager实例，用户可以通过自定义资源Alertmanager进行定义，如下所示，通过replicas可以控制Alertmanager的实例数：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Alertmanager</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>replicas: 3</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Alertmanager`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `replicas: 3`</span><br></pre></td></tr></table></figure>
+
 <p>当replicas大于1时，Prometheus Operator会自动通过集群的方式创建Alertmanager。将以上内容保存为文件alertmanager-inst.yaml，并通过以下命令创建：</p>
-<ol>
-<li><code>$ kubectl -n monitoring create -f alertmanager-inst.yaml</code></li>
-<li><code>alertmanager.monitoring.coreos.com/inst created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring create -f alertmanager-inst.yaml`</span><br><span class="line">`alertmanager.monitoring.coreos.com/inst created`</span><br></pre></td></tr></table></figure>
+
 <p>查看Pod的情况如下所示，我们会发现Alertmanager的Pod实例一直处于ContainerCreating的状态中:</p>
-<ol>
-<li><code>$ kubectl -n monitoring get pods</code></li>
-<li><code>NAME                                   READY     STATUS              RESTARTS   AGE</code></li>
-<li><code>alertmanager-inst-0                    0/2       ContainerCreating   0          32s</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring get pods`</span><br><span class="line">`NAME                                   READY     STATUS              RESTARTS   AGE`</span><br><span class="line">`alertmanager-inst-0                    0/2       ContainerCreating   0          32s`</span><br></pre></td></tr></table></figure>
+
 <p>通过kubectl describe命令查看该Alertmanager的Pod实例状态，可以看到类似于以下内容的告警信息：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">MountVolume.SetUp failed for volume &quot;config-volume&quot; : secrets &quot;alertmanager-inst&quot; not found</span><br></pre></td></tr></table></figure>
 
 <p>这是由于Prometheus Operator通过Statefulset的方式创建的Alertmanager实例，在默认情况下，会通过<code>alertmanager-&#123;ALERTMANAGER_NAME&#125;</code>的命名规则去查找Secret配置并以文件挂载的方式，将Secret的内容作为配置文件挂载到Alertmanager实例当中。因此，这里还需要为Alertmanager创建相应的配置内容，如下所示，是Alertmanager的配置文件：</p>
-<ol>
-<li><code>global:</code></li>
-<li><code>resolve_timeout: 5m</code></li>
-<li><code>route:</code></li>
-<li><code>group_by: [&#39;job&#39;]</code></li>
-<li><code>group_wait: 30s</code></li>
-<li><code>group_interval: 5m</code></li>
-<li><code>repeat_interval: 12h</code></li>
-<li><code>receiver: &#39;webhook&#39;</code></li>
-<li><code>receivers:</code></li>
-<li><code>- name: &#39;webhook&#39;</code></li>
-<li><code>webhook_configs:</code></li>
-<li><code>- url: &#39;http://alertmanagerwh:30500/&#39;</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">`global:`</span><br><span class="line">  `resolve_timeout: 5m`</span><br><span class="line">`route:`</span><br><span class="line">  `group_by: [&#x27;job&#x27;]`</span><br><span class="line">  `group_wait: 30s`</span><br><span class="line">  `group_interval: 5m`</span><br><span class="line">  `repeat_interval: 12h`</span><br><span class="line">  `receiver: &#x27;webhook&#x27;`</span><br><span class="line">`receivers:`</span><br><span class="line">`- name: &#x27;webhook&#x27;`</span><br><span class="line">  `webhook_configs:`</span><br><span class="line">  `- url: &#x27;http://alertmanagerwh:30500/&#x27;`</span><br></pre></td></tr></table></figure>
+
 <p>将以上内容保存为文件alertmanager.yaml，并且通过以下命令创建名为alrtmanager-inst的Secret资源：</p>
-<ol>
-<li><code>$ kubectl -n monitoring create secret generic alertmanager-inst --from-file=alertmanager.yaml</code></li>
-<li><code>secret/alertmanager-inst created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring create secret generic alertmanager-inst --from-file=alertmanager.yaml`</span><br><span class="line">`secret/alertmanager-inst created`</span><br></pre></td></tr></table></figure>
+
 <p>在Secret创建成功后，查看当前Alertmanager Pod实例状态。如下所示：</p>
-<ol>
-<li><code>$ kubectl -n monitoring get pods</code></li>
-<li><code>NAME                                   READY     STATUS    RESTARTS   AGE</code></li>
-<li><code>alertmanager-inst-0                    2/2       Running   0          5m</code></li>
-<li><code>alertmanager-inst-1                    2/2       Running   0          52s</code></li>
-<li><code>alertmanager-inst-2                    2/2       Running   0          37s</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring get pods`</span><br><span class="line">`NAME                                   READY     STATUS    RESTARTS   AGE`</span><br><span class="line">`alertmanager-inst-0                    2/2       Running   0          5m`</span><br><span class="line">`alertmanager-inst-1                    2/2       Running   0          52s`</span><br><span class="line">`alertmanager-inst-2                    2/2       Running   0          37s`</span><br></pre></td></tr></table></figure>
+
 <p>使用port-forward将Alertmanager映射到本地：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ kubectl -n monitoring port-forward statefulsets/alertmanager-inst 9093:9093</span><br></pre></td></tr></table></figure>
 
 <p>访问<a target="_blank" rel="noopener" href="http://localhost:9093/#/status">http://localhost:9093/#/status</a>，并查看当前集群状态：</p>
 <p><img src="/images/1761615170-237cf37a88bffdd02a150ad3cdf0fbd8.png" alt="Alertmanager集群状态"></p>
 <p>接下来，我们只需要修改我们的Prometheus资源定义，通过alerting指定使用的Alertmanager资源即可：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>serviceAccountName: prometheus</code></li>
-<li><code>serviceMonitorSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `team: frontend`
-</code></pre>
-</li>
-<li><code>ruleSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `role: alert-rules`
-</code></pre>
-</li>
-<li><pre><code>   `prometheus: example`
-</code></pre>
-</li>
-<li><code>alerting:</code></li>
-<li><pre><code> `alertmanagers:`
-</code></pre>
-</li>
-<li><pre><code> `- name: alertmanager-example`
-</code></pre>
-</li>
-<li><pre><code>   `namespace: monitoring`
-</code></pre>
-</li>
-<li><pre><code>   `port: web`
-</code></pre>
-</li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `serviceAccountName: prometheus`</span><br><span class="line">  `serviceMonitorSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `team: frontend`</span><br><span class="line">  `ruleSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `role: alert-rules`</span><br><span class="line">      `prometheus: example`</span><br><span class="line">  `alerting:`</span><br><span class="line">    `alertmanagers:`</span><br><span class="line">    `- name: alertmanager-example`</span><br><span class="line">      `namespace: monitoring`</span><br><span class="line">      `port: web`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
+
 <p>等待Prometheus重新加载后，我们可以看到Prometheus Operator在配置文件中添加了以下配置：</p>
-<ol>
-<li><code>alertmanagers:</code></li>
-<li><code>- kubernetes_sd_configs:</code></li>
-<li><pre><code> `- role: endpoints`
-</code></pre>
-</li>
-<li><pre><code>   `namespaces:`
-</code></pre>
-</li>
-<li><pre><code>     `names:`
-</code></pre>
-</li>
-<li><pre><code>     `- monitoring`
-</code></pre>
-</li>
-<li><pre><code> `scheme: http`
-</code></pre>
-</li>
-<li><pre><code> `path_prefix: /`
-</code></pre>
-</li>
-<li><pre><code> `timeout: 10s`
-</code></pre>
-</li>
-<li><pre><code> `relabel_configs:`
-</code></pre>
-</li>
-<li><pre><code> `- source_labels: [__meta_kubernetes_service_name]`
-</code></pre>
-</li>
-<li><pre><code>   `separator: ;`
-</code></pre>
-</li>
-<li><pre><code>   `regex: alertmanager-example`
-</code></pre>
-</li>
-<li><pre><code>   `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code>   `action: keep`
-</code></pre>
-</li>
-<li><pre><code> `- source_labels: [__meta_kubernetes_endpoint_port_name]`
-</code></pre>
-</li>
-<li><pre><code>   `separator: ;`
-</code></pre>
-</li>
-<li><pre><code>   `regex: web`
-</code></pre>
-</li>
-<li><pre><code>   `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code>   `action: keep`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line">`alertmanagers:`</span><br><span class="line">`- kubernetes_sd_configs:`</span><br><span class="line">  `- role: endpoints`</span><br><span class="line">    `namespaces:`</span><br><span class="line">      `names:`</span><br><span class="line">      `- monitoring`</span><br><span class="line">  `scheme: http`</span><br><span class="line">  `path_prefix: /`</span><br><span class="line">  `timeout: 10s`</span><br><span class="line">  `relabel_configs:`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_service_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: alertmanager-example`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: keep`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_endpoint_port_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: web`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: keep`</span><br></pre></td></tr></table></figure>
 <p>通过服务发现规则将Prometheus与Alertmanager进行了自动关联。</p>
  
       <!-- reward -->

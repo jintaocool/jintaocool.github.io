@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">550</span>
+            <span class="post-count">556</span>
         </span>
     </span>
 
@@ -124,61 +124,24 @@
        
   <p>在Prometheus Operator我们通过声明式的创建如Prometheus, ServiceMonitor这些自定义的资源类型来自动化部署和管理Prometheus的相关组件以及配置。而在一些特殊的情况下，对于用户而言，可能还是希望能够手动管理Prometheus配置文件，而非通过Prometheus Operator自动完成。 为什么？ 实际上Prometheus Operator对于Job的配置只适用于在Kubernetes中部署和管理的应用程序。如果你希望使用Prometheus监控一些其他的资源，例如AWS或者其他平台中的基础设施或者应用，这些并不在Prometheus Operator的能力范围之内。</p>
 <p>为了能够在通过Prometheus Operator创建的Prometheus实例中使用自定义配置文件，我们只能创建一个不包含任何与配置文件内容相关的Prometheus实例</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst-cc</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>serviceAccountName: prometheus</code></li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst-cc`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `serviceAccountName: prometheus`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
+
 <p>将以上内容保存到prometheus-inst-cc.yaml文件中，并且通过kubectl创建:</p>
-<ol>
-<li><code>$ kubectl -n monitoring create -f prometheus-inst-cc.yaml</code></li>
-<li><code>prometheus.monitoring.coreos.com/inst-cc created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring create -f prometheus-inst-cc.yaml`</span><br><span class="line">`prometheus.monitoring.coreos.com/inst-cc created`</span><br></pre></td></tr></table></figure>
+
 <p>如果查看新建Prometheus的Pod实例YAML定义，我们可以看到Pod中会包含一个volume配置：</p>
-<ol>
-<li><code>volumes:</code></li>
-<li><code>- name: config</code></li>
-<li><pre><code> `secret:`
-</code></pre>
-</li>
-<li><pre><code>   `defaultMode: 420`
-</code></pre>
-</li>
-<li><pre><code>   `secretName: prometheus-inst-cc`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">`volumes:`</span><br><span class="line">  `- name: config`</span><br><span class="line">    `secret:`</span><br><span class="line">      `defaultMode: 420`</span><br><span class="line">      `secretName: prometheus-inst-cc`</span><br></pre></td></tr></table></figure>
+
 <p>Prometheus的配置文件实际上是保存在名为<code>prometheus-&lt;name-of-prometheus-object&gt;</code>的Secret中，当用户创建的Prometheus中关联ServiceMonitor这类会影响配置文件内容的定义时，Promethues Operator会自动管理。而如果Prometheus定义中不包含任何与配置相关的定义，那么Secret的管理权限就落到了用户自己手中。</p>
 <p>通过修改prometheus-inst-cc的内容，从而可以让用户可以使用自定义的Prometheus配置文件，作为示例，我们创建一个prometheus.yaml文件并添加以下内容：</p>
-<ol>
-<li><code>global:</code></li>
-<li><code>scrape_interval: 10s</code></li>
-<li><code>scrape_timeout: 10s</code></li>
-<li><code>evaluation_interval: 10s</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">`global:`</span><br><span class="line">  `scrape_interval: 10s`</span><br><span class="line">  `scrape_timeout: 10s`</span><br><span class="line">  `evaluation_interval: 10s`</span><br></pre></td></tr></table></figure>
+
 <p>生成文件内容的base64编码后的内容：</p>
-<ol>
-<li><code>$ cat prometheus.yaml | base64</code></li>
-<li><code>Z2xvYmFsOgogIHNjcmFwZV9pbnRlcnZhbDogMTBzCiAgc2NyYXBlX3RpbWVvdXQ6IDEwcwogIGV2YWx1YXRpb25faW50ZXJ2YWw6IDEwcw==</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ cat prometheus.yaml | base64`</span><br><span class="line">`Z2xvYmFsOgogIHNjcmFwZV9pbnRlcnZhbDogMTBzCiAgc2NyYXBlX3RpbWVvdXQ6IDEwcwogIGV2YWx1YXRpb25faW50ZXJ2YWw6IDEwcw==`</span><br></pre></td></tr></table></figure>
+
 <p>修改名为prometheus-inst-cc的Secret内容，如下所示：</p>
-<ol>
-<li><code>$ kubectl -n monitoring edit secret prometheus-inst-cc</code></li>
-<li><code># 省略其它内容</code></li>
-<li><code>data:</code></li>
-<li><code>prometheus.yaml: &quot;Z2xvYmFsOgogIHNjcmFwZV9pbnRlcnZhbDogMTBzCiAgc2NyYXBlX3RpbWVvdXQ6IDEwcwogIGV2YWx1YXRpb25faW50ZXJ2YWw6IDEwcw==&quot;</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring edit secret prometheus-inst-cc`</span><br><span class="line">`# 省略其它内容`</span><br><span class="line">`data:`</span><br><span class="line">  `prometheus.yaml: &quot;Z2xvYmFsOgogIHNjcmFwZV9pbnRlcnZhbDogMTBzCiAgc2NyYXBlX3RpbWVvdXQ6IDEwcwogIGV2YWx1YXRpb25faW50ZXJ2YWw6IDEwcw==&quot;`</span><br></pre></td></tr></table></figure>
+
 <p>通过port-forward在本地访问新建的Prometheus实例，观察配置文件变化即可：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl -n monitoring port-forward statefulsets/prometheus-inst-cc 9091:9090</span><br></pre></td></tr></table></figure>
  
