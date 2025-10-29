@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">989</span>
+            <span class="post-count">991</span>
         </span>
     </span>
 
@@ -147,22 +147,11 @@
 <figure class="highlight sql"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">kubectl <span class="keyword">create</span> namespace monitoring</span><br></pre></td></tr></table></figure>
 
 <p>由于需要对Prometheus Operator进行RBAC授权，而默认的bundle.yaml中使用了default命名空间，因此，在安装Prometheus Operator之前需要先替换一下bundle.yaml文件中所有namespace定义，由default修改为monitoring。 通过运行一下命令安装Prometheus Operator的Deployment实例：</p>
-<ol>
-<li><code>$ kubectl -n monitoring apply -f bundle.yaml</code></li>
-<li><code>clusterrolebinding.rbac.authorization.k8s.io/prometheus-operator created</code></li>
-<li><code>clusterrole.rbac.authorization.k8s.io/prometheus-operator created</code></li>
-<li><code>deployment.apps/prometheus-operator created</code></li>
-<li><code>serviceaccount/prometheus-operator created</code></li>
-<li><code>service/prometheus-operator created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring apply -f bundle.yaml`</span><br><span class="line">`clusterrolebinding.rbac.authorization.k8s.io/prometheus-operator created`</span><br><span class="line">`clusterrole.rbac.authorization.k8s.io/prometheus-operator created`</span><br><span class="line">`deployment.apps/prometheus-operator created`</span><br><span class="line">`serviceaccount/prometheus-operator created`</span><br><span class="line">`service/prometheus-operator created`</span><br></pre></td></tr></table></figure>
+
 <p>Prometheus Operator通过Deployment的形式进行部署，为了能够让Prometheus Operator能够监听和管理Kubernetes资源同时也创建了单独的ServiceAccount以及相关的授权动作。</p>
 <p>查看Prometheus Operator部署状态，以确保已正常运行：</p>
-<ol>
-<li><code>$ kubectl -n monitoring get pods</code></li>
-<li><code>NAME                                   READY     STATUS    RESTARTS   AGE</code></li>
-<li><code>prometheus-operator-6db8dbb7dd-2hz55   1/1       Running   0          19s</code></li>
-</ol>
- 
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring get pods`</span><br><span class="line">`NAME                                   READY     STATUS    RESTARTS   AGE`</span><br><span class="line">`prometheus-operator-6db8dbb7dd-2hz55   1/1       Running   0          19s`</span><br></pre></td></tr></table></figure> 
       <!-- reward -->
       
       <div id="reword-out">
