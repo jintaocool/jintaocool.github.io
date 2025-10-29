@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">1.7k</span>
+            <span class="post-count">1.8k</span>
         </span>
     </span>
 
@@ -125,513 +125,69 @@
     <div class="article-entry" itemprop="articleBody">
        
   <h2 id="创建Prometheus实例"><a href="#创建Prometheus实例" class="headerlink" title="创建Prometheus实例"></a>创建Prometheus实例</h2><p>当集群中已经安装Prometheus Operator之后，对于部署Prometheus Server实例就变成了声明一个Prometheus资源，如下所示，我们在Monitoring命名空间下创建一个Prometheus实例：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
 <p>将以上内容保存到prometheus-inst.yaml文件，并通过kubectl进行创建：</p>
-<ol>
-<li><code>$ kubectl create -f prometheus-inst.yaml</code></li>
-<li><code>prometheus.monitoring.coreos.com/inst-1 created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl create -f prometheus-inst.yaml`</span><br><span class="line">`prometheus.monitoring.coreos.com/inst-1 created`</span><br></pre></td></tr></table></figure>
 <p>此时，查看monitoring命名空间下的statefulsets资源，可以看到Prometheus Operator自动通过Statefulset创建的Prometheus实例：</p>
-<ol>
-<li><code>$ kubectl -n monitoring get statefulsets</code></li>
-<li><code>NAME              DESIRED   CURRENT   AGE</code></li>
-<li><code>prometheus-inst   1         1         1m</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring get statefulsets`</span><br><span class="line">`NAME              DESIRED   CURRENT   AGE`</span><br><span class="line">`prometheus-inst   1         1         1m`</span><br></pre></td></tr></table></figure>
+
 <p>查看Pod实例：</p>
-<ol>
-<li><code>$ kubectl -n monitoring get pods</code></li>
-<li><code>NAME                                   READY     STATUS    RESTARTS   AGE</code></li>
-<li><code>prometheus-inst-0                      3/3       Running   1          1m</code></li>
-<li><code>prometheus-operator-6db8dbb7dd-2hz55   1/1       Running   0          45m</code></li>
-</ol>
-<p>通过port-forward访问Prometheus实例:</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ kubectl -n monitoring port-forward statefulsets/prometheus-inst 9090:9090</span><br></pre></td></tr></table></figure>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br></pre></td><td class="code"><pre><span class="line">  `$ kubectl -n monitoring get pods`</span><br><span class="line">  `NAME                                   READY     STATUS    RESTARTS   AGE`</span><br><span class="line">  `prometheus-inst-0                      3/3       Running   1          1m`</span><br><span class="line">  `prometheus-operator-6db8dbb7dd-2hz55   1/1       Running   0          45m`</span><br><span class="line">```shell</span><br><span class="line"></span><br><span class="line">通过port-forward访问Prometheus实例:</span><br><span class="line"></span><br><span class="line">```plain</span><br><span class="line"><span class="meta prompt_">$ </span><span class="language-bash">kubectl -n monitoring port-forward statefulsets/prometheus-inst 9090:9090</span></span><br></pre></td></tr></table></figure>
 
 <p>通过<a target="_blank" rel="noopener" href="http://localhost:9090/">http://localhost:9090</a>可以在本地直接打开Prometheus Operator创建的Prometheus实例。查看配置信息，可以看到目前Operator创建了只包含基本配置的Prometheus实例：</p>
 <p><img src="/images/1761614882-0c75a5a5c220d9f376f945596a88576a.png" alt="使用Operator管理Prometheus - 图1"></p>
 <h2 id="使用ServiceMonitor管理监控配置"><a href="#使用ServiceMonitor管理监控配置" class="headerlink" title="使用ServiceMonitor管理监控配置"></a>使用ServiceMonitor管理监控配置</h2><p>修改监控配置项也是Prometheus下常用的运维操作之一，为了能够自动化的管理Prometheus的配置，Prometheus Operator使用了自定义资源类型ServiceMonitor来描述监控对象的信息。</p>
 <p>这里我们首先在集群中部署一个示例应用，将以下内容保存到example-app.yaml，并使用kubectl命令行工具创建：</p>
-<ol>
-<li><code>kind: Service</code></li>
-<li><code>apiVersion: v1</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: example-app</code></li>
-<li><code>labels:</code></li>
-<li><pre><code> `app: example-app`
-</code></pre>
-</li>
-<li><code>spec:</code></li>
-<li><code>selector:</code></li>
-<li><pre><code> `app: example-app`
-</code></pre>
-</li>
-<li><code>ports:</code></li>
-<li><code>- name: web</code></li>
-<li><pre><code> `port: 8080`
-</code></pre>
-</li>
-<li><code>---</code></li>
-<li><code>apiVersion: extensions/v1beta1</code></li>
-<li><code>kind: Deployment</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: example-app</code></li>
-<li><code>spec:</code></li>
-<li><code>replicas: 3</code></li>
-<li><code>template:</code></li>
-<li><pre><code> `metadata:`
-</code></pre>
-</li>
-<li><pre><code>   `labels:`
-</code></pre>
-</li>
-<li><pre><code>     `app: example-app`
-</code></pre>
-</li>
-<li><pre><code> `spec:`
-</code></pre>
-</li>
-<li><pre><code>   `containers:`
-</code></pre>
-</li>
-<li><pre><code>   `- name: example-app`
-</code></pre>
-</li>
-<li><pre><code>     `image: fabxc/instrumented_app`
-</code></pre>
-</li>
-<li><pre><code>     `ports:`
-</code></pre>
-</li>
-<li><pre><code>     `- name: web`
-</code></pre>
-</li>
-<li><pre><code>       `containerPort: 8080`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br></pre></td><td class="code"><pre><span class="line">`kind: Service`</span><br><span class="line">`apiVersion: v1`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: example-app`</span><br><span class="line">  `labels:`</span><br><span class="line">    `app: example-app`</span><br><span class="line">`spec:`</span><br><span class="line">  `selector:`</span><br><span class="line">    `app: example-app`</span><br><span class="line">  `ports:`</span><br><span class="line">  `- name: web`</span><br><span class="line">    `port: 8080`</span><br><span class="line">`---`</span><br><span class="line">`apiVersion: extensions/v1beta1`</span><br><span class="line">`kind: Deployment`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: example-app`</span><br><span class="line">`spec:`</span><br><span class="line">  `replicas: 3`</span><br><span class="line">  `template:`</span><br><span class="line">    `metadata:`</span><br><span class="line">      `labels:`</span><br><span class="line">        `app: example-app`</span><br><span class="line">    `spec:`</span><br><span class="line">      `containers:`</span><br><span class="line">      `- name: example-app`</span><br><span class="line">        `image: fabxc/instrumented_app`</span><br><span class="line">        `ports:`</span><br><span class="line">        `- name: web`</span><br><span class="line">          `containerPort: 8080`</span><br></pre></td></tr></table></figure>
+
 <p>示例应用会通过Deployment创建3个Pod实例，并且通过Service暴露应用访问信息。</p>
-<ol>
-<li><code>$ kubectl get pods</code></li>
-<li><code>NAME                        READY     STATUS    RESTARTS   AGE</code></li>
-<li><code>example-app-94c8bc8-l27vx   2/2       Running   0          1m</code></li>
-<li><code>example-app-94c8bc8-lcsrm   2/2       Running   0          1m</code></li>
-<li><code>example-app-94c8bc8-n6wp5   2/2       Running   0          1m</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl get pods`</span><br><span class="line">`NAME                        READY     STATUS    RESTARTS   AGE`</span><br><span class="line">`example-app-94c8bc8-l27vx   2/2       Running   0          1m`</span><br><span class="line">`example-app-94c8bc8-lcsrm   2/2       Running   0          1m`</span><br><span class="line">`example-app-94c8bc8-n6wp5   2/2       Running   0          1m`</span><br></pre></td></tr></table></figure>
+
 <p>在本地同样通过port-forward访问任意Pod实例</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ kubectl port-forward deployments/example-app 8080:8080</span><br></pre></td></tr></table></figure>
 
 <p>访问本地的<a target="_blank" rel="noopener" href="http://localhost:8080/metrics">http://localhost:8080/metrics</a>实例应用程序会返回以下样本数据：</p>
-<ol>
-<li><code># TYPE codelab_api_http_requests_in_progress gauge</code></li>
-<li><code>codelab_api_http_requests_in_progress 3</code></li>
-<li><code># HELP codelab_api_request_duration_seconds A histogram of the API HTTP request durations in seconds.</code></li>
-<li><code># TYPE codelab_api_request_duration_seconds histogram</code></li>
-<li><code>codelab_api_request_duration_seconds_bucket&#123;method=&quot;GET&quot;,path=&quot;/api/bar&quot;,status=&quot;200&quot;,le=&quot;0.0001&quot;&#125; 0</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line">`# TYPE codelab_api_http_requests_in_progress gauge`</span><br><span class="line">`codelab_api_http_requests_in_progress 3`</span><br><span class="line">`# HELP codelab_api_request_duration_seconds A histogram of the API HTTP request durations in seconds.`</span><br><span class="line">`# TYPE codelab_api_request_duration_seconds histogram`</span><br><span class="line">`codelab_api_request_duration_seconds_bucket&#123;method=&quot;GET&quot;,path=&quot;/api/bar&quot;,status=&quot;200&quot;,le=&quot;0.0001&quot;&#125; 0`</span><br></pre></td></tr></table></figure>
+
 <p>为了能够让Prometheus能够采集部署在Kubernetes下应用的监控数据，在原生的Prometheus配置方式中，我们在Prometheus配置文件中定义单独的Job，同时使用kubernetes_sd定义整个服务发现过程。而在Prometheus Operator中，则可以直接声明一个ServiceMonitor对象，如下所示：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: ServiceMonitor</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: example-app</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>labels:</code></li>
-<li><pre><code> `team: frontend`
-</code></pre>
-</li>
-<li><code>spec:</code></li>
-<li><code>namespaceSelector:</code></li>
-<li><pre><code> `matchNames:`
-</code></pre>
-</li>
-<li><pre><code> `- default`
-</code></pre>
-</li>
-<li><code>selector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `app: example-app`
-</code></pre>
-</li>
-<li><code>endpoints:</code></li>
-<li><code>- port: web</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: ServiceMonitor`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: example-app`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">  `labels:`</span><br><span class="line">    `team: frontend`</span><br><span class="line">`spec:`</span><br><span class="line">  `namespaceSelector:`</span><br><span class="line">    `matchNames:`</span><br><span class="line">    `- default`</span><br><span class="line">  `selector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `app: example-app`</span><br><span class="line">  `endpoints:`</span><br><span class="line">  `- port: web`</span><br></pre></td></tr></table></figure>
+
 <p>通过定义selector中的标签定义选择监控目标的Pod对象，同时在endpoints中指定port名称为web的端口。默认情况下ServiceMonitor和监控对象必须是在相同Namespace下的。在本示例中由于Prometheus是部署在Monitoring命名空间下，因此为了能够关联default命名空间下的example对象，需要使用namespaceSelector定义让其可以跨命名空间关联ServiceMonitor资源。保存以上内容到example-app-service-monitor.yaml文件中，并通过kubectl创建：</p>
-<ol>
-<li><code>$ kubectl create -f example-app-service-monitor.yaml</code></li>
-<li><code>servicemonitor.monitoring.coreos.com/example-app created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl create -f example-app-service-monitor.yaml`</span><br><span class="line">`servicemonitor.monitoring.coreos.com/example-app created`</span><br></pre></td></tr></table></figure>
+
 <p>如果希望ServiceMonitor可以关联任意命名空间下的标签，则通过以下方式定义：</p>
-<ol>
-<li><code>spec:</code></li>
-<li><code>namespaceSelector:</code></li>
-<li><pre><code> `any: true`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br></pre></td><td class="code"><pre><span class="line">`spec:`</span><br><span class="line">  `namespaceSelector:`</span><br><span class="line">    `any: true`</span><br></pre></td></tr></table></figure>
+
 <p>如果监控的Target对象启用了BasicAuth认证，那在定义ServiceMonitor对象时，可以使用endpoints配置中定义basicAuth如下所示：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: ServiceMonitor</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: example-app</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>labels:</code></li>
-<li><pre><code> `team: frontend`
-</code></pre>
-</li>
-<li><code>spec:</code></li>
-<li><code>namespaceSelector:</code></li>
-<li><pre><code> `matchNames:`
-</code></pre>
-</li>
-<li><pre><code> `- default`
-</code></pre>
-</li>
-<li><code>selector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `app: example-app`
-</code></pre>
-</li>
-<li><code>endpoints:</code></li>
-<li><code>- basicAuth:</code></li>
-<li><pre><code>   `password:`
-</code></pre>
-</li>
-<li><pre><code>     `name: basic-auth`
-</code></pre>
-</li>
-<li><pre><code>     `key: password`
-</code></pre>
-</li>
-<li><pre><code>   `username:`
-</code></pre>
-</li>
-<li><pre><code>     `name: basic-auth`
-</code></pre>
-</li>
-<li><pre><code>     `key: user`
-</code></pre>
-</li>
-<li><pre><code> `port: web`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: ServiceMonitor`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: example-app`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">  `labels:`</span><br><span class="line">    `team: frontend`</span><br><span class="line">`spec:`</span><br><span class="line">  `namespaceSelector:`</span><br><span class="line">    `matchNames:`</span><br><span class="line">    `- default`</span><br><span class="line">  `selector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `app: example-app`</span><br><span class="line">  `endpoints:`</span><br><span class="line">  `- basicAuth:`</span><br><span class="line">      `password:`</span><br><span class="line">        `name: basic-auth`</span><br><span class="line">        `key: password`</span><br><span class="line">      `username:`</span><br><span class="line">        `name: basic-auth`</span><br><span class="line">        `key: user`</span><br><span class="line">    `port: web`</span><br></pre></td></tr></table></figure>
+
 <p>其中basicAuth中关联了名为basic-auth的Secret对象，用户需要手动将认证信息保存到Secret中:</p>
-<ol>
-<li><code>apiVersion: v1</code></li>
-<li><code>kind: Secret</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: basic-auth</code></li>
-<li><code>data:</code></li>
-<li><code>password: dG9vcg== # base64编码后的密码</code></li>
-<li><code>user: YWRtaW4= # base64编码后的用户名</code></li>
-<li><code>type: Opaque</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: v1`</span><br><span class="line">`kind: Secret`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: basic-auth`</span><br><span class="line">`data:`</span><br><span class="line">  `password: dG9vcg== # base64编码后的密码`</span><br><span class="line">  `user: YWRtaW4= # base64编码后的用户名`</span><br><span class="line">`type: Opaque`</span><br></pre></td></tr></table></figure>
+
 <h2 id="关联Promethues与ServiceMonitor"><a href="#关联Promethues与ServiceMonitor" class="headerlink" title="关联Promethues与ServiceMonitor"></a>关联Promethues与ServiceMonitor</h2><p>Prometheus与ServiceMonitor之间的关联关系使用serviceMonitorSelector定义，在Prometheus中通过标签选择当前需要监控的ServiceMonitor对象。修改prometheus-inst.yaml中Prometheus的定义如下所示： 为了能够让Prometheus关联到ServiceMonitor，需要在Pormtheus定义中使用serviceMonitorSelector，我们可以通过标签选择当前Prometheus需要监控的ServiceMonitor对象。修改prometheus-inst.yaml中Prometheus的定义如下所示：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>serviceMonitorSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `team: frontend`
-</code></pre>
-</li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `serviceMonitorSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `team: frontend`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
+
 <p>将对Prometheus的变更应用到集群中：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">$ kubectl -n monitoring apply -f prometheus-inst.yaml</span><br></pre></td></tr></table></figure>
 
 <p>此时，如果查看Prometheus配置信息，我们会惊喜的发现Prometheus中配置文件自动包含了一条名为monitoring&#x2F;example-app&#x2F;0的Job配置：</p>
-<ol>
-<li><code>global:</code></li>
-<li><code>scrape_interval: 30s</code></li>
-<li><code>scrape_timeout: 10s</code></li>
-<li><code>evaluation_interval: 30s</code></li>
-<li><code>external_labels:</code></li>
-<li><pre><code> `prometheus: monitoring/inst`
-</code></pre>
-</li>
-<li><pre><code> `prometheus_replica: prometheus-inst-0`
-</code></pre>
-</li>
-<li><code>alerting:</code></li>
-<li><code>alert_relabel_configs:</code></li>
-<li><code>- separator: ;</code></li>
-<li><pre><code> `regex: prometheus_replica`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: labeldrop`
-</code></pre>
-</li>
-<li><code>rule_files:</code></li>
-<li><code>- /etc/prometheus/rules/prometheus-inst-rulefiles-0/*.yaml</code></li>
-<li><code>scrape_configs:</code></li>
-<li><code>- job_name: monitoring/example-app/0</code></li>
-<li><code>scrape_interval: 30s</code></li>
-<li><code>scrape_timeout: 10s</code></li>
-<li><code>metrics_path: /metrics</code></li>
-<li><code>scheme: http</code></li>
-<li><code>kubernetes_sd_configs:</code></li>
-<li><code>- role: endpoints</code></li>
-<li><pre><code> `namespaces:`
-</code></pre>
-</li>
-<li><pre><code>   `names:`
-</code></pre>
-</li>
-<li><pre><code>   `- default`
-</code></pre>
-</li>
-<li><code>relabel_configs:</code></li>
-<li><code>- source_labels: [__meta_kubernetes_service_label_app]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: example-app`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: keep`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_endpoint_port_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: web`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: keep`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: Node;(.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: node`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $&#123;1&#125;`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: Pod;(.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: pod`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $&#123;1&#125;`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_namespace]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: (.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: namespace`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_service_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: (.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: service`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_pod_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: (.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: pod`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $1`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- source_labels: [__meta_kubernetes_service_name]</code></li>
-<li><pre><code> `separator: ;`
-</code></pre>
-</li>
-<li><pre><code> `regex: (.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: job`
-</code></pre>
-</li>
-<li><pre><code> `replacement: $&#123;1&#125;`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-<li><code>- separator: ;</code></li>
-<li><pre><code> `regex: (.*)`
-</code></pre>
-</li>
-<li><pre><code> `target_label: endpoint`
-</code></pre>
-</li>
-<li><pre><code> `replacement: web`
-</code></pre>
-</li>
-<li><pre><code> `action: replace`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br><span class="line">38</span><br><span class="line">39</span><br><span class="line">40</span><br><span class="line">41</span><br><span class="line">42</span><br><span class="line">43</span><br><span class="line">44</span><br><span class="line">45</span><br><span class="line">46</span><br><span class="line">47</span><br><span class="line">48</span><br><span class="line">49</span><br><span class="line">50</span><br><span class="line">51</span><br><span class="line">52</span><br><span class="line">53</span><br><span class="line">54</span><br><span class="line">55</span><br><span class="line">56</span><br><span class="line">57</span><br><span class="line">58</span><br><span class="line">59</span><br><span class="line">60</span><br><span class="line">61</span><br><span class="line">62</span><br><span class="line">63</span><br><span class="line">64</span><br><span class="line">65</span><br><span class="line">66</span><br><span class="line">67</span><br><span class="line">68</span><br><span class="line">69</span><br><span class="line">70</span><br><span class="line">71</span><br><span class="line">72</span><br><span class="line">73</span><br><span class="line">74</span><br><span class="line">75</span><br><span class="line">76</span><br><span class="line">77</span><br><span class="line">78</span><br></pre></td><td class="code"><pre><span class="line">`global:`</span><br><span class="line">  `scrape_interval: 30s`</span><br><span class="line">  `scrape_timeout: 10s`</span><br><span class="line">  `evaluation_interval: 30s`</span><br><span class="line">  `external_labels:`</span><br><span class="line">    `prometheus: monitoring/inst`</span><br><span class="line">    `prometheus_replica: prometheus-inst-0`</span><br><span class="line">`alerting:`</span><br><span class="line">  `alert_relabel_configs:`</span><br><span class="line">  `- separator: ;`</span><br><span class="line">    `regex: prometheus_replica`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: labeldrop`</span><br><span class="line">`rule_files:`</span><br><span class="line">`- /etc/prometheus/rules/prometheus-inst-rulefiles-0/*.yaml`</span><br><span class="line">`scrape_configs:`</span><br><span class="line">`- job_name: monitoring/example-app/0`</span><br><span class="line">  `scrape_interval: 30s`</span><br><span class="line">  `scrape_timeout: 10s`</span><br><span class="line">  `metrics_path: /metrics`</span><br><span class="line">  `scheme: http`</span><br><span class="line">  `kubernetes_sd_configs:`</span><br><span class="line">  `- role: endpoints`</span><br><span class="line">    `namespaces:`</span><br><span class="line">      `names:`</span><br><span class="line">      `- default`</span><br><span class="line">  `relabel_configs:`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_service_label_app]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: example-app`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: keep`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_endpoint_port_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: web`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: keep`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: Node;(.*)`</span><br><span class="line">    `target_label: node`</span><br><span class="line">    `replacement: $&#123;1&#125;`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_endpoint_address_target_kind, __meta_kubernetes_endpoint_address_target_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: Pod;(.*)`</span><br><span class="line">    `target_label: pod`</span><br><span class="line">    `replacement: $&#123;1&#125;`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_namespace]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: (.*)`</span><br><span class="line">    `target_label: namespace`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_service_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: (.*)`</span><br><span class="line">    `target_label: service`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_pod_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: (.*)`</span><br><span class="line">    `target_label: pod`</span><br><span class="line">    `replacement: $1`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- source_labels: [__meta_kubernetes_service_name]`</span><br><span class="line">    `separator: ;`</span><br><span class="line">    `regex: (.*)`</span><br><span class="line">    `target_label: job`</span><br><span class="line">    `replacement: $&#123;1&#125;`</span><br><span class="line">    `action: replace`</span><br><span class="line">  `- separator: ;`</span><br><span class="line">    `regex: (.*)`</span><br><span class="line">    `target_label: endpoint`</span><br><span class="line">    `replacement: web`</span><br><span class="line">    `action: replace`</span><br></pre></td></tr></table></figure>
 <p>不过，如果细心的读者可能会发现，虽然Job配置有了，但是Prometheus的Target中并没包含任何的监控对象。查看Prometheus的Pod实例日志，可以看到如下信息：</p>
 <figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">level=error ts=2018-12-15T12:52:48.452108433Z caller=main.go:240 component=k8s_client_runtime err=&quot;github.com/prometheus/prometheus/discovery/kubernetes/kubernetes.go:300: Failed to list *v1.Endpoints: endpoints is forbidden: User \&quot;system:serviceaccount:monitoring:default\&quot; cannot list endpoints in the namespace \&quot;default\&quot;&quot;</span><br></pre></td></tr></table></figure>
 
 <h2 id="自定义ServiceAccount"><a href="#自定义ServiceAccount" class="headerlink" title="自定义ServiceAccount"></a>自定义ServiceAccount</h2><p>由于默认创建的Prometheus实例使用的是monitoring命名空间下的default账号，该账号并没有权限能够获取default命名空间下的任何资源信息。</p>
 <p>为了修复这个问题，我们需要在Monitoring命名空间下为创建一个名为Prometheus的ServiceAccount，并且为该账号赋予相应的集群访问权限。</p>
-<ol>
-<li><code>apiVersion: v1</code></li>
-<li><code>kind: ServiceAccount</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: prometheus</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>---</code></li>
-<li><code>apiVersion: rbac.authorization.k8s.io/v1beta1</code></li>
-<li><code>kind: ClusterRole</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: prometheus</code></li>
-<li><code>rules:</code></li>
-<li><code>- apiGroups: [&quot;&quot;]</code></li>
-<li><code>resources:</code></li>
-<li><code>- nodes</code></li>
-<li><code>- services</code></li>
-<li><code>- endpoints</code></li>
-<li><code>- pods</code></li>
-<li><code>verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]</code></li>
-<li><code>- apiGroups: [&quot;&quot;]</code></li>
-<li><code>resources:</code></li>
-<li><code>- configmaps</code></li>
-<li><code>verbs: [&quot;get&quot;]</code></li>
-<li><code>- nonResourceURLs: [&quot;/metrics&quot;]</code></li>
-<li><code>verbs: [&quot;get&quot;]</code></li>
-<li><code>---</code></li>
-<li><code>apiVersion: rbac.authorization.k8s.io/v1beta1</code></li>
-<li><code>kind: ClusterRoleBinding</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: prometheus</code></li>
-<li><code>roleRef:</code></li>
-<li><code>apiGroup: rbac.authorization.k8s.io</code></li>
-<li><code>kind: ClusterRole</code></li>
-<li><code>name: prometheus</code></li>
-<li><code>subjects:</code></li>
-<li><code>- kind: ServiceAccount</code></li>
-<li><code>name: prometheus</code></li>
-<li><code>namespace: monitoring</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br><span class="line">21</span><br><span class="line">22</span><br><span class="line">23</span><br><span class="line">24</span><br><span class="line">25</span><br><span class="line">26</span><br><span class="line">27</span><br><span class="line">28</span><br><span class="line">29</span><br><span class="line">30</span><br><span class="line">31</span><br><span class="line">32</span><br><span class="line">33</span><br><span class="line">34</span><br><span class="line">35</span><br><span class="line">36</span><br><span class="line">37</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: v1`</span><br><span class="line">`kind: ServiceAccount`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: prometheus`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`---`</span><br><span class="line">`apiVersion: rbac.authorization.k8s.io/v1beta1`</span><br><span class="line">`kind: ClusterRole`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: prometheus`</span><br><span class="line">`rules:`</span><br><span class="line">`- apiGroups: [&quot;&quot;]`</span><br><span class="line">  `resources:`</span><br><span class="line">  `- nodes`</span><br><span class="line">  `- services`</span><br><span class="line">  `- endpoints`</span><br><span class="line">  `- pods`</span><br><span class="line">  `verbs: [&quot;get&quot;, &quot;list&quot;, &quot;watch&quot;]`</span><br><span class="line">`- apiGroups: [&quot;&quot;]`</span><br><span class="line">  `resources:`</span><br><span class="line">  `- configmaps`</span><br><span class="line">  `verbs: [&quot;get&quot;]`</span><br><span class="line">`- nonResourceURLs: [&quot;/metrics&quot;]`</span><br><span class="line">  `verbs: [&quot;get&quot;]`</span><br><span class="line">`---`</span><br><span class="line">`apiVersion: rbac.authorization.k8s.io/v1beta1`</span><br><span class="line">`kind: ClusterRoleBinding`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: prometheus`</span><br><span class="line">`roleRef:`</span><br><span class="line">  `apiGroup: rbac.authorization.k8s.io`</span><br><span class="line">  `kind: ClusterRole`</span><br><span class="line">  `name: prometheus`</span><br><span class="line">`subjects:`</span><br><span class="line">`- kind: ServiceAccount`</span><br><span class="line">  `name: prometheus`</span><br><span class="line">  `namespace: monitoring`</span><br></pre></td></tr></table></figure>
+
 <p>将以上内容保存到prometheus-rbac.yaml文件中，并且通过kubectl创建相应资源：</p>
-<ol>
-<li><code>$ kubectl -n monitoring create -f prometheus-rbac.yaml</code></li>
-<li><code>serviceaccount/prometheus created</code></li>
-<li><code>clusterrole.rbac.authorization.k8s.io/prometheus created</code></li>
-<li><code>clusterrolebinding.rbac.authorization.k8s.io/prometheus created</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring create -f prometheus-rbac.yaml`</span><br><span class="line">`serviceaccount/prometheus created`</span><br><span class="line">`clusterrole.rbac.authorization.k8s.io/prometheus created`</span><br><span class="line">`clusterrolebinding.rbac.authorization.k8s.io/prometheus created`</span><br></pre></td></tr></table></figure>
+
 <p>在完成ServiceAccount创建后，修改prometheus-inst.yaml，并添加ServiceAccount如下所示：</p>
-<ol>
-<li><code>apiVersion: monitoring.coreos.com/v1</code></li>
-<li><code>kind: Prometheus</code></li>
-<li><code>metadata:</code></li>
-<li><code>name: inst</code></li>
-<li><code>namespace: monitoring</code></li>
-<li><code>spec:</code></li>
-<li><code>serviceAccountName: prometheus</code></li>
-<li><code>serviceMonitorSelector:</code></li>
-<li><pre><code> `matchLabels:`
-</code></pre>
-</li>
-<li><pre><code>   `team: frontend`
-</code></pre>
-</li>
-<li><code>resources:</code></li>
-<li><pre><code> `requests:`
-</code></pre>
-</li>
-<li><pre><code>   `memory: 400Mi`
-</code></pre>
-</li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br></pre></td><td class="code"><pre><span class="line">`apiVersion: monitoring.coreos.com/v1`</span><br><span class="line">`kind: Prometheus`</span><br><span class="line">`metadata:`</span><br><span class="line">  `name: inst`</span><br><span class="line">  `namespace: monitoring`</span><br><span class="line">`spec:`</span><br><span class="line">  `serviceAccountName: prometheus`</span><br><span class="line">  `serviceMonitorSelector:`</span><br><span class="line">    `matchLabels:`</span><br><span class="line">      `team: frontend`</span><br><span class="line">  `resources:`</span><br><span class="line">    `requests:`</span><br><span class="line">      `memory: 400Mi`</span><br></pre></td></tr></table></figure>
+
 <p>保存Prometheus变更到集群中：</p>
-<ol>
-<li><code>$ kubectl -n monitoring apply -f prometheus-inst.yaml</code></li>
-<li><code>prometheus.monitoring.coreos.com/inst configured</code></li>
-</ol>
+<figure class="highlight shell"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">`$ kubectl -n monitoring apply -f prometheus-inst.yaml`</span><br><span class="line">`prometheus.monitoring.coreos.com/inst configured`</span><br></pre></td></tr></table></figure>
+
 <p>等待Prometheus Operator完成相关配置变更后，此时查看Prometheus，我们就能看到当前Prometheus已经能够正常的采集实例应用的相关监控数据了。</p>
  
       <!-- reward -->
