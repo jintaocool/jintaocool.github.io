@@ -168,7 +168,7 @@
 <li>应用镜像构建时，基础镜像使用：</li>
 </ol>
 <p>harbor-test.haier.net&#x2F;kubesphere&#x2F;tomcat90-java8-centos7-root:skywalkingv9<br><img src="/images/1766456626-a143ae4bc55cb8f72397293615bf4b4d.png"></p>
-<ol>
+<ol start="2">
 <li>添加环境变量</li>
 </ol>
 <ul>
@@ -194,7 +194,7 @@
 <blockquote>
 <p><code>npm install skywalking-nodejs --save</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li>Node.js探针使用：</li>
 </ol>
 <p>添加Skywalking Node.js模块到被监控的Node.js应用时注意Node.js模块一定再引入其他模块之前。</p>
@@ -221,7 +221,7 @@
 <blockquote>
 <p># -*- coding:utf-8 -*-<br>#导入skywalking链路监控 开始<br>from skywalking import agent, config<br>config.init(collector&#x3D;’swagent.skywalking.haier.net:11800’, service&#x3D;’s码::服务名’)  #s码用小写 <br>config.flask_collect_http_params &#x3D; True # flask接收到的http参数也保存<br>agent.start()<br>#导入结束<br>import logging<br>from framework import app<br>if __name__ !&#x3D; ‘__main__‘: #gunicorn 启动<br>    gunicorn_logger &#x3D; logging.getLogger(‘gunicorn.error’)<br>    app.logger.handlers &#x3D; gunicorn_logger.handlers<br>    app.logger.setLevel(gunicorn_logger.level)<br>if __name__ &#x3D;&#x3D; ‘__main__‘:#flask 启动<br>    app.run(host&#x3D;app.config[“HOST”], port&#x3D;app.config[“PORT”], debug&#x3D;app.config[“DEBUG_MODEL_SWITCH”])</p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>启动flask时，会在日志看到类似信息</li>
 </ol>
 <blockquote>
@@ -229,7 +229,7 @@
 </blockquote>
 <p>这些是系统中没有引入的组件，如果发现pymysql也没有引入，是因为配置mysql驱动时需要配置成mysql+pymysql(不引入pymysql组件，跟踪中就没有访问mysql的相关数据)</p>
 <p>SQLALCHEMY_DATABASE_URI &#x3D; “mysql+pymysql:&#x2F;&#x2F;<em><strong>*</strong></em>“</p>
-<ol>
+<ol start="4">
 <li>对于gunicorn发布的flask服务，一定注意</li>
 </ol>
 <blockquote>
@@ -242,7 +242,7 @@
 <li>定制openresty基础镜像</li>
 </ol>
 <p>openresty定制镜像地址：<a target="_blank" rel="noopener" href="https://harbor-test.haier.net/base/nginx:skywalking" title="https://harbor-test.haier.net/base/nginx:skywalking">https://harbor-test.haier.net/base/nginx:skywalking</a></p>
-<ol>
+<ol start="2">
 <li>nginx.conf模板</li>
 </ol>
 <blockquote>
@@ -904,7 +904,7 @@
 <blockquote>
 <p> mkdir &#x2F;agent &amp;&amp; curl <a target="_blank" rel="noopener" href="http://transfer.paas.haier.net/hco9/apache-skywalking-java-agent-9.5.0.tgz">http://transfer.paas.haier.net/hco9/apache-skywalking-java-agent-9.5.0.tgz</a> -o &#x2F;agent.tar.gz \<br> &amp;&amp; tar zxf &#x2F;agent.tar.gz -C &#x2F;agent </p>
 </blockquote>
-<ol>
+<ol start="2">
 <li><p>编辑skywalking的agent配置文件(打开<code>config/agent.config</code>),指定服务名和skywalking服务端（生产或者测试），参考如下图<img src="/images/1766456626-8b06f2b812a2498bb7e8fcee62303422.png"><img src="/images/1766456626-a0d65fc62ff373ac0820e3dd472f5242.png"></p>
 </li>
 <li><p>java启动命令增加-javaagent:&#x2F;agent&#x2F;skywalking-agent.jar</p>
@@ -924,7 +924,7 @@
 <blockquote>
 <p><code>mkdir /agent &amp;&amp; curl http://transfer.paas.haier.net/hco9/apache-skywalking-java-agent-9.5.0.tgz -o /agent.tar.gz \ &amp;&amp; tar zxf /agent.tar.gz -C /agent</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li><p>编辑skywalking的agent配置文件(打开<code>config/agent.config</code>),指定服务名和skywalking服务端（生产或者测试），参考如下图<img src="/images/1766456626-2d69e0f1cbf7cd50c0e369bdfd08cecd.png"><img src="/images/1766456626-e153635ee91a4e78f75b5f336d7e5dfe.png"></p>
 </li>
 <li><p>进入tomcat的bin目录，编辑 catalina.sh，首行加入</p>
@@ -934,7 +934,7 @@
 <p><code>CATALINA_OPTS=&quot;$CATALINA_OPTS -javaagent:/agent/skywalking-agent.jar&quot;; export CATALINA_OPTS</code></p>
 </blockquote>
 <p>参考如下图<img src="/images/1766456626-956f76f195fffe9ba3a1e5deee2c88ff.png"></p>
-<ol>
+<ol start="4">
 <li>运行catalina.sh</li>
 </ol>
 <blockquote>
@@ -956,7 +956,7 @@
 <blockquote>
 <p>set JAVA_OPTS&#x3D;%JAVA_OPTS% -javaagent:D:\skywalking-agent\skywalking-agent.jar<br>set JAVA_OPTS&#x3D;%JAVA_OPTS% -Dskywalking.agent.service_name&#x3D;s12345::your-service<br>set JAVA_OPTS&#x3D;%JAVA_OPTS% -Dskywalking.collector.backend_service&#x3D;swagent.skywalking.haier.net:11800</p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>重启tomcat</li>
 </ol>
 <h5 id="3-2-3-Weblogic"><a href="#3-2-3-Weblogic" class="headerlink" title="3.2.3 Weblogic"></a>3.2.3 Weblogic</h5><ol>
@@ -966,7 +966,7 @@
 <p><code>cd /opt &amp;&amp; wget http://10.138.66.1/nzMC7/agent.tar.gz --no-check-certificate</code></p>
 <p><code>unzip agent.zip</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li>修改 weblogic&#x2F;Oracle&#x2F;Middleware&#x2F;Oracle_Home&#x2F;user_projects&#x2F;domains&#x2F;base_domain&#x2F;bin目录下的setDomainEnv.sh 文件</li>
 </ol>
 <blockquote>
@@ -976,7 +976,7 @@
 <blockquote>
 <p><code>JAVA_PROPERTIES=&quot;$&#123;JAVA_PROPERTIES&#125; $&#123;WLP_JAVA_PROPERTIES&#125; -javaagent:/opt/agent/skywalking-agent.jar -Dskywalking.agent.service_name=s00222::crm-base -Dskywalking.collector.backend_service=swagent.skywalking.paas-sit.haier.net:11800&quot;</code></p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>运行 &#x2F;weblogic&#x2F;Oracle&#x2F;Middleware&#x2F;Oracle_Home&#x2F;user_projects&#x2F;domains&#x2F;base_domain 目录下的startWebLogic.sh</li>
 </ol>
 <blockquote>
@@ -989,13 +989,13 @@
 <p><code>cd /opt &amp;&amp; wget http://10.138.66.1/nzMC7/agent.tar.gz --no-check-certificate</code></p>
 <p><code>unzip agent.zip</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li>修改 jetty.sh</li>
 </ol>
 <blockquote>
 <p><code>JAVA_OPTIONS=&quot;$&#123;JAVA_OPTIONS&#125; -javaagent:/opt/agent/skywalking-agent.jar -Dskywalking.agent.service_name=s码::服务名称 -Dskywalking.collector.backend_service=swagent.skywalking.paas-sit.haier.net:11800&quot;</code></p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>例如项目s00222下有crm-base服务</li>
 </ol>
 <blockquote>
@@ -1016,13 +1016,13 @@
 <p><code>_# Ubuntu_</code></p>
 <p><code>sudo apt-get install php-dev build-essential autoconf</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li><strong>通过 PECL 安装扩展</strong></li>
 </ol>
 <blockquote>
 <p><code>sudo pecl install skywalking_agent</code></p>
 </blockquote>
-<ol>
+<ol start="3">
 <li><strong>验证扩展安装</strong></li>
 </ol>
 <blockquote>
@@ -1048,7 +1048,7 @@
 <blockquote>
 <p><code>npm install --save skywalking-backend-js</code></p>
 </blockquote>
-<ol>
+<ol start="2">
 <li>自定义server.js服务文件</li>
 </ol>
 <p>在根目录下创建一个server.js的文件，文件能容如下：</p>
@@ -1059,7 +1059,7 @@
 <p>    &#x2F;&#x2F; 在这里添加你想要执行的代码<br>    const customCode &#x3D; () &#x3D;&gt; {<br>        console.log(‘This is my custom code when the server starts listening.’);<br>        &#x2F;&#x2F; 可以添加更多逻辑，例如初始化一些服务、连接数据库等<br>    };</p>
 <p>    server.listen(3000, (err) &#x3D;&gt; {<br>        if (err) throw err;<br>        console.log(‘&gt; Ready on <a target="_blank" rel="noopener" href="http://localhost:3000/">http://localhost:3000</a>‘);<br>        &#x2F;&#x2F; 调用自定义代码<br>        customCode();<br>    });<br>});</p>
 </blockquote>
-<ol>
+<ol start="3">
 <li>修改项目的package.json文件</li>
 </ol>
 <blockquote>
@@ -1067,7 +1067,7 @@
 </blockquote>
 <p>官方文档参考链接：</p>
 <p><a target="_blank" rel="noopener" href="https://nextjs.frontendx.cn/docs/#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%B7%AF%E7%94%B1">https://nextjs.frontendx.cn/docs/#%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9C%8D%E5%8A%A1%E7%AB%AF%E8%B7%AF%E7%94%B1</a></p>
-<ol>
+<ol start="4">
 <li>启动项目</li>
 </ol>
 <p>访问项目后，到skywalking网站看是否有数据上报，如果有则表明已经接入成功。</p>
