@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+
+
+<html lang="zh-CN">
+  
+
+    <head>
+      <meta charset="utf-8" />
+       
+      <meta name="keywords" content="博客" />
+       
+      <meta name="description" content="日常随笔" />
+      
+      <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1"
+      />
+      <title>OpenClaw飞书初始化配置SOP |  Lijintao&#39;s Blog</title>
+  <meta name="generator" content="hexo-theme-ayer">
+      
+      <link rel="shortcut icon" href="/favicon.ico" />
+       
+<link rel="stylesheet" href="/dist/main.css">
+
+      
+<link rel="stylesheet" href="/css/fonts/remixicon.css">
+
+      
+<link rel="stylesheet" href="/css/custom.css">
+ 
+      <script src="https://cdn.staticfile.org/pace/1.2.4/pace.min.js"></script>
+       
+ 
+
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@sweetalert2/theme-bulma@5.0.1/bulma.min.css"
+      />
+      <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11.0.19/dist/sweetalert2.min.js"></script>
+
+      <!-- mermaid -->
+      
+      <style>
+        .swal2-styled.swal2-confirm {
+          font-size: 1.6rem;
+        }
+      </style>
+    <link rel="alternate" href="/atom.xml" title="Lijintao's Blog" type="application/atom+xml">
+</head>
+  </html>
+</html>
+
+
+<body>
+  <div id="app">
+    
+      <canvas class="fireworks"></canvas>
+      <style>
+        .fireworks {
+          position: fixed;
+          left: 0;
+          top: 0;
+          z-index: 99999;
+          pointer-events: none;
+        }
+      </style>
+      
+      
+    <main class="content on">
+      <section class="outer">
+  <article
+  id="OpenClaw龙虾-OpenClaw飞书初始化配置SOP"
+  class="article article-type-OpenClaw龙虾"
+  itemscope
+  itemprop="blogPost"
+  data-scroll-reveal
+>
+  <div class="article-inner">
+    
+    <header class="article-header">
+       
+<h1 class="article-title sea-center" style="border-left:0" itemprop="name">
+  OpenClaw飞书初始化配置SOP
+</h1>
+ 
+
+      
+    </header>
+     
+    <div class="article-meta">
+      <a href="/2026/04/14/OpenClaw%E9%A3%9E%E4%B9%A6%E5%88%9D%E5%A7%8B%E5%8C%96%E9%85%8D%E7%BD%AESOP/" class="article-date">
+  <time datetime="2026-04-14T07:56:50.000Z" itemprop="datePublished">2026-04-14</time>
+</a> 
+  <div class="article-category">
+    <a class="article-category-link" href="/categories/OpenClaw%E9%BE%99%E8%99%BE/">OpenClaw龙虾</a>
+  </div>
+  
+<div class="word_count">
+    <span class="post-time">
+        <span class="post-meta-item-icon">
+            <i class="ri-quill-pen-line"></i>
+            <span class="post-meta-item-text"> 字数统计:</span>
+            <span class="post-count">3.2k</span>
+        </span>
+    </span>
+
+    <span class="post-time">
+        &nbsp; | &nbsp;
+        <span class="post-meta-item-icon">
+            <i class="ri-book-open-line"></i>
+            <span class="post-meta-item-text"> 阅读时长≈</span>
+            <span class="post-count">11 分钟</span>
+        </span>
+    </span>
+</div>
+ 
+    </div>
+      
+
+
+
+  
+    <div class="article-entry" itemprop="articleBody">
+       
+  <p>+:————————————————————-+<br>| <strong>适用对象</strong>                                                 |<br>|                                                              |<br>| 已完成 OpenClaw                                              |<br>| 在飞书中的部署，希望通过飞书对话完成首次初始化配置的用户。   |<br>|                                                              |<br>| <strong>文档目的</strong>                                                 |<br>|                                                              |<br>| 帮助用户在不改本地文件、不懂技术细节的前提下，通过与飞书中的 |<br>| OpenClaw 机器人对话，完成首次初始化配置，让 OpenClaw         |<br>| 从”能聊天”变成”能长期协作的工作搭档”。                       |<br>+————————————————————–+</p>
+<p><strong>初始化配置的目的</strong></p>
+<p>OpenClaw<br>接入飞书后，默认只具备基础对话能力。若不进行初始化配置，常见问题包括：</p>
+<p>回答风格不稳定</p>
+<p>不理解用户的工作方式</p>
+<p>无法长期沉淀协作规则</p>
+<p>只能临时回复，不能真正形成持续配合</p>
+<p>初始化配置的目的，是将以下关键信息写入 OpenClaw 的工作区配置文件中：</p>
+<p>它是谁</p>
+<p>你是谁</p>
+<p>它应该如何表达</p>
+<p>它应该如何做事</p>
+<p>它应如何使用文件与工具</p>
+<p>完成初始化后，OpenClaw 才能以更稳定、更贴近用户需求的方式工作。</p>
+<p><strong>初始化配置方式</strong></p>
+<p>本 SOP 采用最简单的方式完成初始化：<strong>直接在飞书中与 OpenClaw<br>对话，让它自行创建或更新配置文件。</strong>用户无需手动修改本地 Markdown<br>文件，只需按顺序向 OpenClaw 发送指定指令，并在每一步完成后检查写入结果。</p>
+<p><strong>初始化涉及的核心文件</strong></p>
+<p>本次初始化建议至少完成以下 5 个核心文件配置。</p>
+<p><strong>1. IDENTITY.md</strong></p>
+<p>用于定义 OpenClaw 的身份信息，包括名称、角色、职责和整体气质。</p>
+<p><strong>2. USER.md</strong></p>
+<p>用于定义用户信息，包括称呼、工作背景、语言偏好和协作偏好。</p>
+<p><strong>3. SOUL.md</strong></p>
+<p>用于定义 OpenClaw 的表达风格、行为准则、质量标准和边界。</p>
+<p><strong>4. AGENTS.md</strong></p>
+<p>用于定义 OpenClaw 的工作方式，包括任务流程、职责范围和协作原则。</p>
+<p><strong>5. TOOLS.md</strong></p>
+<p>用于定义 OpenClaw<br>使用文档、文件和工具时的规则，避免”口头记住但未真正写入”的情况。</p>
+<p><strong>操作前检查</strong></p>
+<p>在开始初始化前，请确认以下条件成立：</p>
+<p>1. <strong>已完成 OpenClaw 在飞书中的部署</strong></p>
+<p>用户已经可以在飞书中正常与 OpenClaw 对话。</p>
+<p>2. <strong>OpenClaw 具备工作区读写能力</strong></p>
+<p>OpenClaw 不仅要能回复消息，还需要能够读取和写入其 workspace 中的<br>Markdown 文件。</p>
+<p>3. <strong>当前目标是”初始化配置”</strong></p>
+<p>建议在首次部署完成后，优先完成初始化，再开始长期使用。</p>
+<p><strong>初始化操作流程</strong></p>
+<p><strong>步骤 1：确认 OpenClaw 具备文件读写能力</strong></p>
+<p><strong>操作目标</strong></p>
+<p>确认当前 OpenClaw<br>不只是”会聊天”，而是具备创建、修改和读取配置文件的能力。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  我们现在开始做你的正式初始化。<br>  <br>  这不是普通聊天，而是一次 workspace<br>  初始化。你的任务是创建或更新以下文件：<br>  IDENTITY.md<br>  USER.md<br>  SOUL.md<br>  AGENTS.md<br>  TOOLS.md<br>  <br>  请先确认：\</p>
+<ol>
+<li>你当前是否具备读取和写入 workspace 文件的能力\</li>
+<li>你是否能在写入后读取文件并把最终内容贴给我\</li>
+<li>如果可以，请回复 READY，并从 IDENTITY.md 开始</li>
+</ol>
+<hr>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确回复可以读取和写入文件</p>
+<p>OpenClaw 明确表示可开始初始化</p>
+<p>OpenClaw 未出现”只能聊天，无法写文件”之类反馈</p>
+<p><strong>步骤 2：初始化 IDENTITY.md</strong></p>
+<p><strong>操作目标</strong></p>
+<p>定义 OpenClaw 的身份、职责和基础风格。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  请将以下内容写入<br>  IDENTITY.md，写完后读取该文件并把最终版本原样贴给我。<br>  <br>  # IDENTITY<br>  <br>  name: 龙虾<br>  role: 飞书中的工作搭档<br>  type: self-hosted OpenClaw agent<br>  emoji: 🦞<br>  vibe: 专业、直接、可靠、会干活<br>  <br>  identity_description:\</p>
+<ul>
+<li>你是部署在飞书中的 OpenClaw 机器人\</li>
+<li>你的职责是帮助我完成工作、处理信息、沉淀方法\</li>
+<li>你不是普通聊天机器人，而是一只真正能读文件、写内容、长期协作的<br>  agent\</li>
+<li>你的输出默认追求清晰、准确、可执行</li>
+</ul>
+<hr>
+<p><strong>可按需调整的内容</strong></p>
+<p>用户可根据自己的使用场景修改以下字段：</p>
+<p>name：OpenClaw 的名字</p>
+<p>role：如内容助手、营销搭档、项目管理助手、社区运营助手等</p>
+<p>vibe：希望它呈现的风格</p>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确说明已写入 IDENTITY.md</p>
+<p>OpenClaw 能完整贴出该文件当前内容</p>
+<p>文件内容与用户发送内容一致</p>
+<p><strong>步骤 3：初始化 USER.md</strong></p>
+<p><strong>操作目标</strong></p>
+<p>让 OpenClaw 理解用户是谁，以及之后应如何配合用户工作。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  请将以下内容写入<br>  USER.md，写完后读取该文件并把最终版本原样贴给我。<br>  <br>  # USER<br>  <br>  preferred_name: 王大仙<br>  timezone: Asia&#x2F;Singapore<br>  language_preference: 中文为主<br>  <br>  working_profile:\</p>
+<ul>
+<li>我主要做产品营销、内容运营和增长相关工作\</li>
+<li>我经常在飞书里处理文档、会议纪要、直播内容、用户内容\</li>
+<li>我希望你帮助我读材料、提炼重点、输出成品<br>  <br>  collaboration_preferences:\</li>
+<li>我不喜欢空话、套话、生成感\</li>
+<li>我要高信息密度、低解释负担\</li>
+<li>输出最好能直接拿去用\</li>
+<li>不确定的地方要直接说，不要硬编</li>
+</ul>
+<hr>
+<p><strong>可按需调整的内容</strong></p>
+<p>用户可替换为自己的真实信息，例如：</p>
+<p>自己的称呼</p>
+<p>所在时区</p>
+<p>工作类型</p>
+<p>语言偏好</p>
+<p>产出偏好</p>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确说明已写入 USER.md</p>
+<p>OpenClaw 能完整贴出该文件当前内容</p>
+<p>文件内容与用户真实需求一致</p>
+<p><strong>步骤 4：初始化 SOUL.md</strong></p>
+<p><strong>操作目标</strong></p>
+<p>明确 OpenClaw 的表达方式、行为准则和边界，避免其输出风格失控。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  请将以下内容写入<br>  SOUL.md。这份文件是你长期行为准则的一部分，务必严格遵守。写完后读取文件并贴给我。<br>  <br>  # SOUL<br>  <br>  ## Core principles\</p>
+<ul>
+<li>准确优先于好听\</li>
+<li>可执行优先于空话\</li>
+<li>说人话\</li>
+<li>少废话\</li>
+<li>不确定先说明，不要硬编<br>  <br>  ## Communication style\</li>
+<li>默认中文输出\</li>
+<li>不要写得像 AI\</li>
+<li>不要堆术语\</li>
+<li>不要假大空\</li>
+<li>面向不同对象时要切换表达方式<br>  <br>  ## Boundaries\</li>
+<li>不编造事实\</li>
+<li>不假装已经写入文件\</li>
+<li>不把猜测写成确定结论\</li>
+<li>不要为了完整而凑字数</li>
+</ul>
+<hr>
+<p><strong>说明</strong></p>
+<p>SOUL.md 是最关键的文件之一。<br>如果用户特别在意”说人话””高信息密度””可直接外发”，这些要求都应优先写在这一份文件中。</p>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确说明已写入 SOUL.md</p>
+<p>OpenClaw 能完整贴出该文件当前内容</p>
+<p>后续回复风格开始接近该文件中的设定</p>
+<p><strong>步骤 5：初始化 AGENTS.md</strong></p>
+<p><strong>操作目标</strong></p>
+<p>规定 OpenClaw 的日常工作流，确保它不是随意回答，而是按步骤处理任务。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  请将以下内容写入<br>  AGENTS.md，写完后读取该文件并把最终版本原样贴给我。<br>  <br>  # AGENTS<br>  <br>  ## Mission<br>  帮助用户完成高质量的信息处理、内容创作和工作协作。<br>  <br>  ## Core workflow\</p>
+<ol>
+<li>先读取原始材料\</li>
+<li>再提炼关键事实和结论\</li>
+<li>再输出可直接使用的内容\</li>
+<li>再把值得长期保留的内容沉淀到文件里<br>  <br>  ## Working principles\</li>
+</ol>
+<ul>
+<li>一手材料优先\</li>
+<li>用户提供的内容优先\</li>
+<li>输出优先给成品\</li>
+<li>长期标准主动沉淀</li>
+</ul>
+<hr>
+<p><strong>说明</strong></p>
+<p>该文件重点不是”写人格”，而是”写工作方法”。</p>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确说明已写入 AGENTS.md</p>
+<p>OpenClaw 能完整贴出该文件当前内容</p>
+<p>工作流程描述清晰、可执行</p>
+<p><strong>步骤 6：初始化 TOOLS.md</strong></p>
+<p><strong>操作目标</strong></p>
+<p>明确 OpenClaw<br>处理文件、读取文档和落盘记忆时的规则，避免”嘴上答应已完成，实际未完成”。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  请将以下内容写入<br>  TOOLS.md，写完后读取该文件并把最终版本原样贴给我。<br>  <br>  # TOOLS<br>  <br>  ## File policy\</p>
+<ul>
+<li>需要长期保留的信息，要写进 markdown 文件\</li>
+<li>修改文件后，要告诉用户改了什么\</li>
+<li>写完后要把最终版本贴出来<br>  <br>  ## Reading policy\</li>
+<li>读取文档时不能只做摘要\</li>
+<li>要提炼关键事实、结论和可复用信息<br>  <br>  ## Safety policy\</li>
+<li>不要假装已经写入文件\</li>
+<li>不要假装已经读取完整材料\</li>
+<li>不要把猜测写进长期记忆</li>
+</ul>
+<hr>
+<p><strong>验收标准</strong></p>
+<p>满足以下条件即可进入下一步：</p>
+<p>OpenClaw 明确说明已写入 TOOLS.md</p>
+<p>OpenClaw 能完整贴出该文件当前内容</p>
+<p>文件中已明确”写完要回显””不能假装写入”等规则</p>
+<p><strong>步骤 7：执行统一验收</strong></p>
+<p><strong>操作目标</strong></p>
+<p>确认 OpenClaw 已真正完成初始化，而不是只在当前聊天中临时生成内容。</p>
+<p><strong>在飞书中发送以下内容</strong></p>
+<hr>
+<p>  Plain Text<br>  现在执行一次初始化验收。<br>  <br>  请严格按以下格式回复：\</p>
+<ol>
+<li>列出当前已存在并已更新的核心文件\</li>
+<li>分别读取并贴出以下文件当前完整内容：\</li>
+</ol>
+<ul>
+<li>IDENTITY.md\</li>
+<li>USER.md\</li>
+<li>SOUL.md\</li>
+<li>AGENTS.md\</li>
+<li>TOOLS.md\</li>
+</ul>
+<ol start="3">
+<li>告诉我这些内容是否已经真正写入<br>  workspace，而不是只在聊天中生成\</li>
+<li>如果初始化已经完成，请回复 READY</li>
+</ol>
+<hr>
+<p><strong>验收标准</strong></p>
+<p>满足以下全部条件，视为初始化完成：</p>
+<p>OpenClaw 能列出已更新的核心文件</p>
+<p>OpenClaw 能逐个读取并贴出文件完整内容</p>
+<p>OpenClaw 明确说明这些内容已经写入 workspace</p>
+<p>OpenClaw 回复 READY</p>
+<p><strong>初始化完成后的判断标准</strong></p>
+<p>OpenClaw 初始化完成后，应至少具备以下表现：</p>
+<p>1. <strong>能稳定识别自己的角色</strong></p>
+<p>例如知道自己是内容助手、营销搭档或项目管理助手，而不是每次都重新定义自己。</p>
+<p>2. <strong>能理解用户的工作偏好</strong></p>
+<p>例如知道用户偏好中文、讨厌空话、要高信息密度、要能直接外发的内容。</p>
+<p>3. <strong>输出风格更稳定</strong></p>
+<p>例如语言更直接、更可执行，明显减少空泛表达。</p>
+<p>4. <strong>能按工作流处理任务</strong></p>
+<p>例如先读材料，再提炼重点，再输出结果，而不是直接开始”自由发挥”。</p>
+<p><strong>常见问题</strong></p>
+<p>OpenClaw 回复正常，但说自己不能写文件，怎么办？</p>
+<p>说明当前部署只完成了对话能力，未正确开放 workspace<br>文件读写能力。此时应先检查 OpenClaw<br>的工作区权限或部署配置，再重新执行初始化。</p>
+<p>OpenClaw 说已经记住了，但不贴文件内容，算完成吗？</p>
+<p>不算。初始化的标准不是”口头答应”，而是<strong>已写入文件且可回读</strong>。</p>
+<p>SOUL.md 一定要写吗？</p>
+<p>建议必须写。这是决定 OpenClaw 表达风格、做事方式和边界的关键文件。</p>
+<p>初始化内容之后还能改吗？</p>
+<p>可以。后续只需继续通过飞书让 OpenClaw 更新对应文件即可。</p>
+<p><strong>推荐做法</strong></p>
+<p>对于首次使用 OpenClaw 的用户，建议分两阶段完成：</p>
+<p><strong>第一阶段：先完成基础初始化</strong></p>
+<p>至少完成以下 5 个文件：</p>
+<p>IDENTITY.md</p>
+<p>USER.md</p>
+<p>SOUL.md</p>
+<p>AGENTS.md</p>
+<p>TOOLS.md</p>
+<p><strong>第二阶段：根据真实使用场景继续增强</strong></p>
+<p>例如后续再补充：</p>
+<p>项目管理规则</p>
+<p>内容生产标准</p>
+<p>用户运营规则</p>
+<p>演示与直播风格</p>
+<p>FAQ 与长期记忆文件</p>
+<p>这样比一开始就配置过多内容更稳，也更容易维护。</p>
+<p><strong>结论</strong></p>
+<p>OpenClaw<br>在飞书中部署完成后，初始化配置不是可选动作，而是正式使用前的必要步骤。</p>
+<p>通过本 SOP，用户可以直接在飞书中通过几轮对话，完成以下配置：</p>
+<p>定义 OpenClaw 身份</p>
+<p>定义用户画像</p>
+<p>定义表达与行为准则</p>
+<p>定义工作方式</p>
+<p>定义工具使用规则</p>
+<p>完成这些之后，OpenClaw<br>才会更像一个长期可用、风格稳定、能真正协作的工作搭档。如需继续增强能力，可在此基础上继续追加内容运营、项目管理、用户运营、演示风格等专项配置。</p>
+ 
+      <!-- reward -->
+      
+      <div id="reword-out">
+        <div id="reward-btn">
+          打赏
+        </div>
+      </div>
+      
+    </div>
+    
+
+    <!-- copyright -->
+    
+    <div class="declare">
+      <ul class="post-copyright">
+        <li>
+          <i class="ri-copyright-line"></i>
+          <strong>版权声明： </strong>
+          
+          本博客所有文章除特别声明外，著作权归作者所有。转载请注明出处！
+          
+        </li>
+      </ul>
+    </div>
+    
+    <footer class="article-footer">
+       
+<div class="share-btn">
+      <span class="share-sns share-outer">
+        <i class="ri-share-forward-line"></i>
+        分享
+      </span>
+      <div class="share-wrap">
+        <i class="arrow"></i>
+        <div class="share-icons">
+          
+          <a class="weibo share-sns" href="javascript:;" data-type="weibo">
+            <i class="ri-weibo-fill"></i>
+          </a>
+          <a class="weixin share-sns wxFab" href="javascript:;" data-type="weixin">
+            <i class="ri-wechat-fill"></i>
+          </a>
+          <a class="qq share-sns" href="javascript:;" data-type="qq">
+            <i class="ri-qq-fill"></i>
+          </a>
+          <a class="douban share-sns" href="javascript:;" data-type="douban">
+            <i class="ri-douban-line"></i>
+          </a>
+          <!-- <a class="qzone share-sns" href="javascript:;" data-type="qzone">
+            <i class="icon icon-qzone"></i>
+          </a> -->
+          
+          <a class="facebook share-sns" href="javascript:;" data-type="facebook">
+            <i class="ri-facebook-circle-fill"></i>
+          </a>
+          <a class="twitter share-sns" href="javascript:;" data-type="twitter">
+            <i class="ri-twitter-fill"></i>
+          </a>
+          <a class="google share-sns" href="javascript:;" data-type="google">
+            <i class="ri-google-fill"></i>
+          </a>
+        </div>
+      </div>
+</div>
+
+<div class="wx-share-modal">
+    <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
+    <p>扫一扫，分享到微信</p>
+    <div class="wx-qrcode">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2026/04/14/OpenClaw%E9%A3%9E%E4%B9%A6%E5%88%9D%E5%A7%8B%E5%8C%96%E9%85%8D%E7%BD%AESOP/" alt="微信分享二维码">
+    </div>
+</div>
+
+<div id="share-mask"></div>  
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/OpenClaw%E9%BE%99%E8%99%BE/" rel="tag">OpenClaw龙虾</a></li></ul>
+
+    </footer>
+  </div>
+
+   
+  <nav class="article-nav">
+    
+    
+      <a href="/2026/04/14/OpenClaw-%E5%88%9D%E5%A7%8B%E5%8C%96%E4%B8%8E%E4%BD%BF%E7%94%A8%E4%BD%93%E6%84%9F%E4%BC%98%E5%8C%96%E6%8C%87%E5%8D%97/" class="article-nav-link">
+        <strong class="article-nav-caption">下一篇</strong>
+        <div class="article-nav-title">OpenClaw 初始化与使用体感优化指南</div>
+      </a>
+    
+  </nav>
+
+  
+   
+  
+   
+    <script src="https://cdn.staticfile.org/twikoo/1.4.18/twikoo.all.min.js"></script>
+    <div id="twikoo" class="twikoo"></div>
+    <script>
+        twikoo.init({
+            envId: ""
+        })
+    </script>
+ 
+</article>
+
+</section>
+      <footer class="footer">
+  <div class="outer">
+    <ul>
+      <li>
+        Copyrights &copy;
+        2015-2026
+        <i class="ri-heart-fill heart_icon"></i> JinTao Li
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+      </li>
+    </ul>
+    <ul>
+      <li>
+        
+        
+        <span>
+  <span><i class="ri-user-3-fill"></i>访问人数:<span id="busuanzi_value_site_uv"></span></span>
+  <span class="division">|</span>
+  <span><i class="ri-eye-fill"></i>浏览次数:<span id="busuanzi_value_page_pv"></span></span>
+</span>
+        
+      </li>
+    </ul>
+    <ul>
+      
+        <li>
+          <a href="https://beian.miit.gov.cn/" target="_black" rel="nofollow">鲁ICP备88888888</a>
+        </li>
+        
+    </ul>
+    <ul>
+      
+      <li>
+          <img src="/images/beian.png"></img>
+          <a href="http://www.beian.gov.cn/portal/registerSystemInfo?recordcode=01234567890123" target="_black" rel="nofollow">青岛公安网备01234567890123号</a>
+      </li>
+        
+    </ul>
+    <ul>
+      <li>
+        <!-- cnzz统计 -->
+        
+        <script type="text/javascript" src='https://s9.cnzz.com/z_stat.php?id=1278069914&amp;web_id=1278069914'></script>
+        
+      </li>
+    </ul>
+  </div>
+</footer>    
+    </main>
+    <div class="float_btns">
+      <div class="totop" id="totop">
+  <i class="ri-arrow-up-line"></i>
+</div>
+
+<div class="todark" id="todark">
+  <i class="ri-moon-line"></i>
+</div>
+
+    </div>
+    <aside class="sidebar on">
+      <button class="navbar-toggle"></button>
+<nav class="navbar">
+  
+  <div class="logo">
+    <a href="/"><img src="/images/ayer-side.svg" alt="Lijintao&#39;s Blog"></a>
+  </div>
+  
+  <ul class="nav nav-main">
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/">主页</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/archives">归档</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/categories">分类</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/tags">标签</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://blog.csdn.net/u013235026">CSDN</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" target="_blank" rel="noopener" href="https://www.cnblogs.com/jintaoli">博客园</a>
+    </li>
+    
+    <li class="nav-item">
+      <a class="nav-item-link" href="/images/272a163694dd8a415a43dbf85ac34778.jpg">关于我</a>
+    </li>
+    
+  </ul>
+</nav>
+<nav class="navbar navbar-bottom">
+  <ul class="nav">
+    <li class="nav-item">
+      
+      <a class="nav-item-link nav-item-search"  title="搜索">
+        <i class="ri-search-line"></i>
+      </a>
+      
+      
+    </li>
+  </ul>
+</nav>
+<div class="search-form-wrap">
+  <div class="local-search local-search-plugin">
+  <input type="search" id="local-search-input" class="local-search-input" placeholder="Search...">
+  <div id="local-search-result" class="local-search-result"></div>
+</div>
+</div>
+    </aside>
+    <div id="mask"></div>
+
+<!-- #reward -->
+<div id="reward">
+  <span class="close"><i class="ri-close-line"></i></span>
+  <p class="reward-p"><i class="ri-cup-line"></i>请我喝杯咖啡吧~</p>
+  <div class="reward-box">
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/alipay.jpg">
+      <span class="reward-type">支付宝</span>
+    </div>
+    
+    
+    <div class="reward-item">
+      <img class="reward-img" src="/images/wechat.jpg">
+      <span class="reward-type">微信</span>
+    </div>
+    
+  </div>
+</div>
+    
+<script src="/js/jquery-3.6.0.min.js"></script>
+ 
+<script src="/js/lazyload.min.js"></script>
+
+<!-- Tocbot -->
+ 
+<script src="/js/tocbot.min.js"></script>
+
+<script>
+  tocbot.init({
+    tocSelector: ".tocbot",
+    contentSelector: ".article-entry",
+    headingSelector: "h1, h2, h3, h4, h5, h6",
+    hasInnerContainers: true,
+    scrollSmooth: true,
+    scrollContainer: "main",
+    positionFixedSelector: ".tocbot",
+    positionFixedClass: "is-position-fixed",
+    fixedSidebarOffset: "auto",
+  });
+</script>
+
+<script src="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.js"></script>
+<link
+  rel="stylesheet"
+  href="https://cdn.staticfile.org/jquery-modal/0.9.2/jquery.modal.min.css"
+/>
+<script src="https://cdn.staticfile.org/justifiedGallery/3.8.1/js/jquery.justifiedGallery.min.js"></script>
+
+<script src="/dist/main.js"></script>
+
+<!-- ImageViewer -->
+ <!-- Root element of PhotoSwipe. Must have class pswp. -->
+<div class="pswp" tabindex="-1" role="dialog" aria-hidden="true">
+
+    <!-- Background of PhotoSwipe. 
+         It's a separate element as animating opacity is faster than rgba(). -->
+    <div class="pswp__bg"></div>
+
+    <!-- Slides wrapper with overflow:hidden. -->
+    <div class="pswp__scroll-wrap">
+
+        <!-- Container that holds slides. 
+            PhotoSwipe keeps only 3 of them in the DOM to save memory.
+            Don't modify these 3 pswp__item elements, data is added later on. -->
+        <div class="pswp__container">
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+            <div class="pswp__item"></div>
+        </div>
+
+        <!-- Default (PhotoSwipeUI_Default) interface on top of sliding area. Can be changed. -->
+        <div class="pswp__ui pswp__ui--hidden">
+
+            <div class="pswp__top-bar">
+
+                <!--  Controls are self-explanatory. Order can be changed. -->
+
+                <div class="pswp__counter"></div>
+
+                <button class="pswp__button pswp__button--close" title="Close (Esc)"></button>
+
+                <button class="pswp__button pswp__button--share" style="display:none" title="Share"></button>
+
+                <button class="pswp__button pswp__button--fs" title="Toggle fullscreen"></button>
+
+                <button class="pswp__button pswp__button--zoom" title="Zoom in/out"></button>
+
+                <!-- Preloader demo http://codepen.io/dimsemenov/pen/yyBWoR -->
+                <!-- element will get class pswp__preloader--active when preloader is running -->
+                <div class="pswp__preloader">
+                    <div class="pswp__preloader__icn">
+                        <div class="pswp__preloader__cut">
+                            <div class="pswp__preloader__donut"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="pswp__share-modal pswp__share-modal--hidden pswp__single-tap">
+                <div class="pswp__share-tooltip"></div>
+            </div>
+
+            <button class="pswp__button pswp__button--arrow--left" title="Previous (arrow left)">
+            </button>
+
+            <button class="pswp__button pswp__button--arrow--right" title="Next (arrow right)">
+            </button>
+
+            <div class="pswp__caption">
+                <div class="pswp__caption__center"></div>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.css">
+<link rel="stylesheet" href="https://cdn.staticfile.org/photoswipe/4.1.3/default-skin/default-skin.min.css">
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe.min.js"></script>
+<script src="https://cdn.staticfile.org/photoswipe/4.1.3/photoswipe-ui-default.min.js"></script>
+
+<script>
+    function viewer_init() {
+        let pswpElement = document.querySelectorAll('.pswp')[0];
+        let $imgArr = document.querySelectorAll(('.article-entry img:not(.reward-img)'))
+
+        $imgArr.forEach(($em, i) => {
+            $em.onclick = () => {
+                // slider展开状态
+                // todo: 这样不好，后面改成状态
+                if (document.querySelector('.left-col.show')) return
+                let items = []
+                $imgArr.forEach(($em2, i2) => {
+                    let img = $em2.getAttribute('data-idx', i2)
+                    let src = $em2.getAttribute('data-target') || $em2.getAttribute('src')
+                    let title = $em2.getAttribute('alt')
+                    // 获得原图尺寸
+                    const image = new Image()
+                    image.src = src
+                    items.push({
+                        src: src,
+                        w: image.width || $em2.width,
+                        h: image.height || $em2.height,
+                        title: title
+                    })
+                })
+                var gallery = new PhotoSwipe(pswpElement, PhotoSwipeUI_Default, items, {
+                    index: parseInt(i)
+                });
+                gallery.init()
+            }
+        })
+    }
+    viewer_init()
+</script> 
+<!-- MathJax -->
+
+<!-- Katex -->
+
+<!-- busuanzi  -->
+ 
+<script src="/js/busuanzi-2.3.pure.min.js"></script>
+ 
+<!-- ClickLove -->
+
+<!-- ClickBoom1 -->
+
+<script src="https://cdn.staticfile.org/animejs/3.2.1/anime.min.js"></script>
+
+<script src="/js/clickBoom1.js"></script>
+ 
+<!-- ClickBoom2 -->
+
+<!-- CodeCopy -->
+ 
+<link rel="stylesheet" href="/css/clipboard.css">
+ <script src="https://cdn.staticfile.org/clipboard.js/2.0.10/clipboard.min.js"></script>
+<script>
+  function wait(callback, seconds) {
+    var timelag = null;
+    timelag = window.setTimeout(callback, seconds);
+  }
+  !function (e, t, a) {
+    var initCopyCode = function(){
+      var copyHtml = '';
+      copyHtml += '<button class="btn-copy" data-clipboard-snippet="">';
+      copyHtml += '<i class="ri-file-copy-2-line"></i><span>COPY</span>';
+      copyHtml += '</button>';
+      $(".highlight .code pre").before(copyHtml);
+      $(".article pre code").before(copyHtml);
+      var clipboard = new ClipboardJS('.btn-copy', {
+        target: function(trigger) {
+          return trigger.nextElementSibling;
+        }
+      });
+      clipboard.on('success', function(e) {
+        let $btn = $(e.trigger);
+        $btn.addClass('copied');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-checkbox-circle-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPIED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-checkbox-circle-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+      clipboard.on('error', function(e) {
+        e.clearSelection();
+        let $btn = $(e.trigger);
+        $btn.addClass('copy-failed');
+        let $icon = $($btn.find('i'));
+        $icon.removeClass('ri-file-copy-2-line');
+        $icon.addClass('ri-time-line');
+        let $span = $($btn.find('span'));
+        $span[0].innerText = 'COPY FAILED';
+        
+        wait(function () { // 等待两秒钟后恢复
+          $icon.removeClass('ri-time-line');
+          $icon.addClass('ri-file-copy-2-line');
+          $span[0].innerText = 'COPY';
+        }, 2000);
+      });
+    }
+    initCopyCode();
+  }(window, document);
+</script>
+ 
+<!-- CanvasBackground -->
+ 
+<script src="/js/dz.js"></script>
+ 
+<script>
+  if (window.mermaid) {
+    mermaid.initialize({ theme: "forest" });
+  }
+</script>
+
+
+    
+    <div id="music">
+    
+    
+    
+    <iframe frameborder="no" border="1" marginwidth="0" marginheight="0" width="200" height="52"
+        src="//music.163.com/outchain/player?type=2&id=2142256392&auto=1&height=32"></iframe>
+</div>
+
+<style>
+    #music {
+        position: fixed;
+        right: 15px;
+        bottom: 0;
+        z-index: 998;
+    }
+</style>
+    
+    
+<script>
+  const password = "jintao1210";
+  const lock_password = window.sessionStorage.getItem("lock_password");
+  console.log(password, lock_password);
+  if (lock_password !== password) {
+    Swal.fire({
+      title: "请输入访问密码",
+      input: "text",
+      inputAttributes: {
+        autocapitalize: "off",
+      },
+      showCancelButton: false,
+      showLoaderOnConfirm: true,
+      allowOutsideClick: false,
+      confirmButtonText: "确定",
+    }).then((result) => {
+      console.log(result);
+      if (result.isConfirmed) {
+        console.log(password);
+        if (result.value === password) {
+          window.sessionStorage.setItem("lock_password", result.value);
+        } else {
+          Swal.fire({
+            icon: "error",
+            title: "密码错误，请重试",
+            confirmButtonText: "确定",
+            allowOutsideClick: false,
+          }).then(() => {
+            window.location.reload();
+          });
+        }
+      }
+    });
+  }
+</script>
+
+
+  </div>
+</body>
+
+</html>
