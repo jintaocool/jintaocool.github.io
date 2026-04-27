@@ -15,7 +15,7 @@
         name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1"
       />
-      <title>openclaw如何创建多个ai员工 |  Lijintao&#39;s Blog</title>
+      <title>养虾日记 |  Lijintao&#39;s Blog</title>
   <meta name="generator" content="hexo-theme-ayer">
       
       <link rel="shortcut icon" href="/favicon.ico" />
@@ -69,7 +69,7 @@
     <main class="content on">
       <section class="outer">
   <article
-  id="OpenClaw龙虾-openclaw如何创建多个ai员工"
+  id="OpenClaw龙虾-养虾日记"
   class="article article-type-OpenClaw龙虾"
   itemscope
   itemprop="blogPost"
@@ -80,7 +80,7 @@
     <header class="article-header">
        
 <h1 class="article-title sea-center" style="border-left:0" itemprop="name">
-  openclaw如何创建多个ai员工
+  养虾日记
 </h1>
  
 
@@ -88,8 +88,8 @@
     </header>
      
     <div class="article-meta">
-      <a href="/2026/04/22/openclaw%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BA%E5%A4%9A%E4%B8%AAai%E5%91%98%E5%B7%A5/" class="article-date">
-  <time datetime="2026-04-22T09:59:45.000Z" itemprop="datePublished">2026-04-22</time>
+      <a href="/2026/04/24/%E5%85%BB%E8%99%BE%E6%97%A5%E8%AE%B0/" class="article-date">
+  <time datetime="2026-04-24T08:17:38.000Z" itemprop="datePublished">2026-04-24</time>
 </a> 
   <div class="article-category">
     <a class="article-category-link" href="/categories/OpenClaw%E9%BE%99%E8%99%BE/">OpenClaw龙虾</a>
@@ -100,7 +100,7 @@
         <span class="post-meta-item-icon">
             <i class="ri-quill-pen-line"></i>
             <span class="post-meta-item-text"> 字数统计:</span>
-            <span class="post-count">611</span>
+            <span class="post-count">13</span>
         </span>
     </span>
 
@@ -109,68 +109,20 @@
         <span class="post-meta-item-icon">
             <i class="ri-book-open-line"></i>
             <span class="post-meta-item-text"> 阅读时长≈</span>
-            <span class="post-count">2 分钟</span>
+            <span class="post-count">1 分钟</span>
         </span>
     </span>
 </div>
  
     </div>
       
-    <div class="tocbot"></div>
-
 
 
 
   
     <div class="article-entry" itemprop="articleBody">
        
-  <p>在 OpenClaw 中创建多个 AI 员工（多 Agent），核心是通过 agents add 命令创建独立角色、配置专属工作区与角色设定，并开启 Agent 间协作。以下是完整步骤（2026 最新版）：</p>
-<h1 id="一、准备工作"><a href="#一、准备工作" class="headerlink" title="一、准备工作"></a>一、准备工作</h1><ul>
-<li>已安装并初始化 OpenClaw（openclaw init）</li>
-<li>已配置 LLM 密钥（OpenAI &#x2F; Claude &#x2F; 硅基流动等）</li>
-</ul>
-<h1 id="二、创建多个-AI-员工（命令行）"><a href="#二、创建多个-AI-员工（命令行）" class="headerlink" title="二、创建多个 AI 员工（命令行）"></a>二、创建多个 AI 员工（命令行）</h1><p>用 openclaw agents add 为每个员工指定 <strong>唯一 ID、名称、工作区、描述</strong>：</p>
-<p>运行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br><span class="line">7</span><br><span class="line">8</span><br><span class="line">9</span><br><span class="line">10</span><br><span class="line">11</span><br><span class="line">12</span><br><span class="line">13</span><br><span class="line">14</span><br><span class="line">15</span><br><span class="line">16</span><br><span class="line">17</span><br><span class="line">18</span><br><span class="line">19</span><br><span class="line">20</span><br></pre></td><td class="code"><pre><span class="line"># 1. 创建主管理（默认Agent）</span><br><span class="line">openclaw agents add main \</span><br><span class="line">  --workspace ~/.openclaw/workspace-main \</span><br><span class="line">  --description &quot;总负责人：任务分配、汇总、协调&quot; \</span><br><span class="line">  --default</span><br><span class="line"></span><br><span class="line"># 2. 创建研究员</span><br><span class="line">openclaw agents add researcher \</span><br><span class="line">  --workspace ~/.openclaw/workspace-researcher \</span><br><span class="line">  --description &quot;负责资料搜集、数据整理、热点分析&quot;</span><br><span class="line"></span><br><span class="line"># 3. 创建文案</span><br><span class="line">openclaw agents add writer \</span><br><span class="line">  --workspace ~/.openclaw/workspace-writer \</span><br><span class="line">  --description &quot;文章、文案、报告、内容生成&quot;</span><br><span class="line"></span><br><span class="line"># 4. 创建审核员</span><br><span class="line">openclaw agents add checker \</span><br><span class="line">  --workspace ~/.openclaw/workspace-checker \</span><br><span class="line">  --description &quot;校对、合规、优化、错误修正&quot;</span><br></pre></td></tr></table></figure>
-
-<h1 id="三、查看已创建员工"><a href="#三、查看已创建员工" class="headerlink" title="三、查看已创建员工"></a>三、查看已创建员工</h1><p>运行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br></pre></td><td class="code"><pre><span class="line">openclaw agents list</span><br></pre></td></tr></table></figure>
-
-<p>会显示：ID、名称、工作区、状态。</p>
-<h1 id="四、给-AI-员工-“灵魂”（角色设定）"><a href="#四、给-AI-员工-“灵魂”（角色设定）" class="headerlink" title="四、给 AI 员工 “灵魂”（角色设定）"></a>四、给 AI 员工 “灵魂”（角色设定）</h1><p>每个员工目录下编辑 soul.md（员工手册）：</p>
-<p>运行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line"># 编辑 main 的 soul.md</span><br><span class="line">nano ~/.openclaw/workspace-main/soul.md</span><br></pre></td></tr></table></figure>
-
-<p>示例内容：</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br></pre></td><td class="code"><pre><span class="line">你是团队主管main，统筹任务、分配给researcher/writer/checker，最后汇总输出。</span><br><span class="line">风格：专业、简洁、结果导向。</span><br></pre></td></tr></table></figure>
-
-<p>同理编辑其他员工的 soul.md。</p>
-<h1 id="五、开启多员工协作（关键）"><a href="#五、开启多员工协作（关键）" class="headerlink" title="五、开启多员工协作（关键）"></a>五、开启多员工协作（关键）</h1><p>编辑主配置 ~&#x2F;.openclaw&#x2F;openclaw.json，启用 agentToAgent：</p>
-<figure class="highlight bash"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="string">&quot;tools&quot;</span>: &#123;</span><br><span class="line">  <span class="string">&quot;agentToAgent&quot;</span>: &#123;</span><br><span class="line">    <span class="string">&quot;enabled&quot;</span>: <span class="literal">true</span>,</span><br><span class="line">    <span class="string">&quot;allow&quot;</span>: [<span class="string">&quot;main&quot;</span>, <span class="string">&quot;researcher&quot;</span>, <span class="string">&quot;writer&quot;</span>, <span class="string">&quot;checker&quot;</span>]</span><br><span class="line">  &#125;</span><br><span class="line">&#125;</span><br></pre></td></tr></table></figure>
-
-<p>并在 main 配置中允许调用子员工：</p>
-<figure class="highlight json"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br><span class="line">6</span><br></pre></td><td class="code"><pre><span class="line"><span class="punctuation">&#123;</span></span><br><span class="line">  <span class="attr">&quot;id&quot;</span><span class="punctuation">:</span> <span class="string">&quot;main&quot;</span><span class="punctuation">,</span></span><br><span class="line">  <span class="attr">&quot;subagents&quot;</span><span class="punctuation">:</span> <span class="punctuation">&#123;</span></span><br><span class="line">    <span class="attr">&quot;allowAgents&quot;</span><span class="punctuation">:</span> <span class="punctuation">[</span><span class="string">&quot;researcher&quot;</span><span class="punctuation">,</span> <span class="string">&quot;writer&quot;</span><span class="punctuation">,</span> <span class="string">&quot;checker&quot;</span><span class="punctuation">]</span></span><br><span class="line">  <span class="punctuation">&#125;</span></span><br><span class="line"><span class="punctuation">&#125;</span></span><br></pre></td></tr></table></figure>
-
-<h1 id="六、启动多-AI-员工"><a href="#六、启动多-AI-员工" class="headerlink" title="六、启动多 AI 员工"></a>六、启动多 AI 员工</h1><p>运行</p>
-<figure class="highlight plaintext"><table><tr><td class="gutter"><pre><span class="line">1</span><br><span class="line">2</span><br><span class="line">3</span><br><span class="line">4</span><br><span class="line">5</span><br></pre></td><td class="code"><pre><span class="line"># 启动所有</span><br><span class="line">openclaw multi-agent --start</span><br><span class="line"></span><br><span class="line"># 或只启动部分</span><br><span class="line">openclaw multi-agent --start main writer</span><br></pre></td></tr></table></figure>
-
-<h1 id="七、使用方式"><a href="#七、使用方式" class="headerlink" title="七、使用方式"></a>七、使用方式</h1><ul>
-<li><strong>命令行</strong>：</li>
-<li>bash</li>
-<li>运行</li>
-<li>openclaw chat –agent main “写一篇AI趋势报告”</li>
-<li><strong>主员工自动分工</strong>：main 会派给 researcher 查资料 → writer 撰写 → checker 审核 → 返回结果。</li>
-</ul>
-<h1 id="八、进阶：绑定-IM（Telegram-飞书）"><a href="#八、进阶：绑定-IM（Telegram-飞书）" class="headerlink" title="八、进阶：绑定 IM（Telegram &#x2F; 飞书）"></a>八、进阶：绑定 IM（Telegram &#x2F; 飞书）</h1><p>每个 AI 员工可绑定独立聊天窗口：</p>
-<ol>
-<li>用 @BotFather 创建多个 Bot，获取 Token</li>
-<li>在 openclaw.json 的 channels.telegram.accounts 分别绑定常见问题</li>
-</ol>
-<ul>
-<li><strong>文件冲突</strong>：必须每个员工独立 –workspace</li>
-<li><strong>不能协作</strong>：检查 agentToAgent.enabled: true + allowAgents 配置</li>
-<li><strong>忘记角色</strong>：每个 workspace&#x2F;soul.md 必须写清职责</li>
-</ul>
+  <p>零代码养成攻略：<a target="_blank" rel="noopener" href="https://my.feishu.cn/wiki/Sd9qwSs6CiCidPkBniZcCWeOnDh">https://my.feishu.cn/wiki/Sd9qwSs6CiCidPkBniZcCWeOnDh</a></p>
  
       <!-- reward -->
       
@@ -241,7 +193,7 @@
     <a class="modal-close" href="javascript:;"><i class="ri-close-circle-line"></i></a>
     <p>扫一扫，分享到微信</p>
     <div class="wx-qrcode">
-      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2026/04/22/openclaw%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BA%E5%A4%9A%E4%B8%AAai%E5%91%98%E5%B7%A5/" alt="微信分享二维码">
+      <img src="//api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://example.com/2026/04/24/%E5%85%BB%E8%99%BE%E6%97%A5%E8%AE%B0/" alt="微信分享二维码">
     </div>
 </div>
 
@@ -254,19 +206,10 @@
    
   <nav class="article-nav">
     
-      <a href="/2026/04/24/%E5%85%BB%E8%99%BE%E6%97%A5%E8%AE%B0/" class="article-nav-link">
-        <strong class="article-nav-caption">上一篇</strong>
-        <div class="article-nav-title">
-          
-            养虾日记
-          
-        </div>
-      </a>
     
-    
-      <a href="/2026/04/21/Ubuntu%E7%B3%BB%E7%BB%9F%E4%BF%AE%E6%94%B9SSH%E7%AB%AF%E5%8F%A3%E5%AE%8C%E6%95%B4%E6%93%8D%E4%BD%9C%E6%96%87%E6%A1%A3/" class="article-nav-link">
+      <a href="/2026/04/22/openclaw%E5%A6%82%E4%BD%95%E5%88%9B%E5%BB%BA%E5%A4%9A%E4%B8%AAai%E5%91%98%E5%B7%A5/" class="article-nav-link">
         <strong class="article-nav-caption">下一篇</strong>
-        <div class="article-nav-title">Ubuntu系统修改SSH端口完整操作文档</div>
+        <div class="article-nav-title">openclaw如何创建多个ai员工</div>
       </a>
     
   </nav>
